@@ -50,9 +50,24 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 ### Available Scripts
 
 - `npm run dev` – start the Next.js development server.
-- `npm run build` – create an optimized production build.
+- `npm run build` – generate the Prisma client and create an optimized production build.
 - `npm run start` – start the production server after building.
 - `npm run lint` – run ESLint using the Next.js configuration.
+
+### Deploying to Vercel
+
+Configure these environment variables in your Vercel project settings so the deployment build succeeds and authentication remains functional:
+
+- `DATABASE_URL`
+- `NEXTAUTH_URL`
+- `NEXTAUTH_SECRET`
+- `EMAIL_SERVER_HOST`
+- `EMAIL_SERVER_PORT`
+- `EMAIL_SERVER_USER`
+- `EMAIL_SERVER_PASSWORD`
+- `EMAIL_FROM`
+
+Vercel runs `npm run build` during deployment, which now executes `prisma generate` before `next build` to ensure the Prisma client is available at build time.
 
 ## Project Status
 
