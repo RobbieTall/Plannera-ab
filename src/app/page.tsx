@@ -1,9 +1,14 @@
-import Link from "next/link";
+import Link, { type LinkProps } from "next/link";
 
-const navigation = [
-  { name: "Milestones", href: "#milestones" },
-  { name: "Reports", href: "#reports" },
-  { name: "Playbooks", href: "#playbooks" },
+type NavigationItem = {
+  name: string;
+  href: LinkProps["href"];
+};
+
+const navigation: NavigationItem[] = [
+  { name: "Milestones", href: { pathname: "/", hash: "milestones" } },
+  { name: "Reports", href: { pathname: "/", hash: "reports" } },
+  { name: "Playbooks", href: { pathname: "/", hash: "playbooks" } },
 ];
 
 const features = [
