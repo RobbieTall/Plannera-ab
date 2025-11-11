@@ -1,0 +1,11 @@
+{
+  "extends": ["next", "next/typescript"],
+  "settings": {
+    "next": {
+      "rootDir": ["src/*/"]
+    }
+  },
+  "rules": {
+    "@next/next/no-html-link-for-pages": "off"
+  }
+}
