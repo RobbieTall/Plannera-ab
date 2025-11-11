@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+
+import { authOptions } from "@/lib/auth";
+import { SignOutButton } from "@/components/sign-out-button";
 
 const navigation: { label: string; href: string }[] = [
   { label: "Platform", href: "#platform" },
@@ -24,7 +28,9 @@ const featureHighlights: { title: string; description: string }[] = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
@@ -37,12 +43,28 @@ export default function HomePage() {
               </Link>
             ))}
           </nav>
-          <Link
-            href="mailto:hello@plannera.ai"
-            className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
-          >
-            Request access
-          </Link>
+          <div className="flex items-center gap-3">
+            {session?.user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 sm:inline-flex"
+                >
+                  Dashboard
+                </Link>
+                <SignOutButton className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
+                  Sign out
+                </SignOutButton>
+              </>
+            ) : (
+              <Link
+                href="/signin"
+                className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
+              >
+                Sign in
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -81,6 +103,17 @@ export default function HomePage() {
               <li>Centralise documentation with versioned audit trails.</li>
               <li>Ship submissions faster with AI-accelerated drafting tools.</li>
             </ul>
+            {!session?.user && (
+              <div className="mt-6 rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+                <p className="font-semibold">New to Plannera.ai?</p>
+                <p className="mt-1">
+                  <Link href="/signin" className="font-medium underline">
+                    Sign in
+                  </Link>{" "}
+                  with a one-time magic link to explore the platform.
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

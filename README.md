@@ -7,16 +7,45 @@ AI-powered property development platform that generates council documents, feasi
 - Next.js 14 with the App Router
 - TypeScript
 - Tailwind CSS 3
+- NextAuth.js for passwordless authentication
+- Prisma ORM with a PostgreSQL database
 - ESLint & Prettier defaults from Next.js
 
 ## Getting Started
 
-```bash
-npm install
-npm run dev
-```
+1. Install dependencies:
 
-The development server starts on [http://localhost:3000](http://localhost:3000). The project is configured with the `src/` directory convention and the `@/*` alias for local imports.
+   ```bash
+   npm install
+   ```
+
+2. Configure environment variables by copying `.env.example` to `.env` and filling in the values for:
+
+   - `DATABASE_URL` – PostgreSQL connection string
+   - `NEXTAUTH_URL` – the public base URL of your app (e.g. `http://localhost:3000` in development)
+   - `NEXTAUTH_SECRET` – secret for signing NextAuth cookies/tokens
+   - `EMAIL_SERVER_*` & `EMAIL_FROM` – SMTP credentials for sending magic links
+
+3. Generate the Prisma client and apply the database schema:
+
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   ```
+
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+The app runs on [http://localhost:3000](http://localhost:3000).
+
+### Authentication flows
+
+- Visit `/signin` to request a passwordless magic link.
+- `/dashboard` is protected by middleware and requires an authenticated session.
+- Use the magic-link email sent by NextAuth to sign in; the dashboard displays basic session details and provides a sign-out action.
 
 ### Available Scripts
 
