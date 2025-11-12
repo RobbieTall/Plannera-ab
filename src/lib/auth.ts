@@ -21,7 +21,6 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/signin",
   },
-  trustHost: true,
   providers: [
     EmailProvider({
       name: "Email",
