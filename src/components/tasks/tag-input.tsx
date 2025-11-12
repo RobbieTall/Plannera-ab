@@ -7,9 +7,19 @@ interface TagInputProps {
   tags: string[];
   onChange: (tags: string[]) => void;
   error?: string;
+  label?: string;
+  inputId?: string;
+  helperText?: string;
 }
 
-export function TagInput({ tags, onChange, error }: TagInputProps) {
+export function TagInput({
+  tags,
+  onChange,
+  error,
+  label = "Tags",
+  inputId = "tag-input",
+  helperText = "Use tags to group items by themes, labels, or workflows.",
+}: TagInputProps) {
   const [draft, setDraft] = useState("");
 
   const addTag = (value: string) => {
@@ -36,8 +46,8 @@ export function TagInput({ tags, onChange, error }: TagInputProps) {
 
   return (
     <div className="space-y-2">
-      <label htmlFor="task-tags" className="flex items-center justify-between text-sm font-medium text-slate-700">
-        <span>Tags</span>
+      <label htmlFor={inputId} className="flex items-center justify-between text-sm font-medium text-slate-700">
+        <span>{label}</span>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Optional</span>
       </label>
       <div className="rounded-2xl border border-slate-200 bg-white p-2 transition focus-within:border-slate-900">
@@ -59,7 +69,7 @@ export function TagInput({ tags, onChange, error }: TagInputProps) {
             </span>
           ))}
           <input
-            id="task-tags"
+            id={inputId}
             type="text"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -69,7 +79,7 @@ export function TagInput({ tags, onChange, error }: TagInputProps) {
           />
         </div>
       </div>
-      <p className="text-xs text-slate-500">Use tags to group tasks by themes, labels, or workflows.</p>
+      <p className="text-xs text-slate-500">{helperText}</p>
       {error ? <p className="text-xs font-medium text-rose-600">{error}</p> : null}
     </div>
   );
