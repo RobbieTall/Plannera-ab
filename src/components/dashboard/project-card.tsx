@@ -1,7 +1,7 @@
-import { Users } from "lucide-react";
+import { CalendarDays, Users } from "lucide-react";
 
 import type { Project } from "@/lib/mock-data";
-import { cn, formatDate, getProjectStatusStyles } from "@/lib/utils";
+import { cn, formatDate, getPriorityStyles, getProjectStatusStyles } from "@/lib/utils";
 
 type ProjectCardProps = {
   project: Project;
@@ -9,6 +9,10 @@ type ProjectCardProps = {
 };
 
 export function ProjectCard({ project, variant = "grid" }: ProjectCardProps) {
+  const completedTasks = project.tasks.filter((task) => task.status === "completed").length;
+  const totalTasks = project.tasks.length;
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
   return (
     <article
       className={cn(
@@ -22,6 +26,9 @@ export function ProjectCard({ project, variant = "grid" }: ProjectCardProps) {
             <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold", getProjectStatusStyles(project.status))}>
               {project.status.replace("-", " ")}
             </span>
+            <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold", getPriorityStyles(project.priority))}>
+              {project.priority} priority
+            </span>
             <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
               {formatDate(project.createdAt, { month: "short", day: "numeric" })}
             </span>
@@ -30,6 +37,28 @@ export function ProjectCard({ project, variant = "grid" }: ProjectCardProps) {
             {project.name}
           </h3>
           <p className="mt-2 max-w-xl text-sm text-slate-500">{project.description}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {project.startDate ? formatDate(project.startDate, { month: "short", day: "numeric" }) : "TBD"} –
+              {" "}
+              {project.endDate ? formatDate(project.endDate, { month: "short", day: "numeric" }) : "TBD"}
+            </span>
+          </div>
+          {project.tags.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {project.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-700">
+                  #{tag}
+                </span>
+              ))}
+              {project.tags.length > 3 ? (
+                <span className="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-500">
+                  +{project.tags.length - 3}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-col items-end gap-3">
           <div className="text-right">
@@ -62,8 +91,9 @@ export function ProjectCard({ project, variant = "grid" }: ProjectCardProps) {
             </span>
           ) : null}
         </div>
-        <div className="ml-auto text-sm font-semibold text-slate-900">
-          {project.tasks.length} tasks
+        <div className="ml-auto text-right text-sm text-slate-600">
+          <p className="font-semibold text-slate-900">{totalTasks} task{totalTasks === 1 ? "" : "s"}</p>
+          <p className="text-xs">{completedTasks} completed ({completionRate}%)</p>
         </div>
       </div>
     </article>

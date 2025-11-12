@@ -108,14 +108,14 @@ export function getPriorityStyles(priority: string) {
 
 export function getProjectStatusStyles(status: string) {
   switch (status) {
-    case "on-track":
-      return "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200";
-    case "at-risk":
+    case "active":
+      return "bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-200";
+    case "on-hold":
       return "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200";
-    case "off-track":
-      return "bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-200";
     case "completed":
-      return "bg-slate-900 text-white ring-1 ring-inset ring-slate-900";
+      return "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200";
+    case "archived":
+      return "bg-slate-200 text-slate-600 ring-1 ring-inset ring-slate-300";
     default:
       return "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200";
   }
