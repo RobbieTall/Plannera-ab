@@ -409,7 +409,7 @@ export const tasks: Task[] = [
   },
 ];
 
-const projectMembers: Record<string, TeamMember[]> = {
+const projectMemberIds: Record<string, string[]> = {
   "proj-aurora": ["tm-1", "tm-2", "tm-5", "tm-6"],
   "proj-evergreen": ["tm-6", "tm-7", "tm-9"],
   "proj-harbor": ["tm-2", "tm-6", "tm-8"],
@@ -420,7 +420,8 @@ const projectMembers: Record<string, TeamMember[]> = {
   "proj-heritage": ["tm-1", "tm-8", "tm-9"],
 };
 
-const mapProjectMembers = (ids: string[]) => ids.map((id) => memberById[id]);
+const mapProjectMembers = (ids: string[]): TeamMember[] =>
+  ids.map((id) => memberById[id]).filter((member): member is TeamMember => Boolean(member));
 
 export const projects: Project[] = [
   {
@@ -430,7 +431,7 @@ export const projects: Project[] = [
     status: "on-track",
     progress: 0.72,
     tasks: tasks.filter((task) => task.projectId === "proj-aurora"),
-    teamMembers: mapProjectMembers(projectMembers["proj-aurora"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-aurora"]),
     createdAt: "2024-01-15",
   },
   {
@@ -440,7 +441,7 @@ export const projects: Project[] = [
     status: "at-risk",
     progress: 0.58,
     tasks: tasks.filter((task) => task.projectId === "proj-evergreen"),
-    teamMembers: mapProjectMembers(projectMembers["proj-evergreen"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-evergreen"]),
     createdAt: "2024-02-10",
   },
   {
@@ -450,7 +451,7 @@ export const projects: Project[] = [
     status: "on-track",
     progress: 0.64,
     tasks: tasks.filter((task) => task.projectId === "proj-harbor"),
-    teamMembers: mapProjectMembers(projectMembers["proj-harbor"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-harbor"]),
     createdAt: "2023-12-04",
   },
   {
@@ -460,7 +461,7 @@ export const projects: Project[] = [
     status: "off-track",
     progress: 0.41,
     tasks: tasks.filter((task) => task.projectId === "proj-metro"),
-    teamMembers: mapProjectMembers(projectMembers["proj-metro"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-metro"]),
     createdAt: "2023-11-18",
   },
   {
@@ -470,7 +471,7 @@ export const projects: Project[] = [
     status: "on-track",
     progress: 0.67,
     tasks: tasks.filter((task) => task.projectId === "proj-solaris"),
-    teamMembers: mapProjectMembers(projectMembers["proj-solaris"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-solaris"]),
     createdAt: "2024-03-05",
   },
   {
@@ -480,7 +481,7 @@ export const projects: Project[] = [
     status: "completed",
     progress: 1,
     tasks: tasks.filter((task) => task.projectId === "proj-riverstone"),
-    teamMembers: mapProjectMembers(projectMembers["proj-riverstone"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-riverstone"]),
     createdAt: "2023-07-22",
   },
   {
@@ -490,7 +491,7 @@ export const projects: Project[] = [
     status: "at-risk",
     progress: 0.53,
     tasks: tasks.filter((task) => task.projectId === "proj-skyline"),
-    teamMembers: mapProjectMembers(projectMembers["proj-skyline"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-skyline"]),
     createdAt: "2024-04-16",
   },
   {
@@ -500,7 +501,7 @@ export const projects: Project[] = [
     status: "on-track",
     progress: 0.45,
     tasks: tasks.filter((task) => task.projectId === "proj-heritage"),
-    teamMembers: mapProjectMembers(projectMembers["proj-heritage"]),
+    teamMembers: mapProjectMembers(projectMemberIds["proj-heritage"]),
     createdAt: "2023-10-01",
   },
 ];
