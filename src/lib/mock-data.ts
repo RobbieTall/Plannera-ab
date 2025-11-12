@@ -19,7 +19,9 @@ export interface Task {
   status: TaskStatus;
   dueDate: string;
   projectId: string;
-  assignee: TeamMember;
+  assignee?: TeamMember | null;
+  tags?: string[];
+  estimatedHours?: number | null;
 }
 
 export interface Project {

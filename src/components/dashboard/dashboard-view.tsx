@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlarmClock, BarChart3, Filter, LayoutGrid, Rows3, Search, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlarmClock, BarChart3, Filter, LayoutGrid, Plus, Rows3, Search, Sparkles } from "lucide-react";
 
 import { ProjectCard } from "@/components/dashboard/project-card";
 import { ProjectSkeleton, TaskSkeleton } from "@/components/dashboard/skeletons";
 import { TaskCard } from "@/components/dashboard/task-card";
-import { dateRanges, projects, tasks } from "@/lib/mock-data";
-import type { TaskPriority, TaskStatus } from "@/lib/mock-data";
+import { TaskModal } from "@/components/tasks/task-modal";
+import { DeleteConfirmationModal } from "@/components/tasks/delete-confirmation-modal";
+import { dateRanges, projects, tasks as initialTasks, teamMembers } from "@/lib/mock-data";
+import type { Task, TaskPriority, TaskStatus } from "@/lib/mock-data";
 import { cn, DateRangeFilter, isWithinDateRange } from "@/lib/utils";
+import type { TaskFormValues } from "@/lib/task-form-schema";
 
 const statusOptions: Array<{ label: string; value: "all" | TaskStatus }> = [
   { label: "All statuses", value: "all" },
@@ -27,20 +30,59 @@ const priorityOptions: Array<{ label: string; value: "all" | TaskPriority }> = [
 
 export function DashboardView() {
   const [isLoading, setIsLoading] = useState(true);
+  const [taskList, setTaskList] = useState<Task[]>(() => [...initialTasks]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]["value"]>("all");
   const [priorityFilter, setPriorityFilter] = useState<(typeof priorityOptions)[number]["value"]>("all");
   const [dateFilter, setDateFilter] = useState<DateRangeFilter>("all");
   const [projectView, setProjectView] = useState<"grid" | "list">("grid");
+  const [modalState, setModalState] = useState<{ open: boolean; mode: "create" | "edit"; task: Task | null }>({
+    open: false,
+    mode: "create",
+    task: null,
+  });
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState<{ id: number; message: string; variant: "success" | "error" } | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 600);
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    const id = Date.now();
+    setToast({ id, message, variant });
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast((current) => (current?.id === id ? null : current));
+    }, 3600);
+  }, []);
+
+  const projectList = useMemo(
+    () =>
+      projects.map((project) => ({
+        ...project,
+        tasks: taskList.filter((task) => task.projectId === project.id),
+      })),
+    [taskList],
+  );
+
   const filteredTasks = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return tasks
+    return taskList
       .filter((task) => {
         if (statusFilter !== "all" && task.status !== statusFilter) {
           return false;
@@ -60,11 +102,11 @@ export function DashboardView() {
         );
       })
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  }, [dateFilter, priorityFilter, searchTerm, statusFilter]);
+  }, [dateFilter, priorityFilter, searchTerm, statusFilter, taskList]);
 
   const filteredProjects = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return projects.filter((project) => {
+    return projectList.filter((project) => {
       const matchesSearch = term
         ? project.name.toLowerCase().includes(term) || project.description.toLowerCase().includes(term)
         : true;
@@ -77,21 +119,145 @@ export function DashboardView() {
 
       return matchesSearch && matchesStatus && matchesPriority && matchesDate;
     });
-  }, [dateFilter, priorityFilter, searchTerm, statusFilter]);
+  }, [dateFilter, priorityFilter, projectList, searchTerm, statusFilter]);
 
   const now = useMemo(() => new Date(), []);
-  const activeProjects = projects.filter((project) => project.status !== "completed").length;
-  const completedTasks = tasks.filter((task) => task.status === "completed").length;
-  const overdueTasks = tasks.filter((task) => {
+  const activeProjects = projectList.filter((project) => project.status !== "completed").length;
+  const completedTasks = taskList.filter((task) => task.status === "completed").length;
+  const overdueTasks = taskList.filter((task) => {
     const dueDate = new Date(task.dueDate);
     return dueDate < now && task.status !== "completed";
   }).length;
-  const upcomingMeetings = tasks.filter((task) => isWithinDateRange(task.dueDate, "this-week")).length;
+  const upcomingMeetings = taskList.filter((task) => isWithinDateRange(task.dueDate, "this-week")).length;
 
   const highlightTasks = filteredTasks.slice(0, 6);
 
+  const openCreateModal = () => {
+    setModalState({ open: true, mode: "create", task: null });
+  };
+
+  const openEditModal = (task: Task) => {
+    setModalState({ open: true, mode: "edit", task });
+  };
+
+  const closeModal = () => {
+    setModalState({ open: false, mode: "create", task: null });
+  };
+
+  const scheduleDelete = (task: Task) => {
+    setDeleteTarget(task);
+  };
+
+  const resolveAssignee = (assigneeId: string | null) => {
+    if (!assigneeId) {
+      return null;
+    }
+    return teamMembers.find((member) => member.id === assigneeId) ?? null;
+  };
+
+  const handleSaveTask = async (values: TaskFormValues) => {
+    try {
+      setIsSaving(true);
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+
+      if (modalState.mode === "create") {
+        const newTask: Task = {
+          id: `task-${Date.now()}`,
+          title: values.title,
+          description: values.description,
+          priority: values.priority,
+          status: values.status,
+          dueDate: values.dueDate ?? "",
+          projectId: values.projectId,
+          assignee: resolveAssignee(values.assigneeId),
+          tags: values.tags,
+          estimatedHours: values.estimatedHours,
+        };
+        setTaskList((previous) => [newTask, ...previous]);
+        showToast("Task created successfully");
+      } else if (modalState.mode === "edit" && modalState.task) {
+        setTaskList((previous) =>
+          previous.map((task) =>
+            task.id === modalState.task?.id
+              ? {
+                  ...task,
+                  title: values.title,
+                  description: values.description,
+                  priority: values.priority,
+                  status: values.status,
+                  dueDate: values.dueDate ?? "",
+                  projectId: values.projectId,
+                  assignee: resolveAssignee(values.assigneeId),
+                  tags: values.tags,
+                  estimatedHours: values.estimatedHours,
+                }
+              : task,
+          ),
+        );
+        showToast("Task updated");
+      }
+
+      closeModal();
+    } catch (error) {
+      console.error("Failed to save task", error);
+      showToast("Something went wrong while saving", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      setTaskList((previous) => previous.filter((task) => task.id !== deleteTarget.id));
+      showToast("Task deleted");
+      if (modalState.open && modalState.task?.id === deleteTarget.id) {
+        closeModal();
+      }
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error("Failed to delete task", error);
+      showToast("Unable to delete task", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteTarget(null);
+  };
+
+  const deleteFromModal =
+    modalState.mode === "edit" && modalState.task
+      ? (() => {
+          const taskToDelete = modalState.task;
+          return () => scheduleDelete(taskToDelete);
+        })()
+      : undefined;
+
   return (
     <div className="space-y-10">
+      {toast ? (
+        <div className="pointer-events-none fixed inset-x-0 top-6 z-40 flex justify-center px-4">
+          <div
+            role="status"
+            className={cn(
+              "pointer-events-auto w-full max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
+              toast.variant === "success"
+                ? "border-emerald-200 bg-emerald-50/80 text-emerald-700"
+                : "border-rose-200 bg-rose-50/80 text-rose-600",
+            )}
+          >
+            {toast.message}
+          </div>
+        </div>
+      ) : null}
+
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white px-6 py-8 shadow-sm sm:px-8">
         <div className="absolute inset-y-0 right-0 h-full w-56 bg-gradient-to-b from-slate-900/5 via-slate-900/10 to-slate-900/5 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -211,13 +377,23 @@ export function DashboardView() {
               <h2 className="text-lg font-semibold text-slate-900">Projects</h2>
               <p className="text-sm text-slate-500">Responsive view adapts across breakpoints. Hover any card for quick insight.</p>
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-            >
-              <BarChart3 className="h-4 w-4" />
-              View report
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+              >
+                <BarChart3 className="h-4 w-4" />
+                View report
+              </button>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                <Plus className="h-4 w-4" />
+                Create task
+              </button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -257,13 +433,23 @@ export function DashboardView() {
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
-            <p className="text-sm text-slate-500">Stay ahead of due dates. Filters carry over from the project view.</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
-            Showing {highlightTasks.length} of {filteredTasks.length} tasks
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
+              <p className="text-sm text-slate-500">Stay ahead of due dates. Filters carry over from the project view.</p>
+            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
+              Showing {highlightTasks.length} of {filteredTasks.length} tasks
+            </div>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              <Plus className="h-4 w-4" />
+              New task
+            </button>
           </div>
         </div>
 
@@ -276,7 +462,13 @@ export function DashboardView() {
         ) : highlightTasks.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {highlightTasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onEdit={openEditModal}
+                onDelete={scheduleDelete}
+                projectName={projectList.find((project) => project.id === task.projectId)?.name}
+              />
             ))}
           </div>
         ) : (
@@ -288,6 +480,7 @@ export function DashboardView() {
             </div>
             <button
               type="button"
+              onClick={openCreateModal}
               className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
             >
               Create task
@@ -295,6 +488,27 @@ export function DashboardView() {
           </div>
         )}
       </section>
+
+      <TaskModal
+        open={modalState.open}
+        mode={modalState.mode}
+        task={modalState.task}
+        projects={projectList}
+        teamMembers={teamMembers}
+        isSubmitting={isSaving}
+        onClose={closeModal}
+        onSubmit={handleSaveTask}
+        onDelete={deleteFromModal}
+      />
+
+      <DeleteConfirmationModal
+        open={Boolean(deleteTarget)}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        isLoading={isDeleting}
+        title="Delete this task?"
+        description={<span>Tasks are removed immediately and can’t be recovered later.</span>}
+      />
     </div>
   );
 }
