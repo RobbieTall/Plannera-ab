@@ -23,7 +23,6 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     EmailProvider({
-      name: "Email",
       from: fromAddress,
       sendVerificationRequest: async ({ identifier, url }) => {
         if (!fromAddress || !smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
