@@ -46,6 +46,8 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 - `npm run build` – generate the Prisma client and create an optimized production build.
 - `npm run start` – start the production server after building.
 - `npm run lint` – run ESLint using the Next.js configuration.
+- `npm run legislation:ingest` – load the configured NSW planning instruments into the local database.
+- `npm run legislation:sync` – re-fetch sources and create new clause versions when changes are detected.
 
 ### Deploying to Vercel
 
@@ -141,6 +143,51 @@ Planning logic is decoupled into two files for simple future swaps:
 - `src/lib/mock-planning-data.ts` – council requirement/timeline/budget mocks keyed by location. Replace the in-memory profiles with API calls or database lookups without changing the UI.
 
 `PlanningAssistant` (in `src/components/landing/planning-assistant.tsx`) consumes both helpers, so integrating a real knowledge base only requires swapping the data providers.
+
+## NSW Legislation Service (LEG-01)
+
+The backend NSW legislation service lives under `src/lib/legislation` and powers ingestion, versioning, and querying of planning instruments.
+
+### Data model
+
+- `Instrument` and `Clause` Prisma models capture metadata, clause versions, and search indices (`prisma/schema.prisma`).
+- Each clause record stores the parsed HTML/text, hierarchy path, `contentHash`, timestamps, and a `ClauseSearchIndex` row for lightweight text search.
+
+### Instrument configuration & fixtures
+
+- Source configuration lives in `src/lib/legislation/config.ts`. Each entry defines a slug, names, type, and source URL.
+- Default configs point at deterministic HTML fixtures stored in `scripts/fixtures/legislation/`. Replace the URLs with real NSW legislation endpoints (HTML or JSON) as needed.
+
+### Ingestion & sync
+
+1. Ensure `DATABASE_URL` is set locally (see [Database setup](#database-setup)).
+2. Run `npm run legislation:ingest` for a clean import. This fetches/reads each configured instrument, parses clauses, and stores version `1` rows.
+3. To poll for changes, run `npm run legislation:sync`. The job compares `contentHash` values, creates superseding versions, marks removed clauses as non-current, and updates `Instrument.lastSyncedAt`.
+
+### Query APIs
+
+`src/lib/legislation/service.ts` exposes reusable functions:
+
+- `searchClauses({ query, instrumentSlugs, instrumentTypes, isCurrent })` – ranked free-text search returning clause summaries with `currentAsAt` dates.
+- `getClauseById`/`getClauseByKey` – fetch full clause content plus version metadata.
+- `getApplicableClausesForSite({ address, parcelId?, topic? })` – stub resolver that maps a site to applicable instruments (state-wide SEPPs + inferred LEP) and runs a scoped search.
+
+### Platform integration & HTTP endpoints
+
+- `/api/chat` now enriches every planning summary request with applicable NSW clauses, feeds the snippets into the OpenAI prompt, and returns a `legislation` block alongside the existing `summary` payload so artefact generators and future tools can reuse the same context.
+- `/api/legislation/search` (`POST`) – accepts the same filters as `searchClauses` and returns serialized clause summaries.
+- `/api/legislation/clauses/[clauseId]` (`GET`) – loads a clause (latest version by ID) with HTML/text + version metadata.
+- `/api/legislation/clauses/by-key/[clauseKey]?version=2` (`GET`) – resolves a clause by its canonical key and optional version number.
+- `/api/legislation/applicable` (`POST`) – resolves the instruments for a site/topic and returns the filtered clause set.
+
+All API responses serialize dates to ISO strings, making them safe to consume from browser or server components.
+
+### Adding a new instrument
+
+1. Append a configuration entry in `src/lib/legislation/config.ts` with the slug/name/type and `sourceUrl`.
+2. (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` for deterministic parsing while integrating the live source.
+3. Run `npm run legislation:ingest` or `npm run legislation:sync` to populate the tables.
+4. Use the exported query helpers (or Prisma) to verify the clauses.
 
 ## Workspace + Dashboard Enhancements
 
