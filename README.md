@@ -78,3 +78,21 @@ Initializing fresh AB version with focus on:
 - Robust architecture to avoid fragility
 
 This foundation provides an opinionated landing experience that can be extended into the full Plannera.ai product.
+
+## Landing Experience Updates
+
+The root landing page now showcases the chat-first property development assistant described in the project brief:
+
+- Hero section with AI-focused messaging, large chat input, and curated example prompts.
+- Quick stats strip highlighting DA timeline tracking, document templates, and the consultant directory.
+- Interactive assistant that parses project descriptions, pulls mock council data, and renders requirements, documents, timelines, budgets, and approval hurdles.
+- Sign-up gate that allows a single free exploration before prompting users to create an account for downloads, exports, shares, or adding a second project.
+
+### Mock Data + Parsing
+
+Planning logic is decoupled into two files for simple future swaps:
+
+- `src/lib/project-parser.ts` – lightweight heuristics to extract location, development type, and scale from free-text descriptions. Update the keyword lists or parsing rules here as your use cases expand.
+- `src/lib/mock-planning-data.ts` – council requirement/timeline/budget mocks keyed by location. Replace the in-memory profiles with API calls or database lookups without changing the UI.
+
+`PlanningAssistant` (in `src/components/landing/planning-assistant.tsx`) consumes both helpers, so integrating a real knowledge base only requires swapping the data providers.
