@@ -64,27 +64,35 @@ Vercel runs `npm run build` during deployment, which now executes `prisma genera
 
 ## Database setup
 
-This project uses Prisma with a PostgreSQL database hosted on Vercel. Because the Vercel CLI cannot reach `vercel.com` from the Codespaces-style environment used for this change (`ENETUNREACH`), you must pull the secrets from a network that can reach Vercel.
+This project uses Prisma with a PostgreSQL database hosted on Vercel/Neon. Because `.env*` files are git-ignored, keep sensitive URLs out of commits and source them locally instead.
 
-1. Install/login/link the Vercel CLI locally:
+1. **Retrieve production secrets from Vercel.** From a network that can reach Vercel run:
 
    ```bash
    npm i -g vercel
    vercel login                # follow the browser prompt
    vercel link                 # run inside the repo to link to the Plannera project
+   vercel env pull .env.local  # grabs DATABASE_URL + friends for local use
    ```
 
-2. Pull the production environment variables straight into `.env` (this keeps the canonical `DATABASE_URL` in sync with Vercel):
+   If CLI access is unavailable, copy the `DATABASE_URL` (and optional `DATABASE_URL_UNPOOLED`) directly from **Vercel → Project → Settings → Environment Variables**. The format is `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`.
+
+2. **Store the secrets locally.** The recommended file for local development is `.env.local`:
 
    ```bash
-   vercel env pull .env --environment=production
+   # .env.local (never commit this)
+   DATABASE_URL="postgresql://...pooler.../neondb?sslmode=require"
+   DATABASE_URL_UNPOOLED="postgresql://...primary.../neondb?sslmode=require"
+   PGHOST="ep-...-pooler.ap-southeast-2.aws.neon.tech"
    ```
 
-   If CLI access is unavailable, open **Vercel → Your Project → Settings → Environment Variables → DATABASE_URL** and copy the value in the format `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`. Paste that line into your local `.env` file as `DATABASE_URL="…"`.
+   Prisma automatically reads `.env` and `.env.local`, so no additional wiring is required.
+
+3. **(Optional) expose a direct connection string.** If you prefer to keep the pooled URL in `DATABASE_URL`, set `PRISMA_DIRECT_URL` (or configure `directUrl` in `prisma/schema.prisma`) to point at the non-pooled Neon host for schema pushes/migrations.
 
 ## Prisma workflows
 
-All Prisma commands assume a valid `DATABASE_URL` is present in `.env`.
+All Prisma commands assume a valid `DATABASE_URL` is present in your environment.
 
 - Generate (or re-generate) the Prisma client after schema edits:
 
@@ -92,7 +100,7 @@ All Prisma commands assume a valid `DATABASE_URL` is present in `.env`.
   npx prisma generate
   ```
 
-- Push the schema to the connected database (Vercel Postgres or PlanetScale) without generating a migration:
+- Push the schema to the connected Neon database without generating a migration:
 
   ```bash
   npx prisma db push
@@ -104,7 +112,7 @@ All Prisma commands assume a valid `DATABASE_URL` is present in `.env`.
   npx prisma migrate dev --name descriptive-name
   ```
 
-> **Limitation:** In the execution environment used for this update there is no outbound network access to Vercel Postgres, so `prisma db push` fails with `P1001: Can't reach database server at "localhost:5432"`. Run the command locally (or in CI) after supplying the live `DATABASE_URL` to actually create the tables.
+> **Limitation / manual step:** Outbound traffic to TCP 5432 is blocked from this Codespaces-style environment, so `npx prisma db push` cannot reach the Neon host (`P1001`). Run the same command locally (or in CI) after adding the production `DATABASE_URL` to `.env.local` to materialize the tables. Once the push succeeds you can confirm the tables in Neon via `psql`/Prisma Studio.
 
 ## Project Status
 
