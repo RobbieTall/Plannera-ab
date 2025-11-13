@@ -57,6 +57,14 @@ export function PlanningAssistant() {
     return `${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} weeks`;
   }, [summary]);
 
+  const handleGoToWorkspace = () => {
+    if (!demoWorkspaceProject) {
+      return;
+    }
+    setModalState(null);
+    router.push(`/projects/${demoWorkspaceProject.id}/workspace`);
+  };
+
   const handlePromptSelection = (prompt: string) => {
     setDescription(prompt);
     const gate = canStartProject(demoWorkspaceProject.id);
@@ -87,6 +95,7 @@ export function PlanningAssistant() {
       setSummary(data.summary);
       setErrorMessage(data.error ?? null);
       persistInitialConversation(value, data.summary, options.shouldTrackProject);
+      handleGoToWorkspace();
     } catch (error) {
       console.error(error);
       setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
@@ -94,6 +103,7 @@ export function PlanningAssistant() {
       const fallback = generatePlanningInsights(parsed);
       setSummary(fallback);
       persistInitialConversation(value, fallback, options.shouldTrackProject);
+      handleGoToWorkspace();
     } finally {
       setIsGenerating(false);
     }
@@ -125,14 +135,6 @@ export function PlanningAssistant() {
 
   const handleRestrictedAction = (action: string) => {
     setModalState({ type: "action", context: action });
-  };
-
-  const handleGoToWorkspace = () => {
-    if (!demoWorkspaceProject) {
-      return;
-    }
-    setModalState(null);
-    router.push(`/projects/${demoWorkspaceProject.id}/workspace`);
   };
 
   return (
