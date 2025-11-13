@@ -3,7 +3,6 @@ import { Prisma, type Instrument } from "@prisma/client";
 import { prisma } from "../prisma";
 
 import { INSTRUMENT_CONFIG, getInstrumentConfig } from "./config";
-import { fetchInstrumentDocument, parseInstrumentDocument } from "./parser";
 import { resolveSiteInstruments } from "./site-resolution";
 import type {
   ApplicableClausesResult,
@@ -15,6 +14,14 @@ import type {
 } from "./types";
 
 const DEFAULT_SEARCH_LIMIT = 25;
+let parserModulePromise: Promise<typeof import("./parser")> | null = null;
+
+const loadParserModule = () => {
+  if (!parserModulePromise) {
+    parserModulePromise = import("./parser");
+  }
+  return parserModulePromise;
+};
 
 const buildSnippet = (bodyText: string, query?: string) => {
   if (!query) {
@@ -58,6 +65,7 @@ export const ingestInstrument = async (slug: string) => {
     throw new Error(`Unknown instrument slug: ${slug}`);
   }
 
+  const { fetchInstrumentDocument, parseInstrumentDocument } = await loadParserModule();
   const document = await fetchInstrumentDocument(config.sourceUrl);
   const parsedClauses = parseInstrumentDocument(config, document);
 
@@ -96,6 +104,7 @@ export const ingestInstrument = async (slug: string) => {
 
 const syncInstrumentInternal = async (config: InstrumentConfigType) => {
   const instrument = await upsertInstrument(config);
+  const { fetchInstrumentDocument, parseInstrumentDocument } = await loadParserModule();
   const document = await fetchInstrumentDocument(config.sourceUrl);
   const parsedClauses = parseInstrumentDocument(config, document);
   const now = new Date();

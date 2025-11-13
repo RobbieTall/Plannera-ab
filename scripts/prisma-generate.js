@@ -1,12 +1,41 @@
 #!/usr/bin/env node
-const { existsSync } = require("node:fs");
+const { existsSync, statSync } = require("node:fs");
 const { join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const clientEntry = join(process.cwd(), "node_modules", ".prisma", "client", "default.js");
+const schemaPath = join(process.cwd(), "prisma", "schema.prisma");
 
-if (existsSync(clientEntry)) {
-  console.log(`[build] Prisma client already generated at ${clientEntry}. Skipping prisma generate.`);
+const needsGenerate = (() => {
+  if (!existsSync(clientEntry)) {
+    console.log(`[build] Prisma client not found at ${clientEntry}.`);
+    return true;
+  }
+
+  if (!existsSync(schemaPath)) {
+    return false;
+  }
+
+  try {
+    const clientStat = statSync(clientEntry);
+    const schemaStat = statSync(schemaPath);
+
+    if (schemaStat.mtimeMs > clientStat.mtimeMs) {
+      console.log(
+        `[build] Prisma schema is newer than generated client (${new Date(schemaStat.mtimeMs).toISOString()} > ${new Date(clientStat.mtimeMs).toISOString()}).`,
+      );
+      return true;
+    }
+  } catch (error) {
+    console.warn("[build] Unable to compare Prisma schema/client timestamps, regenerating.", error);
+    return true;
+  }
+
+  return false;
+})();
+
+if (!needsGenerate) {
+  console.log(`[build] Prisma client already generated and up to date at ${clientEntry}. Skipping prisma generate.`);
   process.exit(0);
 }
 
