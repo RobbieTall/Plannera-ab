@@ -41,6 +41,8 @@ export function PlanningAssistant() {
   const [summary, setSummary] = useState<PlanningSummary | null>(null);
   const [hasExplored, setHasExplored] = useState(false);
   const [modalContext, setModalContext] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const timelineLabel = useMemo(() => {
     if (!summary) return null;
@@ -53,17 +55,42 @@ export function PlanningAssistant() {
       setModalContext("add a second project");
       return;
     }
-    createSummary(prompt);
+    void createSummary(prompt);
   };
 
-  const createSummary = (value: string) => {
-    const parsed = parseProjectDescription(value);
-    const generated = generatePlanningInsights(parsed);
-    setSummary(generated);
-    setHasExplored(true);
+  const createSummary = async (value: string) => {
+    setIsGenerating(true);
+    setErrorMessage(null);
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: value }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate planning pathway");
+      }
+
+      const data: { summary: PlanningSummary; error?: string | null } = await response.json();
+      setSummary(data.summary);
+      setHasExplored(true);
+      setErrorMessage(data.error ?? null);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
+      const parsed = parseProjectDescription(value);
+      const fallback = generatePlanningInsights(parsed);
+      setSummary(fallback);
+      setHasExplored(true);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!description.trim()) {
       return;
@@ -72,7 +99,7 @@ export function PlanningAssistant() {
       setModalContext("add a second project");
       return;
     }
-    createSummary(description);
+    await createSummary(description);
   };
 
   const handleRestrictedAction = (action: string) => {
@@ -101,11 +128,17 @@ export function PlanningAssistant() {
               />
               <button
                 type="submit"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-base font-semibold text-slate-900 transition hover:bg-white"
+                disabled={isGenerating}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-base font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Generate planning pathway
-                <Sparkles className="h-4 w-4 text-blue-700" />
+                {isGenerating ? "Generating..." : "Generate planning pathway"}
+                <Sparkles className={`h-4 w-4 text-blue-700 ${isGenerating ? "animate-pulse" : ""}`} />
               </button>
+              {errorMessage && (
+                <p className="text-sm text-amber-200" role="alert">
+                  {errorMessage}
+                </p>
+              )}
             </form>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">Try an example</p>
@@ -113,8 +146,10 @@ export function PlanningAssistant() {
                 {examplePrompts.map((prompt) => (
                   <button
                     key={prompt}
+                    type="button"
                     onClick={() => handlePromptSelection(prompt)}
-                    className="rounded-full border border-white/20 px-4 py-2 text-left text-sm text-white transition hover:border-white/60"
+                    disabled={isGenerating}
+                    className="rounded-full border border-white/20 px-4 py-2 text-left text-sm text-white transition hover:border-white/60 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {prompt}
                   </button>
