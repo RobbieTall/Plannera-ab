@@ -215,8 +215,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [noteTitle, setNoteTitle] = useState("");
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
+  const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
+  const experienceArtefacts = getArtefacts(project.id);
+  const artefacts = useMemo(() => [...seededArtefacts, ...experienceArtefacts], [experienceArtefacts]);
 
   useEffect(() => {
     setSources(initialSources);
@@ -231,6 +234,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       saveChatHistory(project.id, fallbackMessages);
     }
   }, [fallbackMessages, getChatHistory, project.id, saveChatHistory]);
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
 
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
@@ -254,10 +261,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
-        content:
-          contextSnippets.length > 0
-            ? `Got it. I'll reference ${contextSnippets.length} uploaded source${contextSnippets.length === 1 ? "" : "s"} and draft an artefact summarising these points.`
-            : "Noted. I'll keep tracking next steps and can turn this into an artefact whenever you're ready.",
+        content: generateContextualResponse({
+          userMessage: newMessage.content,
+          contextSnippets,
+          teamMembers: project.teamMembers,
+          artefactCount: artefacts.length,
+        }),
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((previous) => {
@@ -352,9 +361,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     }
     showToast(`${tool.name} received the latest chat context`);
   };
-
-  const experienceArtefacts = getArtefacts(project.id);
-  const artefacts = useMemo(() => [...seededArtefacts, ...experienceArtefacts], [experienceArtefacts]);
 
   const handleSaveNote = () => {
     if (!noteTitle.trim()) {
@@ -456,7 +462,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </ul>
         </section>
 
-        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <section className="flex min-h-[560px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:max-h-[720px]">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chat</p>
@@ -479,8 +485,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               </button>
             </div>
           </header>
-          <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            <div className="h-[420px] space-y-4 overflow-y-auto pr-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-6">
+            <div className="flex-1 space-y-4 overflow-y-auto pr-2" role="log" aria-live="polite">
               {messages.map((message) => (
                 <article
                   key={message.id}
@@ -500,6 +506,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
                 </div>
               ) : null}
+              <div ref={messageEndRef} />
             </div>
             <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
               <label htmlFor="chat-input" className="sr-only">
@@ -798,6 +805,52 @@ async function extractContextSnippet(file: File) {
     return text.slice(0, 500);
   }
   return `${file.name} uploaded ${new Date().toLocaleDateString()}`;
+}
+
+function generateContextualResponse({
+  userMessage,
+  contextSnippets,
+  teamMembers,
+  artefactCount,
+}: {
+  userMessage: string;
+  contextSnippets: string[];
+  teamMembers: Project["teamMembers"];
+  artefactCount: number;
+}) {
+  const trimmed = userMessage.trim();
+  const shortened = trimmed.length > 120 ? `${trimmed.slice(0, 117)}…` : trimmed;
+  const lower = trimmed.toLowerCase();
+
+  let intentResponse: string;
+  if (/summari[sz]e|summary|recap/.test(lower)) {
+    intentResponse = `I'll prep a concise summary covering ${shortened || "those points"} and call out the council actions.`;
+  } else if (/risk|issue|block|concern|mitigat/.test(lower)) {
+    intentResponse = `I'll highlight the risks tied to ${shortened || "that"} and suggest mitigation steps.`;
+  } else if (/council|lodg|consent|approval|da/.test(lower)) {
+    intentResponse = `I'll map the council touchpoints for ${shortened || "that request"} so you can brief stakeholders.`;
+  } else if (/timeline|schedule|plan|next|deadline/.test(lower)) {
+    intentResponse = `I'll line up the next steps and timing around ${shortened || "that workstream"}.`;
+  } else if (/share|send|export|report|deck/.test(lower)) {
+    intentResponse = `I'll turn ${shortened || "this"} into an artefact you can circulate.`;
+  } else {
+    intentResponse = `Logged "${shortened || "that"}" so it's threaded with the current pathway.`;
+  }
+
+  const contextDetail = contextSnippets.length
+    ? `I'll reference ${contextSnippets.length} uploaded source${contextSnippets.length === 1 ? "" : "s"} including “${summariseSnippet(
+        contextSnippets[contextSnippets.length - 1],
+      )}”.`
+    : `I'll build from the existing chat context${artefactCount ? ` and ${artefactCount} artefact${artefactCount === 1 ? "" : "s"}` : ""}.`;
+
+  const teamNote = teamMembers.length ? ` ${teamMembers[0].name} will see the update in the workspace feed.` : "";
+
+  return `${intentResponse} ${contextDetail}${teamNote}`.trim();
+}
+
+function summariseSnippet(value: string) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  return cleaned.length > 80 ? `${cleaned.slice(0, 77)}…` : cleaned || "latest context";
 }
 
 function stripHtml(value: string) {
