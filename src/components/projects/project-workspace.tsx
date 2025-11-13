@@ -3,6 +3,7 @@
 import {
   ChangeEvent,
   FormEvent,
+  KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -237,8 +238,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     window.setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const sendMessage = () => {
     if (!input.trim()) return;
     const newMessage: WorkspaceMessage = {
       id: `msg-${Date.now()}`,
@@ -267,6 +267,18 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       });
       setIsThinking(false);
     }, 900);
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    sendMessage();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
   };
 
   const handleRefresh = () => {
@@ -509,6 +521,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 id="chat-input"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
+                onKeyDown={handleKeyDown}
                 rows={3}
                 placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
                 className="w-full resize-none border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0"
