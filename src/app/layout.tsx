@@ -5,6 +5,7 @@ import "./globals.css";
 
 import { authOptions } from "@/lib/auth";
 import { AuthSessionProvider } from "@/components/session-provider";
+import { ExperienceProvider } from "@/components/providers/experience-provider";
 
 export const metadata: Metadata = {
   title: "Plannera.ai",
@@ -21,7 +22,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className="bg-slate-50 text-slate-900 antialiased">
-        <AuthSessionProvider session={session}>{children}</AuthSessionProvider>
+        <AuthSessionProvider session={session}>
+          <ExperienceProvider initialTier={session ? "free" : "anonymous"}>{children}</ExperienceProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );

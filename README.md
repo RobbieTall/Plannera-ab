@@ -141,3 +141,27 @@ Planning logic is decoupled into two files for simple future swaps:
 - `src/lib/mock-planning-data.ts` – council requirement/timeline/budget mocks keyed by location. Replace the in-memory profiles with API calls or database lookups without changing the UI.
 
 `PlanningAssistant` (in `src/components/landing/planning-assistant.tsx`) consumes both helpers, so integrating a real knowledge base only requires swapping the data providers.
+
+## Workspace + Dashboard Enhancements
+
+- **Navigation + Dashboard.** Every workspace now includes a persistent "← My Projects" button that returns to the `/dashboard` overview. The new dashboard lists all mock projects (name, type, location, created date), shows the remaining free project allowance, and links back to the landing page for new project creation.
+- **Single-click project generation.** The landing "Generate planning pathway" button fires immediately, shows a loading indicator, and records the newly generated project/chat history in the shared experience store. Anonymous users see the "You've used your 1 free project" modal if they attempt a second workspace.
+- **Chat persistence.** Initial project descriptions and AI summaries are saved as `WorkspaceMessage[]` via the `ExperienceProvider`. When a workspace loads, the chat panel replays that conversation and keeps it in scope for subsequent prompts.
+- **Free vs paid limits.** Anonymous visitors receive 1 project and 0 uploads. Signed-in free plans unlock 5 uploads and limited tool runs, while Pro (or mocked authenticated) plans have higher caps. The dashboard, sources panel, and modals surface these usage indicators.
+- **Sources & uploads.** The Sources panel enforces upload limits, supports the requested file types (PDF, Word, Excel, JPEG/PNG, email, and GIS formats), parses lightweight context when possible, and feeds that context into chat responses.
+- **Tools & artefacts.** All six tools are marked as Pro with usage gating. Anonymous users are prompted to sign up, free users have limited runs, and Pro unlocks full access. "Save Chat" captures the conversation as a chat artefact, while a rich-text note editor replaces the tools panel when drafting new notes.
+- **Documented state management.** A reusable `ExperienceProvider` (in `src/components/providers/experience-provider.tsx`) tracks project usage, uploads, artefacts, tool runs, and chat history in localStorage so navigation between landing, dashboard, and workspace stays consistent.
+
+### File upload specification
+
+- Allowed types: `.pdf`, `.doc/.docx`, `.xls/.xlsx`, `.csv`, `.jpg/.jpeg/.png`, `.eml/.msg`, `.shp/.kml/.geojson`, `.txt`.
+- Anonymous: 0 uploads, prompted to sign up immediately.
+- Free signed-in: 5 uploads per project (visual counter shown in Sources panel).
+- Pro: 50 uploads per project (configurable in the provider).
+- Each upload stores filename, size, upload date, optional status, and a short context snippet for the AI chat.
+
+### State management
+
+- `ExperienceProvider` wraps the entire app in `src/app/layout.tsx` and persists state to `localStorage`.
+- Exposes helper methods: `canStartProject`, `trackProjectCreation`, `getChatHistory`/`saveChatHistory`, `getUploadUsage`/`recordUpload`, `addArtefact`, `recordToolUsage`, and `appendSourceContext`.
+- Components use the provider to render usage indicators (dashboard, sources), gate modals, hydrate chats, and keep artefacts in sync across routes.
