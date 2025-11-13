@@ -2,9 +2,11 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { ArrowRight, Download, FileText, Share2, Sparkles, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { generatePlanningInsights, PlanningSummary } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
+import { projects } from "@/lib/mock-data";
 
 const examplePrompts = [
   "I want to build 6 townhouses on a 1200sqm block in Bondi",
@@ -36,7 +38,10 @@ const actionButtons = [
   { label: "Share with team", action: "share this plan", icon: Share2 },
 ];
 
+const demoWorkspaceProject = projects.find((project) => project.id === "proj-aurora") ?? projects[0];
+
 export function PlanningAssistant() {
+  const router = useRouter();
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState<PlanningSummary | null>(null);
   const [hasExplored, setHasExplored] = useState(false);
@@ -104,6 +109,14 @@ export function PlanningAssistant() {
 
   const handleRestrictedAction = (action: string) => {
     setModalContext(action);
+  };
+
+  const handleGoToWorkspace = () => {
+    if (!demoWorkspaceProject) {
+      return;
+    }
+    setModalContext(null);
+    router.push(`/projects/${demoWorkspaceProject.id}/workspace`);
   };
 
   return (
@@ -240,6 +253,22 @@ export function PlanningAssistant() {
               </div>
             </div>
           </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Continue in the project workspace</p>
+              <p className="text-sm text-slate-600">
+                Chat, upload sources and run agents in a NotebookLM-style layout tailored for {summary.location}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGoToWorkspace}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Continue exploring in workspace
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-600">
@@ -269,7 +298,7 @@ export function PlanningAssistant() {
               </a>
               <button
                 type="button"
-                onClick={() => setModalContext(null)}
+                onClick={handleGoToWorkspace}
                 className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
               >
                 Continue exploring
