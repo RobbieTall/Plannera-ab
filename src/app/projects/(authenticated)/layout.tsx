@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 import { AuthenticatedAppLayout } from "@/components/layouts/authenticated-app-layout";
 
-type AuthenticatedLayoutProps = {
+type ProjectsAuthenticatedLayoutProps = {
   children: ReactNode;
 };
 
-export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
+export default function ProjectsAuthenticatedLayout({ children }: ProjectsAuthenticatedLayoutProps) {
   return <AuthenticatedAppLayout>{children}</AuthenticatedAppLayout>;
 }
