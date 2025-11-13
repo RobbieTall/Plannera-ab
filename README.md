@@ -21,19 +21,12 @@ AI-powered property development platform that generates council documents, feasi
 
 2. Configure environment variables by copying `.env.example` to `.env` and filling in the values for:
 
-   - `DATABASE_URL` – PostgreSQL connection string
+   - `DATABASE_URL` – PostgreSQL connection string (see the [Database setup](#database-setup) section for the exact retrieval steps)
    - `NEXTAUTH_URL` – the public base URL of your app (e.g. `http://localhost:3000` in development)
    - `NEXTAUTH_SECRET` – secret for signing NextAuth cookies/tokens
    - `EMAIL_SERVER_*` & `EMAIL_FROM` – SMTP credentials for sending magic links
 
-3. Generate the Prisma client and apply the database schema:
-
-   ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-
-4. Start the development server:
+3. Start the development server:
 
    ```bash
    npm run dev
@@ -68,6 +61,50 @@ Configure these environment variables in your Vercel project settings so the dep
 - `EMAIL_FROM`
 
 Vercel runs `npm run build` during deployment, which now executes `prisma generate` before `next build` to ensure the Prisma client is available at build time.
+
+## Database setup
+
+This project uses Prisma with a PostgreSQL database hosted on Vercel. Because the Vercel CLI cannot reach `vercel.com` from the Codespaces-style environment used for this change (`ENETUNREACH`), you must pull the secrets from a network that can reach Vercel.
+
+1. Install/login/link the Vercel CLI locally:
+
+   ```bash
+   npm i -g vercel
+   vercel login                # follow the browser prompt
+   vercel link                 # run inside the repo to link to the Plannera project
+   ```
+
+2. Pull the production environment variables straight into `.env` (this keeps the canonical `DATABASE_URL` in sync with Vercel):
+
+   ```bash
+   vercel env pull .env --environment=production
+   ```
+
+   If CLI access is unavailable, open **Vercel → Your Project → Settings → Environment Variables → DATABASE_URL** and copy the value in the format `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`. Paste that line into your local `.env` file as `DATABASE_URL="…"`.
+
+## Prisma workflows
+
+All Prisma commands assume a valid `DATABASE_URL` is present in `.env`.
+
+- Generate (or re-generate) the Prisma client after schema edits:
+
+  ```bash
+  npx prisma generate
+  ```
+
+- Push the schema to the connected database (Vercel Postgres or PlanetScale) without generating a migration:
+
+  ```bash
+  npx prisma db push
+  ```
+
+- For local Postgres instances or if you need repeatable migrations, use:
+
+  ```bash
+  npx prisma migrate dev --name descriptive-name
+  ```
+
+> **Limitation:** In the execution environment used for this update there is no outbound network access to Vercel Postgres, so `prisma db push` fails with `P1001: Can't reach database server at "localhost:5432"`. Run the command locally (or in CI) after supplying the live `DATABASE_URL` to actually create the tables.
 
 ## Project Status
 
