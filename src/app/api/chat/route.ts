@@ -5,8 +5,14 @@ import { z } from "zod";
 import { generatePlanningInsights, type PlanningSummary } from "@/lib/mock-planning-data";
 import { parseProjectDescription, type ProjectParameters } from "@/lib/project-parser";
 
+const messageSchema = z.object({
+  role: z.enum(["system", "user", "assistant"]),
+  content: z.string().min(1),
+});
+
 const requestSchema = z.object({
   prompt: z.string().min(10, "Describe your project in a bit more detail."),
+  history: z.array(messageSchema).optional(),
 });
 
 const summarySchema = z.object({
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
   let parsedProject: ProjectParameters | null = null;
   try {
     const body = await request.json();
-    const { prompt } = requestSchema.parse(body);
+    const { prompt, history } = requestSchema.parse(body);
     promptValue = prompt;
 
     parsedProject = parseProjectDescription(prompt);
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const historyMessages = history?.map((entry) => ({ role: entry.role, content: entry.content })) ?? [];
+
     const completion = await openaiClient.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.2,
@@ -53,6 +61,7 @@ export async function POST(request: Request) {
           content:
             "You are an Australian town-planning assistant. Respond ONLY with JSON that matches the PlanningSummary schema.",
         },
+        ...historyMessages,
         {
           role: "user",
           content: [

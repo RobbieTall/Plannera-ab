@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import { generatePlanningInsights, PlanningSummary } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
 import { projects } from "@/lib/mock-data";
+import { useExperience } from "@/components/providers/experience-provider";
+import { Modal } from "@/components/ui/modal";
+import type { WorkspaceMessage } from "@/types/workspace";
 
 const examplePrompts = [
   "I want to build 6 townhouses on a 1200sqm block in Bondi",
@@ -42,10 +45,10 @@ const demoWorkspaceProject = projects.find((project) => project.id === "proj-aur
 
 export function PlanningAssistant() {
   const router = useRouter();
+  const { canStartProject, trackProjectCreation, saveChatHistory, getChatHistory } = useExperience();
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState<PlanningSummary | null>(null);
-  const [hasExplored, setHasExplored] = useState(false);
-  const [modalContext, setModalContext] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<{ type: "limit" | "action"; context?: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -56,14 +59,15 @@ export function PlanningAssistant() {
 
   const handlePromptSelection = (prompt: string) => {
     setDescription(prompt);
-    if (hasExplored) {
-      setModalContext("add a second project");
+    const gate = canStartProject(demoWorkspaceProject.id);
+    if (!gate.allowed) {
+      setModalState({ type: "limit" });
       return;
     }
-    void createSummary(prompt);
+    void createSummary(prompt, { shouldTrackProject: !gate.alreadyTracked });
   };
 
-  const createSummary = async (value: string) => {
+  const createSummary = async (value: string, options: { shouldTrackProject: boolean }) => {
     setIsGenerating(true);
     setErrorMessage(null);
     try {
@@ -72,7 +76,7 @@ export function PlanningAssistant() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: value }),
+        body: JSON.stringify({ prompt: value, history: getChatHistory(demoWorkspaceProject.id) }),
       });
 
       if (!response.ok) {
@@ -81,17 +85,25 @@ export function PlanningAssistant() {
 
       const data: { summary: PlanningSummary; error?: string | null } = await response.json();
       setSummary(data.summary);
-      setHasExplored(true);
       setErrorMessage(data.error ?? null);
+      persistInitialConversation(value, data.summary, options.shouldTrackProject);
     } catch (error) {
       console.error(error);
       setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
       const parsed = parseProjectDescription(value);
       const fallback = generatePlanningInsights(parsed);
       setSummary(fallback);
-      setHasExplored(true);
+      persistInitialConversation(value, fallback, options.shouldTrackProject);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const persistInitialConversation = (promptValue: string, generatedSummary: PlanningSummary, shouldTrack: boolean) => {
+    const messages = buildInitialConversation(promptValue, generatedSummary);
+    saveChatHistory(demoWorkspaceProject.id, messages);
+    if (shouldTrack) {
+      trackProjectCreation(demoWorkspaceProject.id, messages);
     }
   };
 
@@ -100,22 +112,26 @@ export function PlanningAssistant() {
     if (!description.trim()) {
       return;
     }
-    if (hasExplored && summary) {
-      setModalContext("add a second project");
+    if (isGenerating) {
       return;
     }
-    await createSummary(description);
+    const gate = canStartProject(demoWorkspaceProject.id);
+    if (!gate.allowed) {
+      setModalState({ type: "limit" });
+      return;
+    }
+    await createSummary(description, { shouldTrackProject: !gate.alreadyTracked });
   };
 
   const handleRestrictedAction = (action: string) => {
-    setModalContext(action);
+    setModalState({ type: "action", context: action });
   };
 
   const handleGoToWorkspace = () => {
     if (!demoWorkspaceProject) {
       return;
     }
-    setModalContext(null);
+    setModalState(null);
     router.push(`/projects/${demoWorkspaceProject.id}/workspace`);
   };
 
@@ -280,33 +296,34 @@ export function PlanningAssistant() {
         </div>
       )}
 
-      {modalContext && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <p className="text-sm font-semibold text-blue-600">Create a free workspace</p>
-            <h3 className="mt-2 text-2xl font-semibold text-slate-900">Sign up to {modalContext}</h3>
-            <p className="mt-3 text-sm text-slate-600">
-              You can explore one project without an account. To {modalContext}, create a Plannera workspace and unlock
-              downloads, exports and consultant invitations.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="/signin"
-                className="flex-1 rounded-full bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Sign up free
-              </a>
-              <button
-                type="button"
-                onClick={handleGoToWorkspace}
-                className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
-              >
-                Continue exploring
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={Boolean(modalState)}
+        onClose={() => setModalState(null)}
+        title={modalState?.type === "limit" ? "You've used your 1 free project" : `Sign up to ${modalState?.context ?? "continue"}`}
+        description={
+          modalState?.type === "limit"
+            ? "Create a Plannera account to unlock unlimited projects, uploads, and premium tools."
+            : modalState
+              ? `You can explore one project without an account. To ${modalState.context}, create a Plannera workspace and unlock downloads, exports and consultant invitations.`
+              : ""
+        }
+      >
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <a
+            href="/signin"
+            className="flex-1 rounded-full bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Sign up free
+          </a>
+          <button
+            type="button"
+            onClick={handleGoToWorkspace}
+            className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+          >
+            Continue exploring
+          </button>
         </div>
-      )}
+      </Modal>
     </section>
   );
 }
@@ -330,4 +347,29 @@ function InsightCard({ title, items }: InsightCardProps) {
       </ul>
     </div>
   );
+}
+
+function buildInitialConversation(description: string, summary: PlanningSummary): WorkspaceMessage[] {
+  const now = new Date();
+  const baseTimestamp = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return [
+    {
+      id: `seed-${now.getTime()}-user`,
+      role: "user",
+      content: description.trim(),
+      timestamp: baseTimestamp,
+    },
+    {
+      id: `seed-${now.getTime()}-assistant`,
+      role: "assistant",
+      content: formatSummaryMessage(summary),
+      timestamp: new Date(now.getTime() + 60_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    },
+  ];
+}
+
+function formatSummaryMessage(summary: PlanningSummary) {
+  return `Here's the initial view for ${summary.developmentType} in ${summary.location}. Expect a ${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} week path, budget of ${summary.budgetRange}, and focus on ${summary.requirements.slice(0, 2).join(
+    " and "
+  )}. I'll prep artefacts once we open the workspace.`;
 }
