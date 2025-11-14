@@ -13,6 +13,8 @@ const LOCATION_ALIASES: Record<string, string> = {
   victoria: "Melbourne",
   queensland: "Brisbane",
   nsw: "Sydney",
+  ballina: "Ballina",
+  "ballina lga": "Ballina",
 };
 
 const DEVELOPMENT_KEYWORDS: { keyword: RegExp; label: string }[] = [
