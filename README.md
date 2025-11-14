@@ -157,7 +157,7 @@ The backend NSW legislation service lives under `src/lib/legislation` and powers
 
 ### Instrument configuration & fixtures
 
-- Instrument sources now live in `src/lib/legislation/instruments.json`. Each object defines the slug, display names, instrument type, jurisdiction, canonical NSW legislation URL, optional topics, and a `fixtureFile` used for deterministic development runs.
+- Instrument sources now live in `src/lib/legislation/instruments.json`. Each object defines the slug, display names, instrument type, jurisdiction, canonical NSW legislation URL, optional topics, and a `fixtureFile` used for deterministic development runs. The default bundle now covers the EPA Act + Regulation, the Housing, Biodiversity, Industry & Employment, Primary Production, Resilience, and Transport SEPPs, plus LEPs for Ballina, Byron, Kempsey, Lismore, Clarence Valley, Coffs Harbour, and the City of Sydney so the shared ingestion path sees a representative sample of NSW councils from day one.
 - `src/lib/legislation/config.ts` loads that JSON at runtime, normalises the paths, and exposes helper getters used by the ingestion and sync jobs. The default list includes the EPA Act 1979, EPA Regulation 2021, SEPP Housing 2021, Ballina LEP 2012, and the Sydney LEP 2012 so we cover Acts, Regulations, SEPPs and LEPs out of the box.
 - Deterministic HTML fixtures continue to live under `scripts/fixtures/legislation/`. Set `LEGISLATION_USE_FIXTURES=true` when running the ingestion or sync scripts to force the fetcher to use these files instead of the live NSW endpoint (helpful in CI or when the public site is unreachable).
 
@@ -187,10 +187,12 @@ All API responses serialize dates to ISO strings, making them safe to consume fr
 
 ### Adding a new instrument
 
-1. Append a JSON object to `src/lib/legislation/instruments.json` with the slug, names, `instrumentType`, canonical NSW legislation URL, and optional `clausePrefix`, `topics`, or `fixtureFile`.
-2. (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` and point `fixtureFile` at it so local runs stay deterministic.
-3. Run `npm run legislation:ingest` or `npm run legislation:sync` to populate the tables.
-4. Use the exported query helpers (or Prisma) to verify the clauses.
+Because coverage is config-driven, adding another NSW instrument later is a data-only change:
+
+- Append a JSON object to `src/lib/legislation/instruments.json` with the slug, names, `instrumentType`, canonical NSW legislation URL, and optional `clausePrefix`, `topics`, or `fixtureFile`.
+- (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` and point `fixtureFile` at it so local runs stay deterministic.
+- Run `npm run legislation:ingest` to import the new instrument for the first time, or `npm run legislation:sync` after that to keep all configured instruments current.
+- Use the exported query helpers (or Prisma) to verify the clauses.
 
 ## NSW Planning data feeds (DATA-02)
 

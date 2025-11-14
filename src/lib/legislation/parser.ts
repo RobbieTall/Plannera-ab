@@ -4,11 +4,12 @@ import { parse, type HTMLElement } from "node-html-parser";
 import type { InstrumentConfig, ParsedClause } from "./types";
 
 const headingTagNames = new Set(["H1", "H2", "H3", "H4", "H5", "H6"]);
-const headingClassPattern = /(heading|title|part|division|schedule)/i;
+const headingClassPattern = /(heading|title|chapter|part|division|schedule)/i;
 const partPattern = /^part\s+(.+)$/i;
 const divisionPattern = /^division\s+(.+)$/i;
 const subdivisionPattern = /^subdivision\s+(.+)$/i;
 const schedulePattern = /^schedule\s+(.+)$/i;
+const chapterPattern = /^chapter\s+(.+)$/i;
 const clausePattern = /^(clause|section)\s+([0-9A-Za-z.\-]+)(.*)$/i;
 const bareNumberPattern = /^((?:\d+[A-Za-z]?)(?:\.\d+[A-Za-z]?)*)(.*)$/;
 
@@ -48,6 +49,7 @@ const extractClauseBody = (heading: HTMLElement) => {
 };
 
 interface HeadingContext {
+  chapter: string | null;
   part: string | null;
   division: string | null;
   subdivision: string | null;
@@ -55,6 +57,7 @@ interface HeadingContext {
 }
 
 const initialContext: HeadingContext = {
+  chapter: null,
   part: null,
   division: null,
   subdivision: null,
@@ -101,6 +104,9 @@ const buildHierarchyPath = (context: HeadingContext, clauseLabel: string) => {
   if (context.schedule) {
     segments.push(context.schedule);
   } else {
+    if (context.chapter) {
+      segments.push(context.chapter);
+    }
     if (context.part) {
       segments.push(context.part);
     }
@@ -116,6 +122,22 @@ const buildHierarchyPath = (context: HeadingContext, clauseLabel: string) => {
 };
 
 const updateContextForHeading = (context: HeadingContext, text: string) => {
+  if (schedulePattern.test(text)) {
+    context.schedule = text;
+    context.chapter = null;
+    context.part = null;
+    context.division = null;
+    context.subdivision = null;
+    return true;
+  }
+  if (chapterPattern.test(text)) {
+    context.chapter = text;
+    context.part = null;
+    context.division = null;
+    context.subdivision = null;
+    context.schedule = null;
+    return true;
+  }
   if (partPattern.test(text)) {
     context.part = text;
     context.division = null;
@@ -132,13 +154,6 @@ const updateContextForHeading = (context: HeadingContext, text: string) => {
   if (subdivisionPattern.test(text)) {
     context.subdivision = text;
     context.schedule = null;
-    return true;
-  }
-  if (schedulePattern.test(text)) {
-    context.schedule = text;
-    context.part = null;
-    context.division = null;
-    context.subdivision = null;
     return true;
   }
   return false;
