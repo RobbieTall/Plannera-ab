@@ -1,84 +1,205 @@
 import { createHash } from "crypto";
-import fs from "fs/promises";
-import { parse } from "node-html-parser";
-import { fileURLToPath } from "url";
+import { parse, type HTMLElement } from "node-html-parser";
 
 import type { InstrumentConfig, ParsedClause } from "./types";
 
-const isHeading = (nodeName: string) => /^h[1-6]$/i.test(nodeName);
+const headingTagNames = new Set(["H1", "H2", "H3", "H4", "H5", "H6"]);
+const headingClassPattern = /(heading|title|part|division|schedule)/i;
+const partPattern = /^part\s+(.+)$/i;
+const divisionPattern = /^division\s+(.+)$/i;
+const subdivisionPattern = /^subdivision\s+(.+)$/i;
+const schedulePattern = /^schedule\s+(.+)$/i;
+const clausePattern = /^(clause|section)\s+([0-9A-Za-z.\-]+)(.*)$/i;
+const bareNumberPattern = /^((?:\d+[A-Za-z]?)(?:\.\d+[A-Za-z]?)*)(.*)$/;
 
-const normaliseClauseText = (text: string) => text.replace(/\s+/g, " ").trim();
+const normaliseWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
 
-const buildClauseKey = (config: InstrumentConfig, headingText: string) => {
-  const normalised = normaliseClauseText(headingText)
-    .replace(/[^\w\d]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toUpperCase();
-  const prefix = config.clausePrefix ?? config.slug.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
-  return `${prefix}_${normalised}`;
+const computeHash = (value: string) => createHash("sha256").update(value).digest("hex");
+
+const isHeadingElement = (element: HTMLElement) => {
+  if (headingTagNames.has(element.tagName)) {
+    return true;
+  }
+  const role = element.getAttribute("role");
+  if (role && role.toLowerCase() === "heading") {
+    return true;
+  }
+  const className = element.getAttribute("class");
+  return Boolean(className && headingClassPattern.test(className));
 };
 
-const computeHash = (value: string) =>
-  createHash("sha256")
-    .update(value)
-    .digest("hex");
-
-const buildClauseBody = (heading: ReturnType<typeof parse>) => {
-  const fragments: string[] = [heading.toString()];
-  const textFragments: string[] = [heading.text];
-
+const extractClauseBody = (heading: HTMLElement) => {
+  const fragments: string[] = [];
+  const textFragments: string[] = [];
   let pointer = heading.nextElementSibling;
-  while (pointer && !isHeading(pointer.tagName)) {
+  while (pointer) {
+    if (isHeadingElement(pointer as HTMLElement)) {
+      break;
+    }
     fragments.push(pointer.toString());
     textFragments.push(pointer.text);
     pointer = pointer.nextElementSibling;
   }
 
   return {
-    html: fragments.join("\n"),
-    text: normaliseClauseText(textFragments.join(" ")),
+    html: fragments.join("\n").trim(),
+    text: normaliseWhitespace(textFragments.join(" ")),
   };
 };
 
-const extractHierarchy = (headingText: string): string[] => {
-  const components = headingText.split(/-|–|\u2014/).map((part) => normaliseClauseText(part));
-  return components.filter(Boolean);
+interface HeadingContext {
+  part: string | null;
+  division: string | null;
+  subdivision: string | null;
+  schedule: string | null;
+}
+
+const initialContext: HeadingContext = {
+  part: null,
+  division: null,
+  subdivision: null,
+  schedule: null,
 };
 
-export const fetchInstrumentDocument = async (sourceUrl: string) => {
-  if (sourceUrl.startsWith("file://")) {
-    const filePath = fileURLToPath(sourceUrl);
-    return fs.readFile(filePath, "utf-8");
+interface ClauseHeading {
+  clauseNumber: string | null;
+  clauseTitle: string;
+  clauseLabel: string;
+}
+
+const parseClauseHeading = (text: string): ClauseHeading | null => {
+  const clauseMatch = text.match(clausePattern);
+  if (clauseMatch) {
+    const clauseNumber = clauseMatch[2];
+    const remainder = normaliseWhitespace(clauseMatch[3] ?? "");
+    const clauseTitle = normaliseWhitespace([clauseNumber, remainder].filter(Boolean).join(" "));
+    const clauseLabel = `${clauseMatch[1].replace(/^\w/, (c) => c.toUpperCase())} ${clauseNumber}`;
+    return { clauseNumber, clauseTitle, clauseLabel };
   }
 
-  const response = await fetch(sourceUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch instrument from ${sourceUrl}: ${response.status} ${response.statusText}`);
+  const bareMatch = text.match(bareNumberPattern);
+  if (bareMatch) {
+    const clauseNumber = bareMatch[1];
+    const remainder = normaliseWhitespace(bareMatch[2] ?? "");
+    const clauseTitle = normaliseWhitespace([clauseNumber, remainder].filter(Boolean).join(" "));
+    const clauseLabel = `Clause ${clauseNumber}`;
+    return { clauseNumber, clauseTitle, clauseLabel };
   }
 
-  return response.text();
+  return null;
 };
 
-export const parseInstrumentDocument = (config: InstrumentConfig, document: string): ParsedClause[] => {
-  const root = parse(document);
-  const headings = root.querySelectorAll("h2, h3, h4");
+const buildClauseKey = (config: InstrumentConfig, clauseHeading: ClauseHeading) => {
+  const prefix = config.clausePrefix ?? config.slug.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase();
+  const identifierSource = clauseHeading.clauseNumber ?? clauseHeading.clauseTitle;
+  const identifier = identifierSource.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return `${prefix}_${identifier}`.toUpperCase();
+};
+
+const buildHierarchyPath = (context: HeadingContext, clauseLabel: string) => {
+  const segments: string[] = [];
+  if (context.schedule) {
+    segments.push(context.schedule);
+  } else {
+    if (context.part) {
+      segments.push(context.part);
+    }
+    if (context.division) {
+      segments.push(context.division);
+    }
+    if (context.subdivision) {
+      segments.push(context.subdivision);
+    }
+  }
+  segments.push(clauseLabel);
+  return segments;
+};
+
+const updateContextForHeading = (context: HeadingContext, text: string) => {
+  if (partPattern.test(text)) {
+    context.part = text;
+    context.division = null;
+    context.subdivision = null;
+    context.schedule = null;
+    return true;
+  }
+  if (divisionPattern.test(text)) {
+    context.division = text;
+    context.subdivision = null;
+    context.schedule = null;
+    return true;
+  }
+  if (subdivisionPattern.test(text)) {
+    context.subdivision = text;
+    context.schedule = null;
+    return true;
+  }
+  if (schedulePattern.test(text)) {
+    context.schedule = text;
+    context.part = null;
+    context.division = null;
+    context.subdivision = null;
+    return true;
+  }
+  return false;
+};
+
+const findContentRoot = (html: string) => {
+  const document = parse(html);
+  const selectors = [
+    "main#content",
+    "main#viewLegislation",
+    "#viewLegislation",
+    "#legislation",
+    "article.legislation-body",
+    "article",
+    "body",
+  ];
+
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (node) {
+      return node as HTMLElement;
+    }
+  }
+
+  return document as unknown as HTMLElement;
+};
+
+export const parseInstrumentDocument = (config: InstrumentConfig, html: string): ParsedClause[] => {
+  const contentRoot = findContentRoot(html);
+  const headingNodes = contentRoot.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, section");
+  const context: HeadingContext = { ...initialContext };
   const clauses: ParsedClause[] = [];
 
-  headings.forEach((heading) => {
-    const headingText = normaliseClauseText(heading.text);
+  headingNodes.forEach((node) => {
+    const element = node as HTMLElement;
+    if (!isHeadingElement(element)) {
+      return;
+    }
+
+    const headingText = normaliseWhitespace(element.text);
     if (!headingText) {
       return;
     }
 
-    const clauseKey = buildClauseKey(config, headingText);
-    const { html, text } = buildClauseBody(heading);
+    if (updateContextForHeading(context, headingText)) {
+      return;
+    }
+
+    const clauseHeading = parseClauseHeading(headingText);
+    if (!clauseHeading) {
+      return;
+    }
+
+    const { html: bodyHtml, text: bodyText } = extractClauseBody(element);
     const clause: ParsedClause = {
-      clauseKey,
-      title: headingText,
-      bodyHtml: html,
-      bodyText: text,
-      hierarchyPath: extractHierarchy(headingText),
-      contentHash: computeHash(text),
+      clauseKey: buildClauseKey(config, clauseHeading),
+      title: clauseHeading.clauseTitle,
+      bodyHtml,
+      bodyText,
+      hierarchyPath: buildHierarchyPath(context, clauseHeading.clauseLabel),
+      contentHash: computeHash(bodyText),
     };
     clauses.push(clause);
   });

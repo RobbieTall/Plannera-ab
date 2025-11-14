@@ -15,12 +15,20 @@ import type {
 
 const DEFAULT_SEARCH_LIMIT = 25;
 let parserModulePromise: Promise<typeof import("./parser")> | null = null;
+let fetcherModulePromise: Promise<typeof import("./fetcher")> | null = null;
 
 const loadParserModule = () => {
   if (!parserModulePromise) {
     parserModulePromise = import("./parser");
   }
   return parserModulePromise;
+};
+
+const loadFetcherModule = () => {
+  if (!fetcherModulePromise) {
+    fetcherModulePromise = import("./fetcher");
+  }
+  return fetcherModulePromise;
 };
 
 const buildSnippet = (bodyText: string, query?: string) => {
@@ -65,9 +73,12 @@ export const ingestInstrument = async (slug: string) => {
     throw new Error(`Unknown instrument slug: ${slug}`);
   }
 
-  const { fetchInstrumentDocument, parseInstrumentDocument } = await loadParserModule();
-  const document = await fetchInstrumentDocument(config.sourceUrl);
-  const parsedClauses = parseInstrumentDocument(config, document);
+  const [{ parseInstrumentDocument }, { fetchInstrumentHtml }] = await Promise.all([
+    loadParserModule(),
+    loadFetcherModule(),
+  ]);
+  const fetchResult = await fetchInstrumentHtml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.html);
 
   const instrument = await upsertInstrument(config);
 
@@ -85,7 +96,7 @@ export const ingestInstrument = async (slug: string) => {
             hierarchyPath: clause.hierarchyPath,
             version: 1,
             isCurrent: true,
-            retrievedAt: new Date(),
+            retrievedAt: fetchResult.fetchedAt,
             contentHash: clause.contentHash,
             searchIndex: { create: { bodyText: clause.bodyText } },
           },
@@ -96,7 +107,7 @@ export const ingestInstrument = async (slug: string) => {
 
   const updatedInstrument = await prisma.instrument.update({
     where: { id: instrument.id },
-    data: { lastSyncedAt: new Date() },
+    data: { lastSyncedAt: fetchResult.fetchedAt },
   });
 
   return { instrument: updatedInstrument, clauseCount: parsedClauses.length };
@@ -104,10 +115,13 @@ export const ingestInstrument = async (slug: string) => {
 
 const syncInstrumentInternal = async (config: InstrumentConfigType) => {
   const instrument = await upsertInstrument(config);
-  const { fetchInstrumentDocument, parseInstrumentDocument } = await loadParserModule();
-  const document = await fetchInstrumentDocument(config.sourceUrl);
-  const parsedClauses = parseInstrumentDocument(config, document);
-  const now = new Date();
+  const [{ parseInstrumentDocument }, { fetchInstrumentHtml }] = await Promise.all([
+    loadParserModule(),
+    loadFetcherModule(),
+  ]);
+  const fetchResult = await fetchInstrumentHtml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.html);
+  const now = fetchResult.fetchedAt;
   const currentClauses = await prisma.clause.findMany({
     where: { instrumentId: instrument.id, isCurrent: true },
   });
