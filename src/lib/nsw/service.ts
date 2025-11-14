@@ -12,6 +12,12 @@ import type {
   WaterInsight,
 } from "./types";
 
+type DatasetResult<T extends NswDatasetSlug> = T extends "property"
+  ? PropertyInsight[]
+  : T extends "water"
+    ? WaterInsight[]
+    : TradeInsight[];
+
 const fetchDatasetDocument = async (slug: NswDatasetSlug) => {
   const config = getDatasetConfig(slug);
   const sourceUrl = process.env[config.urlEnv];
@@ -76,15 +82,15 @@ const parseTradesDataset = (document: string): TradeInsight[] => {
   return rows;
 };
 
-export const ingestDataset = async (slug: NswDatasetSlug) => {
+export const ingestDataset = async <T extends NswDatasetSlug>(slug: T): Promise<DatasetResult<T>> => {
   const document = await fetchDatasetDocument(slug);
   switch (slug) {
     case "property":
-      return parsePropertyDataset(document);
+      return parsePropertyDataset(document) as DatasetResult<T>;
     case "water":
-      return parseWaterDataset(document);
+      return parseWaterDataset(document) as DatasetResult<T>;
     case "trades":
-      return parseTradesDataset(document);
+      return parseTradesDataset(document) as DatasetResult<T>;
     default: {
       const exhaustiveCheck: never = slug;
       throw new Error(`Unsupported dataset ${exhaustiveCheck}`);
@@ -122,6 +128,16 @@ const filterByLocation = <T extends { localGovernmentArea?: string; address?: st
   return combined.slice(0, limit);
 };
 
+const resolveLimitPerDataset = (query?: SnapshotQuery | ProjectParameters) => {
+  if (query && "limitPerDataset" in query) {
+    const value = query.limitPerDataset;
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+  return 2;
+};
+
 export const getNswPlanningSnapshot = async (
   query?: SnapshotQuery | ProjectParameters
 ): Promise<NswPlanningSnapshot> => {
@@ -131,7 +147,7 @@ export const getNswPlanningSnapshot = async (
     ingestDataset("trades"),
   ]);
 
-  const limit = query?.limitPerDataset ?? 2;
+  const limit = resolveLimitPerDataset(query);
   const location = query?.location;
 
   return {
