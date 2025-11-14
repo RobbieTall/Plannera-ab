@@ -216,6 +216,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [noteTitle, setNoteTitle] = useState("");
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
 
@@ -232,6 +233,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       saveChatHistory(project.id, fallbackMessages);
     }
   }, [fallbackMessages, getChatHistory, project.id, saveChatHistory]);
+
+  useEffect(() => {
+    if (!chatScrollRef.current) return;
+    chatScrollRef.current.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, isThinking]);
 
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
@@ -495,7 +504,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            <div className="h-[420px] space-y-4 overflow-y-auto pr-2">
+            <div ref={chatScrollRef} className="h-[420px] space-y-4 overflow-y-auto pr-2">
               {messages.map((message) => (
                 <article
                   key={message.id}
@@ -835,6 +844,16 @@ function generateAssistantResponse({
   const normalized = userMessage.toLowerCase();
   const teamMembers = project.teamMembers ?? [];
   const hasContext = contextSnippets.length > 0;
+  const sanitizedPrompt = stripHtml(userMessage);
+  const promptLabel = sanitizedPrompt
+    ? sanitizedPrompt.length > 180
+      ? `${sanitizedPrompt.slice(0, 180)}…`
+      : sanitizedPrompt
+    : "that update";
+  const questionRegex = /(\?|\bwhat\b|\bhow\b|\bcan\b|\bcould\b|\bwhere\b|\bwhy\b|\bwhen\b|\bdo you\b)/i;
+  const requestKeywords = ["prepare", "draft", "create", "write", "send", "share", "brief", "note", "plan", "summarise", "summarize"];
+  const isActionRequest = requestKeywords.some((keyword) => normalized.includes(keyword));
+  const isQuestion = questionRegex.test(userMessage);
 
   const describeSources = () => {
     if (!sources.length) {
@@ -884,6 +903,33 @@ function generateAssistantResponse({
       ? `You're tracking toward ${new Date(project.endDate).toLocaleDateString()} and I can keep milestones aligned to that.`
       : "Drop in any target dates and I'll tag the follow-up tasks so the team sees them.";
     return `${scheduleTip} In the meantime I’ll continue organising the approvals pathway for ${project.name}.`;
+  }
+
+  if (isQuestion || isActionRequest) {
+    const responseParts: string[] = [];
+    responseParts.push(`I'm working directly off your note about "${promptLabel}" for ${project.name}.`);
+    if (normalized.includes("api") || normalized.includes("backend") || normalized.includes("integration")) {
+      responseParts.push(
+        "I'll line up which internal and council APIs we can pull from so the answer stays grounded in verifiable data, then surface the relevant excerpts back here."
+      );
+    }
+    if (normalized.includes("prepare") || normalized.includes("draft") || normalized.includes("brief") || normalized.includes("note")) {
+      responseParts.push(
+        "I'll start structuring that into a shareable brief—once you're happy I can save it as an artefact or email-style note for the team."
+      );
+    }
+    if (!responseParts.some((part) => part.includes("brief")) && normalized.includes("see")) {
+      responseParts.push("I'll surface a concise view so you can sanity-check it before we distribute anything wider.");
+    }
+    if (hasContext) {
+      responseParts.push(
+        `Expect callouts to ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} plus any new uploads you cue up.`
+      );
+    } else {
+      responseParts.push("If you drop in supporting documents, I'll cite them inline so every answer is auditable.");
+    }
+    responseParts.push("Let me know if you want this routed to a specific tool or agent next.");
+    return responseParts.join(" ");
   }
 
   const defaultResponse: string[] = [];
