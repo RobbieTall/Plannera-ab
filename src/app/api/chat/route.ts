@@ -145,10 +145,14 @@ export async function POST(request: Request) {
       throw new Error("Unable to parse response from AI");
     }
 
+    const datasetMeta = generatePlanningInsights(parsedProject, { nswData: nswSnapshot });
+
     const summary: PlanningSummary = {
       ...parsed.data,
       description: parsed.data.description ?? prompt,
       nswData: nswSnapshot ?? undefined,
+      datasetNotice: datasetMeta.datasetNotice,
+      isFallback: datasetMeta.isFallback,
     };
 
     return NextResponse.json({ summary, source: "openai", legislation: serializedLegislation });
