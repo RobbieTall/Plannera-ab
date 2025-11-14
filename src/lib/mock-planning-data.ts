@@ -1,4 +1,5 @@
 import { ProjectParameters } from "./project-parser";
+import type { NswPlanningSnapshot } from "./nsw";
 
 export type PlanningSummary = ProjectParameters & {
   council: string;
@@ -8,6 +9,7 @@ export type PlanningSummary = ProjectParameters & {
   timelineWeeks: [number, number];
   budgetRange: string;
   hurdles: string[];
+  nswData?: NswPlanningSnapshot | null;
 };
 
 type CouncilProfile = {
@@ -93,7 +95,10 @@ const fallbackProfile: CouncilProfile = {
   ],
 };
 
-export function generatePlanningInsights(params: ProjectParameters): PlanningSummary {
+export function generatePlanningInsights(
+  params: ProjectParameters,
+  options?: { nswData?: NswPlanningSnapshot | null }
+): PlanningSummary {
   const profile =
     councilProfiles.find((p) => p.matchLocations.some((loc) => loc.toLowerCase() === params.location.toLowerCase())) ??
     fallbackProfile;
@@ -107,5 +112,6 @@ export function generatePlanningInsights(params: ProjectParameters): PlanningSum
     timelineWeeks: profile.timelineWeeks,
     budgetRange: profile.budgetRange,
     hurdles: profile.hurdles,
+    nswData: options?.nswData ?? undefined,
   };
 }

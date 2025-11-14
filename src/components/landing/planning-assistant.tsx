@@ -271,6 +271,7 @@ export function PlanningAssistant() {
               </div>
             </div>
           </div>
+          <NswDataPanel summary={summary} />
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-700">Continue in the project workspace</p>
@@ -351,6 +352,71 @@ function InsightCard({ title, items }: InsightCardProps) {
   );
 }
 
+function NswDataPanel({ summary }: { summary: PlanningSummary }) {
+  const snapshot = summary.nswData;
+  if (!snapshot) {
+    return null;
+  }
+
+  const propertyItems = buildPropertyItems(summary);
+  const waterItems = buildWaterItems(summary);
+  const tradeItems = buildTradeItems(summary);
+  const hasData = propertyItems.length || waterItems.length || tradeItems.length;
+
+  if (!hasData) {
+    return null;
+  }
+
+  const sections: { title: string; description: string; items: string[] }[] = [
+    { title: "Property", description: "Zoning, height and overlays", items: propertyItems },
+    { title: "Water", description: "Catchments & controls", items: waterItems },
+    { title: "Trades", description: "Licensing & approvals", items: tradeItems },
+  ];
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
+      <div className="flex items-start gap-3">
+        <div className="rounded-2xl bg-white/80 p-2 text-blue-700">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-800">NSW live data attached</p>
+          <p className="text-xs text-slate-600">Pulled via NSW Planning property, water and trades APIs during this run.</p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {sections.map((section) =>
+          section.items.length ? (
+            <NswDataCard key={section.title} title={section.title} description={section.description} items={section.items} />
+          ) : null
+        )}
+      </div>
+    </div>
+  );
+}
+
+type NswDataCardProps = {
+  title: string;
+  description: string;
+  items: string[];
+};
+
+function NswDataCard({ title, description, items }: NswDataCardProps) {
+  return (
+    <div className="rounded-2xl border border-white/70 bg-white/80 p-4 text-sm text-slate-700">
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{title}</p>
+      <p className="text-xs text-slate-500">{description}</p>
+      <ul className="mt-3 space-y-2">
+        {items.map((item) => (
+          <li key={item} className="text-slate-700">
+            • {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function buildInitialConversation(description: string, summary: PlanningSummary): WorkspaceMessage[] {
   const now = new Date();
   const baseTimestamp = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -371,7 +437,37 @@ function buildInitialConversation(description: string, summary: PlanningSummary)
 }
 
 function formatSummaryMessage(summary: PlanningSummary) {
+  const propertyHint = summary.nswData?.property?.[0];
+  const propertyLine = propertyHint ? ` Zoning confirmed as ${propertyHint.zoning} on ${propertyHint.address}.` : "";
   return `Here's the initial view for ${summary.developmentType} in ${summary.location}. Expect a ${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} week path, budget of ${summary.budgetRange}, and focus on ${summary.requirements.slice(0, 2).join(
     " and "
-  )}. I'll prep artefacts once we open the workspace.`;
+  )}.${propertyLine} I'll prep artefacts once we open the workspace.`;
+}
+
+function buildPropertyItems(summary: PlanningSummary) {
+  return (
+    summary.nswData?.property?.map((record) => {
+      const fsrLabel = record.floorSpaceRatio ? ` • FSR ${record.floorSpaceRatio}` : "";
+      const heightLabel = record.heightLimit ? ` • Height ${record.heightLimit}` : "";
+      return `${record.address} – ${record.zoning}${fsrLabel}${heightLabel}`;
+    }) ?? []
+  );
+}
+
+function buildWaterItems(summary: PlanningSummary) {
+  return (
+    summary.nswData?.water?.map((record) => {
+      const control = record.controls[0] ? ` • ${record.controls[0]}` : "";
+      return `${record.name} (${record.authority}) – Flood risk ${record.floodRisk}${control}`;
+    }) ?? []
+  );
+}
+
+function buildTradeItems(summary: PlanningSummary) {
+  return (
+    summary.nswData?.trades?.map((record) => {
+      const approvalsLabel = record.approvals[0] ? ` (${record.approvals[0]})` : "";
+      return `${record.trade} – ${record.licence}${approvalsLabel}`;
+    }) ?? []
+  );
 }

@@ -1,0 +1,26 @@
+{
+  "licences": [
+    {
+      "trade": "Plumbing",
+      "licence": "Sydney Water Major Works",
+      "approvals": [
+        "Section 73 compliance certificate",
+        "Sydney Water Tap In application"
+      ],
+      "serviceTimeframe": "10 business days",
+      "contact": "majorworks@sydneywater.com.au",
+      "serviceAreas": ["Greater Sydney"]
+    },
+    {
+      "trade": "Electrical",
+      "licence": "Level 2 Accredited Service Provider",
+      "approvals": [
+        "Ausgrid service application",
+        "Accredited contractor nomination"
+      ],
+      "serviceTimeframe": "15 business days",
+      "contact": "connections@ausgrid.com.au",
+      "serviceAreas": ["Sydney", "Hunter"]
+    }
+  ]
+}
