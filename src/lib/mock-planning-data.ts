@@ -9,6 +9,8 @@ export type PlanningSummary = ProjectParameters & {
   timelineWeeks: [number, number];
   budgetRange: string;
   hurdles: string[];
+  datasetNotice: string;
+  isFallback: boolean;
   nswData?: NswPlanningSnapshot | null;
 };
 
@@ -21,6 +23,8 @@ type CouncilProfile = {
   timelineWeeks: [number, number];
   budgetRange: string;
   hurdles: string[];
+  datasetNotice?: string;
+  isFallback?: boolean;
 };
 
 const councilProfiles: CouncilProfile[] = [
@@ -40,6 +44,25 @@ const councilProfiles: CouncilProfile[] = [
       "Neighbourhood character concerns for increased height",
       "Parking compliance along narrow streets",
     ],
+    datasetNotice: "Based on our mock Waverley dataset – not yet wired to live legislation.",
+  },
+  {
+    matchLocations: ["Ballina"],
+    council: "Ballina Shire Council",
+    state: "NSW",
+    requirements: [
+      "Demonstrate dual occupancy permissibility within the R2/R3 zone",
+      "Respect coastal erosion and flood-prone land controls",
+      "Provide servicing plan showing individual driveways and on-site parking",
+    ],
+    documents: ["Clause 4.6 variation (if exceeding height)", "Flood impact statement", "Detailed site analysis"],
+    timelineWeeks: [18, 26],
+    budgetRange: "$1.6m - $2.8m",
+    hurdles: [
+      "Height and floor-space ratio caps close to the coastline",
+      "Infrastructure contributions triggered by additional dwellings",
+    ],
+    datasetNotice: "Pulled from the mock Ballina profile while we verify the official scheme.",
   },
   {
     matchLocations: ["Brisbane"],
@@ -57,6 +80,7 @@ const councilProfiles: CouncilProfile[] = [
       "Flood resilience design in overland flow paths",
       "Developer infrastructure charges for additional dwellings",
     ],
+    datasetNotice: "Mock Brisbane dataset (illustrative, not authoritative).",
   },
   {
     matchLocations: ["Melbourne"],
@@ -74,6 +98,7 @@ const councilProfiles: CouncilProfile[] = [
       "Tree protection overlays limiting building footprint",
       "Council urban design review for second storey work",
     ],
+    datasetNotice: "Mock Melbourne dataset until the statutory references land.",
   },
 ];
 
@@ -93,6 +118,8 @@ const fallbackProfile: CouncilProfile = {
     "Heritage or neighbourhood character overlays",
     "State referral agencies needing extra information",
   ],
+  datasetNotice: "Generic mock planning read until we onboard that council's live data.",
+  isFallback: true,
 };
 
 export function generatePlanningInsights(
@@ -102,6 +129,9 @@ export function generatePlanningInsights(
   const profile =
     councilProfiles.find((p) => p.matchLocations.some((loc) => loc.toLowerCase() === params.location.toLowerCase())) ??
     fallbackProfile;
+  const datasetNotice = profile.datasetNotice
+    ? `${profile.datasetNotice}`
+    : `Mock dataset for ${profile.council} – treat this as indicative only.`;
 
   return {
     ...params,
@@ -112,6 +142,8 @@ export function generatePlanningInsights(
     timelineWeeks: profile.timelineWeeks,
     budgetRange: profile.budgetRange,
     hurdles: profile.hurdles,
+    datasetNotice,
+    isFallback: Boolean(profile.isFallback),
     nswData: options?.nswData ?? undefined,
   };
 }

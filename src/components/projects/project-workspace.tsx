@@ -30,6 +30,8 @@ import {
 import { useRouter } from "next/navigation";
 
 import type { Project } from "@/lib/mock-data";
+import { generatePlanningInsights } from "@/lib/mock-planning-data";
+import { parseProjectDescription } from "@/lib/project-parser";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
 import { Modal } from "@/components/ui/modal";
@@ -906,30 +908,27 @@ function generateAssistantResponse({
   }
 
   if (isQuestion || isActionRequest) {
-    const responseParts: string[] = [];
-    responseParts.push(`I'm working directly off your note about "${promptLabel}" for ${project.name}.`);
-    if (normalized.includes("api") || normalized.includes("backend") || normalized.includes("integration")) {
-      responseParts.push(
-        "I'll line up which internal and council APIs we can pull from so the answer stays grounded in verifiable data, then surface the relevant excerpts back here."
-      );
-    }
-    if (normalized.includes("prepare") || normalized.includes("draft") || normalized.includes("brief") || normalized.includes("note")) {
-      responseParts.push(
-        "I'll start structuring that into a shareable brief—once you're happy I can save it as an artefact or email-style note for the team."
-      );
-    }
-    if (!responseParts.some((part) => part.includes("brief")) && normalized.includes("see")) {
-      responseParts.push("I'll surface a concise view so you can sanity-check it before we distribute anything wider.");
-    }
-    if (hasContext) {
-      responseParts.push(
-        `Expect callouts to ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} plus any new uploads you cue up.`
-      );
-    } else {
-      responseParts.push("If you drop in supporting documents, I'll cite them inline so every answer is auditable.");
-    }
-    responseParts.push("Let me know if you want this routed to a specific tool or agent next.");
-    return responseParts.join(" ");
+    const parsedProject = parseProjectDescription(userMessage);
+    const planningSummary = generatePlanningInsights(parsedProject);
+    const requirementsLabel = planningSummary.requirements.slice(0, 3).join("; ");
+    const documentsLabel = planningSummary.documents.slice(0, 3).join(", ");
+    const hurdlesLabel = planningSummary.hurdles.slice(0, 3).join("; ");
+    const timelineLabel = `${planningSummary.timelineWeeks[0]}-${planningSummary.timelineWeeks[1]} weeks`;
+    const intro = normalized.includes("can i") || normalized.includes("allowed")
+      ? `${planningSummary.developmentType} is generally supported in ${planningSummary.council} (${planningSummary.state}) when you can show: ${requirementsLabel}.`
+      : `Working off your note about "${promptLabel}", here's the planning read for ${planningSummary.location}: ${requirementsLabel}.`;
+    const limitationFocus = normalized.includes("limit") || normalized.includes("constraint") || normalized.includes("hurdle");
+    const limitations = limitationFocus
+      ? `Key limitations raised locally: ${hurdlesLabel}.`
+      : `Watch for hurdles such as ${hurdlesLabel}.`;
+    const docsLine = `You'll typically lodge ${documentsLabel}, and DA review windows run ${timelineLabel} with recent budgets in the ${planningSummary.budgetRange} range.`;
+    const datasetLine = planningSummary.isFallback
+      ? planningSummary.datasetNotice
+      : `${planningSummary.datasetNotice} It's still a mock dataset until the legislation feed is connected.`;
+    const contextLine = hasContext
+      ? `I'll cite the ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} plus anything new you upload so the advice stays auditable.`
+      : `Add any site surveys, council emails or studies and I'll weave them into the answer so it's traceable.`;
+    return `${intro} ${limitations} ${docsLine} ${datasetLine} ${contextLine} Let me know if you want me to package that as an artefact or brief.`;
   }
 
   const defaultResponse: string[] = [];
