@@ -1,0 +1,37 @@
+{
+  "records": [
+    {
+      "address": "12 Fletcher St, Bondi NSW",
+      "lot": "12",
+      "plan": "DP123456",
+      "zoning": "R3 Medium Density Residential",
+      "floorSpaceRatio": "1.5:1",
+      "heightLimit": "21m",
+      "heritage": "Not affected",
+      "overlays": ["Coastal management SEPP", "Flood planning clause"],
+      "localGovernmentArea": "Waverley"
+    },
+    {
+      "address": "220 Church St, Parramatta NSW",
+      "lot": "101",
+      "plan": "DP987654",
+      "zoning": "B4 Mixed Use",
+      "floorSpaceRatio": "4.5:1",
+      "heightLimit": "72m",
+      "heritage": "Item I1234",
+      "overlays": ["Design excellence zone"],
+      "localGovernmentArea": "Parramatta"
+    },
+    {
+      "address": "18 King St, Newcastle NSW",
+      "lot": "1",
+      "plan": "SP765432",
+      "zoning": "B3 Commercial Core",
+      "floorSpaceRatio": "6:1",
+      "heightLimit": "90m",
+      "heritage": "Conservation area",
+      "overlays": ["Mine subsidence district"],
+      "localGovernmentArea": "Newcastle"
+    }
+  ]
+}

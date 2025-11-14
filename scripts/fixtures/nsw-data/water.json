@@ -1,0 +1,26 @@
+{
+  "catchments": [
+    {
+      "name": "Bondi Stormwater Basin",
+      "authority": "Sydney Water",
+      "floodRisk": "Medium",
+      "controls": [
+        "On-site detention sized for 1 in 100 year events",
+        "Rainwater reuse required for residential developments"
+      ],
+      "infrastructure": ["225mm sewer main", "150mm drinking water main"],
+      "localGovernmentArea": "Waverley"
+    },
+    {
+      "name": "Upper Parramatta River",
+      "authority": "Sydney Water",
+      "floodRisk": "High",
+      "controls": [
+        "No basements below RL 6.5m without flood study",
+        "Outlet throttling for discharges above 30 L/s"
+      ],
+      "infrastructure": ["Trunk stormwater channel", "Recycled water network"],
+      "localGovernmentArea": "Parramatta"
+    }
+  ]
+}

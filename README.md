@@ -25,6 +25,7 @@ AI-powered property development platform that generates council documents, feasi
    - `NEXTAUTH_URL` – the public base URL of your app (e.g. `http://localhost:3000` in development)
    - `NEXTAUTH_SECRET` – secret for signing NextAuth cookies/tokens
    - `EMAIL_SERVER_*` & `EMAIL_FROM` – SMTP credentials for sending magic links
+   - `NSW_PROPERTY_API_*`, `NSW_WATER_API_*`, `NSW_TRADES_API_*` – optional NSW Planning API endpoints + keys. When omitted, local fixtures are used for development.
 
 3. Start the development server:
 
@@ -48,6 +49,7 @@ The app runs on [http://localhost:3000](http://localhost:3000).
 - `npm run lint` – run ESLint using the Next.js configuration.
 - `npm run legislation:ingest` – load the configured NSW planning instruments into the local database.
 - `npm run legislation:sync` – re-fetch sources and create new clause versions when changes are detected.
+- `npm run nsw:data:test` – run the NSW property/water/trades ingest + parse pipeline against fixtures or live APIs.
 
 ### Deploying to Vercel
 
@@ -188,6 +190,20 @@ All API responses serialize dates to ISO strings, making them safe to consume fr
 2. (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` for deterministic parsing while integrating the live source.
 3. Run `npm run legislation:ingest` or `npm run legislation:sync` to populate the tables.
 4. Use the exported query helpers (or Prisma) to verify the clauses.
+
+## NSW Planning data feeds (DATA-02)
+
+The NSW property, water and trades APIs are ingested through the helpers in `src/lib/nsw`.
+
+- `getNswPlanningSnapshot` orchestrates fetch + parse cycles for the three datasets. When the `NSW_*` environment variables are
+  set it will fetch the live NSW Planning endpoints with the configured API keys; otherwise it falls back to deterministic JSON
+  fixtures in `scripts/fixtures/nsw-data/` for development.
+- `/api/chat` now calls `getNswPlanningSnapshot` for every request so chats and downstream tools receive the latest property,
+  water and trades context alongside the planning summary and legislation snippets.
+- `npm run nsw:data:test` executes `scripts/nsw-data-check.ts`, exercising the ingest/parse logic in isolation. This provides a
+  quick health check that the environment has valid API keys and that the returned payloads can be parsed.
+- The landing `PlanningAssistant` component displays the live NSW dataset snippets so users can see what was pulled in from the
+  portal during each run.
 
 ## Workspace + Dashboard Enhancements
 

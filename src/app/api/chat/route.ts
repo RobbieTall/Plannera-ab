@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { getApplicableClausesForSite, serializeApplicableClausesResult } from "@/lib/legislation";
 import { generatePlanningInsights, type PlanningSummary } from "@/lib/mock-planning-data";
+import { getNswPlanningSnapshot } from "@/lib/nsw";
 import { parseProjectDescription, type ProjectParameters } from "@/lib/project-parser";
 
 const MAX_LEGISLATION_CONTEXT = 5;
@@ -62,12 +63,19 @@ export async function POST(request: Request) {
   let parsedProject: ProjectParameters | null = null;
   let legislationResult: Awaited<ReturnType<typeof getApplicableClausesForSite>> | null = null;
   let serializedLegislation: ReturnType<typeof serializeApplicableClausesResult> | null = null;
+  let nswSnapshot: Awaited<ReturnType<typeof getNswPlanningSnapshot>> | null = null;
   try {
     const body = await request.json();
     const { prompt, history } = requestSchema.parse(body);
     promptValue = prompt;
 
     parsedProject = parseProjectDescription(prompt);
+
+    try {
+      nswSnapshot = await getNswPlanningSnapshot(parsedProject);
+    } catch (nswError) {
+      console.warn("NSW planning data unavailable", nswError);
+    }
 
     try {
       legislationResult = await getApplicableClausesForSite({
@@ -82,7 +90,7 @@ export async function POST(request: Request) {
     if (!openaiClient) {
       return NextResponse.json(
         {
-          summary: generatePlanningInsights(parsedProject),
+          summary: generatePlanningInsights(parsedProject, { nswData: nswSnapshot }),
           source: "mock",
           legislation: serializedLegislation,
         },
@@ -140,6 +148,7 @@ export async function POST(request: Request) {
     const summary: PlanningSummary = {
       ...parsed.data,
       description: parsed.data.description ?? prompt,
+      nswData: nswSnapshot ?? undefined,
     };
 
     return NextResponse.json({ summary, source: "openai", legislation: serializedLegislation });
@@ -151,7 +160,8 @@ export async function POST(request: Request) {
         location: "Australia",
         developmentType: "Mixed development",
         scale: "Mid-scale",
-      }
+      },
+      { nswData: nswSnapshot }
     );
     return NextResponse.json(
       {
