@@ -12,6 +12,9 @@ export interface InstrumentConfig {
   clausePrefix?: string;
   alwaysApplicable?: boolean;
   topics?: string[];
+  status?: "in_force" | "repealed";
+  notes?: string;
+  fixtureFile?: string;
 }
 
 export interface ParsedClause {
@@ -21,6 +24,14 @@ export interface ParsedClause {
   bodyText: string;
   hierarchyPath: ClauseHierarchyPath;
   contentHash: string;
+}
+
+export interface InstrumentFetchResult {
+  html: string;
+  fetchedAt: Date;
+  status: number;
+  sourceUrl: string;
+  usedFixture: boolean;
 }
 
 export interface SearchClausesParams {

@@ -157,14 +157,15 @@ The backend NSW legislation service lives under `src/lib/legislation` and powers
 
 ### Instrument configuration & fixtures
 
-- Source configuration lives in `src/lib/legislation/config.ts`. Each entry defines a slug, names, type, and source URL.
-- Default configs point at deterministic HTML fixtures stored in `scripts/fixtures/legislation/`. Replace the URLs with real NSW legislation endpoints (HTML or JSON) as needed.
+- Instrument sources now live in `src/lib/legislation/instruments.json`. Each object defines the slug, display names, instrument type, jurisdiction, canonical NSW legislation URL, optional topics, and a `fixtureFile` used for deterministic development runs.
+- `src/lib/legislation/config.ts` loads that JSON at runtime, normalises the paths, and exposes helper getters used by the ingestion and sync jobs. The default list includes the EPA Act 1979, EPA Regulation 2021, SEPP Housing 2021, Ballina LEP 2012, and the Sydney LEP 2012 so we cover Acts, Regulations, SEPPs and LEPs out of the box.
+- Deterministic HTML fixtures continue to live under `scripts/fixtures/legislation/`. Set `LEGISLATION_USE_FIXTURES=true` when running the ingestion or sync scripts to force the fetcher to use these files instead of the live NSW endpoint (helpful in CI or when the public site is unreachable).
 
 ### Ingestion & sync
 
 1. Ensure `DATABASE_URL` is set locally (see [Database setup](#database-setup)).
-2. Run `npm run legislation:ingest` for a clean import. This fetches/reads each configured instrument, parses clauses, and stores version `1` rows.
-3. To poll for changes, run `npm run legislation:sync`. The job compares `contentHash` values, creates superseding versions, marks removed clauses as non-current, and updates `Instrument.lastSyncedAt`.
+2. Run `npm run legislation:ingest` for a clean import. For each instrument the `LegislationFetcher` downloads the live NSW HTML (with retries, timeouts and fixture fallbacks), hands it to the parser, and stores the parsed clauses as version `1` rows stamped with the fetch time.
+3. To poll for changes, run `npm run legislation:sync`. The job fetches again, compares `contentHash` values, creates superseding versions when the text changes, marks removed clauses as non-current, and updates `Instrument.lastSyncedAt`. Set `LEGISLATION_USE_FIXTURES=true` to simulate a run against the bundled HTML snapshots.
 
 ### Query APIs
 
@@ -186,8 +187,8 @@ All API responses serialize dates to ISO strings, making them safe to consume fr
 
 ### Adding a new instrument
 
-1. Append a configuration entry in `src/lib/legislation/config.ts` with the slug/name/type and `sourceUrl`.
-2. (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` for deterministic parsing while integrating the live source.
+1. Append a JSON object to `src/lib/legislation/instruments.json` with the slug, names, `instrumentType`, canonical NSW legislation URL, and optional `clausePrefix`, `topics`, or `fixtureFile`.
+2. (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` and point `fixtureFile` at it so local runs stay deterministic.
 3. Run `npm run legislation:ingest` or `npm run legislation:sync` to populate the tables.
 4. Use the exported query helpers (or Prisma) to verify the clauses.
 

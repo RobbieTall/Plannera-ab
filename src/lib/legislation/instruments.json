@@ -1,0 +1,61 @@
+[
+  {
+    "slug": "epa-act-1979",
+    "name": "Environmental Planning and Assessment Act 1979",
+    "shortName": "EPA Act 1979",
+    "instrumentType": "ACT",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/act-1979-203",
+    "clausePrefix": "EPA_ACT_1979",
+    "status": "in_force",
+    "topics": ["consent authority", "development applications"],
+    "fixtureFile": "scripts/fixtures/legislation/epa-act-1979.html",
+    "notes": "Core enabling Act for NSW planning system"
+  },
+  {
+    "slug": "epa-reg-2021",
+    "name": "Environmental Planning and Assessment Regulation 2021",
+    "shortName": "EPA Regulation 2021",
+    "instrumentType": "REGULATION",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/sl-2021-643",
+    "clausePrefix": "EPA_REG_2021",
+    "status": "in_force",
+    "topics": ["lodgment", "certificates"],
+    "fixtureFile": "scripts/fixtures/legislation/epa-reg-2021.html"
+  },
+  {
+    "slug": "sepp-housing-2021",
+    "name": "State Environmental Planning Policy (Housing) 2021",
+    "shortName": "SEPP Housing 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-697",
+    "clausePrefix": "SEPP_HOUSING_2021",
+    "alwaysApplicable": true,
+    "topics": ["housing", "secondary dwelling", "dual occupancy"],
+    "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html"
+  },
+  {
+    "slug": "ballina-lep-2012",
+    "name": "Ballina Local Environmental Plan 2012",
+    "shortName": "Ballina LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-540",
+    "clausePrefix": "BALLINA_LEP_2012",
+    "topics": ["height", "floor space ratio", "coastal"],
+    "fixtureFile": "scripts/fixtures/legislation/ballina-lep-2012.html"
+  },
+  {
+    "slug": "city-of-sydney-lep-2012",
+    "name": "Sydney Local Environmental Plan 2012",
+    "shortName": "Sydney LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-636",
+    "clausePrefix": "SYDNEY_LEP_2012",
+    "topics": ["height", "floor space ratio", "zoning"],
+    "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html"
+  }
+]
