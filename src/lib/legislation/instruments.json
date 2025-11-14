@@ -37,6 +37,61 @@
     "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html"
   },
   {
+    "slug": "sepp-biodiversity-conservation-2021",
+    "name": "State Environmental Planning Policy (Biodiversity and Conservation) 2021",
+    "shortName": "SEPP Biodiversity 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-736",
+    "clausePrefix": "SEPP_BIODIVERSITY_2021",
+    "alwaysApplicable": true,
+    "topics": ["biodiversity", "native vegetation", "coastal management"]
+  },
+  {
+    "slug": "sepp-industry-employment-2021",
+    "name": "State Environmental Planning Policy (Industry and Employment) 2021",
+    "shortName": "SEPP Industry 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-738",
+    "clausePrefix": "SEPP_INDUSTRY_2021",
+    "alwaysApplicable": true,
+    "topics": ["industrial", "employment lands", "enterprise"]
+  },
+  {
+    "slug": "sepp-primary-production-2021",
+    "name": "State Environmental Planning Policy (Primary Production and Rural Development) 2021",
+    "shortName": "SEPP Primary Production 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-739",
+    "clausePrefix": "SEPP_PRIMARY_PRODUCTION_2021",
+    "alwaysApplicable": true,
+    "topics": ["agriculture", "rural", "forestry"]
+  },
+  {
+    "slug": "sepp-resilience-hazards-2021",
+    "name": "State Environmental Planning Policy (Resilience and Hazards) 2021",
+    "shortName": "SEPP Resilience 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-740",
+    "clausePrefix": "SEPP_RESILIENCE_2021",
+    "alwaysApplicable": true,
+    "topics": ["bush fire", "flooding", "hazards"]
+  },
+  {
+    "slug": "sepp-transport-infrastructure-2021",
+    "name": "State Environmental Planning Policy (Transport and Infrastructure) 2021",
+    "shortName": "SEPP Transport 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-743",
+    "clausePrefix": "SEPP_TRANSPORT_2021",
+    "alwaysApplicable": true,
+    "topics": ["transport", "infrastructure", "corridors"]
+  },
+  {
     "slug": "ballina-lep-2012",
     "name": "Ballina Local Environmental Plan 2012",
     "shortName": "Ballina LEP 2012",
@@ -46,6 +101,56 @@
     "clausePrefix": "BALLINA_LEP_2012",
     "topics": ["height", "floor space ratio", "coastal"],
     "fixtureFile": "scripts/fixtures/legislation/ballina-lep-2012.html"
+  },
+  {
+    "slug": "byron-lep-2014",
+    "name": "Byron Local Environmental Plan 2014",
+    "shortName": "Byron LEP 2014",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-355",
+    "clausePrefix": "BYRON_LEP_2014",
+    "topics": ["coastal", "zoning", "environmental protection"]
+  },
+  {
+    "slug": "kempsey-lep-2013",
+    "name": "Kempsey Local Environmental Plan 2013",
+    "shortName": "Kempsey LEP 2013",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-437",
+    "clausePrefix": "KEMPSEY_LEP_2013",
+    "topics": ["rural", "environmental", "heritage"]
+  },
+  {
+    "slug": "lismore-lep-2012",
+    "name": "Lismore Local Environmental Plan 2012",
+    "shortName": "Lismore LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-579",
+    "clausePrefix": "LISMORE_LEP_2012",
+    "topics": ["flooding", "height", "floor space ratio"]
+  },
+  {
+    "slug": "clarence-valley-lep-2011",
+    "name": "Clarence Valley Local Environmental Plan 2011",
+    "shortName": "Clarence Valley LEP 2011",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2011-295",
+    "clausePrefix": "CLARENCE_VALLEY_LEP_2011",
+    "topics": ["coastal", "environmental", "height"]
+  },
+  {
+    "slug": "coffs-harbour-lep-2013",
+    "name": "Coffs Harbour Local Environmental Plan 2013",
+    "shortName": "Coffs Harbour LEP 2013",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-561",
+    "clausePrefix": "COFFS_HARBOUR_LEP_2013",
+    "topics": ["height", "zoning", "environmental hazards"]
   },
   {
     "slug": "city-of-sydney-lep-2012",
