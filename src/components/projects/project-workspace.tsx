@@ -239,11 +239,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, []);
 
   const sendMessage = () => {
-    if (!input.trim()) return;
+    const trimmedInput = input.trim();
+    if (!trimmedInput) return;
     const newMessage: WorkspaceMessage = {
       id: `msg-${Date.now()}`,
       role: "user",
-      content: input.trim(),
+      content: trimmedInput,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages((previous) => [...previous, newMessage]);
@@ -254,10 +255,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
-        content:
-          contextSnippets.length > 0
-            ? `Got it. I'll reference ${contextSnippets.length} uploaded source${contextSnippets.length === 1 ? "" : "s"} and draft an artefact summarising these points.`
-            : "Noted. I'll keep tracking next steps and can turn this into an artefact whenever you're ready.",
+        content: generateAssistantResponse({
+          userMessage: trimmedInput,
+          project,
+          contextSnippets,
+          sources,
+        }),
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((previous) => {
@@ -816,6 +819,86 @@ async function extractContextSnippet(file: File) {
 function stripHtml(value: string) {
   if (!value) return "";
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function generateAssistantResponse({
+  userMessage,
+  project,
+  contextSnippets,
+  sources,
+}: {
+  userMessage: string;
+  project: Project;
+  contextSnippets: string[];
+  sources: WorkspaceSource[];
+}) {
+  const normalized = userMessage.toLowerCase();
+  const teamMembers = project.teamMembers ?? [];
+  const hasContext = contextSnippets.length > 0;
+
+  const describeSources = () => {
+    if (!sources.length) {
+      return "I don't have any workspace documents yet, so feel free to use the Add button in Sources and I'll cite anything you upload in future answers.";
+    }
+    const highlightedSources = sources.slice(0, 3).map((source) => `${source.name} (${source.type})`);
+    const remaining = sources.length - highlightedSources.length;
+    const extras = remaining > 0 ? `, plus ${remaining} other source${remaining === 1 ? "" : "s"}` : "";
+    const contextLabel = hasContext
+      ? `I've already indexed ${contextSnippets.length} snippet${contextSnippets.length === 1 ? "" : "s"} from those uploads, so I'll reference them as I reply.`
+      : "I'll read through each upload as soon as it's synced so I can cite it in answers.";
+    return `Here's what I can reference right now: ${highlightedSources.join(", ")}${extras}. ${contextLabel}`;
+  };
+
+  const describeTeam = () => {
+    if (!teamMembers.length) {
+      return "This workspace is only linked to you right now, but I can still package updates as artefacts if you need to share them.";
+    }
+    const highlightedTeam = teamMembers.slice(0, 3).map((member) => `${member.name} (${member.role})`);
+    const remaining = teamMembers.length - highlightedTeam.length;
+    const extras = remaining > 0 ? ` and ${remaining} other teammate${remaining === 1 ? "" : "s"}` : "";
+    return `You're collaborating here with ${highlightedTeam.join(", ")}${extras}. I can turn our chats into summaries to send their way when you're ready.`;
+  };
+
+  if (
+    normalized.includes("what data") ||
+    normalized.includes("data do you") ||
+    normalized.includes("have access") ||
+    normalized.includes("what info") ||
+    normalized.includes("what information") ||
+    normalized.includes("sources do you") ||
+    normalized.includes("documents do you")
+  ) {
+    return describeSources();
+  }
+
+  if (normalized.includes("who") && normalized.includes("team")) {
+    return describeTeam();
+  }
+
+  if (normalized.includes("team")) {
+    return `${describeTeam()} Just let me know if you want me to capture actions for a specific person.`;
+  }
+
+  if (normalized.includes("timeline") || normalized.includes("deadline") || normalized.includes("when")) {
+    const scheduleTip = project.endDate
+      ? `You're tracking toward ${new Date(project.endDate).toLocaleDateString()} and I can keep milestones aligned to that.`
+      : "Drop in any target dates and I'll tag the follow-up tasks so the team sees them.";
+    return `${scheduleTip} In the meantime I’ll continue organising the approvals pathway for ${project.name}.`;
+  }
+
+  const defaultResponse: string[] = [];
+  defaultResponse.push(`Captured that update for ${project.name}.`);
+  if (hasContext) {
+    defaultResponse.push(
+      `I'll reference ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} and keep the response grounded in them.`
+    );
+  } else {
+    defaultResponse.push("Upload any council emails, drawings, or studies and I'll automatically weave them into the answers.");
+  }
+  defaultResponse.push(
+    "Say the word if you'd like this to become a shareable artefact, email-style note, or briefing for another agent."
+  );
+  return defaultResponse.join(" ");
 }
 
 interface NoteEditorProps {
