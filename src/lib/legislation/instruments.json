@@ -162,5 +162,65 @@
     "clausePrefix": "SYDNEY_LEP_2012",
     "topics": ["height", "floor space ratio", "zoning"],
     "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html"
+  },
+  {
+    "slug": "sydney-lep-2012",
+    "name": "Sydney Local Environmental Plan 2012",
+    "shortName": "Sydney LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0628",
+    "clausePrefix": "SYDNEY_LEP_2012",
+    "fixtureFile": "data/nsw/sydney-lep-2012.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers City of Sydney LGA"
+  },
+  {
+    "slug": "randwick-lep-2012",
+    "name": "Randwick Local Environmental Plan 2012",
+    "shortName": "Randwick LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0460",
+    "clausePrefix": "RANDWICK_LEP_2012",
+    "fixtureFile": "data/nsw/randwick-lep-2012.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers Randwick LGA"
+  },
+  {
+    "slug": "waverley-lep-2012",
+    "name": "Waverley Local Environmental Plan 2012",
+    "shortName": "Waverley LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0666",
+    "clausePrefix": "WAVERLEY_LEP_2012",
+    "fixtureFile": "data/nsw/waverley-lep-2012.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers Waverley LGA"
+  },
+  {
+    "slug": "woollahra-lep-2014",
+    "name": "Woollahra Local Environmental Plan 2014",
+    "shortName": "Woollahra LEP 2014",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-0046",
+    "clausePrefix": "WOOLLAHRA_LEP_2014",
+    "fixtureFile": "data/nsw/woollahra-lep-2014.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers Woollahra LGA"
+  },
+  {
+    "slug": "bayside-lep-2021",
+    "name": "Bayside Local Environmental Plan 2021",
+    "shortName": "Bayside LEP 2021",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-0144",
+    "clausePrefix": "BAYSIDE_LEP_2021",
+    "fixtureFile": "data/nsw/bayside-lep-2021.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers Bayside LGA"
   }
 ]
