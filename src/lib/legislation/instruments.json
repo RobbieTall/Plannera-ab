@@ -133,6 +133,18 @@
     "topics": ["flooding", "height", "floor space ratio"]
   },
   {
+    "slug": "sydney-lep-2012",
+    "name": "Sydney Local Environmental Plan 2012",
+    "shortName": "Sydney LEP 2012",
+    "instrumentType": "LEP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0628",
+    "clausePrefix": "SYDNEY_LEP_2012",
+    "fixtureFile": "data/nsw/sydney-lep-2012.html",
+    "topics": ["land use zoning", "development standards", "heritage"],
+    "notes": "Covers City of Sydney LGA"
+  },
+  {
     "slug": "clarence-valley-lep-2011",
     "name": "Clarence Valley Local Environmental Plan 2011",
     "shortName": "Clarence Valley LEP 2011",
@@ -162,18 +174,6 @@
     "clausePrefix": "SYDNEY_LEP_2012",
     "topics": ["height", "floor space ratio", "zoning"],
     "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html"
-  },
-  {
-    "slug": "sydney-lep-2012",
-    "name": "Sydney Local Environmental Plan 2012",
-    "shortName": "Sydney LEP 2012",
-    "instrumentType": "LEP",
-    "jurisdiction": "NSW",
-    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0628",
-    "clausePrefix": "SYDNEY_LEP_2012",
-    "fixtureFile": "data/nsw/sydney-lep-2012.html",
-    "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers City of Sydney LGA"
   },
   {
     "slug": "randwick-lep-2012",
