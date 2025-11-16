@@ -16,9 +16,16 @@ const readFileFromUrl = async (fileUrl: string) => {
 };
 
 const readFixture = async (fixturePath: string) => {
-  const absolutePath = path.isAbsolute(fixturePath)
-    ? fixturePath
-    : path.resolve(process.cwd(), fixturePath);
+  if (path.isAbsolute(fixturePath)) {
+    return fs.readFile(fixturePath, "utf-8");
+  }
+
+  const normalizedPath = fixturePath.replace(/^[./]+/, "");
+  const isPublicAsset = normalizedPath.startsWith("public/");
+  const absolutePath = isPublicAsset
+    ? path.resolve(process.cwd(), "public", normalizedPath.replace(/^public\//, ""))
+    : path.resolve(process.cwd(), normalizedPath);
+
   return fs.readFile(absolutePath, "utf-8");
 };
 
