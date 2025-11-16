@@ -15,6 +15,25 @@ const readFileFromUrl = async (fileUrl: string) => {
   return fs.readFile(filePath, "utf-8");
 };
 
+const PUBLIC_FIXTURE_BASE_URL =
+  process.env.LEGISLATION_PUBLIC_FIXTURE_BASE_URL ?? "https://plannera-ab.vercel.app/";
+
+const fetchPublicFixture = async (publicPath: string) => {
+  const relativePath = publicPath.replace(/^public\//, "");
+  const url = new URL(relativePath, PUBLIC_FIXTURE_BASE_URL);
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch public fixture ${url.toString()}: HTTP ${response.status}`);
+  }
+  return response.text();
+};
+
 const readFixture = async (fixturePath: string) => {
   if (path.isAbsolute(fixturePath)) {
     return fs.readFile(fixturePath, "utf-8");
@@ -26,7 +45,19 @@ const readFixture = async (fixturePath: string) => {
     ? path.resolve(process.cwd(), "public", normalizedPath.replace(/^public\//, ""))
     : path.resolve(process.cwd(), normalizedPath);
 
-  return fs.readFile(absolutePath, "utf-8");
+  if (!isPublicAsset) {
+    return fs.readFile(absolutePath, "utf-8");
+  }
+
+  try {
+    return await fs.readFile(absolutePath, "utf-8");
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code && err.code !== "ENOENT") {
+      throw err;
+    }
+    return fetchPublicFixture(normalizedPath);
+  }
 };
 
 const loadFromFixture = async (config: InstrumentConfig): Promise<InstrumentFetchResult> => {
