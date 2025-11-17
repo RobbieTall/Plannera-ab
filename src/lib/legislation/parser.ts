@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
-import { parse, type HTMLElement } from "node-html-parser";
+import { parse, type HTMLElement, type Node } from "node-html-parser";
 
-import type { InstrumentConfig, ParsedClause } from "./types";
+import type { InstrumentConfig, InstrumentFetchResult, ParsedClause } from "./types";
 
 const headingTagNames = new Set(["H1", "H2", "H3", "H4", "H5", "H6"]);
 const headingClassPattern = /(heading|title|chapter|part|division|schedule)/i;
@@ -181,7 +181,122 @@ const findContentRoot = (html: string) => {
   return document as unknown as HTMLElement;
 };
 
-export const parseInstrumentDocument = (config: InstrumentConfig, html: string): ParsedClause[] => {
+const XML_HEADING_TAGS = ["heading", "title", "name", "hd"];
+const XML_CLAUSE_TAGS = ["clause", "section", "provision", "prov", "item", "zoningtable", "zoning-table"];
+
+const detectDocumentFormat = (content: string, declared?: InstrumentFetchResult["format"]) => {
+  if (declared) {
+    return declared;
+  }
+  return /<html|<!DOCTYPE html/i.test(content) ? "html" : "xml";
+};
+
+const extractAttribute = (element: HTMLElement, names: string[]) => {
+  for (const name of names) {
+    const value = element.getAttribute(name);
+    if (value) {
+      return normaliseWhitespace(value);
+    }
+  }
+  return null;
+};
+
+const extractHeadingFromXmlNode = (element: HTMLElement) => {
+  const attributeHeading = extractAttribute(element, ["heading", "title", "name", "label"]);
+  if (attributeHeading) {
+    return attributeHeading;
+  }
+
+  const headingChild = element.querySelector(XML_HEADING_TAGS.join(","));
+  if (headingChild) {
+    return normaliseWhitespace(headingChild.text);
+  }
+
+  return null;
+};
+
+const buildXmlClauseHeading = (element: HTMLElement): ClauseHeading | null => {
+  const headingText = extractHeadingFromXmlNode(element);
+  const clauseNumber =
+    extractAttribute(element, ["clausenumber", "number", "num", "provisionnumber"]) ??
+    extractHeadingFromXmlNode(element);
+
+  if (!headingText && !clauseNumber) {
+    return null;
+  }
+
+  const clauseTitle = normaliseWhitespace([clauseNumber, headingText].filter(Boolean).join(" "));
+  const clauseLabel = clauseNumber ? `Clause ${clauseNumber}` : clauseTitle || "Clause";
+  return {
+    clauseNumber: clauseNumber ?? null,
+    clauseTitle: clauseTitle || headingText || clauseLabel,
+    clauseLabel,
+  };
+};
+
+const stripHeadingFromBody = (element: HTMLElement) => {
+  const nodes = element.childNodes as Node[];
+  const filtered = nodes.filter((node) => {
+    if (!(node as HTMLElement).tagName) {
+      return true;
+    }
+    const tag = ((node as HTMLElement).tagName || "").toLowerCase();
+    return !XML_HEADING_TAGS.includes(tag);
+  });
+  const html = filtered.map((node) => node.toString()).join("").trim();
+  const text = normaliseWhitespace(filtered.map((node) => (node as HTMLElement).text ?? node.text).join(" "));
+  return { html, text };
+};
+
+const buildXmlHierarchyPath = (element: HTMLElement, clauseLabel: string) => {
+  const segments: string[] = [];
+  let cursor: HTMLElement | null = element.parentNode as HTMLElement | null;
+
+  while (cursor) {
+    const tagName = (cursor.tagName || "").toLowerCase();
+    const heading = extractHeadingFromXmlNode(cursor);
+    if (heading) {
+      if (tagName === "schedule") {
+        segments.unshift(`Schedule: ${heading}`);
+      } else if (["chapter", "part", "division", "subdivision"].includes(tagName)) {
+        segments.unshift(`${heading}`);
+      }
+    }
+    cursor = cursor.parentNode as HTMLElement | null;
+  }
+
+  segments.push(clauseLabel);
+  return segments;
+};
+
+const parseXmlDocument = (config: InstrumentConfig, xml: string): ParsedClause[] => {
+  const root = parse(xml, { lowerCaseTagName: false });
+  const clauseNodes = root.querySelectorAll(XML_CLAUSE_TAGS.join(","));
+  const clauses: ParsedClause[] = [];
+
+  clauseNodes.forEach((node) => {
+    const element = node as HTMLElement;
+    const clauseHeading = buildXmlClauseHeading(element);
+    if (!clauseHeading) {
+      return;
+    }
+
+    const { html: bodyHtml, text: bodyText } = stripHeadingFromBody(element);
+    const clause: ParsedClause = {
+      clauseKey: buildClauseKey(config, clauseHeading),
+      title: clauseHeading.clauseTitle,
+      bodyHtml,
+      bodyText,
+      hierarchyPath: buildXmlHierarchyPath(element, clauseHeading.clauseLabel),
+      contentHash: computeHash(bodyText),
+    };
+    clauses.push(clause);
+  });
+
+  return clauses;
+};
+
+const parseHtmlDocument = (config: InstrumentConfig, html: string): ParsedClause[] => {
   const contentRoot = findContentRoot(html);
   const headingNodes = contentRoot.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, section");
   const context: HeadingContext = { ...initialContext };
@@ -220,4 +335,16 @@ export const parseInstrumentDocument = (config: InstrumentConfig, html: string):
   });
 
   return clauses;
+};
+
+export const parseInstrumentDocument = (
+  config: InstrumentConfig,
+  document: string,
+  format?: InstrumentFetchResult["format"],
+): ParsedClause[] => {
+  const detectedFormat = detectDocumentFormat(document, format);
+  if (detectedFormat === "html") {
+    return parseHtmlDocument(config, document);
+  }
+  return parseXmlDocument(config, document);
 };

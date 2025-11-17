@@ -25,7 +25,7 @@ const fetchPublicFixture = async (publicPath: string) => {
     method: "GET",
     headers: {
       "User-Agent": USER_AGENT,
-      Accept: "text/html,application/xhtml+xml",
+      Accept: "application/xml,text/xml;q=0.9,application/xhtml+xml;q=0.8",
     },
   });
   if (!response.ok) {
@@ -60,21 +60,25 @@ const readFixture = async (fixturePath: string) => {
   }
 };
 
+const detectFormat = (content: string): InstrumentFetchResult["format"] =>
+  /<html|<!DOCTYPE html/i.test(content) ? "html" : "xml";
+
 const loadFromFixture = async (config: InstrumentConfig): Promise<InstrumentFetchResult> => {
   if (!config.fixtureFile) {
     throw new Error(`No fixture configured for ${config.slug}`);
   }
-  const html = await readFixture(config.fixtureFile);
+  const document = await readFixture(config.fixtureFile);
   return {
-    html,
+    document,
     fetchedAt: new Date(),
     status: 200,
     sourceUrl: config.fixtureFile,
     usedFixture: true,
+    format: detectFormat(document),
   };
 };
 
-const performHttpFetch = async (url: string): Promise<{ html: string; status: number }> => {
+const performHttpFetch = async (url: string): Promise<{ document: string; status: number }> => {
   let lastError: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     try {
@@ -85,7 +89,7 @@ const performHttpFetch = async (url: string): Promise<{ html: string; status: nu
           method: "GET",
           headers: {
             "User-Agent": USER_AGENT,
-            Accept: "text/html,application/xhtml+xml",
+            Accept: "application/xml,text/xml;q=0.9,application/xhtml+xml;q=0.8",
             "Accept-Encoding": "identity",
           },
           signal: controller.signal,
@@ -93,8 +97,8 @@ const performHttpFetch = async (url: string): Promise<{ html: string; status: nu
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        const html = await response.text();
-        return { html, status: response.status };
+        const document = await response.text();
+        return { document, status: response.status };
       } finally {
         clearTimeout(timeout);
       }
@@ -111,7 +115,22 @@ const performHttpFetch = async (url: string): Promise<{ html: string; status: nu
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 };
 
-export const fetchInstrumentHtml = async (
+const buildXmlSourceUrl = (config: InstrumentConfig) => {
+  if (config.xmlSourceUrl) {
+    return config.xmlSourceUrl;
+  }
+
+  const source = config.sourceUrl;
+  const exportPath = config.exportPath ?? source.match(/([a-z]+-\d{4}-\d+)/i)?.[1];
+  if (source.startsWith("https://legislation.nsw.gov.au") && exportPath) {
+    const dateSegment = config.exportDate ?? "current";
+    return `https://legislation.nsw.gov.au/export/xml/${dateSegment}/${exportPath}`;
+  }
+
+  return source;
+};
+
+export const fetchInstrumentXml = async (
   config: InstrumentConfig,
 ): Promise<InstrumentFetchResult> => {
   const preferFixtures = process.env.LEGISLATION_USE_FIXTURES === "true";
@@ -121,24 +140,27 @@ export const fetchInstrumentHtml = async (
   }
 
   if (config.sourceUrl.startsWith("file://")) {
-    const html = await readFileFromUrl(config.sourceUrl);
+    const document = await readFileFromUrl(config.sourceUrl);
     return {
-      html,
+      document,
       fetchedAt: new Date(),
       status: 200,
       sourceUrl: config.sourceUrl,
       usedFixture: true,
+      format: detectFormat(document),
     };
   }
 
   try {
-    const { html, status } = await performHttpFetch(config.sourceUrl);
+    const targetUrl = buildXmlSourceUrl(config);
+    const { document, status } = await performHttpFetch(targetUrl);
     return {
-      html,
+      document,
       fetchedAt: new Date(),
       status,
-      sourceUrl: config.sourceUrl,
+      sourceUrl: targetUrl,
       usedFixture: false,
+      format: detectFormat(document),
     };
   } catch (error) {
     if (config.fixtureFile) {
