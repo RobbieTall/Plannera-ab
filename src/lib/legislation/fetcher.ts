@@ -63,6 +63,30 @@ const readFixture = async (fixturePath: string) => {
 const detectFormat = (content: string): InstrumentFetchResult["format"] =>
   /<html|<!DOCTYPE html/i.test(content) ? "html" : "xml";
 
+const loadFromLocalXml = async (config: InstrumentConfig): Promise<InstrumentFetchResult | null> => {
+  if (!config.xmlLocalPath) {
+    return null;
+  }
+
+  try {
+    const document = await fs.readFile(config.xmlLocalPath, "utf-8");
+    return {
+      document,
+      fetchedAt: new Date(),
+      status: 200,
+      sourceUrl: config.xmlLocalPath,
+      usedFixture: true,
+      format: detectFormat(document),
+    };
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      return null;
+    }
+    throw err;
+  }
+};
+
 const loadFromFixture = async (config: InstrumentConfig): Promise<InstrumentFetchResult> => {
   if (!config.fixtureFile) {
     throw new Error(`No fixture configured for ${config.slug}`);
@@ -115,7 +139,10 @@ const performHttpFetch = async (url: string): Promise<{ document: string; status
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 };
 
-const buildXmlSourceUrl = (config: InstrumentConfig) => {
+export const buildXmlSourceUrl = (config: InstrumentConfig) => {
+  if (config.xmlUrl) {
+    return config.xmlUrl;
+  }
   if (config.xmlSourceUrl) {
     return config.xmlSourceUrl;
   }
@@ -134,6 +161,12 @@ export const fetchInstrumentXml = async (
   config: InstrumentConfig,
 ): Promise<InstrumentFetchResult> => {
   const preferFixtures = process.env.LEGISLATION_USE_FIXTURES === "true";
+  const isVercel = Boolean(process.env.VERCEL);
+
+  const localResult = await loadFromLocalXml(config);
+  if (localResult) {
+    return localResult;
+  }
 
   if (preferFixtures && config.fixtureFile) {
     return loadFromFixture(config);
@@ -152,6 +185,18 @@ export const fetchInstrumentXml = async (
   }
 
   try {
+    if (isVercel) {
+      if (config.fixtureFile) {
+        console.warn(
+          `[fetcher] Vercel environment detected; using fixture for ${config.slug} instead of network fetch.`,
+        );
+        return loadFromFixture(config);
+      }
+      throw new Error(
+        `Vercel environment detected and no local XML found for ${config.slug}; network fetch is disabled.`,
+      );
+    }
+
     const targetUrl = buildXmlSourceUrl(config);
     const { document, status } = await performHttpFetch(targetUrl);
     return {

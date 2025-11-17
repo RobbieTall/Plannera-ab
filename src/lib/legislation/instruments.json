@@ -10,7 +10,9 @@
     "status": "in_force",
     "topics": ["consent authority", "development applications"],
     "fixtureFile": "scripts/fixtures/legislation/epa-act-1979.html",
-    "notes": "Core enabling Act for NSW planning system"
+    "notes": "Core enabling Act for NSW planning system",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/act-1979-203",
+    "xml_local_path": "data/nsw/xml/epa-act-1979.xml"
   },
   {
     "slug": "epa-reg-2021",
@@ -22,7 +24,9 @@
     "clausePrefix": "EPA_REG_2021",
     "status": "in_force",
     "topics": ["lodgment", "certificates"],
-    "fixtureFile": "scripts/fixtures/legislation/epa-reg-2021.html"
+    "fixtureFile": "scripts/fixtures/legislation/epa-reg-2021.html",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/sl-2021-643",
+    "xml_local_path": "data/nsw/xml/epa-reg-2021.xml"
   },
   {
     "slug": "sepp-housing-2021",
@@ -34,7 +38,9 @@
     "clausePrefix": "SEPP_HOUSING_2021",
     "alwaysApplicable": true,
     "topics": ["housing", "secondary dwelling", "dual occupancy"],
-    "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html"
+    "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-697",
+    "xml_local_path": "data/nsw/xml/sepp-housing-2021.xml"
   },
   {
     "slug": "sepp-biodiversity-conservation-2021",
@@ -45,7 +51,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-736",
     "clausePrefix": "SEPP_BIODIVERSITY_2021",
     "alwaysApplicable": true,
-    "topics": ["biodiversity", "native vegetation", "coastal management"]
+    "topics": ["biodiversity", "native vegetation", "coastal management"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-736",
+    "xml_local_path": "data/nsw/xml/sepp-biodiversity-conservation-2021.xml"
   },
   {
     "slug": "sepp-industry-employment-2021",
@@ -56,7 +64,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-738",
     "clausePrefix": "SEPP_INDUSTRY_2021",
     "alwaysApplicable": true,
-    "topics": ["industrial", "employment lands", "enterprise"]
+    "topics": ["industrial", "employment lands", "enterprise"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-738",
+    "xml_local_path": "data/nsw/xml/sepp-industry-employment-2021.xml"
   },
   {
     "slug": "sepp-primary-production-2021",
@@ -67,7 +77,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-739",
     "clausePrefix": "SEPP_PRIMARY_PRODUCTION_2021",
     "alwaysApplicable": true,
-    "topics": ["agriculture", "rural", "forestry"]
+    "topics": ["agriculture", "rural", "forestry"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-739",
+    "xml_local_path": "data/nsw/xml/sepp-primary-production-2021.xml"
   },
   {
     "slug": "sepp-resilience-hazards-2021",
@@ -78,7 +90,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-740",
     "clausePrefix": "SEPP_RESILIENCE_2021",
     "alwaysApplicable": true,
-    "topics": ["bush fire", "flooding", "hazards"]
+    "topics": ["bush fire", "flooding", "hazards"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-740",
+    "xml_local_path": "data/nsw/xml/sepp-resilience-hazards-2021.xml"
   },
   {
     "slug": "sepp-transport-infrastructure-2021",
@@ -89,7 +103,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-743",
     "clausePrefix": "SEPP_TRANSPORT_2021",
     "alwaysApplicable": true,
-    "topics": ["transport", "infrastructure", "corridors"]
+    "topics": ["transport", "infrastructure", "corridors"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-743",
+    "xml_local_path": "data/nsw/xml/sepp-transport-infrastructure-2021.xml"
   },
   {
     "slug": "ballina-lep-2012",
@@ -100,7 +116,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-540",
     "clausePrefix": "BALLINA_LEP_2012",
     "topics": ["height", "floor space ratio", "coastal"],
-    "fixtureFile": "scripts/fixtures/legislation/ballina-lep-2012.html"
+    "fixtureFile": "scripts/fixtures/legislation/ballina-lep-2012.html",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-540",
+    "xml_local_path": "data/nsw/xml/ballina-lep-2012.xml"
   },
   {
     "slug": "byron-lep-2014",
@@ -110,7 +128,9 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-355",
     "clausePrefix": "BYRON_LEP_2014",
-    "topics": ["coastal", "zoning", "environmental protection"]
+    "topics": ["coastal", "zoning", "environmental protection"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2014-355",
+    "xml_local_path": "data/nsw/xml/byron-lep-2014.xml"
   },
   {
     "slug": "kempsey-lep-2013",
@@ -120,7 +140,9 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-437",
     "clausePrefix": "KEMPSEY_LEP_2013",
-    "topics": ["rural", "environmental", "heritage"]
+    "topics": ["rural", "environmental", "heritage"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2013-437",
+    "xml_local_path": "data/nsw/xml/kempsey-lep-2013.xml"
   },
   {
     "slug": "lismore-lep-2012",
@@ -130,7 +152,9 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-579",
     "clausePrefix": "LISMORE_LEP_2012",
-    "topics": ["flooding", "height", "floor space ratio"]
+    "topics": ["flooding", "height", "floor space ratio"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-579",
+    "xml_local_path": "data/nsw/xml/lismore-lep-2012.xml"
   },
   {
     "slug": "sydney-lep-2012",
@@ -140,9 +164,11 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0628",
     "clausePrefix": "SYDNEY_LEP_2012",
-    "fixtureFile": "data/nsw/sydney-lep-2012.xml",
+    "fixtureFile": "data/nsw/xml/sydney-lep-2012.xml",
     "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers City of Sydney LGA"
+    "notes": "Covers City of Sydney LGA",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-0628",
+    "xml_local_path": "data/nsw/xml/sydney-lep-2012.xml"
   },
   {
     "slug": "clarence-valley-lep-2011",
@@ -152,7 +178,9 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2011-295",
     "clausePrefix": "CLARENCE_VALLEY_LEP_2011",
-    "topics": ["coastal", "environmental", "height"]
+    "topics": ["coastal", "environmental", "height"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2011-295",
+    "xml_local_path": "data/nsw/xml/clarence-valley-lep-2011.xml"
   },
   {
     "slug": "coffs-harbour-lep-2013",
@@ -162,7 +190,9 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-561",
     "clausePrefix": "COFFS_HARBOUR_LEP_2013",
-    "topics": ["height", "zoning", "environmental hazards"]
+    "topics": ["height", "zoning", "environmental hazards"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2013-561",
+    "xml_local_path": "data/nsw/xml/coffs-harbour-lep-2013.xml"
   },
   {
     "slug": "city-of-sydney-lep-2012",
@@ -173,7 +203,9 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-636",
     "clausePrefix": "SYDNEY_LEP_2012",
     "topics": ["height", "floor space ratio", "zoning"],
-    "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html"
+    "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-636",
+    "xml_local_path": "data/nsw/xml/city-of-sydney-lep-2012.xml"
   },
   {
     "slug": "randwick-lep-2012",
@@ -185,7 +217,9 @@
     "clausePrefix": "RANDWICK_LEP_2012",
     "fixtureFile": "data/nsw/randwick-lep-2012.html",
     "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers Randwick LGA"
+    "notes": "Covers Randwick LGA",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-0460",
+    "xml_local_path": "data/nsw/xml/randwick-lep-2012.xml"
   },
   {
     "slug": "waverley-lep-2012",
@@ -197,7 +231,9 @@
     "clausePrefix": "WAVERLEY_LEP_2012",
     "fixtureFile": "data/nsw/waverley-lep-2012.html",
     "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers Waverley LGA"
+    "notes": "Covers Waverley LGA",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-0666",
+    "xml_local_path": "data/nsw/xml/waverley-lep-2012.xml"
   },
   {
     "slug": "woollahra-lep-2014",
@@ -209,7 +245,9 @@
     "clausePrefix": "WOOLLAHRA_LEP_2014",
     "fixtureFile": "data/nsw/woollahra-lep-2014.html",
     "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers Woollahra LGA"
+    "notes": "Covers Woollahra LGA",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2014-0046",
+    "xml_local_path": "data/nsw/xml/woollahra-lep-2014.xml"
   },
   {
     "slug": "bayside-lep-2021",
@@ -221,6 +259,8 @@
     "clausePrefix": "BAYSIDE_LEP_2021",
     "fixtureFile": "data/nsw/bayside-lep-2021.html",
     "topics": ["land use zoning", "development standards", "heritage"],
-    "notes": "Covers Bayside LGA"
+    "notes": "Covers Bayside LGA",
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-0144",
+    "xml_local_path": "data/nsw/xml/bayside-lep-2021.xml"
   }
 ]
