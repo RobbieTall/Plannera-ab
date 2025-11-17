@@ -13,18 +13,25 @@ const main = async () => {
   const failures: string[] = [];
 
   for (const result of results) {
-    if ("error" in result && result.error) {
-      failures.push(`${result.config.slug}: ${result.error.message}`);
-      console.log(`→ ${result.config.slug} failed: ${result.error.message}`);
+    if (result.status === "ok") {
+      ingested += 1;
+      created += result.added;
+      updated += result.updated;
+      console.log(
+        `→ ${result.instrument.slug}: ${result.added} created, ${result.updated} updated (${result.parsedClauses} parsed)`,
+      );
       continue;
     }
 
-    ingested += 1;
-    created += result.added;
-    updated += result.updated;
-    console.log(
-      `→ ${result.instrument.slug}: ${result.added} created, ${result.updated} updated (${result.parsedClauses} parsed)`,
-    );
+    if (result.status === "skipped") {
+      console.log(
+        `→ skipped ingestion for ${result.instrument?.slug ?? result.config.slug}: ${result.reason}`,
+      );
+      continue;
+    }
+
+    failures.push(`${result.config.slug}: ${result.error.message}`);
+    console.log(`→ ${result.config.slug} failed: ${result.error.message}`);
   }
 
   console.log("\n[ingest:all-nsw] Summary:");

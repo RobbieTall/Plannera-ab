@@ -6,12 +6,17 @@ const main = async () => {
   console.log("[legislation] starting sync");
   const results = await syncAllInstruments();
   results.forEach((result) => {
-    if ("error" in result && result.error) {
-      console.log(`→ ${result.config.slug}: failed (${result.error.message})`);
+    if (result.status === "ok") {
+      console.log(`→ ${result.instrument.slug}: ${result.added} added / ${result.updated} updated (last synced ${result.instrument.lastSyncedAt})`);
       return;
     }
 
-    console.log(`→ ${result.instrument.slug}: ${result.added} added / ${result.updated} updated (last synced ${result.instrument.lastSyncedAt})`);
+    if (result.status === "skipped") {
+      console.log(`→ ${result.config.slug}: skipped (${result.reason})`);
+      return;
+    }
+
+    console.log(`→ ${result.config.slug}: failed (${result.error.message})`);
   });
 };
 

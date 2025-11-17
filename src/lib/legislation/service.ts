@@ -17,14 +17,36 @@ const DEFAULT_SEARCH_LIMIT = 25;
 let parserModulePromise: Promise<typeof import("./parser")> | null = null;
 let fetcherModulePromise: Promise<typeof import("./fetcher")> | null = null;
 
-export interface SyncResult {
-  instrument?: Instrument;
+export type SyncSuccessResult = {
+  status: "ok";
+  instrument: Instrument;
   config: InstrumentConfigType;
   added: number;
   updated: number;
+  parsedClauses: number;
+};
+
+export type SyncSkipResult = {
+  status: "skipped";
+  config: InstrumentConfigType;
+  reason: string;
+  instrument?: Instrument;
+  added: number;
+  updated: number;
   parsedClauses?: number;
-  error?: Error;
-}
+};
+
+export type SyncErrorResult = {
+  status: "error";
+  config: InstrumentConfigType;
+  instrument?: Instrument;
+  added: number;
+  updated: number;
+  parsedClauses?: number;
+  error: Error;
+};
+
+export type SyncResult = SyncSuccessResult | SyncSkipResult | SyncErrorResult;
 
 const loadParserModule = () => {
   if (!parserModulePromise) {
@@ -205,7 +227,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
     data: { lastSyncedAt: now },
   });
 
-  return { config, instrument: updatedInstrument, added, updated, parsedClauses: parsedClauses.length };
+  return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: parsedClauses.length };
 };
 
 export const syncInstrument = async (slug: string): Promise<SyncResult> => {
@@ -226,7 +248,15 @@ export const syncAllInstruments = async (): Promise<SyncResult[]> => {
       results.push(result);
     } catch (error) {
       console.error(`[legislation] Failed to sync ${config.slug}:`, error);
-      results.push({ config, instrument: undefined, added: 0, updated: 0, parsedClauses: 0, error: error as Error });
+      results.push({
+        status: "error",
+        config,
+        instrument: undefined,
+        added: 0,
+        updated: 0,
+        parsedClauses: 0,
+        error: error as Error,
+      });
     }
   }
   return results;

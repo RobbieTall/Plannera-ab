@@ -10,14 +10,22 @@ const main = async () => {
 
     console.log("\n[Refresh] Sync Results:");
     for (const result of results) {
-      if ("error" in result && result.error) {
-        console.log(`\n${result.config.name ?? result.config.slug}:`);
-        console.log(`  - Failed: ${result.error.message}`);
+      const label = result.config.name ?? result.config.slug;
+
+      if (result.status === "ok") {
+        console.log(`\n${result.instrument.name}:`);
+        console.log(`  - Added: ${result.added}, Updated: ${result.updated}, Parsed: ${result.parsedClauses}`);
         continue;
       }
 
-      console.log(`\n${result.instrument.name}:`);
-      console.log(`  - Added: ${result.added}, Updated: ${result.updated}, Parsed: ${result.parsedClauses}`);
+      if (result.status === "skipped") {
+        console.log(`\n${label}:`);
+        console.log(`  - Skipped: ${result.reason}`);
+        continue;
+      }
+
+      console.log(`\n${label}:`);
+      console.log(`  - Failed: ${result.error.message}`);
     }
 
     console.log(`\n✓ Completed in ${((Date.now() - start) / 1000).toFixed(2)}s`);
