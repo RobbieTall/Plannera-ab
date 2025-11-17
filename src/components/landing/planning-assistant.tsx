@@ -115,13 +115,15 @@ export function PlanningAssistant() {
     generatedSummary: PlanningSummary,
     shouldTrack: boolean
   ) => {
-    const messages = buildInitialConversation(promptValue, generatedSummary);
-    saveChatHistory(projectId, messages);
+    const messages: WorkspaceMessage[] = [];
+    if (messages.length) {
+      saveChatHistory(projectId, messages);
+    }
     const project = buildProjectFromSummary(projectId, promptValue, generatedSummary);
     registerProject(project);
     setActiveProjectId(projectId);
     if (shouldTrack) {
-      trackProjectCreation(projectId, messages);
+      trackProjectCreation(projectId, messages.length ? messages : undefined);
     }
   };
 
@@ -444,6 +446,7 @@ function buildProjectFromSummary(projectId: string, description: string, summary
       summary.council
     } requirements and ${summary.requirements[0] ?? "local controls"}.`,
     location: locationLabel,
+    isDemo: false,
     status: "active",
     priority: "high",
     progress: 12,
@@ -469,33 +472,6 @@ function buildProjectFromSummary(projectId: string, description: string, summary
       },
     ],
   };
-}
-
-function buildInitialConversation(description: string, summary: PlanningSummary): WorkspaceMessage[] {
-  const now = new Date();
-  const baseTimestamp = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return [
-    {
-      id: `seed-${now.getTime()}-user`,
-      role: "user",
-      content: description.trim(),
-      timestamp: baseTimestamp,
-    },
-    {
-      id: `seed-${now.getTime()}-assistant`,
-      role: "assistant",
-      content: formatSummaryMessage(summary),
-      timestamp: new Date(now.getTime() + 60_000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
-  ];
-}
-
-function formatSummaryMessage(summary: PlanningSummary) {
-  const propertyHint = summary.nswData?.property?.[0];
-  const propertyLine = propertyHint ? ` Zoning confirmed as ${propertyHint.zoning} on ${propertyHint.address}.` : "";
-  return `Here's the initial view for ${summary.developmentType} in ${summary.location}. Expect a ${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} week path, budget of ${summary.budgetRange}, and focus on ${summary.requirements.slice(0, 2).join(
-    " and "
-  )}.${propertyLine} I'll prep artefacts once we open the workspace.`;
 }
 
 function buildPropertyItems(summary: PlanningSummary) {

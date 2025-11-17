@@ -165,45 +165,48 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   } = useExperience();
 
   const initialSources = useMemo<WorkspaceSource[]>(
-    () => [
-      {
-        id: "src-1",
-        name: "Council pre-lodgement feedback.eml",
-        detail: `Forwarded by ${project.teamMembers[0]?.name ?? "council liaison"}`,
-        type: "email",
-        uploadedAt: "2 days ago",
-        sizeLabel: "86 KB",
-      },
-      {
-        id: "src-2",
-        name: "ESD Statement draft.pdf",
-        detail: "Uploaded 2 days ago · 14 pages",
-        type: "pdf",
-        uploadedAt: "2 days ago",
-        sizeLabel: "1.2 MB",
-        status: "In review",
-      },
-      {
-        id: "src-3",
-        name: "Flood overlay guidance",
-        detail: "NSW Planning Portal",
-        type: "link",
-        uploadedAt: "Last week",
-        sizeLabel: "Link",
-      },
-      {
-        id: "src-4",
-        name: `${project.name} feasibility deck.pptx`,
-        detail: "Slides · Updated last week",
-        type: "document",
-        uploadedAt: "Last week",
-        sizeLabel: "4.3 MB",
-      },
-    ],
-    [project.name, project.teamMembers],
+    () =>
+      project.isDemo
+        ? [
+            {
+              id: "src-1",
+              name: "Council pre-lodgement feedback.eml",
+              detail: `Forwarded by ${project.teamMembers[0]?.name ?? "council liaison"}`,
+              type: "email",
+              uploadedAt: "2 days ago",
+              sizeLabel: "86 KB",
+            },
+            {
+              id: "src-2",
+              name: "ESD Statement draft.pdf",
+              detail: "Uploaded 2 days ago · 14 pages",
+              type: "pdf",
+              uploadedAt: "2 days ago",
+              sizeLabel: "1.2 MB",
+              status: "In review",
+            },
+            {
+              id: "src-3",
+              name: "Flood overlay guidance",
+              detail: "NSW Planning Portal",
+              type: "link",
+              uploadedAt: "Last week",
+              sizeLabel: "Link",
+            },
+            {
+              id: "src-4",
+              name: `${project.name} feasibility deck.pptx`,
+              detail: "Slides · Updated last week",
+              type: "document",
+              uploadedAt: "Last week",
+              sizeLabel: "4.3 MB",
+            },
+          ]
+        : [],
+    [project.isDemo, project.name, project.teamMembers],
   );
 
-  const fallbackMessages = useMemo(() => createFallbackMessages(project), [project]);
+  const fallbackMessages = useMemo(() => (project.isDemo ? createFallbackMessages(project) : []), [project]);
 
   const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(fallbackMessages);
@@ -249,7 +252,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     window.setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const trimmedInput = input.trim();
     if (!trimmedInput) return;
     const newMessage: WorkspaceMessage = {
@@ -262,16 +265,46 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setInput("");
     setIsThinking(true);
     const contextSnippets = getSourceContext(project.id);
-    window.setTimeout(() => {
+    if (project.isDemo) {
+      window.setTimeout(() => {
+        const assistantMessage: WorkspaceMessage = {
+          id: `msg-${Date.now()}-assistant`,
+          role: "assistant",
+          content: generateAssistantResponse({
+            userMessage: trimmedInput,
+            project,
+            contextSnippets,
+            sources,
+          }),
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((previous) => {
+          const updated = [...previous, assistantMessage];
+          saveChatHistory(project.id, updated);
+          return updated;
+        });
+        setIsThinking(false);
+      }, 900);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/workspace-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmedInput,
+          projectId: project.id,
+          projectName: project.name,
+        }),
+      });
+      const data: { reply?: string } = await response.json();
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
-        content: generateAssistantResponse({
-          userMessage: trimmedInput,
-          project,
-          contextSnippets,
-          sources,
-        }),
+        content:
+          data.reply ??
+          "I couldn’t reach the legislation-backed responder just now, but I can try again if you share the site location or zoning.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((previous) => {
@@ -279,19 +312,34 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         saveChatHistory(project.id, updated);
         return updated;
       });
+    } catch (error) {
+      console.error("Workspace chat send error", error);
+      const assistantMessage: WorkspaceMessage = {
+        id: `msg-${Date.now()}-assistant`,
+        role: "assistant",
+        content:
+          "I couldn’t retrieve the Sydney LEP or SEPP clauses right now. Please try again or add the council area and zone for a precise lookup.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((previous) => {
+        const updated = [...previous, assistantMessage];
+        saveChatHistory(project.id, updated);
+        return updated;
+      });
+    } finally {
       setIsThinking(false);
-    }, 900);
+    }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    sendMessage();
+    void sendMessage();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      sendMessage();
+      void sendMessage();
     }
   };
 
@@ -380,7 +428,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const experienceArtefacts = getArtefacts(project.id);
-  const artefacts = useMemo(() => [...seededArtefacts, ...experienceArtefacts], [experienceArtefacts]);
+  const artefacts = useMemo(
+    () => (project.isDemo ? [...seededArtefacts, ...experienceArtefacts] : experienceArtefacts),
+    [experienceArtefacts, project.isDemo],
+  );
 
   const handleSaveNote = () => {
     if (!noteTitle.trim()) {

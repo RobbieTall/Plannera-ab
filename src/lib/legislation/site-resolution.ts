@@ -5,6 +5,8 @@ interface SiteInput {
   address: string;
   parcelId?: string;
   topic?: string;
+  lga?: string | null;
+  state?: string | null;
 }
 
 const LGA_KEYWORDS: Record<string, string[]> = {
@@ -33,7 +35,7 @@ const inferLgaFromAddress = (address: string) => {
 };
 
 export const resolveSiteInstruments = async (input: SiteInput): Promise<SiteResolutionResult> => {
-  const inferredLga = inferLgaFromAddress(input.address);
+  const inferredLga = input.lga ?? inferLgaFromAddress(input.address);
   const lepSlug = inferredLga ? LEP_BY_LGA[inferredLga] : undefined;
 
   const instrumentSlugs = [...DEFAULT_SEPP_SLUGS];
