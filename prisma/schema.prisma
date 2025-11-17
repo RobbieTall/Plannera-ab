@@ -61,6 +61,7 @@ model Project {
   name          String
   description   String?
   status        ProjectStatus   @default(PLANNING)
+  isDemo        Boolean         @default(false)
   propertyId    String
   property      Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   createdById   String?

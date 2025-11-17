@@ -38,6 +38,7 @@ export interface Project {
   name: string;
   description: string;
   location?: string;
+  isDemo: boolean;
   status: ProjectStatus;
   priority: ProjectPriority;
   progress: number;
@@ -658,6 +659,7 @@ export const projects: Project[] = [
     name: "Aurora Housing Revamp",
     description: "Modernizing mixed-income housing with smart amenities and communal spaces.",
     location: "Bondi, NSW",
+    isDemo: true,
     status: "active",
     priority: "high",
     progress: 0.72,
@@ -675,6 +677,7 @@ export const projects: Project[] = [
     name: "Evergreen Community Hub",
     description: "Transforming an old mall into a community-driven innovation hub.",
     location: "Fortitude Valley, QLD",
+    isDemo: true,
     status: "on-hold",
     priority: "medium",
     progress: 0.58,
@@ -692,6 +695,7 @@ export const projects: Project[] = [
     name: "Harborfront Residences",
     description: "Premium waterfront living with retail activation at ground level.",
     location: "St Kilda, VIC",
+    isDemo: true,
     status: "active",
     priority: "medium",
     progress: 0.64,
@@ -709,6 +713,7 @@ export const projects: Project[] = [
     name: "Metro Transit Upgrade",
     description: "Upgrading city transit interchanges with mixed-use development.",
     location: "Parramatta, NSW",
+    isDemo: true,
     status: "active",
     priority: "high",
     progress: 0.41,
@@ -726,6 +731,7 @@ export const projects: Project[] = [
     name: "Solaris Innovation Center",
     description: "Net-zero innovation campus with modular lab and workspace zones.",
     location: "Southbank, VIC",
+    isDemo: true,
     status: "active",
     priority: "high",
     progress: 0.67,
@@ -743,6 +749,7 @@ export const projects: Project[] = [
     name: "Riverstone Waterfront",
     description: "Mixed-use waterfront boardwalk with retail and public amenities.",
     location: "Newcastle, NSW",
+    isDemo: true,
     status: "completed",
     priority: "medium",
     progress: 1,
@@ -760,6 +767,7 @@ export const projects: Project[] = [
     name: "Skyline Workspace",
     description: "Flexible workspace tower with integrated wellness programs.",
     location: "Brisbane CBD, QLD",
+    isDemo: true,
     status: "active",
     priority: "medium",
     progress: 0.53,
@@ -777,6 +785,7 @@ export const projects: Project[] = [
     name: "Heritage Library Restoration",
     description: "Revitalizing historic library into a modern cultural landmark.",
     location: "Adelaide, SA",
+    isDemo: true,
     status: "on-hold",
     priority: "high",
     progress: 0.45,
@@ -794,6 +803,7 @@ export const projects: Project[] = [
     name: "Lumina Smart District",
     description: "Deploying smart infrastructure and public realm tech across a downtown grid.",
     location: "Melbourne CBD, VIC",
+    isDemo: true,
     status: "active",
     priority: "high",
     progress: 0.36,
@@ -811,6 +821,7 @@ export const projects: Project[] = [
     name: "Terrace Arts Center",
     description: "Converting an industrial terrace into a creative campus with public gardens.",
     location: "Fremantle, WA",
+    isDemo: true,
     status: "archived",
     priority: "medium",
     progress: 0.2,
