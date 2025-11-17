@@ -40,7 +40,7 @@
     "topics": ["housing", "secondary dwelling", "dual occupancy"],
     "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-697",
-    "xml_local_path": "data/nsw/xml/sepp-housing-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Housing-2021.xml"
   },
   {
     "slug": "sepp-biodiversity-conservation-2021",
@@ -53,7 +53,7 @@
     "alwaysApplicable": true,
     "topics": ["biodiversity", "native vegetation", "coastal management"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-736",
-    "xml_local_path": "data/nsw/xml/sepp-biodiversity-conservation-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Biodiversity-and-Conservation-2021.xml"
   },
   {
     "slug": "sepp-industry-employment-2021",
@@ -66,7 +66,20 @@
     "alwaysApplicable": true,
     "topics": ["industrial", "employment lands", "enterprise"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-738",
-    "xml_local_path": "data/nsw/xml/sepp-industry-employment-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Industry_and_Employment-2021.xml"
+  },
+  {
+    "slug": "sepp-planning-systems-2021",
+    "name": "State Environmental Planning Policy (Planning Systems) 2021",
+    "shortName": "SEPP Planning Systems 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-724",
+    "clausePrefix": "SEPP_PLANNING_SYSTEMS_2021",
+    "alwaysApplicable": true,
+    "topics": ["planning systems", "plan making"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-724",
+    "xml_local_path": "data/nsw/xml/SEPP-Planning-Systems-2021.xml"
   },
   {
     "slug": "sepp-primary-production-2021",
@@ -79,7 +92,7 @@
     "alwaysApplicable": true,
     "topics": ["agriculture", "rural", "forestry"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-739",
-    "xml_local_path": "data/nsw/xml/sepp-primary-production-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Primary-Production-2021.xml"
   },
   {
     "slug": "sepp-resilience-hazards-2021",
@@ -92,7 +105,33 @@
     "alwaysApplicable": true,
     "topics": ["bush fire", "flooding", "hazards"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-740",
-    "xml_local_path": "data/nsw/xml/sepp-resilience-hazards-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Resiliance-and-Hazard-2021.xml"
+  },
+  {
+    "slug": "sepp-resources-energy-2021",
+    "name": "State Environmental Planning Policy (Resources and Energy) 2021",
+    "shortName": "SEPP Resources and Energy 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-731",
+    "clausePrefix": "SEPP_RESOURCES_ENERGY_2021",
+    "alwaysApplicable": true,
+    "topics": ["resources", "energy", "mining"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-731",
+    "xml_local_path": "data/nsw/xml/SEPP-Resources-and-Energy-2021.xml"
+  },
+  {
+    "slug": "sepp-exempt-complying-2008",
+    "name": "State Environmental Planning Policy (Exempt and Complying Development Codes) 2008",
+    "shortName": "SEPP Exempt and Complying 2008",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2008-572",
+    "clausePrefix": "SEPP_EXEMPT_COMPLYING_2008",
+    "alwaysApplicable": true,
+    "topics": ["complying development", "exempt development"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2008-572",
+    "xml_local_path": "data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml"
   },
   {
     "slug": "sepp-transport-infrastructure-2021",
@@ -105,7 +144,59 @@
     "alwaysApplicable": true,
     "topics": ["transport", "infrastructure", "corridors"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-743",
-    "xml_local_path": "data/nsw/xml/sepp-transport-infrastructure-2021.xml"
+    "xml_local_path": "data/nsw/xml/SEPP-Transport-and-Infrastructure-2021.xml"
+  },
+  {
+    "slug": "sepp-precincts-central-river-city-2021",
+    "name": "State Environmental Planning Policy (Precincts—Central River City) 2021",
+    "shortName": "SEPP Precincts (Central River City) 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-725",
+    "clausePrefix": "SEPP_PRECINCTS_CENTRAL_RIVER_CITY_2021",
+    "alwaysApplicable": true,
+    "topics": ["precincts", "planning"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-725",
+    "xml_local_path": "data/nsw/xml/SEPP-Precincts—Central River City-2021.xml"
+  },
+  {
+    "slug": "sepp-precincts-eastern-harbour-city-2021",
+    "name": "State Environmental Planning Policy (Precincts—Eastern Harbour City) 2021",
+    "shortName": "SEPP Precincts (Eastern Harbour City) 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-726",
+    "clausePrefix": "SEPP_PRECINCTS_EASTERN_HARBOUR_CITY_2021",
+    "alwaysApplicable": true,
+    "topics": ["precincts", "planning"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-726",
+    "xml_local_path": "data/nsw/xml/SEPP-Precincts—Eastern Harbour City-2021.xml"
+  },
+  {
+    "slug": "sepp-precincts-regional-2021",
+    "name": "State Environmental Planning Policy (Precincts—Regional) 2021",
+    "shortName": "SEPP Precincts (Regional) 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-727",
+    "clausePrefix": "SEPP_PRECINCTS_REGIONAL_2021",
+    "alwaysApplicable": true,
+    "topics": ["precincts", "planning"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-727",
+    "xml_local_path": "data/nsw/xml/SEPP-Precincts—Regional-2021.xml"
+  },
+  {
+    "slug": "sepp-precincts-western-parkland-city-2021",
+    "name": "State Environmental Planning Policy (Precincts—Western Parkland City) 2021",
+    "shortName": "SEPP Precincts (Western Parkland City) 2021",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2021-728",
+    "clausePrefix": "SEPP_PRECINCTS_WESTERN_PARKLAND_CITY_2021",
+    "alwaysApplicable": true,
+    "topics": ["precincts", "planning"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-728",
+    "xml_local_path": "data/nsw/xml/SEPP-Precincts—Western Parkland City-2021.xml"
   },
   {
     "slug": "ballina-lep-2012",
