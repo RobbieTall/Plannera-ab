@@ -73,12 +73,12 @@ export const ingestInstrument = async (slug: string) => {
     throw new Error(`Unknown instrument slug: ${slug}`);
   }
 
-  const [{ parseInstrumentDocument }, { fetchInstrumentHtml }] = await Promise.all([
+  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
     loadParserModule(),
     loadFetcherModule(),
   ]);
-  const fetchResult = await fetchInstrumentHtml(config);
-  const parsedClauses = parseInstrumentDocument(config, fetchResult.html);
+  const fetchResult = await fetchInstrumentXml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
 
   const instrument = await upsertInstrument(config);
 
@@ -115,12 +115,12 @@ export const ingestInstrument = async (slug: string) => {
 
 const syncInstrumentInternal = async (config: InstrumentConfigType) => {
   const instrument = await upsertInstrument(config);
-  const [{ parseInstrumentDocument }, { fetchInstrumentHtml }] = await Promise.all([
+  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
     loadParserModule(),
     loadFetcherModule(),
   ]);
-  const fetchResult = await fetchInstrumentHtml(config);
-  const parsedClauses = parseInstrumentDocument(config, fetchResult.html);
+  const fetchResult = await fetchInstrumentXml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
   const now = fetchResult.fetchedAt;
   const currentClauses = await prisma.clause.findMany({
     where: { instrumentId: instrument.id, isCurrent: true },

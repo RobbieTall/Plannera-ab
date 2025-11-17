@@ -9,6 +9,9 @@ export interface InstrumentConfig {
   instrumentType: InstrumentType;
   sourceUrl: string;
   jurisdiction?: string;
+  xmlSourceUrl?: string;
+  exportDate?: string;
+  exportPath?: string;
   clausePrefix?: string;
   alwaysApplicable?: boolean;
   topics?: string[];
@@ -27,11 +30,12 @@ export interface ParsedClause {
 }
 
 export interface InstrumentFetchResult {
-  html: string;
+  document: string;
   fetchedAt: Date;
   status: number;
   sourceUrl: string;
   usedFixture: boolean;
+  format: "xml" | "html";
 }
 
 export interface SearchClausesParams {
