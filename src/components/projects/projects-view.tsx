@@ -151,6 +151,7 @@ export function ProjectsView() {
       teamMembers: selectedMembers,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       activity: existing?.activity ?? [],
+      isDemo: existing?.isDemo ?? false,
     } satisfies Project;
   };
 
