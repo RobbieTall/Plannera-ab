@@ -7,11 +7,13 @@ import type {
   WorkspaceArtefact,
   WorkspaceMessage,
 } from "@/types/workspace";
+import { projects as mockProjects, type Project } from "@/lib/mock-data";
 
 interface ExperienceState {
   userTier: UserTier;
   freeProjectLimit: number;
   createdProjects: string[];
+  customProjects: Project[];
   chatByProject: Record<string, WorkspaceMessage[]>;
   uploadsByProject: Record<string, number>;
   artefactsByProject: Record<string, WorkspaceArtefact[]>;
@@ -33,6 +35,8 @@ interface ExperienceContextValue {
   trackProjectCreation: (projectId: string, messages?: WorkspaceMessage[]) => void;
   saveChatHistory: (projectId: string, messages: WorkspaceMessage[]) => void;
   getChatHistory: (projectId: string) => WorkspaceMessage[];
+  registerProject: (project: Project) => void;
+  getProject: (projectId: string) => Project | undefined;
   getUploadUsage: (projectId: string) => { used: number; limit: number };
   recordUpload: (projectId: string, amount: number) => void;
   addArtefact: (projectId: string, artefact: WorkspaceArtefact) => void;
@@ -53,6 +57,7 @@ const defaultState: ExperienceState = {
   userTier: "anonymous",
   freeProjectLimit: 1,
   createdProjects: [],
+  customProjects: [],
   chatByProject: {},
   uploadsByProject: {},
   artefactsByProject: {},
@@ -137,6 +142,27 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       };
     });
   }, []);
+
+  const registerProject = useCallback((project: Project) => {
+    setState((previous) => {
+      const exists = previous.customProjects.some((entry) => entry.id === project.id);
+      const updatedProjects = exists
+        ? previous.customProjects.map((entry) => (entry.id === project.id ? project : entry))
+        : [...previous.customProjects, project];
+
+      return {
+        ...previous,
+        customProjects: updatedProjects,
+      };
+    });
+  }, []);
+
+  const getProject = useCallback(
+    (projectId: string) =>
+      state.customProjects.find((project) => project.id === projectId) ??
+      mockProjects.find((project) => project.id === projectId),
+    [state.customProjects]
+  );
 
   const saveChatHistory = useCallback((projectId: string, messages: WorkspaceMessage[]) => {
     setState((previous) => ({
@@ -234,6 +260,8 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       setUserTier,
       canStartProject,
       trackProjectCreation,
+      registerProject,
+      getProject,
       saveChatHistory,
       getChatHistory,
       getUploadUsage,
@@ -248,12 +276,14 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
     addArtefact,
     appendSourceContext,
     canStartProject,
+    getProject,
     getArtefacts,
     getChatHistory,
     getSourceContext,
     getUploadUsage,
     recordToolUsage,
     recordUpload,
+    registerProject,
     saveChatHistory,
     setUserTier,
     state,
