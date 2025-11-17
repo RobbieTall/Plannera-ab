@@ -43,13 +43,14 @@ const actionButtons = [
 
 export function PlanningAssistant() {
   const router = useRouter();
-  const { canStartProject, trackProjectCreation, saveChatHistory, getChatHistory, registerProject } = useExperience();
+  const { state, canStartProject, trackProjectCreation, saveChatHistory, getChatHistory, registerProject } = useExperience();
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState<PlanningSummary | null>(null);
   const [modalState, setModalState] = useState<{ type: "limit" | "action"; context?: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [pendingProject, setPendingProject] = useState<{ id: string; prompt: string } | null>(null);
 
   const timelineLabel = useMemo(() => {
     if (!summary) return null;
@@ -69,6 +70,7 @@ export function PlanningAssistant() {
     const prospectiveId = buildProjectId();
     const gate = canStartProject(prospectiveId);
     if (!gate.allowed) {
+      setPendingProject({ id: prospectiveId, prompt });
       setModalState({ type: "limit" });
       return;
     }
@@ -138,6 +140,7 @@ export function PlanningAssistant() {
     const prospectiveId = buildProjectId();
     const gate = canStartProject(prospectiveId);
     if (!gate.allowed) {
+      setPendingProject({ id: prospectiveId, prompt: description });
       setModalState({ type: "limit" });
       return;
     }
@@ -146,6 +149,26 @@ export function PlanningAssistant() {
 
   const handleRestrictedAction = (action: string) => {
     setModalState({ type: "action", context: action });
+  };
+
+  const handleContinueExploring = async () => {
+    if (modalState?.type === "limit") {
+      if (state.remainingProjects <= 0) {
+        setModalState(null);
+        return;
+      }
+      if (pendingProject) {
+        setModalState(null);
+        await createSummary(pendingProject.prompt, {
+          shouldTrackProject: true,
+          projectId: pendingProject.id,
+        });
+        setPendingProject(null);
+        return;
+      }
+    }
+    setModalState(null);
+    handleGoToWorkspace(activeProjectId ?? undefined);
   };
 
   return (
@@ -331,8 +354,9 @@ export function PlanningAssistant() {
           </a>
           <button
             type="button"
-            onClick={() => handleGoToWorkspace(activeProjectId ?? undefined)}
-            className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+            onClick={handleContinueExploring}
+            disabled={modalState?.type === "limit" && state.remainingProjects <= 0}
+            className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Continue exploring
           </button>

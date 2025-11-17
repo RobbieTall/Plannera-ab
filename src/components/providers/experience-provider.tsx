@@ -114,9 +114,13 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
   const canStartProject = useCallback(
     (projectId: string) => {
       const alreadyTracked = state.createdProjects.includes(projectId);
-      const remaining = Math.max(state.freeProjectLimit - state.createdProjects.length, 0);
+      const baselineLimit = Math.max(state.freeProjectLimit, 1);
+      const remaining = Math.max(baselineLimit - state.createdProjects.length, 0);
       if (alreadyTracked) {
         return { allowed: true, remaining, alreadyTracked: true };
+      }
+      if (state.userTier === "anonymous" && state.createdProjects.length === 0) {
+        return { allowed: true, remaining, alreadyTracked: false };
       }
       if (state.userTier === "anonymous" && remaining <= 0) {
         return { allowed: false, remaining: 0, alreadyTracked: false };
