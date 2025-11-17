@@ -140,7 +140,7 @@
     "jurisdiction": "NSW",
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-0628",
     "clausePrefix": "SYDNEY_LEP_2012",
-    "fixtureFile": "public/data/nsw/sydney-lep-2012.html",
+    "fixtureFile": "data/nsw/sydney-lep-2012.xml",
     "topics": ["land use zoning", "development standards", "heritage"],
     "notes": "Covers City of Sydney LGA"
   },

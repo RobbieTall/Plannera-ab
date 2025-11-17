@@ -159,7 +159,7 @@ The backend NSW legislation service lives under `src/lib/legislation` and powers
 
 - Instrument sources now live in `src/lib/legislation/instruments.json`. Each object defines the slug, display names, instrument type, jurisdiction, canonical NSW legislation URL, optional topics, and a `fixtureFile` used for deterministic development runs. The default bundle now covers the EPA Act + Regulation, the Housing, Biodiversity, Industry & Employment, Primary Production, Resilience, and Transport SEPPs, plus LEPs for Ballina, Byron, Kempsey, Lismore, Clarence Valley, Coffs Harbour, and the City of Sydney so the shared ingestion path sees a representative sample of NSW councils from day one.
 - `src/lib/legislation/config.ts` loads that JSON at runtime, normalises the paths, and exposes helper getters used by the ingestion and sync jobs. The default list includes the EPA Act 1979, EPA Regulation 2021, SEPP Housing 2021, Ballina LEP 2012, and the Sydney LEP 2012 so we cover Acts, Regulations, SEPPs and LEPs out of the box.
-- Deterministic HTML fixtures continue to live under `scripts/fixtures/legislation/`. Set `LEGISLATION_USE_FIXTURES=true` when running the ingestion or sync scripts to force the fetcher to use these files instead of the live NSW endpoint (helpful in CI or when the public site is unreachable).
+- Deterministic fixtures (HTML or XML) continue to live under `scripts/fixtures/legislation/` and `data/nsw/`. Set `LEGISLATION_USE_FIXTURES=true` when running the ingestion or sync scripts to force the fetcher to use these files instead of the live NSW endpoint (helpful in CI or when the public site is unreachable).
 
 ### Ingestion & sync
 
