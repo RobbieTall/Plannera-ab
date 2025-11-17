@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { generatePlanningInsights, PlanningSummary } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
-import { projects } from "@/lib/mock-data";
+import { teamMembers, type Project } from "@/lib/mock-data";
 import { useExperience } from "@/components/providers/experience-provider";
 import { Modal } from "@/components/ui/modal";
 import type { WorkspaceMessage } from "@/types/workspace";
@@ -41,41 +41,41 @@ const actionButtons = [
   { label: "Share with team", action: "share this plan", icon: Share2 },
 ];
 
-const demoWorkspaceProject = projects.find((project) => project.id === "proj-aurora") ?? projects[0];
-
 export function PlanningAssistant() {
   const router = useRouter();
-  const { canStartProject, trackProjectCreation, saveChatHistory, getChatHistory } = useExperience();
+  const { canStartProject, trackProjectCreation, saveChatHistory, getChatHistory, registerProject } = useExperience();
   const [description, setDescription] = useState("");
   const [summary, setSummary] = useState<PlanningSummary | null>(null);
   const [modalState, setModalState] = useState<{ type: "limit" | "action"; context?: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   const timelineLabel = useMemo(() => {
     if (!summary) return null;
     return `${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} weeks`;
   }, [summary]);
 
-  const handleGoToWorkspace = () => {
-    if (!demoWorkspaceProject) {
-      return;
-    }
+  const handleGoToWorkspace = (projectId?: string) => {
     setModalState(null);
-    router.push(`/projects/${demoWorkspaceProject.id}/workspace`);
+    const targetId = projectId ?? activeProjectId;
+    if (targetId) {
+      router.push(`/projects/${targetId}/workspace`);
+    }
   };
 
   const handlePromptSelection = (prompt: string) => {
     setDescription(prompt);
-    const gate = canStartProject(demoWorkspaceProject.id);
+    const prospectiveId = buildProjectId();
+    const gate = canStartProject(prospectiveId);
     if (!gate.allowed) {
       setModalState({ type: "limit" });
       return;
     }
-    void createSummary(prompt, { shouldTrackProject: !gate.alreadyTracked });
+    void createSummary(prompt, { shouldTrackProject: !gate.alreadyTracked, projectId: prospectiveId });
   };
 
-  const createSummary = async (value: string, options: { shouldTrackProject: boolean }) => {
+  const createSummary = async (value: string, options: { shouldTrackProject: boolean; projectId: string }) => {
     setIsGenerating(true);
     setErrorMessage(null);
     try {
@@ -84,7 +84,7 @@ export function PlanningAssistant() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: value, history: getChatHistory(demoWorkspaceProject.id) }),
+        body: JSON.stringify({ prompt: value, history: getChatHistory(options.projectId) }),
       });
 
       if (!response.ok) {
@@ -94,26 +94,34 @@ export function PlanningAssistant() {
       const data: { summary: PlanningSummary; error?: string | null } = await response.json();
       setSummary(data.summary);
       setErrorMessage(data.error ?? null);
-      persistInitialConversation(value, data.summary, options.shouldTrackProject);
-      handleGoToWorkspace();
+      persistInitialConversation(options.projectId, value, data.summary, options.shouldTrackProject);
+      handleGoToWorkspace(options.projectId);
     } catch (error) {
       console.error(error);
       setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
       const parsed = parseProjectDescription(value);
       const fallback = generatePlanningInsights(parsed);
       setSummary(fallback);
-      persistInitialConversation(value, fallback, options.shouldTrackProject);
-      handleGoToWorkspace();
+      persistInitialConversation(options.projectId, value, fallback, options.shouldTrackProject);
+      handleGoToWorkspace(options.projectId);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const persistInitialConversation = (promptValue: string, generatedSummary: PlanningSummary, shouldTrack: boolean) => {
+  const persistInitialConversation = (
+    projectId: string,
+    promptValue: string,
+    generatedSummary: PlanningSummary,
+    shouldTrack: boolean
+  ) => {
     const messages = buildInitialConversation(promptValue, generatedSummary);
-    saveChatHistory(demoWorkspaceProject.id, messages);
+    saveChatHistory(projectId, messages);
+    const project = buildProjectFromSummary(projectId, promptValue, generatedSummary);
+    registerProject(project);
+    setActiveProjectId(projectId);
     if (shouldTrack) {
-      trackProjectCreation(demoWorkspaceProject.id, messages);
+      trackProjectCreation(projectId, messages);
     }
   };
 
@@ -125,12 +133,13 @@ export function PlanningAssistant() {
     if (isGenerating) {
       return;
     }
-    const gate = canStartProject(demoWorkspaceProject.id);
+    const prospectiveId = buildProjectId();
+    const gate = canStartProject(prospectiveId);
     if (!gate.allowed) {
       setModalState({ type: "limit" });
       return;
     }
-    await createSummary(description, { shouldTrackProject: !gate.alreadyTracked });
+    await createSummary(description, { shouldTrackProject: !gate.alreadyTracked, projectId: prospectiveId });
   };
 
   const handleRestrictedAction = (action: string) => {
@@ -281,7 +290,7 @@ export function PlanningAssistant() {
             </div>
             <button
               type="button"
-              onClick={handleGoToWorkspace}
+              onClick={() => handleGoToWorkspace(activeProjectId ?? undefined)}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Continue exploring in workspace
@@ -320,7 +329,7 @@ export function PlanningAssistant() {
           </a>
           <button
             type="button"
-            onClick={handleGoToWorkspace}
+            onClick={() => handleGoToWorkspace(activeProjectId ?? undefined)}
             className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
           >
             Continue exploring
@@ -415,6 +424,51 @@ function NswDataCard({ title, description, items }: NswDataCardProps) {
       </ul>
     </div>
   );
+}
+
+function buildProjectId() {
+  return `proj-${Date.now()}`;
+}
+
+function buildProjectFromSummary(projectId: string, description: string, summary: PlanningSummary): Project {
+  const now = new Date();
+  const locationLabel = summary.state ? `${summary.location}, ${summary.state}` : summary.location;
+  const starterTeam = teamMembers.slice(0, 3);
+  const actor = starterTeam[0] ?? teamMembers[0];
+  const promptExcerpt = description.length > 120 ? `${description.slice(0, 117)}...` : description;
+
+  return {
+    id: projectId,
+    name: `${summary.developmentType} in ${summary.location}`,
+    description: `Planning scope created from user prompt: "${promptExcerpt}". Focus on ${summary.scale} with ${
+      summary.council
+    } requirements and ${summary.requirements[0] ?? "local controls"}.`,
+    location: locationLabel,
+    status: "active",
+    priority: "high",
+    progress: 12,
+    startDate: now.toISOString(),
+    endDate: null,
+    color: "#0f172a",
+    tags: [summary.council, summary.state, summary.developmentType].filter(Boolean) as string[],
+    tasks: [],
+    teamMembers: starterTeam,
+    createdAt: now.toISOString(),
+    activity: [
+      {
+        id: `${projectId}-act-1`,
+        summary: "New project created from planning assistant",
+        detail: `Captured prompt and attached LEP context for ${locationLabel}.`,
+        timestamp: now.toISOString(),
+        actor: actor ?? {
+          id: "agent",
+          name: "Workspace Agent",
+          avatarUrl: "https://api.dicebear.com/8.x/bottts/svg?seed=Plannera",
+          role: "Assistant",
+        },
+      },
+    ],
+  };
 }
 
 function buildInitialConversation(description: string, summary: PlanningSummary): WorkspaceMessage[] {
