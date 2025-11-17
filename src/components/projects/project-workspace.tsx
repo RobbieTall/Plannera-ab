@@ -34,6 +34,7 @@ import { generatePlanningInsights } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
+import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { Modal } from "@/components/ui/modal";
 import type {
   WorkspaceArtefact,
@@ -215,6 +216,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  const [showMapsPanel, setShowMapsPanel] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -605,6 +607,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         </section>
 
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Maps & External Tools</p>
+              <p className="text-sm text-slate-600">
+                Open mapping tools without cluttering the workspace. Upload snapshots and metadata in one focused view.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMapsPanel(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              <Globe2 className="h-4 w-4" />
+              Open maps panel
+            </button>
+          </div>
+        </div>
+
         <section className="flex flex-col gap-6">
           {isNoteEditorOpen ? (
             <NoteEditor
@@ -702,6 +723,30 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         </section>
       </div>
+
+      {showMapsPanel ? (
+        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm">
+          <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6">
+            <div className="mx-auto max-w-6xl space-y-3">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowMapsPanel(false)}
+                  className="rounded-2xl border border-white/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white"
+                >
+                  Close
+                </button>
+              </div>
+              <MapSnapshotsPanel
+                projectId={project.id}
+                projectName={project.name}
+                onToast={showToast}
+                onClose={() => setShowMapsPanel(false)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Modal
         open={showUploadModal}
