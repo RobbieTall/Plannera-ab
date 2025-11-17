@@ -17,6 +17,37 @@ const DEFAULT_SEARCH_LIMIT = 25;
 let parserModulePromise: Promise<typeof import("./parser")> | null = null;
 let fetcherModulePromise: Promise<typeof import("./fetcher")> | null = null;
 
+export type SyncSuccessResult = {
+  status: "ok";
+  instrument: Instrument;
+  config: InstrumentConfigType;
+  added: number;
+  updated: number;
+  parsedClauses: number;
+};
+
+export type SyncSkipResult = {
+  status: "skipped";
+  config: InstrumentConfigType;
+  reason: string;
+  instrument?: Instrument;
+  added: number;
+  updated: number;
+  parsedClauses?: number;
+};
+
+export type SyncErrorResult = {
+  status: "error";
+  config: InstrumentConfigType;
+  instrument?: Instrument;
+  added: number;
+  updated: number;
+  parsedClauses?: number;
+  error: Error;
+};
+
+export type SyncResult = SyncSuccessResult | SyncSkipResult | SyncErrorResult;
+
 const loadParserModule = () => {
   if (!parserModulePromise) {
     parserModulePromise = import("./parser");
@@ -113,7 +144,7 @@ export const ingestInstrument = async (slug: string) => {
   return { instrument: updatedInstrument, clauseCount: parsedClauses.length };
 };
 
-const syncInstrumentInternal = async (config: InstrumentConfigType) => {
+const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<SyncResult> => {
   const instrument = await upsertInstrument(config);
   const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
     loadParserModule(),
@@ -196,14 +227,37 @@ const syncInstrumentInternal = async (config: InstrumentConfigType) => {
     data: { lastSyncedAt: now },
   });
 
-  return { instrument: updatedInstrument, added, updated };
+  return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: parsedClauses.length };
 };
 
-export const syncAllInstruments = async () => {
-  const results = [];
+export const syncInstrument = async (slug: string): Promise<SyncResult> => {
+  const config = getInstrumentConfig(slug);
+  if (!config) {
+    throw new Error(`Unknown instrument slug: ${slug}`);
+  }
+
+  return syncInstrumentInternal(config);
+};
+
+export const syncAllInstruments = async (): Promise<SyncResult[]> => {
+  const results: SyncResult[] = [];
+
   for (const config of INSTRUMENT_CONFIG) {
-    const result = await syncInstrumentInternal(config);
-    results.push(result);
+    try {
+      const result = await syncInstrumentInternal(config);
+      results.push(result);
+    } catch (error) {
+      console.error(`[legislation] Failed to sync ${config.slug}:`, error);
+      results.push({
+        status: "error",
+        config,
+        instrument: undefined,
+        added: 0,
+        updated: 0,
+        parsedClauses: 0,
+        error: error as Error,
+      });
+    }
   }
   return results;
 };

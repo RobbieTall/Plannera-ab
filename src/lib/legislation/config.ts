@@ -5,11 +5,23 @@ import type { InstrumentConfig } from "./types";
 
 const projectRoot = process.cwd();
 
-const normaliseInstrument = (config: InstrumentConfig): InstrumentConfig => ({
-  ...config,
-  jurisdiction: config.jurisdiction ?? "NSW",
-  fixtureFile: config.fixtureFile ? path.resolve(projectRoot, config.fixtureFile) : undefined,
-});
+type InstrumentConfigInput = InstrumentConfig & {
+  xml_url?: string;
+  xml_local_path?: string;
+};
+
+const normaliseInstrument = (config: InstrumentConfigInput): InstrumentConfig => {
+  const xmlLocalPath = config.xmlLocalPath ?? config.xml_local_path;
+  const xmlUrl = config.xmlUrl ?? config.xml_url;
+
+  return {
+    ...config,
+    xmlUrl,
+    xmlLocalPath: xmlLocalPath ? path.resolve(projectRoot, xmlLocalPath) : undefined,
+    jurisdiction: config.jurisdiction ?? "NSW",
+    fixtureFile: config.fixtureFile ? path.resolve(projectRoot, config.fixtureFile) : undefined,
+  };
+};
 
 export const INSTRUMENT_CONFIG: InstrumentConfig[] = instruments.map((config) =>
   normaliseInstrument(config as InstrumentConfig),

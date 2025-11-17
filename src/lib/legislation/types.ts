@@ -8,6 +8,8 @@ export interface InstrumentConfig {
   shortName: string;
   instrumentType: InstrumentType;
   sourceUrl: string;
+  xmlUrl?: string;
+  xmlLocalPath?: string;
   jurisdiction?: string;
   xmlSourceUrl?: string;
   exportDate?: string;
