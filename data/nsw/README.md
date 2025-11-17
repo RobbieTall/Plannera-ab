@@ -1,6 +1,6 @@
-# NSW Legislation HTML Files
+# NSW Legislation XML Exports
 
-This directory contains manually downloaded HTML files from legislation.nsw.gov.au for ingestion into the Plannera database.
+This directory holds manually downloaded XML exports from legislation.nsw.gov.au for ingestion into the Plannera database.
 
 ## Why Manual Download?
 
@@ -40,11 +40,12 @@ Download these 5 LEPs first to start building the knowledge base:
 
 ## How to Download
 
-1. Open each URL in your browser
-2. Wait for the page to fully load (check that all clauses are visible)
-3. Right-click → "Save Page As" → "Webpage, Complete" or "HTML Only"
-4. Save with the exact filename listed above
-5. Place the file in this `data/nsw/` directory
+XML exports are preferred because they ship cleaner structure for headings/clauses than the rendered HTML pages.
+
+1. Build the export URL for the instrument: `https://legislation.nsw.gov.au/export/xml/current/<export-id>` (for example, Sydney LEP 2012 uses `epi-2012-0628`).
+2. Download the XML file in your browser (or with `curl` if available) and save it with the exact filename listed above (e.g. `sydney-lep-2012.xml`).
+3. Place the file in this `data/nsw/` directory.
+4. Set `LEGISLATION_USE_FIXTURES=true` when ingesting to force the fetcher to use these local XML fixtures instead of the live NSW site.
 
 ## After Download
 
