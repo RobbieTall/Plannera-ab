@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { generatePlanningInsights, PlanningSummary } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
-import { projects, teamMembers, type Project } from "@/lib/mock-data";
+import { teamMembers, type Project } from "@/lib/mock-data";
 import { useExperience } from "@/components/providers/experience-provider";
 import { Modal } from "@/components/ui/modal";
 import type { WorkspaceMessage } from "@/types/workspace";
@@ -56,9 +56,9 @@ export function PlanningAssistant() {
     return `${summary.timelineWeeks[0]}-${summary.timelineWeeks[1]} weeks`;
   }, [summary]);
 
-  const handleGoToWorkspace = () => {
+  const handleGoToWorkspace = (projectId?: string) => {
     setModalState(null);
-    const targetId = activeProjectId ?? projects[0]?.id;
+    const targetId = projectId ?? activeProjectId;
     if (targetId) {
       router.push(`/projects/${targetId}/workspace`);
     }
@@ -95,7 +95,7 @@ export function PlanningAssistant() {
       setSummary(data.summary);
       setErrorMessage(data.error ?? null);
       persistInitialConversation(options.projectId, value, data.summary, options.shouldTrackProject);
-      handleGoToWorkspace();
+      handleGoToWorkspace(options.projectId);
     } catch (error) {
       console.error(error);
       setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
@@ -103,7 +103,7 @@ export function PlanningAssistant() {
       const fallback = generatePlanningInsights(parsed);
       setSummary(fallback);
       persistInitialConversation(options.projectId, value, fallback, options.shouldTrackProject);
-      handleGoToWorkspace();
+      handleGoToWorkspace(options.projectId);
     } finally {
       setIsGenerating(false);
     }
