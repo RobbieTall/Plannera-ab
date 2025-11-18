@@ -183,6 +183,7 @@ const findContentRoot = (html: string) => {
 
 const XML_HEADING_TAGS = ["heading", "title", "name", "hd"];
 const XML_CLAUSE_TAGS = ["clause", "section", "provision", "prov", "item", "zoningtable", "zoning-table"];
+const XML_TIER_TYPES = new Set(["chapter", "part", "division", "subdivision", "schedule"]);
 
 const detectDocumentFormat = (content: string, declared?: InstrumentFetchResult["format"]) => {
   if (declared) {
@@ -237,10 +238,13 @@ const buildXmlClauseHeading = (element: HTMLElement): ClauseHeading | null => {
 const stripHeadingFromBody = (element: HTMLElement) => {
   const nodes = element.childNodes as Node[];
   const filtered = nodes.filter((node) => {
-    if (!(node as HTMLElement).tagName) {
+    const tag = ((node as HTMLElement).tagName || "").toLowerCase();
+    if (!tag) {
       return true;
     }
-    const tag = ((node as HTMLElement).tagName || "").toLowerCase();
+    if (tag === "head") {
+      return false;
+    }
     return !XML_HEADING_TAGS.includes(tag);
   });
   const html = filtered.map((node) => node.toString()).join("").trim();
@@ -248,50 +252,119 @@ const stripHeadingFromBody = (element: HTMLElement) => {
   return { html, text };
 };
 
-const buildXmlHierarchyPath = (element: HTMLElement, clauseLabel: string) => {
-  const segments: string[] = [];
-  let cursor: HTMLElement | null = element.parentNode as HTMLElement | null;
+const buildXmlHierarchyPath = (tiers: string[], clauseLabel: string) => [...tiers, clauseLabel];
 
-  while (cursor) {
-    const tagName = (cursor.tagName || "").toLowerCase();
-    const heading = extractHeadingFromXmlNode(cursor);
-    if (heading) {
-      if (tagName === "schedule") {
-        segments.unshift(`Schedule: ${heading}`);
-      } else if (["chapter", "part", "division", "subdivision"].includes(tagName)) {
-        segments.unshift(`${heading}`);
-      }
-    }
-    cursor = cursor.parentNode as HTMLElement | null;
-  }
-
-  segments.push(clauseLabel);
-  return segments;
+const extractNumberFromLevel = (element: HTMLElement) => {
+  const head = element.querySelector("head");
+  const numberFromNo = head?.querySelector("no")?.text;
+  const attributeNumber = extractAttribute(element, ["clausenumber", "number", "num", "provisionnumber"]);
+  return normaliseWhitespace(numberFromNo || attributeNumber || "");
 };
 
-const parseXmlDocument = (config: InstrumentConfig, xml: string): ParsedClause[] => {
-  const root = parse(xml, { lowerCaseTagName: false });
-  const clauseNodes = root.querySelectorAll(XML_CLAUSE_TAGS.join(","));
-  const clauses: ParsedClause[] = [];
+const extractHeadingFromLevel = (element: HTMLElement) => {
+  const head = element.querySelector("head");
+  const heading = head?.querySelector(XML_HEADING_TAGS.join(","))?.text;
+  return normaliseWhitespace(heading || "");
+};
 
-  clauseNodes.forEach((node) => {
-    const element = node as HTMLElement;
+const buildTierLabel = (element: HTMLElement, type: string) => {
+  const heading = extractHeadingFromLevel(element) || extractHeadingFromXmlNode(element);
+  if (!heading) {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+  const number = extractNumberFromLevel(element);
+  if (number) {
+    return `${type.charAt(0).toUpperCase() + type.slice(1)} ${number} ${heading}`.trim();
+  }
+  return `${type.charAt(0).toUpperCase() + type.slice(1)} ${heading}`.trim();
+};
+
+const buildClauseHeadingFromLevel = (element: HTMLElement): ClauseHeading | null => {
+  const clauseNumber = extractNumberFromLevel(element) || extractAttribute(element, ["id"]);
+  const headingText = extractHeadingFromLevel(element) || extractAttribute(element, ["heading", "title"]);
+  if (!clauseNumber && !headingText) {
+    return null;
+  }
+
+  const clauseTitle = normaliseWhitespace([clauseNumber, headingText].filter(Boolean).join(" "));
+  const clauseLabel = clauseNumber ? `Clause ${clauseNumber}` : clauseTitle || "Clause";
+
+  return {
+    clauseNumber: clauseNumber || null,
+    clauseTitle: clauseTitle || clauseLabel,
+    clauseLabel,
+  };
+};
+
+const traverseXml = (
+  config: InstrumentConfig,
+  element: HTMLElement,
+  tiers: string[],
+  clauses: ParsedClause[],
+) => {
+  const supportsAttributes = typeof (element as HTMLElement).getAttribute === "function";
+  const tagName = (element.tagName || "").toLowerCase();
+  const type = supportsAttributes ? (element.getAttribute("type") || "").toLowerCase() : "";
+
+  if (!supportsAttributes) {
+    element.childNodes.forEach((child) => traverseXml(config, child as HTMLElement, tiers, clauses));
+    return;
+  }
+
+  if (tagName === "level") {
+    if (type === "clause") {
+      const clauseHeading = buildClauseHeadingFromLevel(element) ?? buildXmlClauseHeading(element);
+      if (!clauseHeading) {
+        return;
+      }
+
+      const { html: bodyHtml, text: bodyText } = stripHeadingFromBody(element);
+      const clause: ParsedClause = {
+        clauseKey: buildClauseKey(config, clauseHeading),
+        title: clauseHeading.clauseTitle,
+        bodyHtml,
+        bodyText,
+        hierarchyPath: buildXmlHierarchyPath(tiers, clauseHeading.clauseLabel),
+        contentHash: computeHash(bodyText),
+      };
+      clauses.push(clause);
+      return;
+    }
+
+    if (XML_TIER_TYPES.has(type)) {
+      const tierLabel = buildTierLabel(element, type);
+      const nextTiers = [...tiers, tierLabel];
+      element.childNodes.forEach((child) => traverseXml(config, child as HTMLElement, nextTiers, clauses));
+      return;
+    }
+  }
+
+  if (XML_CLAUSE_TAGS.includes(tagName)) {
     const clauseHeading = buildXmlClauseHeading(element);
     if (!clauseHeading) {
       return;
     }
 
     const { html: bodyHtml, text: bodyText } = stripHeadingFromBody(element);
-    const clause: ParsedClause = {
+    clauses.push({
       clauseKey: buildClauseKey(config, clauseHeading),
       title: clauseHeading.clauseTitle,
       bodyHtml,
       bodyText,
-      hierarchyPath: buildXmlHierarchyPath(element, clauseHeading.clauseLabel),
+      hierarchyPath: buildXmlHierarchyPath(tiers, clauseHeading.clauseLabel),
       contentHash: computeHash(bodyText),
-    };
-    clauses.push(clause);
-  });
+    });
+    return;
+  }
+
+  element.childNodes.forEach((child) => traverseXml(config, child as HTMLElement, tiers, clauses));
+};
+
+const parseXmlDocument = (config: InstrumentConfig, xml: string): ParsedClause[] => {
+  const root = parse(xml, { lowerCaseTagName: false });
+  const clauses: ParsedClause[] = [];
+
+  traverseXml(config, root as unknown as HTMLElement, [], clauses);
 
   return clauses;
 };
@@ -343,8 +416,12 @@ export const parseInstrumentDocument = (
   format?: InstrumentFetchResult["format"],
 ): ParsedClause[] => {
   const detectedFormat = detectDocumentFormat(document, format);
-  if (detectedFormat === "html") {
-    return parseHtmlDocument(config, document);
+  const parsedClauses =
+    detectedFormat === "html" ? parseHtmlDocument(config, document) : parseXmlDocument(config, document);
+
+  if (parsedClauses.length === 0) {
+    console.warn(`[legislation] Parsed zero clauses for ${config.slug}`);
   }
-  return parseXmlDocument(config, document);
+
+  return parsedClauses;
 };

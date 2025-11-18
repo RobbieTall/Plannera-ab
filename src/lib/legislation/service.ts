@@ -9,6 +9,7 @@ import type {
   ClauseDetail,
   ClauseSummary,
   InstrumentConfig as InstrumentConfigType,
+  ParsedClause,
   SearchClausesParams,
   SiteResolutionResult,
 } from "./types";
@@ -88,6 +89,28 @@ const upsertInstrument = async (config: InstrumentConfigType): Promise<Instrumen
   });
 };
 
+const dedupeParsedClauses = (clauses: ParsedClause[]): ParsedClause[] => {
+  const seen = new Map<string, ParsedClause>();
+  const unique: ParsedClause[] = [];
+
+  for (const clause of clauses) {
+    const existing = seen.get(clause.clauseKey);
+    if (!existing) {
+      seen.set(clause.clauseKey, clause);
+      unique.push(clause);
+      continue;
+    }
+
+    if (existing.contentHash !== clause.contentHash) {
+      console.warn(
+        `[legislation] Duplicate clause key with differing content detected: ${clause.clauseKey}; keeping first instance`,
+      );
+    }
+  }
+
+  return unique;
+};
+
 const computeRelevance = (bodyText: string, query?: string) => {
   if (!query) {
     return 0;
@@ -109,7 +132,7 @@ export const ingestInstrument = async (slug: string) => {
     loadFetcherModule(),
   ]);
   const fetchResult = await fetchInstrumentXml(config);
-  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
+  const parsedClauses = dedupeParsedClauses(parseInstrumentDocument(config, fetchResult.document, fetchResult.format));
 
   const instrument = await upsertInstrument(config);
 
@@ -151,7 +174,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
     loadFetcherModule(),
   ]);
   const fetchResult = await fetchInstrumentXml(config);
-  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
+  const parsedClauses = dedupeParsedClauses(parseInstrumentDocument(config, fetchResult.document, fetchResult.format));
   const now = fetchResult.fetchedAt;
   const currentClauses = await prisma.clause.findMany({
     where: { instrumentId: instrument.id, isCurrent: true },
