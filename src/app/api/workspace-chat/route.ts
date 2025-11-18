@@ -6,15 +6,18 @@ import { z } from "zod";
 import { resolveSiteInstruments, searchClauses } from "@/lib/legislation";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
-Always ground answers in the legislation context supplied in system messages.
-Never invent user messages or addresses.
-If the site or LGA is unknown, politely ask for the address or LGA.
-Keep replies concise, professional, and focused on the question without filler.`;
+Always read the user's question literally.
+Never invent user messages.
+Never assume a second question.
+If the user doesn't provide an address or LGA, ask politely.
+Use provided site context (address, LGA, zone, LEP, SEPP) if available.
+If no controls exist yet for that LGA, say so clearly.`;
 
 const requestSchema = z.object({
   message: z.string().min(1),
   projectId: z.string().optional(),
   projectName: z.string().optional(),
+  isDemo: z.boolean().optional(),
 });
 
 type WorkspaceMemory = {
@@ -53,27 +56,10 @@ const buildLegislationContext = (params: {
   return [preface, clausesLabel].filter(Boolean).join("\n");
 };
 
-const buildFallbackReply = (params: {
-  userMessage: string;
-  lga: string | null;
-  clauses: Awaited<ReturnType<typeof searchClauses>>;
-}) => {
-  if (!params.clauses.length) {
-    const locationPrompt = params.lga ? ` in ${params.lga}` : "";
-    return `I couldn’t reach the planning model just now. Please share the site address or zoning so I can check the LEP/SEPP controls${locationPrompt}.`;
-  }
-
-  const bullets = params.clauses.slice(0, 4).map((clause) => {
-    const title = clause.title ?? clause.clauseKey;
-    return `• ${clause.instrumentName} ${title}: ${clause.snippet}`;
-  });
-  return `Here’s what I can confirm from the legislation for your question: ${params.userMessage}\n${bullets.join("\n")}\nTell me the exact address or zoning to refine this further.`;
-};
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message: userMessage, projectId, projectName } = requestSchema.parse(body);
+    const { message: userMessage, projectId, projectName, isDemo } = requestSchema.parse(body);
 
     const workspaceKey = projectId ?? "default";
     const existingMemory = workspaceMemory.get(workspaceKey);
@@ -107,17 +93,24 @@ export async function POST(request: Request) {
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
 
-    const completion = openaiClient
-      ? await openaiClient.chat.completions.create({
-          model: "gpt-4o-mini",
-          temperature: 0.3,
-          messages,
-        })
-      : null;
+    const reply = isDemo
+      ? "This is a demo response. Provide a real address or LGA for full analysis."
+      : await (async () => {
+          if (!openaiClient) {
+            throw new Error("OpenAI client not configured");
+          }
 
-    const aiReply = completion?.choices?.[0]?.message?.content;
+          const completion = await openaiClient.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages,
+          });
 
-    const reply = aiReply ?? buildFallbackReply({ userMessage, lga, clauses });
+          const aiReply = completion.choices?.[0]?.message?.content;
+          if (!aiReply) {
+            throw new Error("Empty response from OpenAI");
+          }
+          return aiReply;
+        })();
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,
@@ -142,8 +135,7 @@ export async function POST(request: Request) {
     console.error("Workspace chat error", error);
     return NextResponse.json(
       {
-        reply:
-          "I couldn’t reach the planning assistant right now. Please share the address or LGA and I’ll reload the LEP and SEPP details for you.",
+        reply: "The planning assistant is unavailable right now. Please try again shortly.",
       },
       { status: 200 }
     );
