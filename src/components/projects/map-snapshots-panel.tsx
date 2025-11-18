@@ -5,11 +5,13 @@ import Image from "next/image";
 
 import { cn, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
+import { X } from "lucide-react";
 
 interface MapSnapshotsPanelProps {
   projectId: string;
   projectName: string;
   onToast: (message: string, variant?: "success" | "error") => void;
+  onClose?: () => void;
 }
 
 interface MapSnapshotArtefact {
@@ -49,7 +51,7 @@ function getDefaultTitle(projectName: string) {
   return `Map snapshot – ${projectName} – ${today}`;
 }
 
-export function MapSnapshotsPanel({ projectId, projectName, onToast }: MapSnapshotsPanelProps) {
+export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: MapSnapshotsPanelProps) {
   const [snapshots, setSnapshots] = useState<MapSnapshotArtefact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -206,18 +208,30 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast }: MapSnapsh
             and upload it here so Plannera can store it as a map snapshot for this project.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {externalLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+        <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2">
+            {externalLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-slate-900 hover:text-slate-900"
+              aria-label="Close maps panel"
             >
-              {link.label}
-            </a>
-          ))}
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
 
