@@ -70,6 +70,8 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
   const [otherSource, setOtherSource] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [overlays, setOverlays] = useState<string[]>([]);
+  const [includeOtherOverlay, setIncludeOtherOverlay] = useState(false);
+  const [otherOverlay, setOtherOverlay] = useState("");
   const [notes, setNotes] = useState("");
 
   const sortedSnapshots = useMemo(
@@ -83,6 +85,8 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     setOtherSource("");
     setSourceUrl("");
     setOverlays([]);
+    setIncludeOtherOverlay(false);
+    setOtherOverlay("");
     setNotes("");
     setSubmitError(null);
   }, [projectName]);
@@ -148,7 +152,10 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setSubmitError("Please add an image before saving.");
+      return;
+    }
     if (!title.trim()) {
       setSubmitError("Title is required");
       return;
@@ -164,7 +171,11 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     if (sourceUrl.trim()) {
       formData.append("sourceUrl", sourceUrl.trim());
     }
-    overlays.forEach((overlay) => formData.append("overlays", overlay));
+    const overlaysToSubmit = includeOtherOverlay && otherOverlay.trim()
+      ? [...overlays, otherOverlay.trim()]
+      : overlays;
+
+    overlaysToSubmit.forEach((overlay) => formData.append("overlays", overlay));
     if (notes.trim()) {
       formData.append("notes", notes.trim());
     }
@@ -413,6 +424,30 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                   {overlay}
                 </label>
               ))}
+              <div className="space-y-2 rounded-xl border border-slate-200 px-3 py-2">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={includeOtherOverlay}
+                    onChange={(event) => {
+                      setIncludeOtherOverlay(event.target.checked);
+                      if (!event.target.checked) {
+                        setOtherOverlay("");
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                  />
+                  Other overlay
+                </label>
+                <input
+                  type="text"
+                  value={otherOverlay}
+                  onChange={(event) => setOtherOverlay(event.target.value)}
+                  placeholder="Describe other overlay"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
+                  disabled={!includeOtherOverlay}
+                />
+              </div>
             </div>
           </div>
 
