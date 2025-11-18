@@ -397,12 +397,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         }),
       });
       const data: { reply?: string; lga?: string; zone?: string; instruments?: string[] } = await response.json();
+      const needsLocation = !data.zone && !data.lga;
+      const replyFallback = needsLocation
+        ? "I can tailor this better with the site address, suburb, or zone (e.g. B4 Mixed Use)."
+        : "I’ll keep looking for the right LEP/SEPP clauses—share any uploads or zones to sharpen the answer.";
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
-        content:
-          data.reply ??
-          "I couldn’t reach the legislation-backed responder just now, but I can try again if you share the site location or zoning.",
+        content: data.reply ?? replyFallback,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       applySessionSignals(
