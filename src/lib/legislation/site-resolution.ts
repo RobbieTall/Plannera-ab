@@ -13,6 +13,7 @@ const LGA_KEYWORDS: Record<string, string[]> = {
   "City of Sydney": ["sydney", "haymarket", "ultimo", "glebe"],
   "Northern Beaches": ["manly", "dee why", "brookvale"],
   Ballina: ["ballina", "lennox", "skennars", "alstonville"],
+  "Byron Shire": ["byron", "byron bay", "mullumbimby", "bangalow", "ocean shores"],
 };
 
 const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
@@ -22,6 +23,7 @@ const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumen
 const LEP_BY_LGA: Record<string, string> = {
   "City of Sydney": "city-of-sydney-lep-2012",
   Ballina: "ballina-lep-2012",
+  "Byron Shire": "byron-lep-2014",
 };
 
 const inferLgaFromAddress = (address: string) => {
