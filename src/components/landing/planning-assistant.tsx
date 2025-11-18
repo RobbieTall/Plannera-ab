@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 import { ArrowRight, Download, FileText, Share2, Sparkles, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -111,22 +111,74 @@ export function PlanningAssistant() {
     }
   };
 
+  const sendInitialWorkspaceMessage = useCallback(
+    async (params: { project: Project; prompt: string; initialMessages: WorkspaceMessage[] }) => {
+      const { project, prompt, initialMessages } = params;
+      if (project.isDemo) return;
+
+      const history = getChatHistory(project.id);
+      const historySeed = history.length ? history : initialMessages;
+
+      try {
+        const response = await fetch("/api/workspace-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: prompt,
+            projectId: project.id,
+            projectName: project.name,
+          }),
+        });
+        const data: { reply?: string; lga?: string | null } = await response.json();
+        const needsLocation = !data.lga;
+        const replyFallback = needsLocation
+          ? "I can tailor this better with the site address, suburb, or zone (e.g. B4 Mixed Use)."
+          : "I’ll keep looking for the right LEP/SEPP clauses—share any uploads or zones to sharpen the answer.";
+        const assistantMessage: WorkspaceMessage = {
+          id: `msg-${Date.now()}-assistant`,
+          role: "assistant",
+          content: data.reply ?? replyFallback,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        saveChatHistory(project.id, [...historySeed, assistantMessage]);
+      } catch (error) {
+        console.error("Initial workspace chat error", error);
+        const assistantMessage: WorkspaceMessage = {
+          id: `msg-${Date.now()}-assistant`,
+          role: "assistant",
+          content:
+            "I couldn’t retrieve the Sydney LEP or SEPP clauses right now. Please try again or add the council area and zone for a precise lookup.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        saveChatHistory(project.id, [...historySeed, assistantMessage]);
+      }
+    },
+    [getChatHistory, saveChatHistory]
+  );
+
   const persistInitialConversation = (
     projectId: string,
     promptValue: string,
     generatedSummary: PlanningSummary,
     shouldTrack: boolean
   ) => {
-    const messages: WorkspaceMessage[] = [];
-    if (messages.length) {
-      saveChatHistory(projectId, messages);
-    }
+    const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const initialMessages: WorkspaceMessage[] = [
+      {
+        id: `msg-${Date.now()}`,
+        role: "user",
+        content: promptValue,
+        timestamp,
+      },
+    ];
+    saveChatHistory(projectId, initialMessages);
     const project = buildProjectFromSummary(projectId, promptValue, generatedSummary);
     registerProject(project);
     setActiveProjectId(projectId);
     if (shouldTrack) {
-      trackProjectCreation(projectId, messages.length ? messages : undefined);
+      trackProjectCreation(projectId, initialMessages);
     }
+    void sendInitialWorkspaceMessage({ project, prompt: promptValue, initialMessages });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
