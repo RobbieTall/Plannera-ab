@@ -17,6 +17,7 @@
     "sync:legislation": "tsx scripts/legislation-sync.ts",
     "legislation:coverage": "tsx scripts/legislation-coverage.ts",
     "sepp:smoke": "tsx scripts/sepp-smoke-test.ts",
+    "test:sepp-ingestion": "tsx scripts/test-sepp-ingestion.ts",
     "nsw:data:test": "tsx scripts/nsw-data-check.ts"
   },
   "dependencies": {

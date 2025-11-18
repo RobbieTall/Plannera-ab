@@ -1,0 +1,274 @@
+/// Prisma Client generator configuration.
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Primary datasource configuration. The DATABASE_URL is resolved from the
+/// environment so Vercel/Prisma secrets never live in the repo.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Minimal identity model so Auth.js sessions can be persisted while we build
+/// out planning-specific entities.
+model User {
+  id                 String           @id @default(cuid())
+  name               String?
+  email              String?          @unique
+  emailVerified      DateTime?
+  image              String?
+  sessions           Session[]
+  projects           Project[]        @relation("ProjectCreatedBy")
+  projectMemberships ProjectMember[]
+  tasksCreated       Task[]           @relation("TaskCreatedBy")
+  assignments        TaskAssignment[]
+  artefacts          Artefact[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Physical or virtual location we are planning improvements for.
+model Property {
+  id        String    @id @default(cuid())
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  country   String?
+  notes     String?
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+/// Project groups tasks under a property and tracks its lifecycle.
+model Project {
+  id            String          @id @default(cuid())
+  name          String
+  description   String?
+  status        ProjectStatus   @default(PLANNING)
+  isDemo        Boolean         @default(false)
+  propertyId    String
+  property      Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdById   String?
+  createdBy     User?           @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  startDate     DateTime?
+  dueDate       DateTime?
+  tasks         Task[]
+  collaborators ProjectMember[]
+  artefacts     Artefact[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+/// Join table between users and projects, allowing role-specific access.
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(VIEWER)
+  invitedBy String?
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedAt DateTime    @default(now())
+
+  @@unique([projectId, userId])
+}
+
+/// Fine-grained pieces of work required to complete a project.
+model Task {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus       @default(TODO)
+  priority     TaskPriority     @default(MEDIUM)
+  projectId    String
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById  String?
+  createdBy    User?            @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  dueDate      DateTime?
+  costEstimate Float?
+  assignments  TaskAssignment[]
+  tags         TaskTag[]
+  dependencies TaskDependency[] @relation("TaskDependencies")
+  dependents   TaskDependency[] @relation("TaskDependents")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+/// Many-to-many relation that tracks which users own or contribute to tasks.
+model TaskAssignment {
+  id         String   @id @default(cuid())
+  taskId     String
+  userId     String
+  role       TaskRole @default(CONTRIBUTOR)
+  assignedAt DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+}
+
+/// Association table between tasks and tags for quick filtering.
+model TaskTag {
+  taskId String
+  tagId  String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?
+  tasks     TaskTag[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([name])
+}
+
+/// Directed acyclic dependency between tasks.
+model TaskDependency {
+  id          String @id @default(cuid())
+  taskId      String
+  dependsOnId String
+  task        Task   @relation("TaskDependents", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn   Task   @relation("TaskDependencies", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETE
+  ARCHIVED
+}
+
+enum ProjectRole {
+  OWNER
+  COLLABORATOR
+  VIEWER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskRole {
+  OWNER
+  CONTRIBUTOR
+  REVIEWER
+}
+
+model Artefact {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?        @relation(fields: [createdById], references: [id])
+  type        ArtefactType
+  title       String
+  source      String
+  sourceUrl   String?
+  overlays    Json?
+  notes       String?
+  imageUrl    String
+  capturedAt  DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([projectId])
+}
+
+enum ArtefactType {
+  map_snapshot
+}
+
+model Instrument {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  name           String
+  shortName      String
+  jurisdiction   String         @default("NSW")
+  instrumentType InstrumentType
+  sourceUrl      String
+  lastSyncedAt   DateTime?
+  clauses        Clause[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([instrumentType])
+}
+
+model Clause {
+  id            String             @id @default(cuid())
+  instrumentId  String
+  instrument    Instrument         @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  clauseKey     String
+  title         String?
+  bodyHtml      String
+  bodyText      String
+  hierarchyPath Json
+  version       Int                @default(1)
+  isCurrent     Boolean            @default(true)
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  retrievedAt   DateTime?
+  contentHash   String
+  searchIndex   ClauseSearchIndex?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([instrumentId, clauseKey, version])
+  @@index([instrumentId, clauseKey])
+  @@index([isCurrent])
+}
+
+model ClauseSearchIndex {
+  clauseId  String   @id
+  clause    Clause   @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  bodyText  String
+  embedding Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum InstrumentType {
+  SEPP
+  LEP
+  DCP
+  ACT
+  REGULATION
+  OTHER
+}

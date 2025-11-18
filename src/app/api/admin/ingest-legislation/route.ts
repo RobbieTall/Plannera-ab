@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { ingestInstrument } from "@/lib/legislation/service";
 
 export async function GET() {
+  if (process.env.SKIP_LEGISLATION_INGEST === "true") {
+    return NextResponse.json({ status: "skipped" });
+  }
+
   try {
     process.env.LEGISLATION_USE_FIXTURES = "true";
     const result = await ingestInstrument("sydney-lep-2012");
