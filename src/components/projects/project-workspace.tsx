@@ -567,8 +567,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 sm:px-6 lg:px-10">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-4">
           <span className="text-base font-semibold text-slate-900">Plannera.ai</span>
           <button
@@ -585,7 +585,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Workspace</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-900">{project.name}</h1>
@@ -597,7 +597,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         </button>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
+      <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
         <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <header className="flex items-center justify-between">
             <div>
@@ -740,16 +740,22 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         </section>
 
-        <section className="flex flex-col gap-6">
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setShowMapsPanel(true)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
-            >
-              <Globe2 className="h-4 w-4" />
-              Maps & external tools
-            </button>
+        <section className="flex flex-col gap-5">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Maps & External Tools</p>
+                <p className="text-sm text-slate-500">Keep overlays and exports aligned with the workspace.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMapsPanel(true)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+              >
+                <Globe2 className="h-4 w-4" />
+                Maps & external tools
+              </button>
+            </div>
           </div>
           {isNoteEditorOpen ? (
             <NoteEditor
