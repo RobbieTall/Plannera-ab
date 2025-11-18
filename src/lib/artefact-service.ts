@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getServerSession } from "next-auth";
@@ -37,18 +38,27 @@ export class ArtefactValidationError extends Error {
 }
 
 export class ArtefactAccessError extends Error {
-  status = 403;
+  constructor(message: string, public status = 403) {
+    super(message);
+  }
 }
 
 export async function requireSessionUser() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id as string | undefined;
 
-  if (!userId) {
-    throw new ArtefactAccessError("Authentication required");
+  if (userId) {
+    return { userId };
   }
 
-  return { userId };
+  const hasSessionCookie = Boolean(
+    cookies().get("__Secure-next-auth.session-token") ?? cookies().get("next-auth.session-token"),
+  );
+
+  throw new ArtefactAccessError(
+    hasSessionCookie ? "Your session expired. Please sign in again." : "Authentication required",
+    401,
+  );
 }
 
 export function parseMapSnapshotFormData(formData: FormData, projectIdFromParams: string) {
