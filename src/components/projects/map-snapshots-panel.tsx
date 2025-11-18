@@ -38,7 +38,10 @@ const overlayOptions = [
 ];
 
 const externalLinks = [
-  { label: "Open NSW Spatial Viewer", href: "https://maps.six.nsw.gov.au/" },
+  {
+    label: "Open NSW Spatial Viewer",
+    href: "https://www.planningportal.nsw.gov.au/spatialviewer/#/find-a-property/address",
+  },
   { label: "Open Council Web Map", href: "https://example.com/council-map" },
 ];
 
@@ -70,6 +73,8 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
   const [otherSource, setOtherSource] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [overlays, setOverlays] = useState<string[]>([]);
+  const [includeOtherOverlay, setIncludeOtherOverlay] = useState(false);
+  const [otherOverlay, setOtherOverlay] = useState("");
   const [notes, setNotes] = useState("");
 
   const sortedSnapshots = useMemo(
@@ -83,6 +88,8 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     setOtherSource("");
     setSourceUrl("");
     setOverlays([]);
+    setIncludeOtherOverlay(false);
+    setOtherOverlay("");
     setNotes("");
     setSubmitError(null);
   }, [projectName]);
@@ -94,10 +101,13 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       const response = await fetch(`/api/projects/${projectId}/artefacts`, {
         method: "GET",
         cache: "no-store",
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error("Unable to load map snapshots");
+        const data = await response.json().catch(() => ({}));
+        const message = response.status === 401 ? "Please sign in to view map snapshots." : data.error;
+        throw new Error(message ?? "Unable to load map snapshots");
       }
 
       const artefacts: MapSnapshotArtefact[] = await response.json();
@@ -148,7 +158,10 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setSubmitError("Please add an image before saving.");
+      return;
+    }
     if (!title.trim()) {
       setSubmitError("Title is required");
       return;
@@ -164,7 +177,11 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     if (sourceUrl.trim()) {
       formData.append("sourceUrl", sourceUrl.trim());
     }
-    overlays.forEach((overlay) => formData.append("overlays", overlay));
+    const overlaysToSubmit = includeOtherOverlay && otherOverlay.trim()
+      ? [...overlays, otherOverlay.trim()]
+      : overlays;
+
+    overlaysToSubmit.forEach((overlay) => formData.append("overlays", overlay));
     if (notes.trim()) {
       formData.append("notes", notes.trim());
     }
@@ -174,11 +191,13 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       const response = await fetch(`/api/projects/${projectId}/artefacts`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "We couldn’t save this snapshot. Please try again.");
+        const message = response.status === 401 ? "Please sign in to save map snapshots." : data.error;
+        throw new Error(message ?? "We couldn’t save this snapshot. Please try again.");
       }
 
       const created: MapSnapshotArtefact = await response.json();
@@ -413,6 +432,30 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                   {overlay}
                 </label>
               ))}
+              <div className="space-y-2 rounded-xl border border-slate-200 px-3 py-2">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={includeOtherOverlay}
+                    onChange={(event) => {
+                      setIncludeOtherOverlay(event.target.checked);
+                      if (!event.target.checked) {
+                        setOtherOverlay("");
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                  />
+                  Other overlay
+                </label>
+                <input
+                  type="text"
+                  value={otherOverlay}
+                  onChange={(event) => setOtherOverlay(event.target.value)}
+                  placeholder="Describe other overlay"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
+                  disabled={!includeOtherOverlay}
+                />
+              </div>
             </div>
           </div>
 
