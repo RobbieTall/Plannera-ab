@@ -264,7 +264,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     [project.isDemo, project.name, project.teamMembers],
   );
 
-  const fallbackMessages = useMemo(() => (project.isDemo ? createFallbackMessages(project) : []), [project]);
+  const fallbackMessages = useMemo(() => createFallbackMessages(project), [project]);
 
   const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(fallbackMessages);
@@ -1012,21 +1012,45 @@ function SessionSignalPill({
 }
 
 function createFallbackMessages(project: Project): WorkspaceMessage[] {
-  return [
+  const baseThread: WorkspaceMessage[] = [
+    {
+      id: "msg-seed-0",
+      role: "assistant",
+      content:
+        "I’ll keep this thread sharp—tell me the site address or zone (e.g. B4 Mixed Use) and I’ll keep the LEP/SEPP lookups in sync.",
+      timestamp: "09:10",
+    },
     {
       id: "msg-seed-1",
+      role: "user",
+      content: "What’s the quickest path to lodge without missing a control?",
+      timestamp: "09:12",
+    },
+    {
+      id: "msg-seed-2",
+      role: "assistant",
+      content:
+        "I’ll map the approvals pathway, flag missing overlays, and track uploads you add here so responses stay tailored. Drop any council notes or draft reports to tighten it further.",
+      timestamp: "09:12",
+    },
+  ];
+
+  if (!project.isDemo) {
+    return baseThread;
+  }
+
+  return [
+    baseThread[0],
+    {
+      id: "msg-seed-1-demo",
       role: "assistant",
       content: `Here’s the approvals pathway we generated for ${project.name}—key actions are lodging the revised concept package and validating the flood overlay assumptions.`,
       timestamp: "09:14",
     },
+    baseThread[1],
+    baseThread[2],
     {
-      id: "msg-seed-2",
-      role: "user",
-      content: "Summarise what we need from council before Friday.",
-      timestamp: "09:16",
-    },
-    {
-      id: "msg-seed-3",
+      id: "msg-seed-3-demo",
       role: "assistant",
       content:
         "You’ll need confirmation on traffic impact scope, written acceptance of the updated setbacks, and the preferred sequencing for community consultation.",
