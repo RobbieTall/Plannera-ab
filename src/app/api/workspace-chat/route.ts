@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import OpenAI, { type ChatCompletionMessageParam } from "openai";
+import OpenAI from "openai";
+import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
 import { resolveSiteInstruments, searchClauses } from "@/lib/legislation";
@@ -120,8 +121,8 @@ export async function POST(request: Request) {
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,
-      { role: "user", content: userMessage },
-      { role: "assistant", content: reply },
+      { role: "user", content: userMessage } as ChatCompletionMessageParam,
+      { role: "assistant", content: reply } as ChatCompletionMessageParam,
     ].slice(-20);
 
     workspaceMemory.set(workspaceKey, {
