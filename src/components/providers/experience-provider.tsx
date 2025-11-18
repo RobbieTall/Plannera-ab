@@ -83,7 +83,9 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
 
   useEffect(() => {
     if (isHydrated) {
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
+      const stateToPersist =
+        state.userTier === "anonymous" ? { ...state, createdProjects: [] } : state;
+      window.localStorage.setItem(storageKey, JSON.stringify(stateToPersist));
     }
   }, [state, isHydrated]);
 
@@ -96,7 +98,14 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       if (saved) {
         const parsed = JSON.parse(saved) as ExperienceState;
         const hydratedFreeLimit = Math.max(parsed.freeProjectLimit ?? defaultState.freeProjectLimit, 1);
-        setState((previous) => ({ ...previous, ...parsed, userTier: initialTier, freeProjectLimit: hydratedFreeLimit }));
+        const createdProjects = initialTier === "anonymous" ? [] : parsed.createdProjects ?? [];
+        setState((previous) => ({
+          ...previous,
+          ...parsed,
+          createdProjects,
+          userTier: initialTier,
+          freeProjectLimit: hydratedFreeLimit,
+        }));
       } else {
         setState((previous) => ({ ...previous, userTier: initialTier }));
       }
