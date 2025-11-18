@@ -38,7 +38,10 @@ const overlayOptions = [
 ];
 
 const externalLinks = [
-  { label: "Open NSW Spatial Viewer", href: "https://maps.six.nsw.gov.au/" },
+  {
+    label: "Open NSW Spatial Viewer",
+    href: "https://www.planningportal.nsw.gov.au/spatialviewer/#/find-a-property/address",
+  },
   { label: "Open Council Web Map", href: "https://example.com/council-map" },
 ];
 
@@ -98,10 +101,13 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       const response = await fetch(`/api/projects/${projectId}/artefacts`, {
         method: "GET",
         cache: "no-store",
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error("Unable to load map snapshots");
+        const data = await response.json().catch(() => ({}));
+        const message = response.status === 401 ? "Please sign in to view map snapshots." : data.error;
+        throw new Error(message ?? "Unable to load map snapshots");
       }
 
       const artefacts: MapSnapshotArtefact[] = await response.json();
@@ -185,11 +191,13 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       const response = await fetch(`/api/projects/${projectId}/artefacts`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "We couldn’t save this snapshot. Please try again.");
+        const message = response.status === 401 ? "Please sign in to save map snapshots." : data.error;
+        throw new Error(message ?? "We couldn’t save this snapshot. Please try again.");
       }
 
       const created: MapSnapshotArtefact = await response.json();
