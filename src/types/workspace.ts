@@ -7,6 +7,15 @@ export type WorkspaceMessage = {
   timestamp: string;
 };
 
+export type WorkspaceSessionSignals = {
+  lga?: string;
+  zone?: string;
+  instruments?: string[];
+  lastSummary?: string;
+  recentSource?: string;
+  lastIntent?: string;
+};
+
 export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note";
 
 export type WorkspaceArtefact = {

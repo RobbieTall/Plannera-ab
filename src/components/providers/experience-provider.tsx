@@ -6,6 +6,7 @@ import type {
   UserTier,
   WorkspaceArtefact,
   WorkspaceMessage,
+  WorkspaceSessionSignals,
 } from "@/types/workspace";
 import { projects as mockProjects, type Project } from "@/lib/mock-data";
 
@@ -19,6 +20,7 @@ interface ExperienceState {
   artefactsByProject: Record<string, WorkspaceArtefact[]>;
   toolUsageByProject: Record<string, Record<string, number>>;
   sourceContextByProject: Record<string, string[]>;
+  sessionSignalsByProject: Record<string, WorkspaceSessionSignals>;
 }
 
 interface ExperienceContextValue {
@@ -47,6 +49,8 @@ interface ExperienceContextValue {
   ) => { allowed: boolean; usage: number; limit: number };
   appendSourceContext: (projectId: string, value: string) => void;
   getSourceContext: (projectId: string) => string[];
+  setSessionSignals: (projectId: string, signals: WorkspaceSessionSignals) => void;
+  getSessionSignals: (projectId: string) => WorkspaceSessionSignals;
 }
 
 const storageKey = "plannera-experience";
@@ -63,6 +67,7 @@ const defaultState: ExperienceState = {
   artefactsByProject: {},
   toolUsageByProject: {},
   sourceContextByProject: {},
+  sessionSignalsByProject: {},
 };
 
 const documentLimitMap: Record<UserTier, number> = {
@@ -105,6 +110,7 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
           createdProjects,
           userTier: initialTier,
           freeProjectLimit: hydratedFreeLimit,
+          sessionSignalsByProject: parsed.sessionSignalsByProject ?? previous.sessionSignalsByProject,
         }));
       } else {
         setState((previous) => ({ ...previous, userTier: initialTier }));
@@ -258,6 +264,21 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
     }));
   }, []);
 
+  const setSessionSignals = useCallback((projectId: string, signals: WorkspaceSessionSignals) => {
+    setState((previous) => ({
+      ...previous,
+      sessionSignalsByProject: {
+        ...previous.sessionSignalsByProject,
+        [projectId]: signals,
+      },
+    }));
+  }, []);
+
+  const getSessionSignals = useCallback(
+    (projectId: string) => state.sessionSignalsByProject[projectId] ?? {},
+    [state.sessionSignalsByProject]
+  );
+
   const getSourceContext = useCallback(
     (projectId: string) => state.sourceContextByProject[projectId] ?? [],
     [state.sourceContextByProject]
@@ -286,6 +307,8 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       recordToolUsage,
       appendSourceContext,
       getSourceContext,
+      setSessionSignals,
+      getSessionSignals,
     };
   }, [
     addArtefact,
@@ -295,11 +318,13 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
     getArtefacts,
     getChatHistory,
     getSourceContext,
+    getSessionSignals,
     getUploadUsage,
     recordToolUsage,
     recordUpload,
     registerProject,
     saveChatHistory,
+    setSessionSignals,
     setUserTier,
     state,
     trackProjectCreation,
