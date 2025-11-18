@@ -607,26 +607,17 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         </section>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Maps & External Tools</p>
-              <p className="text-sm text-slate-600">
-                Open mapping tools without cluttering the workspace. Upload snapshots and metadata in one focused view.
-              </p>
-            </div>
+        <section className="flex flex-col gap-6">
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setShowMapsPanel(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
             >
               <Globe2 className="h-4 w-4" />
-              Open maps panel
+              Maps & external tools
             </button>
           </div>
-        </div>
-
-        <section className="flex flex-col gap-6">
           {isNoteEditorOpen ? (
             <NoteEditor
               noteTitle={noteTitle}
