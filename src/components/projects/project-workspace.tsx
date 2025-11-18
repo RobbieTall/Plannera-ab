@@ -297,11 +297,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     const history = getChatHistory(project.id);
     if (history.length) {
       setMessages(history);
-    } else {
+    } else if (project.isDemo) {
       setMessages(fallbackMessages);
       saveChatHistory(project.id, fallbackMessages);
+    } else {
+      setMessages([]);
     }
-  }, [fallbackMessages, getChatHistory, project.id, saveChatHistory]);
+  }, [fallbackMessages, getChatHistory, project.id, project.isDemo, saveChatHistory]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
@@ -343,7 +345,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       content: trimmedInput,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
-    setMessages((previous) => [...previous, newMessage]);
+    setMessages((previous) => {
+      const updated = [...previous, newMessage];
+      saveChatHistory(project.id, updated);
+      return updated;
+    });
     setInput("");
     setIsThinking(true);
     const contextSnippets = getSourceContext(project.id);
@@ -447,8 +453,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     if (history.length) {
       setMessages(history);
     } else {
-      setMessages(fallbackMessages);
-      saveChatHistory(project.id, fallbackMessages);
+      if (project.isDemo) {
+        setMessages(fallbackMessages);
+        saveChatHistory(project.id, fallbackMessages);
+      } else {
+        setMessages([]);
+        saveChatHistory(project.id, []);
+      }
     }
     setInput("");
   };
@@ -662,20 +673,24 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               className="flex max-h-[460px] flex-col space-y-4 overflow-y-auto pr-2"
               aria-live="polite"
             >
-              {messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={cn(
-                    "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
-                    message.role === "assistant"
-                      ? "border-slate-200 bg-slate-50 text-slate-800"
-                      : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900",
-                  )}
-                >
-                  <p>{message.content}</p>
-                  <p className="mt-2 text-xs text-slate-400">{message.timestamp}</p>
-                </article>
-              ))}
+              {messages.length === 0 ? (
+                <p className="text-sm text-slate-400">Start by typing a question to begin this chat.</p>
+              ) : (
+                messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={cn(
+                      "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
+                      message.role === "assistant"
+                        ? "border-slate-200 bg-slate-50 text-slate-800"
+                        : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900",
+                    )}
+                  >
+                    <p>{message.content}</p>
+                    <p className="mt-2 text-xs text-slate-400">{message.timestamp}</p>
+                  </article>
+                ))
+              )}
               {isThinking ? (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
@@ -994,7 +1009,7 @@ function createFallbackMessages(project: Project): WorkspaceMessage[] {
   ];
 
   if (!project.isDemo) {
-    return baseThread;
+    return [];
   }
 
   return [
