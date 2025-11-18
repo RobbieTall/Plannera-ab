@@ -95,7 +95,8 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       const saved = window.localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved) as ExperienceState;
-        setState((previous) => ({ ...previous, ...parsed, userTier: initialTier }));
+        const hydratedFreeLimit = Math.max(parsed.freeProjectLimit ?? defaultState.freeProjectLimit, 1);
+        setState((previous) => ({ ...previous, ...parsed, userTier: initialTier, freeProjectLimit: hydratedFreeLimit }));
       } else {
         setState((previous) => ({ ...previous, userTier: initialTier }));
       }
@@ -114,9 +115,13 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
   const canStartProject = useCallback(
     (projectId: string) => {
       const alreadyTracked = state.createdProjects.includes(projectId);
-      const remaining = Math.max(state.freeProjectLimit - state.createdProjects.length, 0);
+      const baselineLimit = Math.max(state.freeProjectLimit, 1);
+      const remaining = Math.max(baselineLimit - state.createdProjects.length, 0);
       if (alreadyTracked) {
         return { allowed: true, remaining, alreadyTracked: true };
+      }
+      if (state.userTier === "anonymous" && state.createdProjects.length === 0) {
+        return { allowed: true, remaining, alreadyTracked: false };
       }
       if (state.userTier === "anonymous" && remaining <= 0) {
         return { allowed: false, remaining: 0, alreadyTracked: false };
@@ -250,7 +255,8 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
   );
 
   const contextValue = useMemo<ExperienceContextValue>(() => {
-    const remainingProjects = Math.max(state.freeProjectLimit - state.createdProjects.length, 0);
+    const baselineLimit = Math.max(state.freeProjectLimit, 1);
+    const remainingProjects = Math.max(baselineLimit - state.createdProjects.length, 0);
     return {
       state: {
         ...state,
