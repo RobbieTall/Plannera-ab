@@ -34,6 +34,7 @@ import { generatePlanningInsights } from "@/lib/mock-planning-data";
 import { parseProjectDescription } from "@/lib/project-parser";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
+import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { Modal } from "@/components/ui/modal";
 import type {
   WorkspaceArtefact,
@@ -702,6 +703,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </div>
         </section>
       </div>
+
+      <MapSnapshotsPanel projectId={project.id} projectName={project.name} onToast={showToast} />
 
       <Modal
         open={showUploadModal}
