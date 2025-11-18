@@ -2,8 +2,10 @@
 
 import {
   ChangeEvent,
+  ComponentType,
   FormEvent,
   KeyboardEvent,
+  SVGProps,
   useCallback,
   useEffect,
   useMemo,
@@ -18,13 +20,16 @@ import {
   Image as ImageIcon,
   Layers3,
   Link2,
+  MapPin,
   ListChecks,
   Mail,
   Notebook,
+  MessageSquare,
   Plus,
   RefreshCcw,
   Save,
   Sparkles,
+  Target,
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -40,6 +45,7 @@ import type {
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspaceNoteCategory,
+  WorkspaceSessionSignals,
   WorkspaceSource,
   WorkspaceSourceType,
 } from "@/types/workspace";
@@ -52,7 +58,7 @@ interface ToolCard {
   id: string;
   name: string;
   description: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   accent: string;
 }
 
@@ -150,6 +156,55 @@ const artefactBadges: Record<string, string> = {
   note: "text-rose-700 bg-rose-50 border-rose-200",
 };
 
+const zoningPattern = /\b(R1|R2|R3|R4|R5|B1|B2|B3|B4|IN1|IN2|MU1|E1|E2|E3|E4|SP1|SP2|W1|W2)\b/i;
+
+function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
+  const normalized = message.toLowerCase();
+  const zoneMatch = message.match(zoningPattern);
+  const lgaMatch = normalized.match(/(sydney|parramatta|newcastle|wollongong|hornsby|blacktown)/);
+  const sanitized = stripHtml(message);
+  const intent = normalized.includes("summary")
+    ? "Summarising updates"
+    : normalized.includes("upload")
+      ? "Coordinating documents"
+      : normalized.includes("risk") || normalized.includes("hurdle")
+        ? "Surfacing risks"
+        : normalized.includes("timeline") || normalized.includes("deadline")
+          ? "Planning a timeline"
+          : `Chatting about ${projectName}`;
+
+  return {
+    zone: zoneMatch ? zoneMatch[1].toUpperCase() : undefined,
+    lga: lgaMatch ? `${lgaMatch[1][0]?.toUpperCase() ?? ""}${lgaMatch[1].slice(1)} Council` : undefined,
+    lastSummary: sanitized ? `${sanitized.slice(0, 160)}${sanitized.length > 160 ? "…" : ""}` : undefined,
+    lastIntent: intent,
+  };
+}
+
+function deriveSignalsFromAssistantPayload({
+  lga,
+  zone,
+  instruments,
+  reply,
+  recentSource,
+}: {
+  lga?: string;
+  zone?: string;
+  instruments?: string[];
+  reply?: string;
+  recentSource?: string;
+}): WorkspaceSessionSignals {
+  const replySummary = reply ? summarizeReply(reply) : undefined;
+  return {
+    lga,
+    zone,
+    instruments,
+    recentSource,
+    lastSummary: replySummary,
+    lastIntent: lga || zone ? "Planning controls lookup" : undefined,
+  };
+}
+
 export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const router = useRouter();
   const {
@@ -162,6 +217,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     recordToolUsage,
     appendSourceContext,
     getSourceContext,
+    setSessionSignals,
+    getSessionSignals,
     state,
   } = useExperience();
 
@@ -207,7 +264,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     [project.isDemo, project.name, project.teamMembers],
   );
 
-  const fallbackMessages = useMemo(() => (project.isDemo ? createFallbackMessages(project) : []), [project]);
+  const fallbackMessages = useMemo(() => createFallbackMessages(project), [project]);
 
   const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(fallbackMessages);
@@ -223,13 +280,28 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [noteTitle, setNoteTitle] = useState("");
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
+  const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
+    getSessionSignals(project.id)
+  );
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
+  const instrumentLabel = useMemo(
+    () =>
+      sessionSignals.instruments?.length
+        ? sessionSignals.instruments.slice(0, 3).join(", ")
+        : null,
+    [sessionSignals.instruments]
+  );
 
   useEffect(() => {
     setSources(initialSources);
   }, [initialSources]);
+
+  useEffect(() => {
+    setSessionSignalsState(getSessionSignals(project.id));
+  }, [getSessionSignals, project.id]);
 
   useEffect(() => {
     const history = getChatHistory(project.id);
@@ -247,7 +319,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       top: chatScrollRef.current.scrollHeight,
       behavior: "smooth",
     });
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, [messages, isThinking]);
+
+  const applySessionSignals = useCallback(
+    (updates: Partial<WorkspaceSessionSignals>) => {
+      setSessionSignalsState((previous) => {
+        const merged = { ...previous, ...updates };
+        setSessionSignals(project.id, merged);
+        return merged;
+      });
+    },
+    [project.id, setSessionSignals]
+  );
 
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
@@ -257,6 +343,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const sendMessage = async () => {
     const trimmedInput = input.trim();
     if (!trimmedInput) return;
+    applySessionSignals({
+      ...extractSessionSignalsFromText(trimmedInput, project.name),
+      recentSource: sources[0]?.name ?? sessionSignals.recentSource,
+    });
     const newMessage: WorkspaceMessage = {
       id: `msg-${Date.now()}`,
       role: "user",
@@ -280,6 +370,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           }),
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
+        applySessionSignals(
+          deriveSignalsFromAssistantPayload({
+            reply: assistantMessage.content,
+            recentSource: sources[0]?.name,
+          })
+        );
         setMessages((previous) => {
           const updated = [...previous, assistantMessage];
           saveChatHistory(project.id, updated);
@@ -300,15 +396,26 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           projectName: project.name,
         }),
       });
-      const data: { reply?: string } = await response.json();
+      const data: { reply?: string; lga?: string; zone?: string; instruments?: string[] } = await response.json();
+      const needsLocation = !data.zone && !data.lga;
+      const replyFallback = needsLocation
+        ? "I can tailor this better with the site address, suburb, or zone (e.g. B4 Mixed Use)."
+        : "I’ll keep looking for the right LEP/SEPP clauses—share any uploads or zones to sharpen the answer.";
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
-        content:
-          data.reply ??
-          "I couldn’t reach the legislation-backed responder just now, but I can try again if you share the site location or zoning.",
+        content: data.reply ?? replyFallback,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
+      applySessionSignals(
+        deriveSignalsFromAssistantPayload({
+          reply: assistantMessage.content,
+          lga: data?.lga,
+          zone: data?.zone,
+          instruments: data?.instruments,
+          recentSource: sources[0]?.name,
+        })
+      );
       setMessages((previous) => {
         const updated = [...previous, assistantMessage];
         saveChatHistory(project.id, updated);
@@ -410,6 +517,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       });
       const snippet = await extractContextSnippet(file);
       appendSourceContext(project.id, snippet);
+      applySessionSignals({ recentSource: file.name });
     }
 
     setSources((previous) => [...newSources, ...previous]);
@@ -559,7 +667,31 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            <div ref={chatScrollRef} className="h-[420px] space-y-4 overflow-y-auto pr-2">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 shadow-inner">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <MessageSquare className="h-4 w-4" /> Session intelligence
+                </div>
+                <p className="text-[11px] text-slate-400">Automatically adapts to your latest chat and uploads.</p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <SessionSignalPill icon={MapPin} label="Council" value={sessionSignals.lga ?? "Awaiting a council"} />
+                <SessionSignalPill icon={Target} label="Zone" value={sessionSignals.zone ?? "No zone yet"} />
+                <SessionSignalPill icon={Link2} label="Source" value={sessionSignals.recentSource ?? "No files referenced"} />
+                <SessionSignalPill icon={Layers3} label="Instruments" value={instrumentLabel ?? "Syncing SEPP/LEP"} />
+                <SessionSignalPill icon={Sparkles} label="Intent" value={sessionSignals.lastIntent ?? "Listening"} />
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                {sessionSignals.lastSummary
+                  ? sessionSignals.lastSummary
+                  : "I’ll keep the thread fresh with the latest site details, zones, and artefacts so replies stay relevant."}
+              </p>
+            </div>
+            <div
+              ref={chatScrollRef}
+              className="flex max-h-[460px] flex-col space-y-4 overflow-y-auto pr-2"
+              aria-live="polite"
+            >
               {messages.map((message) => (
                 <article
                   key={message.id}
@@ -579,6 +711,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
                 </div>
               ) : null}
+              <div ref={chatEndRef} />
             </div>
             <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
               <label htmlFor="chat-input" className="sr-only">
@@ -860,22 +993,64 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   );
 }
 
+function SessionSignalPill({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs shadow-sm">
+      <Icon className="h-3.5 w-3.5 text-slate-500" />
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="text-xs font-semibold text-slate-800">{value ?? "—"}</span>
+    </span>
+  );
+}
+
 function createFallbackMessages(project: Project): WorkspaceMessage[] {
-  return [
+  const baseThread: WorkspaceMessage[] = [
+    {
+      id: "msg-seed-0",
+      role: "assistant",
+      content:
+        "I’ll keep this thread sharp—tell me the site address or zone (e.g. B4 Mixed Use) and I’ll keep the LEP/SEPP lookups in sync.",
+      timestamp: "09:10",
+    },
     {
       id: "msg-seed-1",
+      role: "user",
+      content: "What’s the quickest path to lodge without missing a control?",
+      timestamp: "09:12",
+    },
+    {
+      id: "msg-seed-2",
+      role: "assistant",
+      content:
+        "I’ll map the approvals pathway, flag missing overlays, and track uploads you add here so responses stay tailored. Drop any council notes or draft reports to tighten it further.",
+      timestamp: "09:12",
+    },
+  ];
+
+  if (!project.isDemo) {
+    return baseThread;
+  }
+
+  return [
+    baseThread[0],
+    {
+      id: "msg-seed-1-demo",
       role: "assistant",
       content: `Here’s the approvals pathway we generated for ${project.name}—key actions are lodging the revised concept package and validating the flood overlay assumptions.`,
       timestamp: "09:14",
     },
+    baseThread[1],
+    baseThread[2],
     {
-      id: "msg-seed-2",
-      role: "user",
-      content: "Summarise what we need from council before Friday.",
-      timestamp: "09:16",
-    },
-    {
-      id: "msg-seed-3",
+      id: "msg-seed-3-demo",
       role: "assistant",
       content:
         "You’ll need confirmation on traffic impact scope, written acceptance of the updated setbacks, and the preferred sequencing for community consultation.",
@@ -917,6 +1092,12 @@ async function extractContextSnippet(file: File) {
 function stripHtml(value: string) {
   if (!value) return "";
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function summarizeReply(reply: string) {
+  const clean = stripHtml(reply);
+  if (!clean) return "";
+  return `${clean.slice(0, 200)}${clean.length > 200 ? "…" : ""}`;
 }
 
 function generateAssistantResponse({
