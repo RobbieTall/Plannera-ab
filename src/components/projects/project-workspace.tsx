@@ -969,24 +969,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   );
 }
 
-function SessionSignalPill({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  label: string;
-  value?: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs shadow-sm">
-      <Icon className="h-3.5 w-3.5 text-slate-500" />
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
-      <span className="text-xs font-semibold text-slate-800">{value ?? "—"}</span>
-    </span>
-  );
-}
-
 function createFallbackMessages(project: Project): WorkspaceMessage[] {
   const baseThread: WorkspaceMessage[] = [
     {
