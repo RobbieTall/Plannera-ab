@@ -619,7 +619,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             <Plus className="h-4 w-4" />
             Add
           </button>
-          <ul className="space-y-3">
+          <ul className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
             {sources.map((source) => {
               const Icon = sourceIcons[source.type] ?? FileText;
               return (
@@ -779,7 +779,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   Pro access
                 </span>
               </header>
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
                 {tools.map((tool) => {
                   const Icon = tool.icon;
                   return (
@@ -819,7 +819,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 Add note
               </button>
             </header>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
               {artefacts.map((artefact) => (
                 <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                   <div className="flex items-center justify-between gap-3">
