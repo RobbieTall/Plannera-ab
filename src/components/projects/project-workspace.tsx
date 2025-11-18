@@ -20,16 +20,13 @@ import {
   Image as ImageIcon,
   Layers3,
   Link2,
-  MapPin,
   ListChecks,
   Mail,
   Notebook,
-  MessageSquare,
   Plus,
   RefreshCcw,
   Save,
   Sparkles,
-  Target,
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -287,13 +284,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
-  const instrumentLabel = useMemo(
-    () =>
-      sessionSignals.instruments?.length
-        ? sessionSignals.instruments.slice(0, 3).join(", ")
-        : null,
-    [sessionSignals.instruments]
-  );
 
   useEffect(() => {
     setSources(initialSources);
@@ -667,26 +657,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 shadow-inner">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <MessageSquare className="h-4 w-4" /> Session intelligence
-                </div>
-                <p className="text-[11px] text-slate-400">Automatically adapts to your latest chat and uploads.</p>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <SessionSignalPill icon={MapPin} label="Council" value={sessionSignals.lga ?? "Awaiting a council"} />
-                <SessionSignalPill icon={Target} label="Zone" value={sessionSignals.zone ?? "No zone yet"} />
-                <SessionSignalPill icon={Link2} label="Source" value={sessionSignals.recentSource ?? "No files referenced"} />
-                <SessionSignalPill icon={Layers3} label="Instruments" value={instrumentLabel ?? "Syncing SEPP/LEP"} />
-                <SessionSignalPill icon={Sparkles} label="Intent" value={sessionSignals.lastIntent ?? "Listening"} />
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                {sessionSignals.lastSummary
-                  ? sessionSignals.lastSummary
-                  : "I’ll keep the thread fresh with the latest site details, zones, and artefacts so replies stay relevant."}
-              </p>
-            </div>
             <div
               ref={chatScrollRef}
               className="flex max-h-[460px] flex-col space-y-4 overflow-y-auto pr-2"
