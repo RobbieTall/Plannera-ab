@@ -36,8 +36,6 @@ import {
 import { useRouter } from "next/navigation";
 
 import type { Project } from "@/lib/mock-data";
-import { generatePlanningInsights } from "@/lib/mock-planning-data";
-import { parseProjectDescription } from "@/lib/project-parser";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
@@ -114,33 +112,6 @@ const tools: ToolCard[] = [
     description: "Track codes + clauses",
     icon: Globe2,
     accent: "from-slate-500/20 to-slate-600/30",
-  },
-];
-
-const seededArtefacts: WorkspaceArtefact[] = [
-  {
-    id: "art-001",
-    title: "Council-ready summary",
-    owner: "Avery Johnson",
-    updatedAt: "3m ago",
-    type: "summary",
-    metadata: "Updated by Planning Pathway",
-  },
-  {
-    id: "art-002",
-    title: "Viability brief v2",
-    owner: "Maya Patel",
-    updatedAt: "1h ago",
-    type: "brief",
-    metadata: "Shared with stakeholders",
-  },
-  {
-    id: "art-003",
-    title: "Sustainability addendum",
-    owner: "Notebook Agent",
-    updatedAt: "Yesterday",
-    type: "report",
-    metadata: "Includes ESD commitments",
   },
 ];
 
@@ -226,55 +197,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     recordUpload,
     recordToolUsage,
     appendSourceContext,
-    getSourceContext,
     setSessionSignals,
     getSessionSignals,
     state,
   } = useExperience();
 
-  const initialSources = useMemo<WorkspaceSource[]>(
-    () =>
-      project.isDemo
-        ? [
-            {
-              id: "src-1",
-              name: "Council pre-lodgement feedback.eml",
-              detail: `Forwarded by ${project.teamMembers[0]?.name ?? "council liaison"}`,
-              type: "email",
-              uploadedAt: "2 days ago",
-              sizeLabel: "86 KB",
-            },
-            {
-              id: "src-2",
-              name: "ESD Statement draft.pdf",
-              detail: "Uploaded 2 days ago · 14 pages",
-              type: "pdf",
-              uploadedAt: "2 days ago",
-              sizeLabel: "1.2 MB",
-              status: "In review",
-            },
-            {
-              id: "src-3",
-              name: "Flood overlay guidance",
-              detail: "NSW Planning Portal",
-              type: "link",
-              uploadedAt: "Last week",
-              sizeLabel: "Link",
-            },
-            {
-              id: "src-4",
-              name: `${project.name} feasibility deck.pptx`,
-              detail: "Slides · Updated last week",
-              type: "document",
-              uploadedAt: "Last week",
-              sizeLabel: "4.3 MB",
-            },
-          ]
-        : [],
-    [project.isDemo, project.name, project.teamMembers],
-  );
+  const initialSources = useMemo<WorkspaceSource[]>(() => [], []);
 
-  const fallbackMessages = useMemo(() => createFallbackMessages(project), [project]);
+  const fallbackMessages = useMemo(() => createFallbackMessages(), []);
 
   const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(fallbackMessages);
@@ -304,6 +234,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [isConfirmingSite, setIsConfirmingSite] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const siteSearchControllerRef = useRef<AbortController | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -334,18 +265,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     const history = getChatHistory(project.id);
     if (history.length) {
       setMessages(history);
-    } else if (project.isDemo) {
-      setMessages(fallbackMessages);
-      saveChatHistory(project.id, fallbackMessages);
     } else {
       setMessages([]);
     }
-  }, [fallbackMessages, getChatHistory, project.id, project.isDemo, saveChatHistory]);
+  }, [fallbackMessages, getChatHistory, project.id, saveChatHistory]);
 
   useEffect(() => {
-    if (project.isDemo) {
-      return;
-    }
     let isMounted = true;
     const loadSiteContext = async () => {
       try {
@@ -365,7 +290,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     return () => {
       isMounted = false;
     };
-  }, [project.id, project.isDemo]);
+  }, [project.id]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
@@ -421,36 +346,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     }
 
     setIsThinking(true);
-    const contextSnippets = getSourceContext(project.id);
-    if (project.isDemo) {
-      window.setTimeout(() => {
-        const assistantMessage: WorkspaceMessage = {
-          id: `msg-${Date.now()}-assistant`,
-          role: "assistant",
-          content: generateAssistantResponse({
-            userMessage: trimmedInput,
-            project,
-            contextSnippets,
-            sources,
-          }),
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        };
-        applySessionSignals(
-          deriveSignalsFromAssistantPayload({
-            reply: assistantMessage.content,
-            recentSource: sources[0]?.name,
-          })
-        );
-        setMessages((previous) => {
-          const updated = [...previous, assistantMessage];
-          saveChatHistory(project.id, updated);
-          return updated;
-        });
-        setIsThinking(false);
-      }, 900);
-      return;
-    }
-
     try {
       const response = await fetch("/api/workspace-chat", {
         method: "POST",
@@ -558,13 +453,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     if (history.length) {
       setMessages(history);
     } else {
-      if (project.isDemo) {
-        setMessages(fallbackMessages);
-        saveChatHistory(project.id, fallbackMessages);
-      } else {
-        setMessages([]);
-        saveChatHistory(project.id, []);
-      }
+      setMessages([]);
+      saveChatHistory(project.id, []);
     }
     setInput("");
   };
@@ -584,9 +474,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const openManualSiteSelection = () => {
-    if (project.isDemo) {
-      return;
-    }
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
     setSiteSelectionCandidateId(null);
     setSiteSelectionError(null);
@@ -600,47 +487,91 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSiteSearchQuery("");
   };
 
+  const performSiteSearch = useCallback(
+    async (queryOverride?: string) => {
+      if (!siteSelection || siteSelection.source !== "manual") {
+        return;
+      }
+      const trimmedQuery = (queryOverride ?? siteSearchQuery).trim();
+      if (!trimmedQuery) {
+        setSiteSelectionError(null);
+        setSiteSelectionCandidateId(null);
+        setSiteSelection((previous) => (previous ? { ...previous, addressInput: "", candidates: [] } : previous));
+        setIsSiteSearchPending(false);
+        return;
+      }
+
+      siteSearchControllerRef.current?.abort();
+      const controller = new AbortController();
+      siteSearchControllerRef.current = controller;
+
+      setIsSiteSearchPending(true);
+      setSiteSelectionError(null);
+      try {
+        const response = await fetch("/api/site-context/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: trimmedQuery }),
+          signal: controller.signal,
+        });
+        const data: { candidates?: SiteCandidate[]; message?: string; error?: string } = await response.json();
+        if (!response.ok) {
+          if (data?.error === "property_search_failed") {
+            setSiteSelectionError("Address search failed. Please try again.");
+            return;
+          }
+          if (data?.error === "property_search_not_configured") {
+            setSiteSelectionError("NSW property search isn’t configured in this environment.");
+            return;
+          }
+          throw new Error(data?.message ?? "Address search failed");
+        }
+        setSiteSelection((previous) =>
+          previous && previous.source === "manual"
+            ? { ...previous, addressInput: trimmedQuery, candidates: data.candidates ?? [] }
+            : previous,
+        );
+        setSiteSelectionCandidateId(null);
+        if (!data.candidates?.length) {
+          setSiteSelectionError("No NSW address matches were found. Try refining the suburb or street number.");
+        }
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") {
+          return;
+        }
+        console.error("Site search error", error);
+        setSiteSelectionError("Address search failed. Please try again.");
+      } finally {
+        if (!controller.signal.aborted && siteSearchControllerRef.current === controller) {
+          setIsSiteSearchPending(false);
+        }
+      }
+    },
+    [siteSearchQuery, siteSelection],
+  );
+
   const handleSiteSearch = async () => {
+    await performSiteSearch();
+  };
+
+  useEffect(() => {
     if (!siteSelection || siteSelection.source !== "manual") {
       return;
     }
     const trimmedQuery = siteSearchQuery.trim();
-    if (!trimmedQuery) {
-      setSiteSelectionError("Enter an NSW address or suburb to search.");
+    if (trimmedQuery.length < 3) {
+      siteSearchControllerRef.current?.abort();
+      setIsSiteSearchPending(false);
       return;
     }
-    setIsSiteSearchPending(true);
-    setSiteSelectionError(null);
-    try {
-      const response = await fetch("/api/site-context/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: trimmedQuery }),
-      });
-      const data: { candidates?: SiteCandidate[]; message?: string; error?: string } = await response.json();
-      if (!response.ok) {
-        if (data?.error === "property_search_failed") {
-          setSiteSelectionError("Address search failed. Please try again.");
-          return;
-        }
-        if (data?.error === "property_search_not_configured") {
-          setSiteSelectionError("NSW property search isn’t configured in this environment.");
-          return;
-        }
-        throw new Error(data?.message ?? "Address search failed");
-      }
-      setSiteSelection((previous) => (previous ? { ...previous, addressInput: trimmedQuery, candidates: data.candidates ?? [] } : previous));
-      setSiteSelectionCandidateId(null);
-      if (!data.candidates?.length) {
-        setSiteSelectionError("No NSW address matches were found. Try refining the suburb or street number.");
-      }
-    } catch (error) {
-      console.error("Site search error", error);
-      setSiteSelectionError("Address search failed. Please try again.");
-    } finally {
-      setIsSiteSearchPending(false);
-    }
-  };
+    const timeout = window.setTimeout(() => {
+      void performSiteSearch(trimmedQuery);
+    }, 350);
+    return () => {
+      window.clearTimeout(timeout);
+      siteSearchControllerRef.current?.abort();
+    };
+  }, [performSiteSearch, siteSearchQuery, siteSelection]);
 
   const handleSiteCandidateConfirm = async () => {
     if (!siteSelection || !siteSelectionCandidateId) {
@@ -724,16 +655,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         setSources((previous) => [...newSources, ...previous]);
       };
 
-      if (project.isDemo) {
-        // Demo workspaces store documents locally so visitors can experiment without touching the API.
-        await indexFilesLocally();
-        recordUpload(project.id, uploadQueue.length);
-        showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
-        setUploadQueue([]);
-        setShowUploadModal(false);
-        return;
-      }
-
       const formData = new FormData();
       for (const file of uploadQueue) {
         formData.append("files", file);
@@ -803,10 +724,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const experienceArtefacts = getArtefacts(project.id);
-  const artefacts = useMemo(
-    () => (project.isDemo ? [...seededArtefacts, ...experienceArtefacts] : experienceArtefacts),
-    [experienceArtefacts, project.isDemo],
-  );
+  const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
 
   const handleSaveNote = () => {
     if (!noteTitle.trim()) {
@@ -924,8 +842,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={openManualSiteSelection}
-                disabled={project.isDemo}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
               >
                 <MapPin className="h-3.5 w-3.5" />
                 {siteContext ? "Change site" : "Set site"}
@@ -1372,52 +1289,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   );
 }
 
-function createFallbackMessages(project: Project): WorkspaceMessage[] {
-  const baseThread: WorkspaceMessage[] = [
-    {
-      id: "msg-seed-0",
-      role: "assistant",
-      content:
-        "I’ll keep this thread sharp—tell me the site address or zone (e.g. B4 Mixed Use) and I’ll keep the LEP/SEPP lookups in sync.",
-      timestamp: "09:10",
-    },
-    {
-      id: "msg-seed-1",
-      role: "user",
-      content: "What’s the quickest path to lodge without missing a control?",
-      timestamp: "09:12",
-    },
-    {
-      id: "msg-seed-2",
-      role: "assistant",
-      content:
-        "I’ll map the approvals pathway, flag missing overlays, and track uploads you add here so responses stay tailored. Drop any council notes or draft reports to tighten it further.",
-      timestamp: "09:12",
-    },
-  ];
-
-  if (!project.isDemo) {
-    return [];
-  }
-
-  return [
-    baseThread[0],
-    {
-      id: "msg-seed-1-demo",
-      role: "assistant",
-      content: `Here’s the approvals pathway we generated for ${project.name}—key actions are lodging the revised concept package and validating the flood overlay assumptions.`,
-      timestamp: "09:14",
-    },
-    baseThread[1],
-    baseThread[2],
-    {
-      id: "msg-seed-3-demo",
-      role: "assistant",
-      content:
-        "You’ll need confirmation on traffic impact scope, written acceptance of the updated setbacks, and the preferred sequencing for community consultation.",
-      timestamp: "09:16",
-    },
-  ];
+function createFallbackMessages(): WorkspaceMessage[] {
+  return [];
 }
 
 function determineSourceType(filename: string): WorkspaceSourceType {
@@ -1459,120 +1332,6 @@ function summarizeReply(reply: string) {
   const clean = stripHtml(reply);
   if (!clean) return "";
   return `${clean.slice(0, 200)}${clean.length > 200 ? "…" : ""}`;
-}
-
-function generateAssistantResponse({
-  userMessage,
-  project,
-  contextSnippets,
-  sources,
-}: {
-  userMessage: string;
-  project: Project;
-  contextSnippets: string[];
-  sources: WorkspaceSource[];
-}) {
-  const normalized = userMessage.toLowerCase();
-  const teamMembers = project.teamMembers ?? [];
-  const hasContext = contextSnippets.length > 0;
-  const sanitizedPrompt = stripHtml(userMessage);
-  const promptLabel = sanitizedPrompt
-    ? sanitizedPrompt.length > 180
-      ? `${sanitizedPrompt.slice(0, 180)}…`
-      : sanitizedPrompt
-    : "that update";
-  const questionRegex = /(\?|\bwhat\b|\bhow\b|\bcan\b|\bcould\b|\bwhere\b|\bwhy\b|\bwhen\b|\bdo you\b)/i;
-  const requestKeywords = ["prepare", "draft", "create", "write", "send", "share", "brief", "note", "plan", "summarise", "summarize"];
-  const isActionRequest = requestKeywords.some((keyword) => normalized.includes(keyword));
-  const isQuestion = questionRegex.test(userMessage);
-
-  const describeSources = () => {
-    if (!sources.length) {
-      return "I don't have any workspace documents yet, so feel free to use the Add button in Sources and I'll cite anything you upload in future answers.";
-    }
-    const highlightedSources = sources.slice(0, 3).map((source) => `${source.name} (${source.type})`);
-    const remaining = sources.length - highlightedSources.length;
-    const extras = remaining > 0 ? `, plus ${remaining} other source${remaining === 1 ? "" : "s"}` : "";
-    const contextLabel = hasContext
-      ? `I've already indexed ${contextSnippets.length} snippet${contextSnippets.length === 1 ? "" : "s"} from those uploads, so I'll reference them as I reply.`
-      : "I'll read through each upload as soon as it's synced so I can cite it in answers.";
-    return `Here's what I can reference right now: ${highlightedSources.join(", ")}${extras}. ${contextLabel}`;
-  };
-
-  const describeTeam = () => {
-    if (!teamMembers.length) {
-      return "This workspace is only linked to you right now, but I can still package updates as artefacts if you need to share them.";
-    }
-    const highlightedTeam = teamMembers.slice(0, 3).map((member) => `${member.name} (${member.role})`);
-    const remaining = teamMembers.length - highlightedTeam.length;
-    const extras = remaining > 0 ? ` and ${remaining} other teammate${remaining === 1 ? "" : "s"}` : "";
-    return `You're collaborating here with ${highlightedTeam.join(", ")}${extras}. I can turn our chats into summaries to send their way when you're ready.`;
-  };
-
-  if (
-    normalized.includes("what data") ||
-    normalized.includes("data do you") ||
-    normalized.includes("have access") ||
-    normalized.includes("what info") ||
-    normalized.includes("what information") ||
-    normalized.includes("sources do you") ||
-    normalized.includes("documents do you")
-  ) {
-    return describeSources();
-  }
-
-  if (normalized.includes("who") && normalized.includes("team")) {
-    return describeTeam();
-  }
-
-  if (normalized.includes("team")) {
-    return `${describeTeam()} Just let me know if you want me to capture actions for a specific person.`;
-  }
-
-  if (normalized.includes("timeline") || normalized.includes("deadline") || normalized.includes("when")) {
-    const scheduleTip = project.endDate
-      ? `You're tracking toward ${new Date(project.endDate).toLocaleDateString()} and I can keep milestones aligned to that.`
-      : "Drop in any target dates and I'll tag the follow-up tasks so the team sees them.";
-    return `${scheduleTip} In the meantime I’ll continue organising the approvals pathway for ${project.name}.`;
-  }
-
-  if (isQuestion || isActionRequest) {
-    const parsedProject = parseProjectDescription(userMessage);
-    const planningSummary = generatePlanningInsights(parsedProject);
-    const requirementsLabel = planningSummary.requirements.slice(0, 3).join("; ");
-    const documentsLabel = planningSummary.documents.slice(0, 3).join(", ");
-    const hurdlesLabel = planningSummary.hurdles.slice(0, 3).join("; ");
-    const timelineLabel = `${planningSummary.timelineWeeks[0]}-${planningSummary.timelineWeeks[1]} weeks`;
-    const intro = normalized.includes("can i") || normalized.includes("allowed")
-      ? `${planningSummary.developmentType} is generally supported in ${planningSummary.council} (${planningSummary.state}) when you can show: ${requirementsLabel}.`
-      : `Working off your note about "${promptLabel}", here's the planning read for ${planningSummary.location}: ${requirementsLabel}.`;
-    const limitationFocus = normalized.includes("limit") || normalized.includes("constraint") || normalized.includes("hurdle");
-    const limitations = limitationFocus
-      ? `Key limitations raised locally: ${hurdlesLabel}.`
-      : `Watch for hurdles such as ${hurdlesLabel}.`;
-    const docsLine = `You'll typically lodge ${documentsLabel}, and DA review windows run ${timelineLabel} with recent budgets in the ${planningSummary.budgetRange} range.`;
-    const datasetLine = planningSummary.isFallback
-      ? planningSummary.datasetNotice
-      : `${planningSummary.datasetNotice} It's still a mock dataset until the legislation feed is connected.`;
-    const contextLine = hasContext
-      ? `I'll cite the ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} plus anything new you upload so the advice stays auditable.`
-      : `Add any site surveys, council emails or studies and I'll weave them into the answer so it's traceable.`;
-    return `${intro} ${limitations} ${docsLine} ${datasetLine} ${contextLine} Let me know if you want me to package that as an artefact or brief.`;
-  }
-
-  const defaultResponse: string[] = [];
-  defaultResponse.push(`Captured that update for ${project.name}.`);
-  if (hasContext) {
-    defaultResponse.push(
-      `I'll reference ${contextSnippets.length} synced source${contextSnippets.length === 1 ? "" : "s"} and keep the response grounded in them.`
-    );
-  } else {
-    defaultResponse.push("Upload any council emails, drawings, or studies and I'll automatically weave them into the answers.");
-  }
-  defaultResponse.push(
-    "Say the word if you'd like this to become a shareable artefact, email-style note, or briefing for another agent."
-  );
-  return defaultResponse.join(" ");
 }
 
 interface NoteEditorProps {
