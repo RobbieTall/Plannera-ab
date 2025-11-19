@@ -9,11 +9,11 @@ import {
   extractCandidateAddress,
   getSiteContextForProject,
   persistSiteContextFromCandidate,
-  resolveAddressToSite,
   resolveInstrumentsForSite,
   serializeSiteContext,
   type SiteInstrumentMatch,
 } from "@/lib/site-context";
+import { resolveSiteFromText } from "@/lib/site-resolver";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
@@ -131,6 +131,7 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
     id: candidate.id,
     formattedAddress: candidate.formattedAddress,
     lgaName: candidate.lgaName,
+    score: candidate.score,
   }));
 
 export async function POST(request: Request) {
@@ -161,7 +162,21 @@ export async function POST(request: Request) {
       const candidateAddress = extractCandidateAddress(userMessage);
       if (candidateAddress) {
         try {
-          const candidates = await resolveAddressToSite(candidateAddress, { source: "chat" });
+          const result = await resolveSiteFromText(candidateAddress, { source: "chat" });
+          if (result.status !== "ok") {
+            const errorMessage =
+              result.status === "property_search_not_configured"
+                ? "Auto site lookup isn’t configured. Please type the NSW suburb or council manually."
+                : "NSW property search failed. Please confirm the suburb, council, or street directly.";
+            return NextResponse.json({
+              requiresSiteSelection: true,
+              addressInput: candidateAddress,
+              candidates: [],
+              siteResolverError: errorMessage,
+              siteContext: siteContextSummary,
+            });
+          }
+          const { candidates } = result;
           const decision = decideSiteFromCandidates(candidates);
           if (decision === "auto" && candidates[0]) {
             const persisted = await persistSiteContextFromCandidate({

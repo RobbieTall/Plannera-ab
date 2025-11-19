@@ -470,21 +470,28 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         requiresSiteSelection?: boolean;
         candidates?: SiteCandidate[];
         addressInput?: string;
+        siteResolverError?: string;
       } = await response.json();
 
       if (data.siteContext) {
         setSiteContext(data.siteContext);
       }
 
-      if (data.requiresSiteSelection && data.candidates?.length) {
+      if (data.requiresSiteSelection) {
         setSiteSelection({
           source: "chat",
           addressInput: data.addressInput ?? trimmedInput,
-          candidates: data.candidates,
+          candidates: data.candidates ?? [],
           pendingQuestion: trimmedInput,
         });
         setSiteSelectionCandidateId(null);
-        setSiteSelectionError(null);
+        if (data.siteResolverError) {
+          setSiteSelectionError(data.siteResolverError);
+        } else if (!data.candidates?.length) {
+          setSiteSelectionError("Enter the NSW suburb or council to finish setting the site.");
+        } else {
+          setSiteSelectionError(null);
+        }
         if (!skipUserMessage) {
           setInput(trimmedInput);
         }

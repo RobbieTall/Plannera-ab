@@ -9,7 +9,7 @@ export type SiteCandidate = {
   lot?: string | null;
   planNumber?: string | null;
   zone?: string | null;
-  confidence?: number;
+  score: number;
 };
 
 export type SiteContextSummary = {

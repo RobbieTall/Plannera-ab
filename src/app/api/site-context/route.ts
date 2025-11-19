@@ -16,7 +16,7 @@ const candidateSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   zone: z.string().nullable().optional(),
-  confidence: z.number().optional(),
+  score: z.number().min(0).max(1),
 });
 
 const updateSchema = z.object({

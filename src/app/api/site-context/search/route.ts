@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { decideSiteFromCandidates, resolveAddressToSite, SiteSearchError } from "@/lib/site-context";
+import { decideSiteFromCandidates } from "@/lib/site-context";
+import { resolveSiteFromText } from "@/lib/site-resolver";
 
 const searchSchema = z.object({ query: z.string().min(3) });
 
@@ -9,7 +10,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { query } = searchSchema.parse(body);
-    const candidates = await resolveAddressToSite(query, { source: "site-search" });
+    const result = await resolveSiteFromText(query, { source: "site-search" });
+    if (result.status !== "ok") {
+      const status = result.status === "property_search_not_configured" ? 503 : 502;
+      return NextResponse.json({ error: result.status, message: result.error }, { status });
+    }
+    const { candidates } = result;
     return NextResponse.json({
       candidates,
       decision: decideSiteFromCandidates(candidates),
@@ -17,14 +23,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[site-context-search]", error);
-    if (error instanceof SiteSearchError) {
-      const status = error.status ?? (error.code === "property_search_not_configured" ? 503 : 502);
-      const message =
-        error.code === "property_search_not_configured"
-          ? "NSW property search is not configured."
-          : "NSW property search failed. Please try again.";
-      return NextResponse.json({ error: error.code, message }, { status });
-    }
     return NextResponse.json(
       { error: "site_search_error", message: "Address search failed. Please refine and try again." },
       { status: 400 },
