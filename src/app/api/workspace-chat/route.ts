@@ -159,6 +159,17 @@ export async function POST(request: Request) {
       if (candidateAddress) {
         try {
           const resolution = await resolveSiteFromText(candidateAddress, { source: "chat" });
+          if (resolution.status === "property_search_not_configured") {
+            console.warn(
+              "[chat-site-resolver]",
+              "property search not configured; falling back to manual address",
+            );
+            return NextResponse.json({
+              reply:
+                "I can keep helping if you share the NSW suburb or council and the exact address—property search isn't configured here yet.",
+              siteContext: siteContextSummary,
+            });
+          }
           if (resolution.status === "ok" && resolution.decision === "auto" && resolution.candidates[0]) {
             const persisted = await persistSiteContextFromCandidate({
               projectId,
