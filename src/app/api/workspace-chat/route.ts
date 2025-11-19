@@ -3,15 +3,27 @@ import OpenAI from "openai";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { resolveSiteInstruments, searchClauses } from "@/lib/legislation";
+import { searchClauses } from "@/lib/legislation";
+import {
+  decideSiteFromCandidates,
+  extractCandidateAddress,
+  getSiteContextForProject,
+  persistSiteContextFromCandidate,
+  resolveAddressToSite,
+  resolveInstrumentsForSite,
+  serializeSiteContext,
+  type SiteInstrumentMatch,
+} from "@/lib/site-context";
+import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
-Never invent user messages.
-Never assume a second question.
-If the user doesn't provide an address or LGA, ask politely.
-Use provided site context (address, LGA, zone, LEP, SEPP) if available.
-If no controls exist yet for that LGA, say so clearly.`;
+Never invent user messages or assume multiple questions.
+If no SiteContext is available, ask for the NSW suburb, council or address before quoting detailed controls.
+Use provided site context (address, LGA, zone, LEP, SEPP) whenever available and reference the LGA name in your answer.
+If a relevant LEP is not yet in Plannera, clearly explain that you are answering at a higher/state level using NSW SEPPs.`;
+
+const SITE_CHANGE_REGEX = /(change|update|set).*(site|address|property)|new site|different (?:address|property)/i;
 
 const requestSchema = z.object({
   message: z.string().min(1),
@@ -24,6 +36,7 @@ type WorkspaceMemory = {
   messages: ChatCompletionMessageParam[];
   instruments: string[];
   lga: string | null;
+  siteContext?: SiteContextSummary | null;
 };
 
 const workspaceMemory = new Map<string, WorkspaceMemory>();
@@ -69,17 +82,36 @@ const getErrorDetails = (error: unknown) => {
 };
 
 const buildLegislationContext = (params: {
-  lga: string | null;
+  siteContext: SiteContextSummary | null;
+  fallbackLga: string | null;
   instruments: string[];
   clauses: Awaited<ReturnType<typeof searchClauses>>;
+  instrumentMatch: SiteInstrumentMatch | null;
 }) => {
-  const introParts = [] as string[];
-  if (params.lga) {
-    introParts.push(`LGA: ${params.lga}`);
+  const introParts: string[] = [];
+  if (params.siteContext) {
+    const siteBits = [params.siteContext.formattedAddress];
+    if (params.siteContext.lgaName) {
+      siteBits.push(`LGA: ${params.siteContext.lgaName}`);
+    }
+    if (params.siteContext.zone) {
+      siteBits.push(`Zone: ${params.siteContext.zone}`);
+    }
+    introParts.push(`Site: ${siteBits.join(" | ")}`);
+  } else if (params.fallbackLga) {
+    introParts.push(`LGA: ${params.fallbackLga}`);
   }
+
+  if (params.instrumentMatch?.lepInstrumentSlug) {
+    introParts.push(`LEP: ${params.instrumentMatch.lepInstrumentSlug}`);
+  } else if (params.siteContext?.lgaName) {
+    introParts.push(`LEP: Not yet ingested for ${params.siteContext.lgaName}`);
+  }
+
   if (params.instruments.length) {
     introParts.push(`Instruments: ${params.instruments.join(", ")}`);
   }
+
   const clauseSummaries = params.clauses.slice(0, 8).map((clause) => {
     const title = clause.title ?? clause.clauseKey;
     return `${clause.instrumentName} • ${title}: ${clause.snippet}`;
@@ -94,6 +126,13 @@ const buildLegislationContext = (params: {
   return [preface, clausesLabel].filter(Boolean).join("\n");
 };
 
+const summarizeCandidates = (candidates: SiteCandidate[]) =>
+  candidates.map((candidate) => ({
+    id: candidate.id,
+    formattedAddress: candidate.formattedAddress,
+    lgaName: candidate.lgaName,
+  }));
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -107,24 +146,60 @@ export async function POST(request: Request) {
     const workspaceKey = projectId ?? "default";
     const existingMemory = workspaceMemory.get(workspaceKey);
 
-    let siteContext: Awaited<ReturnType<typeof resolveSiteInstruments>> | null = null;
-    try {
-      siteContext = await resolveSiteInstruments({ address: userMessage, topic: userMessage });
-    } catch (siteError) {
-      console.warn("[workspace-chat-warning] Failed to resolve site context", getErrorDetails(siteError));
+    let siteContextSummary: SiteContextSummary | null = existingMemory?.siteContext ?? null;
+    if (projectId) {
+      try {
+        const dbSite = await getSiteContextForProject(projectId);
+        siteContextSummary = serializeSiteContext(dbSite);
+      } catch (siteLoadError) {
+        console.warn("[workspace-chat-warning] Failed to load stored site context", getErrorDetails(siteLoadError));
+      }
     }
 
-    const lga = siteContext?.localGovernmentArea ?? existingMemory?.lga ?? null;
-    const instruments = siteContext?.instrumentSlugs?.length
-      ? siteContext.instrumentSlugs
+    const wantsSiteChange = SITE_CHANGE_REGEX.test(userMessage);
+    if (projectId && (!siteContextSummary || wantsSiteChange)) {
+      const candidateAddress = extractCandidateAddress(userMessage);
+      if (candidateAddress) {
+        try {
+          const candidates = await resolveAddressToSite(candidateAddress);
+          const decision = decideSiteFromCandidates(candidates);
+          if (decision === "auto" && candidates[0]) {
+            const persisted = await persistSiteContextFromCandidate({
+              projectId,
+              addressInput: candidateAddress,
+              candidate: candidates[0],
+            });
+            siteContextSummary = serializeSiteContext(persisted);
+          } else if (decision === "ambiguous") {
+            return NextResponse.json({
+              requiresSiteSelection: true,
+              addressInput: candidateAddress,
+              candidates: summarizeCandidates(candidates),
+              siteContext: siteContextSummary,
+            });
+          }
+        } catch (addressError) {
+          console.warn("[workspace-chat-warning] Failed to resolve address", getErrorDetails(addressError));
+        }
+      }
+    }
+
+    const instrumentMatch = siteContextSummary ? resolveInstrumentsForSite(siteContextSummary) : null;
+    const instrumentSlugs = instrumentMatch
+      ? Array.from(
+          new Set([
+            ...(instrumentMatch.lepInstrumentSlug ? [instrumentMatch.lepInstrumentSlug] : []),
+            ...instrumentMatch.seppInstrumentSlugs,
+          ]),
+        ).filter(Boolean) as string[]
       : existingMemory?.instruments ?? [];
 
     let clauses: Awaited<ReturnType<typeof searchClauses>> = [];
-    if (instruments.length) {
+    if (instrumentSlugs.length) {
       try {
         clauses = await searchClauses({
           query: userMessage,
-          instrumentSlugs: instruments,
+          instrumentSlugs,
           instrumentTypes: ["LEP", "SEPP"],
           limit: 12,
         });
@@ -133,12 +208,25 @@ export async function POST(request: Request) {
       }
     }
 
-    const legislationContext = buildLegislationContext({ lga, instruments, clauses });
+    const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
+    const legislationContext = buildLegislationContext({
+      siteContext: siteContextSummary,
+      fallbackLga,
+      instruments: instrumentSlugs,
+      clauses,
+      instrumentMatch,
+    });
 
     const historyMessages = existingMemory?.messages ?? [];
-    const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-    ];
+    const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
+
+    if (!siteContextSummary) {
+      messages.push({
+        role: "system",
+        content:
+          "No SiteContext is confirmed. Ask the user for the NSW suburb, council, or exact address before quoting detailed controls.",
+      });
+    }
 
     if (legislationContext) {
       messages.push({ role: "system", content: `Site context:\n${legislationContext}` });
@@ -181,16 +269,18 @@ export async function POST(request: Request) {
 
     workspaceMemory.set(workspaceKey, {
       messages: updatedHistory,
-      instruments,
-      lga,
+      instruments: instrumentSlugs,
+      lga: fallbackLga,
+      siteContext: siteContextSummary,
     });
 
     return NextResponse.json({
       reply,
-      lga,
-      zone: null,
+      lga: fallbackLga,
+      zone: siteContextSummary?.zone ?? null,
       projectName,
-      instruments,
+      instruments: instrumentSlugs,
+      siteContext: siteContextSummary,
     });
   } catch (error) {
     console.error("[workspace-chat-error]", getErrorDetails(error));
@@ -199,7 +289,7 @@ export async function POST(request: Request) {
         error: "assistant_unavailable",
         message: "The planning assistant is unavailable right now. Please try again shortly.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

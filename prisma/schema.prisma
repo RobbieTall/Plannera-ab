@@ -74,6 +74,7 @@ model Project {
   tasks         Task[]
   collaborators ProjectMember[]
   artefacts     Artefact[]
+  siteContext   SiteContext?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -290,4 +291,22 @@ model WorkspaceUpload {
 
   @@index([projectId])
   @@index([userId])
+}
+
+model SiteContext {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  addressInput     String
+  formattedAddress String
+  lgaName          String?
+  lgaCode          String?
+  parcelId         String?
+  lot              String?
+  planNumber       String?
+  latitude         Float?
+  longitude        Float?
+  zone             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
