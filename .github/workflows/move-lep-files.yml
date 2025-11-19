@@ -1,0 +1,46 @@
+name: Move LEP Files L-N to data/nsw/xml
+
+on:
+  workflow_dispatch:
+
+jobs:
+  move-files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Move LEP XML files from root to data/nsw/xml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Move all L-N LEP files
+          git mv "Lachlan-lep-2013.xml" "data/nsw/xml/" || true
+          git mv "Lake Macquarie-lep-2014.xml" "data/nsw/xml/" || true
+          git mv "Lane Cove-lep-2009.xml" "data/nsw/xml/" || true
+          git mv "Leeton-lep-2014.xml" "data/nsw/xml/" || true
+          git mv "Leichhardt-lep-2000.xml" "data/nsw/xml/" || true
+          git mv "Lismore-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "Lithgow-lep-2014.xml" "data/nsw/xml/" || true
+          git mv "Liverpool Plains-lep-2011.xml" "data/nsw/xml/" || true
+          git mv "Liverpool-lep-2008.xml" "data/nsw/xml/" || true
+          git mv "Lockhart-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "Lord Howe Island-lep-2010.xml" "data/nsw/xml/" || true
+          git mv "Maitland-lep-2011.xml" "data/nsw/xml/" || true
+          git mv "Manly-lep-2013.xml" "data/nsw/xml/" || true
+          git mv "Mid-Western Regional-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "Moree Plains-lep-2011.xml" "data/nsw/xml/" || true
+          git mv "Mosman-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "Murray-lep-2011.xml" "data/nsw/xml/" || true
+          git mv "Murrumbidgee-lep-2013.xml" "data/nsw/xml/" || true
+          git mv "Muswellbrook-lep-2009.xml" "data/nsw/xml/" || true
+          git mv "Nambucca-lep-2010.xml" "data/nsw/xml/" || true
+          git mv "Narrabri-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "Narrandera-lep-2013.xml" "data/nsw/xml/" || true
+          git mv "Narromine-lep-2011.xml" "data/nsw/xml/" || true
+          git mv "Newcastle-lep-2012.xml" "data/nsw/xml/" || true
+          git mv "North Sydney-lep-2013.xml" "data/nsw/xml/" || true
+          
+          git commit -m "Move LEP XML files (L-N) to data/nsw/xml directory"
+          git push
