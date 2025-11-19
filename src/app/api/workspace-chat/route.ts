@@ -26,8 +26,6 @@ type WorkspaceMemory = {
   lga: string | null;
 };
 
-const openaiApiKey = process.env.OPENAI_API_KEY;
-const openaiClient = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
 const workspaceMemory = new Map<string, WorkspaceMemory>();
 
 type ErrorWithResponse = {
@@ -39,18 +37,32 @@ type ErrorWithResponse = {
   };
 };
 
-const getOpenAIErrorDetails = (error: unknown) => {
+const getErrorDetails = (error: unknown) => {
   if (typeof error === "object" && error !== null) {
-    const err = error as ErrorWithResponse;
+    const err = error as ErrorWithResponse & { name?: string; stack?: string };
     return {
       message: err.message,
+      name: err.name,
+      stack: err.stack,
       status: err.status ?? err.response?.status,
       data: err.response?.data,
     };
   }
 
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      status: undefined,
+      data: undefined,
+    };
+  }
+
   return {
-    message: error instanceof Error ? error.message : undefined,
+    message: typeof error === "string" ? error : undefined,
+    name: undefined,
+    stack: undefined,
     status: undefined,
     data: undefined,
   };
@@ -87,23 +99,39 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { message: userMessage, projectId, projectName, isDemo } = requestSchema.parse(body);
 
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey && !isDemo) {
+      throw new Error("Missing OPENAI_API_KEY environment variable");
+    }
+
     const workspaceKey = projectId ?? "default";
     const existingMemory = workspaceMemory.get(workspaceKey);
 
-    const siteContext = await resolveSiteInstruments({ address: userMessage, topic: userMessage });
-    const lga = siteContext.localGovernmentArea ?? existingMemory?.lga ?? null;
-    const instruments = siteContext.instrumentSlugs?.length
+    let siteContext: Awaited<ReturnType<typeof resolveSiteInstruments>> | null = null;
+    try {
+      siteContext = await resolveSiteInstruments({ address: userMessage, topic: userMessage });
+    } catch (siteError) {
+      console.warn("[workspace-chat-warning] Failed to resolve site context", getErrorDetails(siteError));
+    }
+
+    const lga = siteContext?.localGovernmentArea ?? existingMemory?.lga ?? null;
+    const instruments = siteContext?.instrumentSlugs?.length
       ? siteContext.instrumentSlugs
       : existingMemory?.instruments ?? [];
 
-    const clauses = instruments.length
-      ? await searchClauses({
+    let clauses: Awaited<ReturnType<typeof searchClauses>> = [];
+    if (instruments.length) {
+      try {
+        clauses = await searchClauses({
           query: userMessage,
           instrumentSlugs: instruments,
           instrumentTypes: ["LEP", "SEPP"],
           limit: 12,
-        })
-      : [];
+        });
+      } catch (clauseError) {
+        console.warn("[workspace-chat-warning] Failed to search clauses", getErrorDetails(clauseError));
+      }
+    }
 
     const legislationContext = buildLegislationContext({ lga, instruments, clauses });
 
@@ -122,14 +150,16 @@ export async function POST(request: Request) {
     const reply = isDemo
       ? "This is a demo response. Provide a real address or LGA for full analysis."
       : await (async () => {
-          if (!openaiClient) {
-            throw new Error("OpenAI client not configured");
+          if (!apiKey) {
+            throw new Error("Missing OPENAI_API_KEY environment variable");
           }
+          const client = new OpenAI({ apiKey });
 
           try {
-            const completion = await openaiClient.chat.completions.create({
+            const completion = await client.chat.completions.create({
               model: "gpt-4o-mini",
               messages,
+              max_tokens: 512,
             });
 
             const aiReply = completion.choices?.[0]?.message?.content;
@@ -138,7 +168,7 @@ export async function POST(request: Request) {
             }
             return aiReply;
           } catch (error) {
-            console.error("[openai-chat-error]", getOpenAIErrorDetails(error));
+            console.error("[openai-chat-error]", getErrorDetails(error));
             throw error;
           }
         })();
@@ -163,12 +193,13 @@ export async function POST(request: Request) {
       instruments,
     });
   } catch (error) {
-    console.error("Workspace chat error", error);
+    console.error("[workspace-chat-error]", getErrorDetails(error));
     return NextResponse.json(
       {
-        reply: "The planning assistant is unavailable right now. Please try again shortly.",
+        error: "assistant_unavailable",
+        message: "The planning assistant is unavailable right now. Please try again shortly.",
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }
