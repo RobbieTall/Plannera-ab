@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { query } = searchSchema.parse(body);
-    const candidates = await resolveAddressToSite(query);
+    const candidates = await resolveAddressToSite(query, { source: "site-search" });
     return NextResponse.json({
       candidates,
       decision: decideSiteFromCandidates(candidates),
