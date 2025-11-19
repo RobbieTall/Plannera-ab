@@ -610,8 +610,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: trimmedQuery }),
       });
-      const data: { candidates?: SiteCandidate[]; message?: string } = await response.json();
+      const data: { candidates?: SiteCandidate[]; message?: string; error?: string } = await response.json();
       if (!response.ok) {
+        if (data?.error === "property_search_failed") {
+          setSiteSelectionError("Address search failed. Please try again.");
+          return;
+        }
+        if (data?.error === "property_search_not_configured") {
+          setSiteSelectionError("NSW property search isn’t configured in this environment.");
+          return;
+        }
         throw new Error(data?.message ?? "Address search failed");
       }
       setSiteSelection((previous) => (previous ? { ...previous, addressInput: trimmedQuery, candidates: data.candidates ?? [] } : previous));

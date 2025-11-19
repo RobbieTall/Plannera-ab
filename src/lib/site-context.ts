@@ -6,6 +6,18 @@ import { INSTRUMENT_CONFIG } from "./legislation/config";
 
 type SiteSearchErrorCode = "property_search_not_configured" | "property_search_failed";
 
+type SiteResolverSource = "chat" | "site-search";
+
+const getErrorDetails = (error: unknown) => {
+  if (error instanceof SiteSearchError) {
+    return { message: error.message, code: error.code, status: error.status };
+  }
+  if (error instanceof Error) {
+    return { message: error.message, name: error.name, stack: error.stack };
+  }
+  return { message: String(error) };
+};
+
 export class SiteSearchError extends Error {
   code: SiteSearchErrorCode;
   status?: number;
@@ -142,6 +154,12 @@ type RawPropertyRecord = Record<string, unknown>;
 type PropertySearchConfig = {
   url: string;
   apiKey: string;
+};
+
+type PropertySearchResult = {
+  normalized: string;
+  status: number;
+  candidates: SiteCandidate[];
 };
 
 const getPropertySearchConfig = (): PropertySearchConfig => {
@@ -374,17 +392,28 @@ const performPropertySearch = async (
   strategy: PropertySearchStrategy,
   config: PropertySearchConfig,
   options?: { limit?: number },
-): Promise<SiteCandidate[]> => {
+): Promise<PropertySearchResult> => {
   const normalized = normaliseSearchQuery(query);
   logSiteSearchRequest({ queryText: query, normalized, strategy });
   const url = buildSearchUrl(config.url, normalized, options?.limit);
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/json",
-      "Ocp-Apim-Subscription-Key": config.apiKey,
-    },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        Accept: "application/json",
+        "Ocp-Apim-Subscription-Key": config.apiKey,
+      },
+      cache: "no-store",
+    });
+  } catch (networkError) {
+    console.error("[site-search-error]", {
+      strategy,
+      q: normalized,
+      message: "Failed to reach NSW property search API",
+      details: getErrorDetails(networkError),
+    });
+    throw new SiteSearchError("property_search_failed", "NSW property search failed.");
+  }
   const bodyText = await response.text();
   const status = response.status;
   if (!response.ok) {
@@ -423,7 +452,7 @@ const performPropertySearch = async (
           : [];
   const candidates = mapResultsToCandidates(rows);
   logSiteSearchResponse({ strategy, normalized, status, results: candidates });
-  return candidates;
+  return { normalized, status, candidates };
 };
 
 const filterNswCandidates = (candidates: SiteCandidate[]) =>
@@ -440,36 +469,63 @@ const filterNswCandidates = (candidates: SiteCandidate[]) =>
     return true;
   });
 
-export const resolveAddressToSite = async (addressText: string): Promise<SiteCandidate[]> => {
-  const config = getPropertySearchConfig();
-  // Acceptance hint: 6 Myola Road Newport NSW 2106 (Northern Beaches) should be located via primary or fuzzy search.
-  const primaryResults = await performPropertySearch(addressText, "primary", config, { limit: 20 });
-  const primaryCandidates = filterNswCandidates(primaryResults)
-    .map((candidate) => ({
-      ...candidate,
-      confidence: scoreCandidate(addressText, candidate),
-    }))
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  if (primaryCandidates.length) {
-    return primaryCandidates.slice(0, 10);
-  }
+export const resolveAddressToSite = async (
+  addressText: string,
+  options?: { source?: SiteResolverSource },
+): Promise<SiteCandidate[]> => {
+  const source = options?.source ?? "chat";
+  console.log("[site-resolver-request]", { q: addressText, source });
+  let normalizedQuery = normaliseSearchQuery(addressText);
+  let status: number | null = null;
+  try {
+    const config = getPropertySearchConfig();
+    // Acceptance hint: 6 Myola Road Newport NSW 2106 (Northern Beaches) should be located via primary or fuzzy search.
+    const primaryResults = await performPropertySearch(addressText, "primary", config, { limit: 20 });
+    normalizedQuery = primaryResults.normalized;
+    status = primaryResults.status;
+    const primaryCandidates = filterNswCandidates(primaryResults.candidates)
+      .map((candidate) => ({
+        ...candidate,
+        confidence: scoreCandidate(addressText, candidate),
+      }))
+      .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
 
-  const { suburb, street } = parseQueryComponents(addressText);
-  if (!suburb) {
-    return [];
+    let resolvedCandidates: SiteCandidate[] = [];
+    if (primaryCandidates.length) {
+      resolvedCandidates = primaryCandidates.slice(0, 10);
+    } else {
+      const { suburb, street } = parseQueryComponents(addressText);
+      if (suburb) {
+        const suburbQuery = `${suburb} NSW`;
+        const fuzzyPool = await performPropertySearch(suburbQuery, "fuzzy", config, { limit: 50 });
+        normalizedQuery = fuzzyPool.normalized;
+        status = fuzzyPool.status;
+        const streetLabel = street ?? suburbQuery;
+        resolvedCandidates = filterNswCandidates(fuzzyPool.candidates)
+          .map((candidate) => ({
+            ...candidate,
+            confidence: scoreStreetSimilarity(
+              extractStreetSegment(streetLabel),
+              extractStreetSegment(candidate.formattedAddress),
+            ),
+          }))
+          .filter((candidate) => (candidate.confidence ?? 0) >= 0.6)
+          .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+          .slice(0, 10);
+      }
+    }
+
+    console.log("[site-resolver-result]", {
+      q: normalizedQuery,
+      source,
+      status,
+      candidates: resolvedCandidates.length,
+    });
+    return resolvedCandidates;
+  } catch (error) {
+    console.error("[site-resolver-error]", { q: addressText, source, ...getErrorDetails(error) });
+    throw error;
   }
-  const suburbQuery = `${suburb} NSW`;
-  const fuzzyPool = await performPropertySearch(suburbQuery, "fuzzy", config, { limit: 50 });
-  const streetLabel = street ?? suburbQuery;
-  const fuzzyCandidates = filterNswCandidates(fuzzyPool)
-    .map((candidate) => ({
-      ...candidate,
-      confidence: scoreStreetSimilarity(extractStreetSegment(streetLabel), extractStreetSegment(candidate.formattedAddress)),
-    }))
-    .filter((candidate) => (candidate.confidence ?? 0) >= 0.6)
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-    .slice(0, 10);
-  return fuzzyCandidates;
 };
 
 export const decideSiteFromCandidates = (candidates: SiteCandidate[]): "auto" | "ambiguous" | "none" => {

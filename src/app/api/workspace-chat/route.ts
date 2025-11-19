@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       const candidateAddress = extractCandidateAddress(userMessage);
       if (candidateAddress) {
         try {
-          const candidates = await resolveAddressToSite(candidateAddress);
+          const candidates = await resolveAddressToSite(candidateAddress, { source: "chat" });
           const decision = decideSiteFromCandidates(candidates);
           if (decision === "auto" && candidates[0]) {
             const persisted = await persistSiteContextFromCandidate({
