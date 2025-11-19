@@ -5,15 +5,13 @@ import { z } from "zod";
 
 import { searchClauses } from "@/lib/legislation";
 import {
-  decideSiteFromCandidates,
-  extractCandidateAddress,
   getSiteContextForProject,
   persistSiteContextFromCandidate,
-  resolveAddressToSite,
   resolveInstrumentsForSite,
   serializeSiteContext,
   type SiteInstrumentMatch,
 } from "@/lib/site-context";
+import { extractCandidateAddress, resolveSiteFromText } from "@/lib/site-resolver";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
@@ -29,7 +27,6 @@ const requestSchema = z.object({
   message: z.string().min(1),
   projectId: z.string().optional(),
   projectName: z.string().optional(),
-  isDemo: z.boolean().optional(),
 });
 
 type WorkspaceMemory = {
@@ -136,10 +133,10 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message: userMessage, projectId, projectName, isDemo } = requestSchema.parse(body);
+    const { message: userMessage, projectId, projectName } = requestSchema.parse(body);
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey && !isDemo) {
+    if (!apiKey) {
       throw new Error("Missing OPENAI_API_KEY environment variable");
     }
 
@@ -161,22 +158,23 @@ export async function POST(request: Request) {
       const candidateAddress = extractCandidateAddress(userMessage);
       if (candidateAddress) {
         try {
-          const candidates = await resolveAddressToSite(candidateAddress, { source: "chat" });
-          const decision = decideSiteFromCandidates(candidates);
-          if (decision === "auto" && candidates[0]) {
+          const resolution = await resolveSiteFromText(candidateAddress, { source: "chat" });
+          if (resolution.status === "ok" && resolution.decision === "auto" && resolution.candidates[0]) {
             const persisted = await persistSiteContextFromCandidate({
               projectId,
               addressInput: candidateAddress,
-              candidate: candidates[0],
+              candidate: resolution.candidates[0],
             });
             siteContextSummary = serializeSiteContext(persisted);
-          } else if (decision === "ambiguous") {
+          } else if (resolution.status === "ok" && resolution.decision === "ambiguous") {
             return NextResponse.json({
               requiresSiteSelection: true,
               addressInput: candidateAddress,
-              candidates: summarizeCandidates(candidates),
+              candidates: summarizeCandidates(resolution.candidates),
               siteContext: siteContextSummary,
             });
+          } else {
+            console.warn("[workspace-chat-warning] Site resolution returned no matches", resolution.status);
           }
         } catch (addressError) {
           console.warn("[workspace-chat-warning] Failed to resolve address", getErrorDetails(addressError));
@@ -235,31 +233,29 @@ export async function POST(request: Request) {
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
 
-    const reply = isDemo
-      ? "This is a demo response. Provide a real address or LGA for full analysis."
-      : await (async () => {
-          if (!apiKey) {
-            throw new Error("Missing OPENAI_API_KEY environment variable");
-          }
-          const client = new OpenAI({ apiKey });
+    if (!apiKey) {
+      throw new Error("Missing OPENAI_API_KEY environment variable");
+    }
+    const client = new OpenAI({ apiKey });
 
-          try {
-            const completion = await client.chat.completions.create({
-              model: "gpt-4o-mini",
-              messages,
-              max_tokens: 512,
-            });
+    const reply = await (async () => {
+      try {
+        const completion = await client.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages,
+          max_tokens: 512,
+        });
 
-            const aiReply = completion.choices?.[0]?.message?.content;
-            if (!aiReply) {
-              throw new Error("Empty response from OpenAI");
-            }
-            return aiReply;
-          } catch (error) {
-            console.error("[openai-chat-error]", getErrorDetails(error));
-            throw error;
-          }
-        })();
+        const aiReply = completion.choices?.[0]?.message?.content;
+        if (!aiReply) {
+          throw new Error("Empty response from OpenAI");
+        }
+        return aiReply;
+      } catch (error) {
+        console.error("[openai-chat-error]", getErrorDetails(error));
+        throw error;
+      }
+    })();
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,
