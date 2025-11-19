@@ -114,7 +114,6 @@ export function PlanningAssistant() {
   const sendInitialWorkspaceMessage = useCallback(
     async (params: { project: Project; prompt: string; initialMessages: WorkspaceMessage[] }) => {
       const { project, prompt, initialMessages } = params;
-      if (project.isDemo) return;
 
       const history = getChatHistory(project.id);
       const historySeed = history.length ? history : initialMessages;

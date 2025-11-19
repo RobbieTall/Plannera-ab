@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "tsx --test tests/map-snapshot.test.ts",
+    "test:site-resolver": "tsx --test tests/site-resolver.test.ts",
     "fetch:nsw-xml": "tsx scripts/fetch-nsw-xml.ts",
     "ingest:legislation": "tsx scripts/legislation-ingest.ts",
     "ingest:all-nsw": "tsx scripts/ingest-all-nsw.ts",
