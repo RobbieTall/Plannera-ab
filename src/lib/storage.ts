@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 
 const UPLOADS_DIR = join(process.cwd(), "public", "uploads");
 
@@ -14,6 +14,8 @@ export type SavedFile = {
 };
 
 type StorageProvider = "local" | "vercel-blob" | "noop";
+
+type StorageModeLabel = "blob" | "local" | "noop";
 
 const normalizeProvider = (provider?: string | null): StorageProvider | undefined => {
   if (!provider) {
@@ -30,6 +32,27 @@ const configuredProvider = normalizeProvider(process.env.WORKSPACE_UPLOAD_STORAG
 const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
 
 const WORKSPACE_STORAGE_PROVIDER: StorageProvider = configuredProvider ?? (blobToken ? "vercel-blob" : "local");
+
+const getStorageModeLabel = (provider: StorageProvider): StorageModeLabel => {
+  if (provider === "vercel-blob") {
+    return "blob";
+  }
+  return provider;
+};
+
+let storageModeLogged = false;
+
+const logStorageMode = () => {
+  if (storageModeLogged) {
+    return;
+  }
+  storageModeLogged = true;
+  console.log("[storage-mode]", {
+    mode: getStorageModeLabel(WORKSPACE_STORAGE_PROVIDER),
+    hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    env: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+  });
+};
 
 type StorageStatus =
   | { ready: true; provider: StorageProvider }
@@ -69,23 +92,67 @@ const saveFileLocally = async (file: File): Promise<SavedFile> => {
   };
 };
 
+type ErrorWithStatus = {
+  status?: number;
+  response?: { status?: number };
+};
+
+const getErrorDetails = (error: unknown) => {
+  if (error instanceof Error) {
+    const status = (error as ErrorWithStatus).status ?? (error as ErrorWithStatus).response?.status;
+    return {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      status,
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const status = (error as ErrorWithStatus).status ?? (error as ErrorWithStatus).response?.status;
+    return {
+      message: String(error),
+      status,
+    };
+  }
+
+  return { message: String(error) };
+};
+
+export class StorageUploadError extends Error {
+  cause?: unknown;
+
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "StorageUploadError";
+    this.cause = options?.cause;
+  }
+}
+
+export const isStorageUploadError = (error: unknown): error is StorageUploadError => error instanceof StorageUploadError;
+
 const saveFileToBlob = async (file: File): Promise<SavedFile> => {
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = sanitizeFileName(file.name) || "upload";
   const objectPath = `workspace-uploads/${randomUUID()}-${fileName}`;
 
-  const blob = await put(objectPath, buffer, {
-    access: "public",
-    contentType: file.type || undefined,
-    token: blobToken,
-  });
+  try {
+    const blob = await put(objectPath, buffer, {
+      access: "public",
+      contentType: file.type || undefined,
+      token: blobToken,
+    });
 
-  return {
-    url: blob.url,
-    path: blob.pathname ?? objectPath,
-    mimeType: blob.contentType ?? file.type ?? "application/octet-stream",
-    size: buffer.byteLength,
-  };
+    return {
+      url: blob.url,
+      path: blob.pathname ?? objectPath,
+      mimeType: blob.contentType ?? file.type ?? "application/octet-stream",
+      size: buffer.byteLength,
+    };
+  } catch (error) {
+    console.error("[blob-upload-error]", getErrorDetails(error));
+    throw new StorageUploadError("storage_upload_failed", { cause: error });
+  }
 };
 
 const saveFileNoop = async (file: File): Promise<SavedFile> => ({
@@ -96,6 +163,8 @@ const saveFileNoop = async (file: File): Promise<SavedFile> => ({
 });
 
 export const getWorkspaceStorageStatus = (): StorageStatus => {
+  logStorageMode();
+
   if (WORKSPACE_STORAGE_PROVIDER === "noop") {
     return { ready: true, provider: WORKSPACE_STORAGE_PROVIDER };
   }
@@ -119,6 +188,8 @@ export const getWorkspaceStorageStatus = (): StorageStatus => {
 };
 
 export async function saveFileToUploads(file: File): Promise<SavedFile> {
+  logStorageMode();
+
   switch (WORKSPACE_STORAGE_PROVIDER) {
     case "vercel-blob":
       return saveFileToBlob(file);
@@ -130,4 +201,56 @@ export async function saveFileToUploads(file: File): Promise<SavedFile> {
   }
 }
 
+export type StorageHealth = { ok: boolean; mode: StorageModeLabel; error?: string };
+
+const formatNotReadyReason = (status: StorageStatus): string | undefined => {
+  if (status.ready) {
+    return undefined;
+  }
+  if (status.reason) {
+    return status.reason;
+  }
+  if (status.missingEnv?.length) {
+    return `Missing env vars: ${status.missingEnv.join(", ")}`;
+  }
+  return undefined;
+};
+
+export const getStorageHealth = async (): Promise<StorageHealth> => {
+  const status = getWorkspaceStorageStatus();
+  const mode = getStorageModeLabel(status.provider);
+
+  if (!status.ready) {
+    return { ok: false, mode, error: formatNotReadyReason(status) };
+  }
+
+  if (status.provider === "vercel-blob") {
+    const key = `storage-health/${randomUUID()}`;
+    try {
+      const blob = await put(key, "health-check", {
+        access: "public",
+        contentType: "text/plain",
+        token: blobToken,
+      });
+
+      if (blob?.url) {
+        try {
+          await del(blob.url, { token: blobToken });
+        } catch (deleteError) {
+          console.warn("[blob-health-warning]", getErrorDetails(deleteError));
+        }
+      }
+
+      return { ok: true, mode };
+    } catch (error) {
+      console.error("[blob-health-error]", getErrorDetails(error));
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, mode, error: message };
+    }
+  }
+
+  return { ok: true, mode };
+};
+
 export { WORKSPACE_STORAGE_PROVIDER };
+export type { StorageProvider };
