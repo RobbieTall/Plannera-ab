@@ -21,7 +21,7 @@ export function ProjectsDashboard() {
   );
 
   const handleCreate = () => {
-    const hasFreeAllowance = state.userTier !== "anonymous" || state.createdProjects.length < state.freeProjectLimit;
+    const hasFreeAllowance = state.userTier !== "guest" || state.createdProjects.length < state.freeProjectLimit;
     if (!hasFreeAllowance) {
       setShowLimitModal(true);
       return;
@@ -29,7 +29,8 @@ export function ProjectsDashboard() {
     router.push("/");
   };
 
-  const remainingLabel = state.userTier === "anonymous" ? `${state.remainingProjects} free projects remaining` : "Unlimited projects";
+  const remainingLabel =
+    state.userTier === "guest" ? `${state.remainingProjects} free projects remaining` : "Unlimited projects";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -112,10 +113,10 @@ export function ProjectsDashboard() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {state.userTier === "anonymous" ? "1 free project" : "Workspace usage"}
+                    {state.userTier === "guest" ? "1 free project" : "Workspace usage"}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {state.userTier === "anonymous"
+                    {state.userTier === "guest"
                       ? "Sign up to unlock unlimited workspaces, uploads and agents."
                       : "Signed-in accounts sync projects, artefacts, and uploads."}
                   </p>
@@ -133,7 +134,7 @@ export function ProjectsDashboard() {
                 <ShieldCheck className="h-4 w-4" /> Usage limits
               </div>
               <p className="mt-3 text-sm">
-                {state.userTier === "anonymous"
+                {state.userTier === "guest"
                   ? `You've used ${state.createdProjects.length} of 1 free projects. Sign up to create unlimited workspaces.`
                   : "Free and Pro plans include unlimited projects. Upgrade to Pro for higher upload caps and premium agents."}
               </p>

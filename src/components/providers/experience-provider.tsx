@@ -9,6 +9,7 @@ import type {
   WorkspaceSessionSignals,
 } from "@/types/workspace";
 import { projects as mockProjects, type Project } from "@/lib/mock-data";
+import { TOOL_USAGE_LIMITS, WORKSPACE_UPLOAD_LIMITS } from "@/lib/usage-limits";
 
 interface ExperienceState {
   userTier: UserTier;
@@ -58,7 +59,7 @@ const storageKey = "plannera-experience";
 const ExperienceContext = createContext<ExperienceContextValue | null>(null);
 
 const defaultState: ExperienceState = {
-  userTier: "anonymous",
+  userTier: "guest",
   freeProjectLimit: 1,
   createdProjects: [],
   customProjects: [],
@@ -70,26 +71,13 @@ const defaultState: ExperienceState = {
   sessionSignalsByProject: {},
 };
 
-const documentLimitMap: Record<UserTier, number> = {
-  anonymous: 0,
-  free: 5,
-  pro: 50,
-};
-
-const toolUsageLimit: Record<UserTier, number> = {
-  anonymous: 0,
-  free: 3,
-  pro: 50,
-};
-
 export function ExperienceProvider({ children, initialTier }: { children: ReactNode; initialTier: UserTier }) {
   const [state, setState] = useState<ExperienceState>({ ...defaultState, userTier: initialTier });
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     if (isHydrated) {
-      const stateToPersist =
-        state.userTier === "anonymous" ? { ...state, createdProjects: [] } : state;
+      const stateToPersist = state.userTier === "guest" ? { ...state, createdProjects: [] } : state;
       window.localStorage.setItem(storageKey, JSON.stringify(stateToPersist));
     }
   }, [state, isHydrated]);
@@ -103,7 +91,7 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       if (saved) {
         const parsed = JSON.parse(saved) as ExperienceState;
         const hydratedFreeLimit = Math.max(parsed.freeProjectLimit ?? defaultState.freeProjectLimit, 1);
-        const createdProjects = initialTier === "anonymous" ? [] : parsed.createdProjects ?? [];
+        const createdProjects = initialTier === "guest" ? [] : parsed.createdProjects ?? [];
         setState((previous) => ({
           ...previous,
           ...parsed,
@@ -135,10 +123,10 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       if (alreadyTracked) {
         return { allowed: true, remaining, alreadyTracked: true };
       }
-      if (state.userTier === "anonymous" && state.createdProjects.length === 0) {
+      if (state.userTier === "guest" && state.createdProjects.length === 0) {
         return { allowed: true, remaining, alreadyTracked: false };
       }
-      if (state.userTier === "anonymous" && remaining <= 0) {
+      if (state.userTier === "guest" && remaining <= 0) {
         return { allowed: false, remaining: 0, alreadyTracked: false };
       }
       return { allowed: true, remaining, alreadyTracked: false };
@@ -200,7 +188,7 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
   );
 
   const getUploadUsage = useCallback(
-    (projectId: string) => ({ used: state.uploadsByProject[projectId] ?? 0, limit: documentLimitMap[state.userTier] }),
+    (projectId: string) => ({ used: state.uploadsByProject[projectId] ?? 0, limit: WORKSPACE_UPLOAD_LIMITS[state.userTier] }),
     [state.uploadsByProject, state.userTier]
   );
 
@@ -231,12 +219,12 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
 
   const recordToolUsage = useCallback(
     (projectId: string, toolId: string) => {
-      const limit = toolUsageLimit[state.userTier];
+      const limit = TOOL_USAGE_LIMITS[state.userTier];
       const usage = state.toolUsageByProject[projectId]?.[toolId] ?? 0;
       if (limit > 0 && usage >= limit && state.userTier !== "pro") {
         return { allowed: false, usage, limit };
       }
-      if (state.userTier === "anonymous" && limit === 0) {
+      if (state.userTier === "guest" && limit === 0) {
         return { allowed: false, usage, limit };
       }
       setState((previous) => ({
@@ -291,7 +279,7 @@ export function ExperienceProvider({ children, initialTier }: { children: ReactN
       state: {
         ...state,
         remainingProjects,
-        documentLimit: documentLimitMap[state.userTier],
+        documentLimit: WORKSPACE_UPLOAD_LIMITS[state.userTier],
       },
       setUserTier,
       canStartProject,

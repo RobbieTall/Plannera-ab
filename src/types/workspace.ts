@@ -1,4 +1,4 @@
-export type UserTier = "anonymous" | "free" | "pro";
+export type UserTier = "guest" | "free" | "pro";
 
 export type WorkspaceMessage = {
   id: string;
