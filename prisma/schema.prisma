@@ -18,12 +18,14 @@ model User {
   email              String?          @unique
   emailVerified      DateTime?
   image              String?
+  plan               String           @default("free")
   sessions           Session[]
   projects           Project[]        @relation("ProjectCreatedBy")
   projectMemberships ProjectMember[]
   tasksCreated       Task[]           @relation("TaskCreatedBy")
   assignments        TaskAssignment[]
   artefacts          Artefact[]
+  workspaceUploads  WorkspaceUpload[]
 }
 
 model Session {
@@ -271,4 +273,21 @@ enum InstrumentType {
   ACT
   REGULATION
   OTHER
+}
+
+model WorkspaceUpload {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName    String
+  mimeType    String?
+  fileSize    Int
+  storagePath String
+  publicUrl   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([userId])
 }

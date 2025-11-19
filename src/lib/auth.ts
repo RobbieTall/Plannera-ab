@@ -21,6 +21,18 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/signin",
   },
+  callbacks: {
+    async session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id;
+        session.user.plan = (user as { plan?: string | null }).plan ?? session.user.plan ?? "free";
+        if ((user as { subscriptionTier?: string | null }).subscriptionTier) {
+          session.user.subscriptionTier = (user as { subscriptionTier?: string | null }).subscriptionTier ?? null;
+        }
+      }
+      return session;
+    },
+  },
   providers: [
     EmailProvider({
       from: fromAddress,

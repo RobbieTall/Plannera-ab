@@ -39,6 +39,7 @@ import { useExperience } from "@/components/providers/experience-provider";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { Modal } from "@/components/ui/modal";
 import type {
+  UserTier,
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspaceNoteCategory,
@@ -270,6 +271,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [serverLimitReached, setServerLimitReached] = useState(false);
   const [showMapsPanel, setShowMapsPanel] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
@@ -284,6 +287,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
+  const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
+  const limitMessage = uploadLimitReached
+    ? state.userTier === "guest"
+      ? "You’ve used your free upload. Create a free account to upload more documents."
+      : state.userTier === "free"
+        ? "You’ve reached your 5-document limit. Upgrade to a paid plan to upload more."
+        : "You've reached this workspace's document cap. Contact us to extend your plan."
+    : null;
+  const documentCta =
+    state.userTier === "guest"
+      ? { href: "/signin", label: "Create a free account" }
+      : state.userTier === "free"
+        ? { href: "mailto:hello@plannera.ai", label: "Contact sales to upgrade" }
+        : { href: "mailto:hello@plannera.ai", label: "Contact us to extend your plan" };
+
 
   useEffect(() => {
     setSources(initialSources);
@@ -479,7 +497,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const handleAddSourceClick = () => {
-    if (uploadUsage.limit === 0 && state.userTier === "anonymous") {
+    if (uploadLimitReached || uploadUsage.limit === 0) {
       setUpgradeModal("documents");
       return;
     }
@@ -499,33 +517,78 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       setShowUploadModal(false);
       return;
     }
-    if (uploadUsage.limit > 0 && uploadUsage.used + uploadQueue.length > uploadUsage.limit) {
-      setUpgradeModal("documents");
-      return;
-    }
+    setIsUploading(true);
+    try {
+      const indexFilesLocally = async () => {
+        const newSources: WorkspaceSource[] = [];
+        for (const file of uploadQueue) {
+          const type = determineSourceType(file.name);
+          newSources.unshift({
+            id: `upload-${Date.now()}-${file.name}`,
+            name: file.name,
+            detail: `${file.type || "File"}`,
+            type,
+            uploadedAt: new Date().toLocaleDateString(),
+            sizeLabel: formatFileSize(file.size),
+            status: "Synced",
+          });
+          const snippet = await extractContextSnippet(file);
+          appendSourceContext(project.id, snippet);
+          applySessionSignals({ recentSource: file.name });
+        }
+        setSources((previous) => [...newSources, ...previous]);
+      };
 
-    const newSources: WorkspaceSource[] = [];
-    for (const file of uploadQueue) {
-      const type = determineSourceType(file.name);
-      newSources.unshift({
-        id: `upload-${Date.now()}-${file.name}`,
-        name: file.name,
-        detail: `${file.type || "File"}`,
-        type,
-        uploadedAt: new Date().toLocaleDateString(),
-        sizeLabel: formatFileSize(file.size),
-        status: "Synced",
+      if (project.isDemo) {
+        // Demo workspaces store documents locally so visitors can experiment without touching the API.
+        await indexFilesLocally();
+        recordUpload(project.id, uploadQueue.length);
+        showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
+        setUploadQueue([]);
+        setShowUploadModal(false);
+        return;
+      }
+
+      const formData = new FormData();
+      for (const file of uploadQueue) {
+        formData.append("files", file);
+      }
+
+      const response = await fetch(`/api/projects/${project.id}/uploads`, {
+        method: "POST",
+        body: formData,
       });
-      const snippet = await extractContextSnippet(file);
-      appendSourceContext(project.id, snippet);
-      applySessionSignals({ recentSource: file.name });
-    }
 
-    setSources((previous) => [...newSources, ...previous]);
-    recordUpload(project.id, uploadQueue.length);
-    showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
-    setUploadQueue([]);
-    setShowUploadModal(false);
+      if (!response.ok) {
+        const errorPayload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          tier?: UserTier;
+        };
+        if (errorPayload?.error === "upload_limit_reached") {
+          setServerLimitReached(true);
+          setUpgradeModal("documents");
+          setShowUploadModal(false);
+          setUploadQueue([]);
+          return;
+        }
+        throw new Error(errorPayload?.error ?? "upload_failed");
+      }
+
+      const payload = (await response.json()) as {
+        usage: { used: number; limit: number };
+      };
+      setServerLimitReached(payload.usage.limit > 0 && payload.usage.used >= payload.usage.limit);
+      await indexFilesLocally();
+      recordUpload(project.id, uploadQueue.length);
+      showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
+      setUploadQueue([]);
+      setShowUploadModal(false);
+    } catch (error) {
+      console.error("Workspace upload error", error);
+      showToast("Unable to upload documents right now", "error");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleToolClick = (tool: ToolCard) => {
@@ -612,10 +675,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               </p>
             </div>
           </header>
+          {limitMessage ? (
+            <p className="text-xs font-semibold text-rose-600">{limitMessage}</p>
+          ) : null}
           <button
             type="button"
             onClick={handleAddSourceClick}
-            className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+            disabled={uploadLimitReached}
+            title={limitMessage ?? undefined}
+            className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
           >
             <Plus className="h-4 w-4" />
             Add
@@ -902,9 +970,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <button
             type="button"
             onClick={handleUploadConfirm}
-            className="flex-1 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            disabled={isUploading}
+            className="flex-1 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Upload
+            {isUploading ? "Uploading…" : "Upload"}
           </button>
           <button
             type="button"
@@ -912,7 +981,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               setShowUploadModal(false);
               setUploadQueue([]);
             }}
-            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+            disabled={isUploading}
+            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
@@ -923,14 +993,19 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         open={upgradeModal === "documents"}
         onClose={() => setUpgradeModal(null)}
         title="Upload limit reached"
-        description="You've used your 1 free project. Sign up to create unlimited projects and upload documents."
+        description={
+          limitMessage ??
+          (state.userTier === "guest"
+            ? "You’ve used your free upload. Create a free account to upload more documents."
+            : "You’ve reached your document limit. Upgrade to a paid plan to continue uploading.")
+        }
       >
         <div className="space-y-3">
           <a
-            href="/signin"
+            href={documentCta.href}
             className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
           >
-            Sign up to continue
+            {documentCta.label}
           </a>
           <button
             type="button"
