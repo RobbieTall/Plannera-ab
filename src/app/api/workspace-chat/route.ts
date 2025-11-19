@@ -30,6 +30,32 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 const openaiClient = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
 const workspaceMemory = new Map<string, WorkspaceMemory>();
 
+type ErrorWithResponse = {
+  message?: string;
+  status?: number;
+  response?: {
+    status?: number;
+    data?: unknown;
+  };
+};
+
+const getOpenAIErrorDetails = (error: unknown) => {
+  if (typeof error === "object" && error !== null) {
+    const err = error as ErrorWithResponse;
+    return {
+      message: err.message,
+      status: err.status ?? err.response?.status,
+      data: err.response?.data,
+    };
+  }
+
+  return {
+    message: error instanceof Error ? error.message : undefined,
+    status: undefined,
+    data: undefined,
+  };
+};
+
 const buildLegislationContext = (params: {
   lga: string | null;
   instruments: string[];
@@ -100,16 +126,21 @@ export async function POST(request: Request) {
             throw new Error("OpenAI client not configured");
           }
 
-          const completion = await openaiClient.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages,
-          });
+          try {
+            const completion = await openaiClient.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages,
+            });
 
-          const aiReply = completion.choices?.[0]?.message?.content;
-          if (!aiReply) {
-            throw new Error("Empty response from OpenAI");
+            const aiReply = completion.choices?.[0]?.message?.content;
+            if (!aiReply) {
+              throw new Error("Empty response from OpenAI");
+            }
+            return aiReply;
+          } catch (error) {
+            console.error("[openai-chat-error]", getOpenAIErrorDetails(error));
+            throw error;
           }
-          return aiReply;
         })();
 
     const updatedHistory: ChatCompletionMessageParam[] = [
