@@ -22,7 +22,6 @@ import {
   Layers3,
   Link2,
   ListChecks,
-  LocateFixed,
   Mail,
   MapPin,
   Notebook,
@@ -892,9 +891,19 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chat</p>
-              <p className="text-sm text-slate-500">Ask follow-ups, send to agents, or refresh to start over.</p>
+              <p className="text-sm text-slate-500">
+                Set the site, ask follow-ups, send to agents, or refresh to start over.
+              </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={openManualSiteSelection}
+                disabled={project.isDemo}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                {siteContext ? "Change site" : "Set site"}
+              </button>
               <button
                 onClick={handleSaveChat}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
@@ -912,44 +921,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            {!project.isDemo ? (
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Site</p>
-                    {siteContext ? (
-                      <>
-                        <p className="text-sm font-semibold text-slate-900">{siteContext.formattedAddress}</p>
-                        <p className="text-xs text-slate-500">
-                          {siteContext.lgaName ? `${siteContext.lgaName} LGA` : "LGA not confirmed"}
-                          {siteContext.zone ? ` • Zone ${siteContext.zone}` : null}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-slate-500">
-                        Add an NSW address so I can pull the correct LEP + SEPP clauses every time.
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openManualSiteSelection}
-                    disabled={project.isDemo}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <MapPin className="h-3.5 w-3.5" />
-                    {siteContext ? "Change" : "Set site"}
-                  </button>
-                </div>
-                {siteContext?.lgaName ? (
-                  <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                    <LocateFixed className="h-3.5 w-3.5" />
-                    {siteContext.lgaName} council context active
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700">
                 <div className="flex items-start justify-between gap-3">
