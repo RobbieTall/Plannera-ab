@@ -4,7 +4,12 @@ import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceStorageStatus, saveFileToUploads } from "@/lib/storage";
+import {
+  getWorkspaceStorageStatus,
+  isStorageUploadError,
+  saveFileToUploads,
+  type StorageProvider,
+} from "@/lib/storage";
 import { WORKSPACE_UPLOAD_LIMITS } from "@/lib/usage-limits";
 import type { UserTier } from "@/types/workspace";
 
@@ -18,22 +23,36 @@ type UploadErrorResponse = {
   tier?: UploadTier;
 };
 
-const logWorkspaceUploadError = (error: unknown) => {
+type ErrorWithResponse = { status?: number; response?: { status?: number } };
+
+const getErrorDetails = (error: unknown) => {
   if (!error) {
-    console.error("[workspace-upload-error]", { message: "Unknown error" });
-    return;
+    return { message: "Unknown error" };
   }
-  const status =
-    (error as { status?: number })?.status ??
-    (error as { response?: { status?: number } })?.response?.status ??
-    undefined;
-  const details = {
-    message: error instanceof Error ? error.message : String(error),
-    name: error instanceof Error ? error.name : undefined,
-    stack: error instanceof Error ? error.stack : undefined,
+
+  const status = (error as ErrorWithResponse)?.status ?? (error as ErrorWithResponse)?.response?.status;
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      status,
+    };
+  }
+
+  return {
+    message: String(error),
     status,
   };
-  console.error("[workspace-upload-error]", details);
+};
+
+const logWorkspaceUploadError = (error: unknown, storageMode?: StorageProvider) => {
+  const details = getErrorDetails(error);
+  console.error("[workspace-upload-error]", {
+    ...details,
+    storageMode,
+  });
 };
 
 const limitReachedResponse = (tier: UploadTier) => ({
@@ -54,8 +73,10 @@ const deriveTier = (session: Session | null): UploadTier => {
 };
 
 export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
+  const storageStatus = getWorkspaceStorageStatus();
+  const storageMode = storageStatus.provider;
+
   try {
-    const storageStatus = getWorkspaceStorageStatus();
     if (!storageStatus.ready) {
       console.warn("[workspace-upload-warning]", {
         provider: storageStatus.provider,
@@ -112,7 +133,10 @@ export async function POST(request: NextRequest, { params }: { params: { project
       try {
         saved = await saveFileToUploads(file);
       } catch (error) {
-        logWorkspaceUploadError(error);
+        logWorkspaceUploadError(error, storageMode);
+        if (isStorageUploadError(error)) {
+          return NextResponse.json<UploadErrorResponse>({ error: "storage_upload_failed" }, { status: 500 });
+        }
         return NextResponse.json<UploadErrorResponse>({ error: "storage_not_configured" }, { status: 503 });
       }
 
@@ -138,7 +162,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
         });
         uploads.push(created);
       } catch (error) {
-        logWorkspaceUploadError(error);
+        logWorkspaceUploadError(error, storageMode);
         return NextResponse.json<UploadErrorResponse>({ error: "db_error" }, { status: 500 });
       }
     }
@@ -151,7 +175,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
       tier,
     }, { status: 201 });
   } catch (error) {
-    logWorkspaceUploadError(error);
+    logWorkspaceUploadError(error, storageMode);
     return NextResponse.json<UploadErrorResponse>({ error: "unknown_error" }, { status: 500 });
   }
 }

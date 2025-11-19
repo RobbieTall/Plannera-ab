@@ -742,6 +742,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           setUploadQueue([]);
           return;
         }
+        if (errorPayload?.error === "storage_upload_failed") {
+          showToast("We couldn’t save that file right now. Please try again or contact support.", "error");
+          setShowUploadModal(false);
+          setUploadQueue([]);
+          return;
+        }
         if (errorPayload?.error === "invalid_file") {
           showToast("Please choose at least one file to upload.", "error");
           return;
