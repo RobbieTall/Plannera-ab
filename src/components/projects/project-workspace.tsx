@@ -631,6 +631,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     if (!siteSelection || !siteSelectionCandidateId) {
       return;
     }
+    const selectedCandidate = siteSelection.candidates.find((candidate) => candidate.id === siteSelectionCandidateId);
+    if (!selectedCandidate) {
+      setSiteSelectionError("Select a valid NSW site before confirming.");
+      return;
+    }
     setIsConfirmingSite(true);
     setSiteSelectionError(null);
     try {
@@ -639,7 +644,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: project.id,
-          candidateId: siteSelectionCandidateId,
+          candidate: selectedCandidate,
           addressInput: siteSelection.addressInput || siteSearchQuery || input,
         }),
       });

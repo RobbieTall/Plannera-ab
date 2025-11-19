@@ -1,18 +1,27 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import {
-  getCandidateById,
-  getSiteContextForProject,
-  persistSiteContextFromCandidate,
-  serializeSiteContext,
-} from "@/lib/site-context";
+import { getSiteContextForProject, persistSiteContextFromCandidate, serializeSiteContext } from "@/lib/site-context";
 
 const getSchema = z.object({ projectId: z.string() });
 
+const candidateSchema = z.object({
+  id: z.string(),
+  formattedAddress: z.string(),
+  lgaName: z.string().nullable(),
+  lgaCode: z.string().nullable().optional(),
+  parcelId: z.string().nullable().optional(),
+  lot: z.string().nullable().optional(),
+  planNumber: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  zone: z.string().nullable().optional(),
+  confidence: z.number().optional(),
+});
+
 const updateSchema = z.object({
   projectId: z.string(),
-  candidateId: z.string(),
+  candidate: candidateSchema,
   addressInput: z.string().min(3),
 });
 
@@ -34,11 +43,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { projectId, candidateId, addressInput } = updateSchema.parse(body);
-    const candidate = await getCandidateById(candidateId);
-    if (!candidate) {
-      return NextResponse.json(buildErrorPayload("Site candidate not found."), { status: 404 });
-    }
+    const { projectId, candidate, addressInput } = updateSchema.parse(body);
     const siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
   } catch (error) {
