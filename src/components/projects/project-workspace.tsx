@@ -571,6 +571,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           setUploadQueue([]);
           return;
         }
+        if (errorPayload?.error === "storage_not_configured") {
+          showToast("Document storage is not configured for this environment. Please contact support.", "error");
+          setShowUploadModal(false);
+          setUploadQueue([]);
+          return;
+        }
+        if (errorPayload?.error === "invalid_file") {
+          showToast("Please choose at least one file to upload.", "error");
+          return;
+        }
         throw new Error(errorPayload?.error ?? "upload_failed");
       }
 
