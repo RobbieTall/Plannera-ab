@@ -2,6 +2,9 @@ name: Move LEP Files L-N to data/nsw/xml
 
 on:
   workflow_dispatch:
+  
+permissions:
+  contents: write
 
 jobs:
   move-files:
