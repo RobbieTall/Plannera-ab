@@ -4,7 +4,7 @@ import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { saveFileToUploads } from "@/lib/storage";
+import { getWorkspaceStorageStatus, saveFileToUploads } from "@/lib/storage";
 import { WORKSPACE_UPLOAD_LIMITS } from "@/lib/usage-limits";
 import type { UserTier } from "@/types/workspace";
 
@@ -16,6 +16,24 @@ type UploadErrorResponse = {
   error: string;
   limit?: number;
   tier?: UploadTier;
+};
+
+const logWorkspaceUploadError = (error: unknown) => {
+  if (!error) {
+    console.error("[workspace-upload-error]", { message: "Unknown error" });
+    return;
+  }
+  const status =
+    (error as { status?: number })?.status ??
+    (error as { response?: { status?: number } })?.response?.status ??
+    undefined;
+  const details = {
+    message: error instanceof Error ? error.message : String(error),
+    name: error instanceof Error ? error.name : undefined,
+    stack: error instanceof Error ? error.stack : undefined,
+    status,
+  };
+  console.error("[workspace-upload-error]", details);
 };
 
 const limitReachedResponse = (tier: UploadTier) => ({
@@ -37,10 +55,20 @@ const deriveTier = (session: Session | null): UploadTier => {
 
 export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
   try {
+    const storageStatus = getWorkspaceStorageStatus();
+    if (!storageStatus.ready) {
+      console.warn("[workspace-upload-warning]", {
+        provider: storageStatus.provider,
+        missingEnv: storageStatus.missingEnv,
+        reason: storageStatus.reason,
+      });
+      return NextResponse.json<UploadErrorResponse>({ error: "storage_not_configured" }, { status: 503 });
+    }
+
     const formData = await request.formData();
     const files = formData.getAll("files").filter((file): file is File => file instanceof File);
     if (!files.length) {
-      return NextResponse.json<UploadErrorResponse>({ error: "no_files_selected" }, { status: 400 });
+      return NextResponse.json<UploadErrorResponse>({ error: "invalid_file" }, { status: 400 });
     }
 
     const session = await getServerSession(authOptions);
@@ -54,7 +82,13 @@ export async function POST(request: NextRequest, { params }: { params: { project
         : // Free and Pro plans are counted per workspace to match the existing Sources panel UI.
           { projectId: params.projectId, userId };
 
-    const existingUploads = await prisma.workspaceUpload.count({ where: usageFilter });
+    let existingUploads = 0;
+    try {
+      existingUploads = await prisma.workspaceUpload.count({ where: usageFilter });
+    } catch (error) {
+      logWorkspaceUploadError(error);
+      return NextResponse.json<UploadErrorResponse>({ error: "db_error" }, { status: 500 });
+    }
 
     if (limit > 0 && existingUploads >= limit) {
       return NextResponse.json<UploadErrorResponse>(limitReachedResponse(tier), { status: 403 });
@@ -74,27 +108,39 @@ export async function POST(request: NextRequest, { params }: { params: { project
     }>;
 
     for (const file of files) {
-      const saved = await saveFileToUploads(file);
-      const created = await prisma.workspaceUpload.create({
-        data: {
-          projectId: params.projectId,
-          userId,
-          fileName: file.name,
-          mimeType: saved.mimeType ?? file.type ?? null,
-          fileSize: saved.size,
-          storagePath: saved.path,
-          publicUrl: saved.url,
-        },
-        select: {
-          id: true,
-          fileName: true,
-          mimeType: true,
-          fileSize: true,
-          publicUrl: true,
-          createdAt: true,
-        },
-      });
-      uploads.push(created);
+      let saved;
+      try {
+        saved = await saveFileToUploads(file);
+      } catch (error) {
+        logWorkspaceUploadError(error);
+        return NextResponse.json<UploadErrorResponse>({ error: "storage_not_configured" }, { status: 503 });
+      }
+
+      try {
+        const created = await prisma.workspaceUpload.create({
+          data: {
+            projectId: params.projectId,
+            userId,
+            fileName: file.name,
+            mimeType: saved.mimeType ?? file.type ?? null,
+            fileSize: saved.size,
+            storagePath: saved.path,
+            publicUrl: saved.url,
+          },
+          select: {
+            id: true,
+            fileName: true,
+            mimeType: true,
+            fileSize: true,
+            publicUrl: true,
+            createdAt: true,
+          },
+        });
+        uploads.push(created);
+      } catch (error) {
+        logWorkspaceUploadError(error);
+        return NextResponse.json<UploadErrorResponse>({ error: "db_error" }, { status: 500 });
+      }
     }
 
     const used = existingUploads + uploads.length;
@@ -105,7 +151,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
       tier,
     }, { status: 201 });
   } catch (error) {
-    console.error("[workspace-uploads] Unexpected error", error);
-    return NextResponse.json<UploadErrorResponse>({ error: "upload_failed" }, { status: 500 });
+    logWorkspaceUploadError(error);
+    return NextResponse.json<UploadErrorResponse>({ error: "unknown_error" }, { status: 500 });
   }
 }
