@@ -14,6 +14,7 @@ import {
 } from "react";
 import {
   Archive,
+  Check,
   FileSpreadsheet,
   FileText,
   Globe2,
@@ -22,12 +23,15 @@ import {
   Link2,
   ListChecks,
   Mail,
+  MapPin,
   Notebook,
   Plus,
   RefreshCcw,
   Save,
+  Search,
   Sparkles,
   Upload,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -47,6 +51,7 @@ import type {
   WorkspaceSource,
   WorkspaceSourceType,
 } from "@/types/workspace";
+import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -59,6 +64,13 @@ interface ToolCard {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   accent: string;
 }
+
+type SiteSelectionState = {
+  source: "chat" | "manual";
+  addressInput: string;
+  candidates: SiteCandidate[];
+  pendingQuestion?: string;
+};
 
 const tools: ToolCard[] = [
   {
@@ -283,6 +295,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
     getSessionSignals(project.id)
   );
+  const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
+  const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
+  const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
+  const [siteSearchQuery, setSiteSearchQuery] = useState("");
+  const [siteSelectionError, setSiteSelectionError] = useState<string | null>(null);
+  const [isSiteSearchPending, setIsSiteSearchPending] = useState(false);
+  const [isConfirmingSite, setIsConfirmingSite] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -324,6 +343,31 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, [fallbackMessages, getChatHistory, project.id, project.isDemo, saveChatHistory]);
 
   useEffect(() => {
+    if (project.isDemo) {
+      return;
+    }
+    let isMounted = true;
+    const loadSiteContext = async () => {
+      try {
+        const response = await fetch(`/api/site-context?projectId=${project.id}`);
+        if (!response.ok) {
+          return;
+        }
+        const data: { siteContext: SiteContextSummary | null } = await response.json();
+        if (isMounted) {
+          setSiteContext(data.siteContext ?? null);
+        }
+      } catch (error) {
+        console.warn("Workspace site context load failed", error);
+      }
+    };
+    void loadSiteContext();
+    return () => {
+      isMounted = false;
+    };
+  }, [project.id, project.isDemo]);
+
+  useEffect(() => {
     if (!chatScrollRef.current) return;
     chatScrollRef.current.scrollTo({
       top: chatScrollRef.current.scrollHeight,
@@ -350,25 +394,32 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     window.setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const sendMessage = async () => {
-    const trimmedInput = input.trim();
+  const sendMessage = async (options?: { message?: string; skipUserMessage?: boolean }) => {
+    const prompt = options?.message ?? input;
+    const trimmedInput = prompt.trim();
     if (!trimmedInput) return;
-    applySessionSignals({
-      ...extractSessionSignalsFromText(trimmedInput, project.name),
-      recentSource: sources[0]?.name ?? sessionSignals.recentSource,
-    });
-    const newMessage: WorkspaceMessage = {
-      id: `msg-${Date.now()}`,
-      role: "user",
-      content: trimmedInput,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages((previous) => {
-      const updated = [...previous, newMessage];
-      saveChatHistory(project.id, updated);
-      return updated;
-    });
-    setInput("");
+
+    const skipUserMessage = options?.skipUserMessage ?? false;
+
+    if (!skipUserMessage) {
+      applySessionSignals({
+        ...extractSessionSignalsFromText(trimmedInput, project.name),
+        recentSource: sources[0]?.name ?? sessionSignals.recentSource,
+      });
+      const newMessage: WorkspaceMessage = {
+        id: `msg-${Date.now()}`,
+        role: "user",
+        content: trimmedInput,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((previous) => {
+        const updated = [...previous, newMessage];
+        saveChatHistory(project.id, updated);
+        return updated;
+      });
+      setInput("");
+    }
+
     setIsThinking(true);
     const contextSnippets = getSourceContext(project.id);
     if (project.isDemo) {
@@ -410,7 +461,36 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           projectName: project.name,
         }),
       });
-      const data: { reply?: string; lga?: string; zone?: string; instruments?: string[] } = await response.json();
+      const data: {
+        reply?: string;
+        lga?: string;
+        zone?: string;
+        instruments?: string[];
+        siteContext?: SiteContextSummary | null;
+        requiresSiteSelection?: boolean;
+        candidates?: SiteCandidate[];
+        addressInput?: string;
+      } = await response.json();
+
+      if (data.siteContext) {
+        setSiteContext(data.siteContext);
+      }
+
+      if (data.requiresSiteSelection && data.candidates?.length) {
+        setSiteSelection({
+          source: "chat",
+          addressInput: data.addressInput ?? trimmedInput,
+          candidates: data.candidates,
+          pendingQuestion: trimmedInput,
+        });
+        setSiteSelectionCandidateId(null);
+        setSiteSelectionError(null);
+        if (!skipUserMessage) {
+          setInput(trimmedInput);
+        }
+        return;
+      }
+
       const needsLocation = !data.zone && !data.lga;
       const replyFallback = needsLocation
         ? "I can tailor this better with the site address, suburb, or zone (e.g. B4 Mixed Use)."
@@ -494,6 +574,91 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     };
     addArtefact(project.id, artefact);
     showToast("Chat saved to artefacts");
+  };
+
+  const openManualSiteSelection = () => {
+    if (project.isDemo) {
+      return;
+    }
+    setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
+    setSiteSelectionCandidateId(null);
+    setSiteSelectionError(null);
+    setSiteSearchQuery("");
+  };
+
+  const closeSiteSelection = () => {
+    setSiteSelection(null);
+    setSiteSelectionCandidateId(null);
+    setSiteSelectionError(null);
+    setSiteSearchQuery("");
+  };
+
+  const handleSiteSearch = async () => {
+    if (!siteSelection || siteSelection.source !== "manual") {
+      return;
+    }
+    const trimmedQuery = siteSearchQuery.trim();
+    if (!trimmedQuery) {
+      setSiteSelectionError("Enter an NSW address or suburb to search.");
+      return;
+    }
+    setIsSiteSearchPending(true);
+    setSiteSelectionError(null);
+    try {
+      const response = await fetch("/api/site-context/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: trimmedQuery }),
+      });
+      const data: { candidates?: SiteCandidate[]; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message ?? "Address search failed");
+      }
+      setSiteSelection((previous) => (previous ? { ...previous, addressInput: trimmedQuery, candidates: data.candidates ?? [] } : previous));
+      setSiteSelectionCandidateId(null);
+      if (!data.candidates?.length) {
+        setSiteSelectionError("No NSW address matches were found. Try refining the suburb or street number.");
+      }
+    } catch (error) {
+      console.error("Site search error", error);
+      setSiteSelectionError("Address search failed. Please try again.");
+    } finally {
+      setIsSiteSearchPending(false);
+    }
+  };
+
+  const handleSiteCandidateConfirm = async () => {
+    if (!siteSelection || !siteSelectionCandidateId) {
+      return;
+    }
+    setIsConfirmingSite(true);
+    setSiteSelectionError(null);
+    try {
+      const response = await fetch("/api/site-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          candidateId: siteSelectionCandidateId,
+          addressInput: siteSelection.addressInput || siteSearchQuery || input,
+        }),
+      });
+      const data: { siteContext?: SiteContextSummary | null; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message ?? "Unable to save site");
+      }
+      setSiteContext(data.siteContext ?? null);
+      const pendingQuestion = siteSelection.pendingQuestion;
+      closeSiteSelection();
+      if (pendingQuestion) {
+        await sendMessage({ message: pendingQuestion, skipUserMessage: true });
+      }
+    } catch (error) {
+      console.error("Site candidate confirm error", error);
+      setSiteSelectionError("Unable to save the selected site. Please try again.");
+    } finally {
+      setIsConfirmingSite(false);
+    }
   };
 
   const handleAddSourceClick = () => {
@@ -726,9 +891,19 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chat</p>
-              <p className="text-sm text-slate-500">Ask follow-ups, send to agents, or refresh to start over.</p>
+              <p className="text-sm text-slate-500">
+                Set the site, ask follow-ups, send to agents, or refresh to start over.
+              </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={openManualSiteSelection}
+                disabled={project.isDemo}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                {siteContext ? "Change site" : "Set site"}
+              </button>
               <button
                 onClick={handleSaveChat}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
@@ -746,6 +921,108 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
+            {siteSelection ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {siteSelection.source === "chat" ? "Confirm the site for this question" : "Search for a new NSW site"}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {siteSelection.source === "chat"
+                        ? `Looking for: ${siteSelection.addressInput}`
+                        : siteSelection.addressInput
+                          ? `Search results for: ${siteSelection.addressInput}`
+                          : "Enter the address below to search the NSW property dataset."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeSiteSelection}
+                    className="rounded-full p-1 text-slate-500 transition hover:bg-white hover:text-slate-900"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                {siteSelection.source === "manual" ? (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={siteSearchQuery}
+                      onChange={(event) => setSiteSearchQuery(event.target.value)}
+                      placeholder="e.g. 6 Myola Road Newport NSW"
+                      className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSiteSearch}
+                      disabled={isSiteSearchPending}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                    >
+                      {isSiteSearchPending ? (
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      ) : (
+                        <Search className="h-3.5 w-3.5" />
+                      )}
+                      {isSiteSearchPending ? "Searching" : "Search"}
+                    </button>
+                  </div>
+                ) : null}
+                {siteSelection.candidates.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {siteSelection.candidates.map((candidate) => (
+                      <li key={candidate.id}>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm">
+                          <input
+                            type="radio"
+                            name="site-candidate"
+                            className="h-4 w-4 text-slate-900"
+                            value={candidate.id}
+                            checked={siteSelectionCandidateId === candidate.id}
+                            onChange={() => setSiteSelectionCandidateId(candidate.id)}
+                          />
+                          <div>
+                            <p className="font-semibold text-slate-900">{candidate.formattedAddress}</p>
+                            <p className="text-xs text-slate-500">
+                              {candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}
+                            </p>
+                          </div>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                ) : siteSelection.source === "chat" ? (
+                  <p className="mt-3 text-xs text-slate-500">
+                    I couldn’t confidently match that address. Pick the right site or try searching again.
+                  </p>
+                ) : null}
+                {siteSelectionError ? (
+                  <p className="mt-2 text-xs font-semibold text-rose-600">{siteSelectionError}</p>
+                ) : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSiteCandidateConfirm}
+                    disabled={!siteSelectionCandidateId || isConfirmingSite}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                  >
+                    {isConfirmingSite ? (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    {isConfirmingSite ? "Saving" : "Use this site"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSiteSelection}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div
               ref={chatScrollRef}
               className="flex max-h-[460px] flex-col space-y-4 overflow-y-auto pr-2"
