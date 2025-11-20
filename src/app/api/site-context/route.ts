@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getSiteContextForProject, persistSiteContextFromCandidate, serializeSiteContext } from "@/lib/site-context";
+import {
+  getSiteContextForProject,
+  persistManualSiteContext,
+  persistSiteContextFromCandidate,
+  serializeSiteContext,
+} from "@/lib/site-context";
 
 const getSchema = z.object({ projectId: z.string() });
 
@@ -25,6 +30,14 @@ const updateSchema = z.object({
   addressInput: z.string().min(3),
 });
 
+const manualSchema = z.object({
+  projectId: z.string(),
+  rawAddress: z.string().min(3),
+  resolverStatus: z.string().optional(),
+  lgaName: z.string().nullable().optional(),
+  lgaCode: z.string().nullable().optional(),
+});
+
 const buildErrorPayload = (message: string) => ({ error: "site_context_error", message });
 
 export async function GET(request: Request) {
@@ -43,6 +56,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    if ("rawAddress" in body && !("candidate" in body)) {
+      const { projectId, rawAddress, lgaCode, lgaName } = manualSchema.parse(body);
+      const siteContext = await persistManualSiteContext({
+        projectId,
+        rawAddress,
+        lgaCode,
+        lgaName,
+        resolverStatus: body?.resolverStatus ?? null,
+      });
+      return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
+    }
+
     const { projectId, candidate, addressInput } = updateSchema.parse(body);
     const siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });

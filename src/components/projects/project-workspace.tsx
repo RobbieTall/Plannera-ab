@@ -228,6 +228,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
   const [siteSelectionError, setSiteSelectionError] = useState<string | null>(null);
+  const [siteSearchAvailable, setSiteSearchAvailable] = useState<"loading" | "ok" | "missing_env">("loading");
   const [suggestions, setSuggestions] = useState<SiteCandidate[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<number | null>(null);
@@ -254,6 +255,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         : { href: "mailto:hello@plannera.ai", label: "Contact us to extend your plan" };
 
 
+  const fetchSiteSearchAvailability = useCallback(async () => {
+    try {
+      const response = await fetch("/api/site-resolver/health");
+      const data: { status?: "ok" | "missing_env" } = await response.json();
+      if (response.ok && data?.status === "ok") {
+        setSiteSearchAvailable("ok");
+        return;
+      }
+      if (data?.status === "missing_env") {
+        setSiteSearchAvailable("missing_env");
+        return;
+      }
+      setSiteSearchAvailable("missing_env");
+    } catch (error) {
+      console.warn("Site resolver health check failed", error);
+      setSiteSearchAvailable("missing_env");
+    }
+  }, []);
+
   useEffect(() => {
     setSources(initialSources);
   }, [initialSources]);
@@ -270,6 +290,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       setMessages([]);
     }
   }, [getChatHistory, project.id]);
+
+  useEffect(() => {
+    void fetchSiteSearchAvailability();
+  }, [fetchSiteSearchAvailability]);
+
+  useEffect(() => {
+    if (siteSelection) {
+      void fetchSiteSearchAvailability();
+    }
+  }, [fetchSiteSearchAvailability, siteSelection]);
 
   useEffect(() => {
     let isMounted = true;
@@ -318,6 +348,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     if (!siteSelection || siteSelection.source !== "manual") {
       return;
     }
+    if (siteSearchAvailable !== "ok") {
+      setSuggestions([]);
+      setIsSuggesting(false);
+      setHighlightedSuggestionIndex(null);
+      return;
+    }
     const trimmedQuery = siteSearchQuery.trim();
     if (selectedSuggestion && selectedSuggestion.formattedAddress === trimmedQuery) {
       setSuggestions([]);
@@ -347,7 +383,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           if (data?.error === "property_search_failed") {
             setSiteSelectionError("Address search failed. Please try again.");
           } else if (data?.error === "property_search_not_configured") {
-            setSiteSelectionError("NSW property search is not configured in this environment.");
+            setSiteSearchAvailable("missing_env");
+            setSiteSelectionError(null);
           }
           setSuggestions([]);
           setHighlightedSuggestionIndex(null);
@@ -373,7 +410,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [selectedSuggestion, siteSearchQuery, siteSelection]);
+  }, [selectedSuggestion, siteSearchQuery, siteSelection, siteSearchAvailable]);
 
   const applySessionSignals = useCallback(
     (updates: Partial<WorkspaceSessionSignals>) => {
@@ -539,6 +576,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const openManualSiteSelection = () => {
+    void fetchSiteSearchAvailability();
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
     setSiteSelectionCandidateId(null);
     setSiteSelectionError(null);
@@ -583,6 +621,18 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       return;
     }
 
+    if (siteSearchAvailable !== "ok") {
+      setSiteSelection((previous) =>
+        previous ? { ...previous, addressInput: trimmedQuery, candidates: [] } : previous,
+      );
+      setSiteSelectionCandidateId(null);
+      setSelectedSuggestion(null);
+      setSiteSelectionError(null);
+      setSuggestions([]);
+      setHighlightedSuggestionIndex(null);
+      return;
+    }
+
     setIsSiteSearchPending(true);
     setSiteSelectionError(null);
     setSiteSelectionCandidateId(null);
@@ -601,7 +651,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           return;
         }
         if (data?.error === "property_search_not_configured") {
-          setSiteSelectionError("NSW property search is not configured in this environment.");
+          setSiteSearchAvailable("missing_env");
+          setSiteSelectionError(null);
           return;
         }
         throw new Error(data?.message ?? "Address search failed");
@@ -627,6 +678,47 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       candidateOverride ??
       selectedSuggestion ??
       (siteSelectionCandidateId ? siteSelection?.candidates.find((candidate) => candidate.id === siteSelectionCandidateId) : null);
+    const manualAddressInput =
+      siteSelection?.addressInput || siteSearchQuery || selectedCandidate?.formattedAddress || input;
+
+    if (siteSearchAvailable === "missing_env" && !selectedCandidate) {
+      const trimmedAddress = manualAddressInput.trim();
+      if (!trimmedAddress) {
+        setSiteSelectionError("Enter an NSW address before confirming.");
+        return;
+      }
+      setIsConfirmingSite(true);
+      setSiteSelectionError(null);
+      try {
+        const response = await fetch("/api/site-context", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: project.id,
+            rawAddress: trimmedAddress,
+            lgaName: siteContext?.lgaName ?? sessionSignals.lga ?? null,
+            lgaCode: siteContext?.lgaCode ?? null,
+            resolverStatus: "manual_no_property_api",
+          }),
+        });
+        const data: { siteContext?: SiteContextSummary | null; message?: string } = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.message ?? "Unable to save site");
+        }
+        setSiteContext(data.siteContext ?? null);
+        const pendingQuestion = siteSelection?.pendingQuestion;
+        closeSiteSelection();
+        if (pendingQuestion) {
+          await sendMessage({ message: pendingQuestion, skipUserMessage: true });
+        }
+      } catch (error) {
+        console.error("Manual site confirm error", error);
+        setSiteSelectionError("Unable to save the selected site. Please try again.");
+      } finally {
+        setIsConfirmingSite(false);
+      }
+      return;
+    }
     if (!selectedCandidate) {
       setSiteSelectionError("Select a valid NSW site before confirming.");
       return;
@@ -640,7 +732,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         body: JSON.stringify({
           projectId: project.id,
           candidate: selectedCandidate,
-          addressInput: siteSelection?.addressInput || siteSearchQuery || selectedCandidate.formattedAddress || input,
+          addressInput: manualAddressInput || selectedCandidate.formattedAddress,
         }),
       });
       const data: { siteContext?: SiteContextSummary | null; message?: string } = await response.json();
@@ -950,6 +1042,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {siteContext?.formattedAddress ?? "No site selected"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {siteContext
+                    ? siteSearchAvailable === "missing_env"
+                      ? "Set manually – NSW property search offline"
+                      : siteContext.lgaName
+                        ? `${siteContext.lgaName} council area`
+                        : "Site context saved for this workspace"
+                    : "Add the NSW address, suburb, or council for sharper LEP/SEPP lookups."}
+                </p>
+              </div>
+            </div>
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700">
                 <div className="flex items-start justify-between gap-3">
@@ -974,8 +1085,9 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   </button>
                 </div>
                 {siteSelection.source === "manual" ? (
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <div className="relative flex-1">
+                  <>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <div className="relative flex-1">
                       <input
                         type="text"
                         value={siteSearchQuery}
@@ -1016,20 +1128,26 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                         </ul>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleSiteSearch}
-                      disabled={isSiteSearchPending}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
-                    >
-                      {isSiteSearchPending ? (
-                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                      ) : (
-                        <Search className="h-3.5 w-3.5" />
-                      )}
-                      {isSiteSearchPending ? "Searching" : "Search"}
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={handleSiteSearch}
+                        disabled={isSiteSearchPending || siteSearchAvailable !== "ok"}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                      >
+                        {isSiteSearchPending ? (
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5" />
+                        )}
+                        {isSiteSearchPending ? "Searching" : "Search"}
+                      </button>
+                    </div>
+                    {siteSearchAvailable === "missing_env" ? (
+                      <p className="text-xs text-slate-500">
+                        NSW property search isn’t configured in this environment, but you can still set the site manually.
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
                 {siteSelection.candidates.length ? (
                   <ul className="mt-3 space-y-2">

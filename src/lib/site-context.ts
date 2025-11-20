@@ -66,6 +66,36 @@ export const persistSiteContextFromCandidate = async (params: {
   });
 };
 
+export const persistManualSiteContext = async (params: {
+  projectId: string;
+  rawAddress: string;
+  lgaName?: string | null;
+  lgaCode?: string | null;
+  resolverStatus?: string | null;
+}): Promise<SiteContext> => {
+  const { projectId, rawAddress, lgaCode, lgaName } = params;
+  const normalizedAddress = rawAddress.trim() || rawAddress;
+  const data = {
+    projectId,
+    addressInput: normalizedAddress,
+    formattedAddress: normalizedAddress,
+    lgaName: lgaName ?? null,
+    lgaCode: lgaCode ?? null,
+    parcelId: null,
+    lot: null,
+    planNumber: null,
+    latitude: null,
+    longitude: null,
+    zone: null,
+  } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
+
+  return prisma.siteContext.upsert({
+    where: { projectId },
+    update: data,
+    create: data,
+  });
+};
+
 export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> =>
   prisma.siteContext.findUnique({ where: { projectId } });
 

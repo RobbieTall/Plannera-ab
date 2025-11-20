@@ -13,6 +13,10 @@ export type SiteResolverResult =
     }
   | { status: "property_search_failed" | "property_search_not_configured"; message: string };
 
+export type SiteResolverConfigStatus =
+  | { status: "ok"; requiresPropertyApi: boolean }
+  | { status: "missing_env"; missing: string[] };
+
 type SiteSearchErrorCode = "property_search_not_configured" | "property_search_failed";
 
 const getErrorDetails = (error: unknown) => {
@@ -154,6 +158,16 @@ type PropertySearchResult = {
   normalized: string;
   status: number;
   candidates: SiteCandidate[];
+};
+
+export const getSiteResolverConfigStatus = (): SiteResolverConfigStatus => {
+  const requiredEnv = ["NSW_PROPERTY_API_URL", "NSW_PROPERTY_API_KEY"] as const;
+  const missing = requiredEnv.filter((key) => !process.env[key]);
+  if (missing.length) {
+    return { status: "missing_env", missing };
+  }
+
+  return { status: "ok", requiresPropertyApi: true };
 };
 
 const getPropertySearchConfig = (): PropertySearchConfig => {
