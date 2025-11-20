@@ -23,25 +23,25 @@ test("returns ok response for valid uploads", async () => {
       deps: {
         getStorageStatus: () => ({ ready: true, provider: "noop" as const }),
         validateFile: () => undefined,
-        getSession: async () => ({ user: { id: "user-1", plan: "pro" } } as any),
-        countUploads: async () => 0,
-        persistUploads: async () => [
-          {
-            id: "upload-1",
+      getSession: async () => ({ user: { id: "user-1", plan: "pro" } } as any),
+      countUploads: async () => 0,
+      persistUploads: async () => [
+        {
+          id: "upload-1",
             fileName: "doc.pdf",
             fileExtension: "pdf",
             mimeType: "application/pdf",
             fileSize: 5,
             publicUrl: "https://example.com/doc.pdf",
             createdAt: new Date(),
-          },
-        ],
-        storageMode: "noop",
-        prisma: {} as any,
-        saveFile: async () => ({
-          url: "https://example.com/doc.pdf",
-          path: "noop",
-          mimeType: "application/pdf",
+        },
+      ],
+      storageMode: "noop",
+      prisma: { project: { findUnique: async () => ({ id: "proj-1" }) } } as any,
+      saveFile: async () => ({
+        url: "https://example.com/doc.pdf",
+        path: "noop",
+        mimeType: "application/pdf",
           size: 5,
         }),
       },
@@ -64,7 +64,7 @@ test("reports missing storage configuration", async () => {
       countUploads: async () => 0,
       persistUploads: async () => [],
       storageMode: "vercel-blob",
-      prisma: {} as any,
+      prisma: { project: { findUnique: async () => ({ id: "proj-1" }) } } as any,
       saveFile: async () => ({ url: "", path: "", mimeType: "", size: 0 }),
     },
   });
@@ -88,7 +88,7 @@ test("returns structured validation errors", async () => {
       countUploads: async () => 0,
       persistUploads: async () => [],
       storageMode: "noop",
-      prisma: {} as any,
+      prisma: { project: { findUnique: async () => ({ id: "proj-1" }) } } as any,
       saveFile: async () => ({ url: "", path: "", mimeType: "", size: 0 }),
     },
   });

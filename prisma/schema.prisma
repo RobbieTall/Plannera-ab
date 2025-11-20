@@ -13,19 +13,19 @@ datasource db {
 /// Minimal identity model so Auth.js sessions can be persisted while we build
 /// out planning-specific entities.
 model User {
-  id                 String           @id @default(cuid())
+  id                 String            @id @default(cuid())
   name               String?
-  email              String?          @unique
+  email              String?           @unique
   emailVerified      DateTime?
   image              String?
-  plan               String           @default("free")
+  plan               String            @default("free")
   sessions           Session[]
-  projects           Project[]        @relation("ProjectCreatedBy")
+  projects           Project[]         @relation("ProjectCreatedBy")
   projectMemberships ProjectMember[]
-  tasksCreated       Task[]           @relation("TaskCreatedBy")
+  tasksCreated       Task[]            @relation("TaskCreatedBy")
   assignments        TaskAssignment[]
   artefacts          Artefact[]
-  workspaceUploads  WorkspaceUpload[]
+  workspaceUploads   WorkspaceUpload[]
 }
 
 model Session {
@@ -60,23 +60,24 @@ model Property {
 
 /// Project groups tasks under a property and tracks its lifecycle.
 model Project {
-  id            String          @id @default(cuid())
-  name          String
-  description   String?
-  status        ProjectStatus   @default(PLANNING)
-  isDemo        Boolean         @default(false)
-  propertyId    String
-  property      Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  createdById   String?
-  createdBy     User?           @relation("ProjectCreatedBy", fields: [createdById], references: [id])
-  startDate     DateTime?
-  dueDate       DateTime?
-  tasks         Task[]
-  collaborators ProjectMember[]
-  artefacts     Artefact[]
-  siteContext   SiteContext?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  status           ProjectStatus     @default(PLANNING)
+  isDemo           Boolean           @default(false)
+  propertyId       String
+  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdById      String?
+  createdBy        User?             @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  startDate        DateTime?
+  dueDate          DateTime?
+  tasks            Task[]
+  collaborators    ProjectMember[]
+  artefacts        Artefact[]
+  workspaceUploads WorkspaceUpload[]
+  siteContext      SiteContext?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 /// Join table between users and projects, allowing role-specific access.
@@ -277,19 +278,20 @@ enum InstrumentType {
 }
 
 model WorkspaceUpload {
-  id          String   @id @default(cuid())
-  projectId   String
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  fileName    String
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName      String
   fileExtension String?
-  mimeType    String?
-  fileSize    Int
-  storagePath String
-  publicUrl   String
+  mimeType      String?
+  fileSize      Int
+  storagePath   String
+  publicUrl     String
   extractedText String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([projectId])
   @@index([userId])
