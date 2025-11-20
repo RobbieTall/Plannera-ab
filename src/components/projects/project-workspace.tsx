@@ -249,6 +249,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [siteSearchAvailable, setSiteSearchAvailable] = useState<"loading" | "ok" | "missing_env">("loading");
   const [suggestions, setSuggestions] = useState<SiteCandidate[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(true);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<number | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState<SiteCandidate | null>(null);
   const [isSiteSearchPending, setIsSiteSearchPending] = useState(false);
@@ -394,6 +395,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   useEffect(() => {
     if (!siteSelection || siteSelection.source !== "manual") {
+      if (suggestions.length) {
+        setSuggestions([]);
+      }
+      return;
+    }
+    if (!suggestionsEnabled) {
+      setSuggestions([]);
+      setIsSuggesting(false);
+      setHighlightedSuggestionIndex(null);
       return;
     }
     if (siteSearchAvailable !== "ok") {
@@ -472,7 +482,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         suggestionTimeoutRef.current = null;
       }
     };
-  }, [selectedSuggestion, siteSearchQuery, siteSelection, siteSearchAvailable]);
+  }, [
+    selectedSuggestion,
+    siteSearchQuery,
+    siteSelection,
+    siteSearchAvailable,
+    suggestionsEnabled,
+    suggestions.length,
+  ]);
 
   const applySessionSignals = useCallback(
     (updates: Partial<WorkspaceSessionSignals>) => {
@@ -654,6 +671,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(true);
   };
 
   const closeSiteSelection = () => {
@@ -664,6 +682,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(true);
   };
 
   const dismissSuggestionOverlay = useCallback(() => {
@@ -678,6 +697,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setIsSuggesting(false);
     setSuggestions([]);
     setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(false);
   }, []);
 
   const applySuggestionSelection = (candidate: SiteCandidate) => {
@@ -1197,6 +1217,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                           setSelectedSuggestion(null);
                           setSiteSelectionCandidateId(null);
                           setHighlightedSuggestionIndex(null);
+                          setSuggestionsEnabled(true);
                         }}
                         onKeyDown={handleSuggestionKeyDown}
                         placeholder="e.g. 6 Myola Road Newport NSW"
