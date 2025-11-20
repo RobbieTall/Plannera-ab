@@ -141,4 +141,50 @@ describe("site-context api validation", () => {
     });
     expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.formattedAddress });
   });
+
+  it("persists Google set-site payloads that include coordinates and pending LGA", async () => {
+    const candidate = {
+      id: "ChIJexamplePlaceId",
+      formattedAddress: "22 Campbell Parade, Bondi Beach NSW, Australia",
+      provider: "google" as const,
+      latitude: -33.891,
+      longitude: 151.276,
+      lgaName: null,
+      confidence: 0.92,
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-google",
+      projectId: "proj-google",
+      formattedAddress: candidate.formattedAddress,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    const request = new Request("http://localhost/api/site-context", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "proj-google", candidate, addressInput: candidate.formattedAddress }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { siteContext?: unknown };
+
+    expect(response.status).toEqual(200);
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "proj-google" },
+      update: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      }),
+      create: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      }),
+    });
+    expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.formattedAddress });
+  });
 });
