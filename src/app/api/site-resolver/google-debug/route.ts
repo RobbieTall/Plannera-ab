@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { requestGoogleAutocomplete, type GooglePlacesResponse } from "@/lib/site-resolver";
+
 export async function GET() {
   const key = process.env.GOOGLE_MAPS_API_KEY;
-
   if (!key) {
     return NextResponse.json(
       {
@@ -11,44 +12,37 @@ export async function GET() {
         error_message: "GOOGLE_MAPS_API_KEY is not set",
         predictions_count: 0,
       },
-      { status: 200 }
+      { status: 200 },
     );
   }
 
-  const url = new URL(
-    "https://maps.googleapis.com/maps/api/place/autocomplete/json"
-  );
-
-  url.searchParams.set("input", "6 myola rd newport");
-  url.searchParams.set("key", key);
-  url.searchParams.set("components", "country:au");
-  url.searchParams.set("types", "geocode");
-
   try {
-    const res = await fetch(url.toString());
-    const data = await res.json();
+    const { payload, googleStatus, googleErrorMessage } = await requestGoogleAutocomplete(
+      "6 myola rd newport",
+      { key },
+    );
+    const predictionsCount = Array.isArray((payload as GooglePlacesResponse | null)?.suggestions)
+      ? (payload as GooglePlacesResponse).suggestions!.length
+      : 0;
 
     return NextResponse.json(
       {
-        ok: data.status === "OK" || data.status === "ZERO_RESULTS",
-        status: data.status ?? "UNKNOWN",
-        error_message: data.error_message ?? null,
-        predictions_count: Array.isArray(data.predictions)
-          ? data.predictions.length
-          : 0,
+        ok: googleStatus === "OK" || googleStatus === "ZERO_RESULTS",
+        status: process.env.GOOGLE_MAPS_API_KEY ? googleStatus : "MISSING_KEY",
+        error_message: process.env.GOOGLE_MAPS_API_KEY ? googleErrorMessage : "GOOGLE_MAPS_API_KEY is not set",
+        predictions_count: predictionsCount,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err: unknown) {
     return NextResponse.json(
       {
         ok: false,
         status: "FETCH_ERROR",
-        error_message:
-          err instanceof Error ? err.message : "Unknown fetch error",
+        error_message: err instanceof Error ? err.message : "Unknown fetch error",
         predictions_count: 0,
       },
-      { status: 200 }
+      { status: 200 },
     );
   }
 }

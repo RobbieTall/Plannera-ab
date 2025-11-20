@@ -27,10 +27,9 @@ describe("site-resolver (google)", () => {
 
   it("returns candidates from Google autocomplete and geocoding", async () => {
     const autocompleteResponse = {
-      status: "OK",
-      predictions: [
-        { description: "6 Myola Road, Newport NSW 2106", place_id: "place-1" },
-        { description: "8 Myola Road, Newport NSW 2106", place_id: "place-2" },
+      suggestions: [
+        { placePrediction: { text: { text: "6 Myola Road, Newport NSW 2106" }, placeId: "place-1" } },
+        { placePrediction: { text: { text: "8 Myola Road, Newport NSW 2106" }, placeId: "place-2" } },
       ],
     };
     const geocodeResponse = {
@@ -46,24 +45,32 @@ describe("site-resolver (google)", () => {
       ],
     };
 
-    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
-      const url = input.toString();
-      if (url.includes("autocomplete")) {
-        return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
-      }
-      if (url.includes("geocode")) {
-        return new Response(JSON.stringify(geocodeResponse), { status: 200 });
-      }
-      return new Response("not-found", { status: 404 });
-    });
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.includes("places:autocomplete")) {
+          expect(init?.method).toEqual("POST");
+          expect(init?.headers).toMatchObject({
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": "test-google-key",
+          });
+          const parsedBody = init?.body ? JSON.parse(init.body as string) : null;
+          expect(parsedBody?.includedRegionCodes).toEqual(["AU"]);
+          return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
+        }
+        if (url.includes("geocode")) {
+          expect(url).toMatch(/place_id=place-[12]/);
+          return new Response(JSON.stringify(geocodeResponse), { status: 200 });
+        }
+        return new Response("not-found", { status: 404 });
+      });
 
     const result = await resolveSiteFromText("6 myola rd newpoet");
 
     expect(fetchMock).toHaveBeenCalled();
     const calledUrls = fetchMock.mock.calls.map((call) => call[0]?.toString?.() ?? "");
-    expect(calledUrls[0]).toContain("components=country%3Aau");
-    expect(calledUrls[0]).toContain("types=geocode");
-    expect(calledUrls[0]).not.toContain("dataset");
+    expect(calledUrls[0]).toContain("places.googleapis.com/v1/places:autocomplete");
 
     expect(result.status).toEqual("ok");
     if (result.status === "ok") {
@@ -76,14 +83,16 @@ describe("site-resolver (google)", () => {
   });
 
   it("returns empty candidates when Google autocomplete has no matches", async () => {
-    const autocompleteResponse = { status: "ZERO_RESULTS", predictions: [] };
-    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
-      const url = input.toString();
-      if (url.includes("autocomplete")) {
-        return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
-      }
-      return new Response(JSON.stringify({ status: "OK", results: [] }), { status: 200 });
-    });
+    const autocompleteResponse = { suggestions: [] };
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = input.toString();
+        if (url.includes("places:autocomplete")) {
+          return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
+        }
+        return new Response(JSON.stringify({ status: "OK", results: [] }), { status: 200 });
+      });
 
     const result = await resolveSiteFromText("nonsense address 999");
 
@@ -96,13 +105,11 @@ describe("site-resolver (google)", () => {
 
   it("returns a structured error when Google rejects the request", async () => {
     const autocompleteResponse = {
-      status: "REQUEST_DENIED",
-      predictions: [],
-      error_message: "API key is invalid",
+      error: { status: "PERMISSION_DENIED", message: "API key is invalid" },
     };
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(
-      new Response(JSON.stringify(autocompleteResponse), { status: 200 }),
+      new Response(JSON.stringify(autocompleteResponse), { status: 403 }),
     );
 
     const result = await resolveSiteFromText("1 Main St Sydney");

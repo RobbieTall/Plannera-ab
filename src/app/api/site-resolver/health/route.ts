@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSiteResolverConfigStatus } from "@/lib/site-resolver";
 
 export async function GET() {
-  const status = getSiteResolverConfigStatus();
+  const status = await getSiteResolverConfigStatus();
   const payload =
     status.status === "ok" && status.provider === "google"
       ? { ...status, provider: "google", env_ok: status.env_ok ?? true }

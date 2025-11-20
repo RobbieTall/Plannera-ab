@@ -21,7 +21,15 @@ export type SiteResolverResult =
 export type SiteResolverProvider = "google" | "nsw-point";
 
 export type SiteResolverConfigStatus =
-  | { status: "ok"; ok: true; provider: SiteResolverProvider; env_ok?: boolean }
+  | {
+      status: "ok";
+      ok: boolean;
+      provider: SiteResolverProvider;
+      env_ok?: boolean;
+      google_status?: string;
+      predictions_count?: number;
+      error_message?: string | null;
+    }
   | { status: "missing_env"; missing: string[] };
 
 type SiteSearchErrorCode = "property_search_not_configured" | "property_search_failed";
@@ -191,13 +199,40 @@ export const getGoogleConfig = (): GoogleConfig => {
   return { enabled: false, missing: ["GOOGLE_MAPS_API_KEY"] };
 };
 
-export const getSiteResolverConfigStatus = (): SiteResolverConfigStatus => {
+export async function getSiteResolverConfigStatus(): Promise<SiteResolverConfigStatus> {
   const googleConfig = getGoogleConfig();
   const requiredEnv = ["NSW_PROPERTY_API_URL", "NSW_PROPERTY_API_KEY"] as const;
   const missingPropertyEnv = requiredEnv.filter((key) => !process.env[key]);
 
   if (googleConfig.enabled) {
-    return { status: "ok", ok: true, provider: "google", env_ok: true };
+    try {
+      const probe = await requestGoogleAutocomplete("health-check", { key: googleConfig.key });
+      const suggestionsCount = Array.isArray((probe.payload as GooglePlacesResponse | null)?.suggestions)
+        ? (probe.payload as GooglePlacesResponse).suggestions!.length
+        : 0;
+      const envOk = probe.googleStatus === "OK" || probe.googleStatus === "ZERO_RESULTS";
+
+      return {
+        status: "ok",
+        ok: true,
+        provider: "google",
+        env_ok: envOk,
+        google_status: probe.googleStatus,
+        error_message: probe.googleErrorMessage,
+        predictions_count: suggestionsCount,
+      };
+    } catch (error) {
+      const fallbackMessage = error instanceof Error ? error.message : String(error);
+      return {
+        status: "ok",
+        ok: true,
+        provider: "google",
+        env_ok: false,
+        google_status: "REQUEST_FAILED",
+        error_message: fallbackMessage,
+        predictions_count: 0,
+      };
+    }
   }
 
   if (missingPropertyEnv.length === 0) {
@@ -205,7 +240,7 @@ export const getSiteResolverConfigStatus = (): SiteResolverConfigStatus => {
   }
 
   return { status: "missing_env", missing: [...googleConfig.missing, ...missingPropertyEnv] };
-};
+}
 
 const getPropertySearchConfig = (): PropertySearchConfig => {
   const url = process.env.NSW_PROPERTY_API_URL;
@@ -534,10 +569,12 @@ const filterNswCandidates = (candidates: SiteCandidate[]) =>
     return true;
   });
 
-type GoogleAutocompletePrediction = {
-  description?: string;
-  place_id?: string;
-  types?: string[];
+type GoogleAutocompleteSuggestion = {
+  placePrediction?: {
+    place?: string;
+    placeId?: string;
+    text?: { text?: string };
+  };
 };
 
 type GoogleAddressComponent = {
@@ -546,36 +583,47 @@ type GoogleAddressComponent = {
   types?: string[];
 };
 export type GooglePlacesResponse = {
-  status: string;
-  predictions?: GoogleAutocompletePrediction[];
-  error_message?: string;
+  suggestions?: GoogleAutocompleteSuggestion[];
 };
 
-const GOOGLE_AUTOCOMPLETE_URL = "https://maps.googleapis.com/maps/api/place/autocomplete/json";
+type GooglePlacesErrorResponse = { error?: { status?: string; message?: string; code?: number } };
 
-export const buildGoogleAutocompleteUrl = (queryText: string, key: string) => {
-  const url = new URL(GOOGLE_AUTOCOMPLETE_URL);
-  url.searchParams.set("input", queryText);
-  url.searchParams.set("key", key);
-  url.searchParams.set("components", "country:au");
-  url.searchParams.set("types", "geocode");
-  return url;
-};
+const GOOGLE_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete";
 
-const requestGoogleAutocomplete = async (queryText: string, config: { key: string }) => {
-  const url = buildGoogleAutocompleteUrl(queryText, config.key);
+const GOOGLE_AUTOCOMPLETE_FIELD_MASK =
+  "suggestions.placePrediction.place,suggestions.placePrediction.placeId,suggestions.placePrediction.text";
+
+export const requestGoogleAutocomplete = async (
+  queryText: string,
+  config: { key: string },
+): Promise<{
+  payload: GooglePlacesResponse | GooglePlacesErrorResponse | null;
+  status: number;
+  ok: boolean;
+  googleStatus: string;
+  googleErrorMessage: string | null;
+}> => {
+  const body = {
+    input: queryText,
+    includedRegionCodes: ["AU"],
+  };
   console.log("[site-resolver-google-request]", {
     provider: "google",
     source: "autocomplete",
-    params: {
-      input: queryText,
-      components: "country:au",
-      types: "geocode",
-    },
+    body,
   });
   let response: Response;
   try {
-    response = await fetch(url.toString(), { cache: "no-store" });
+    response = await fetch(GOOGLE_AUTOCOMPLETE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": config.key,
+        "X-Goog-FieldMask": GOOGLE_AUTOCOMPLETE_FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
   } catch (error) {
     console.error("[site-resolver-error]", {
       provider: "google",
@@ -592,9 +640,9 @@ const requestGoogleAutocomplete = async (queryText: string, config: { key: strin
 
   const status = response.status;
   const bodyText = await response.text();
-  let payload: GooglePlacesResponse | null = null;
+  let payload: GooglePlacesResponse | GooglePlacesErrorResponse | null = null;
   try {
-    payload = bodyText ? (JSON.parse(bodyText) as GooglePlacesResponse) : null;
+    payload = bodyText ? (JSON.parse(bodyText) as GooglePlacesResponse | GooglePlacesErrorResponse) : null;
   } catch (error) {
     console.error("[site-resolver-error]", {
       provider: "google",
@@ -611,11 +659,35 @@ const requestGoogleAutocomplete = async (queryText: string, config: { key: strin
     });
   }
 
-  return { payload, status, ok: response.ok };
+  const errorPayload = (payload as GooglePlacesErrorResponse | null)?.error;
+  const googleStatus = response.ok
+    ? Array.isArray((payload as GooglePlacesResponse | null)?.suggestions) &&
+        (payload as GooglePlacesResponse).suggestions!.length > 0
+      ? "OK"
+      : "ZERO_RESULTS"
+    : errorPayload?.status === "PERMISSION_DENIED"
+      ? "REQUEST_DENIED"
+      : errorPayload?.status ?? (status === 403 ? "REQUEST_DENIED" : `HTTP_${status}`);
+
+  const googleErrorMessage = errorPayload?.message ?? null;
+
+  return { payload, status, ok: response.ok, googleStatus, googleErrorMessage };
+};
+
+const extractPredictionPlaceId = (prediction: GoogleAutocompleteSuggestion["placePrediction"]): string | null => {
+  if (!prediction) return null;
+  if (prediction.placeId) return prediction.placeId;
+  if (prediction.place) {
+    const parts = prediction.place.split("/");
+    const last = parts[parts.length - 1];
+    return last || prediction.place;
+  }
+  return null;
 };
 
 const fetchGoogleAutocomplete = async (queryText: string, config: { key: string }) => {
-  const { payload, status: httpStatus, ok } = await requestGoogleAutocomplete(queryText, config);
+  const { payload, status: httpStatus, ok, googleStatus, googleErrorMessage } =
+    await requestGoogleAutocomplete(queryText, config);
 
   if (!ok) {
     console.error("[site-resolver-error]", {
@@ -628,21 +700,38 @@ const fetchGoogleAutocomplete = async (queryText: string, config: { key: string 
     throw new SiteSearchError("property_search_failed", "Google Places request failed.", {
       status: httpStatus,
       provider: "google",
+      details: { googleStatus, googleErrorMessage },
     });
   }
 
-  const googleStatus = payload?.status ?? "UNKNOWN_ERROR";
   if (googleStatus === "OK") {
-    return Array.isArray(payload?.predictions) ? payload?.predictions ?? [] : [];
+    return Array.isArray((payload as GooglePlacesResponse | null)?.suggestions)
+      ? ((payload as GooglePlacesResponse).suggestions ?? [])
+          .map((suggestion) => {
+            const prediction = suggestion.placePrediction;
+            const description = prediction?.text?.text ?? null;
+            const placeId = extractPredictionPlaceId(prediction);
+            if (!description || !placeId) return null;
+            return { description, place_id: placeId } as const;
+          })
+          .filter(
+            (
+              prediction,
+            ): prediction is {
+              description: string;
+              place_id: string;
+            } => Boolean(prediction),
+          )
+      : [];
   }
 
   if (googleStatus === "ZERO_RESULTS") {
-    return [] as GoogleAutocompletePrediction[];
+    return [] as { description: string; place_id: string }[];
   }
 
   console.warn("[site-resolver-google-error]", {
     status: googleStatus,
-    error_message: payload?.error_message,
+    error_message: googleErrorMessage,
     provider: "google",
   });
 
@@ -652,7 +741,7 @@ const fetchGoogleAutocomplete = async (queryText: string, config: { key: string 
     {
       status: httpStatus,
       provider: "google",
-      details: { googleStatus, googleErrorMessage: payload?.error_message ?? null },
+      details: { googleStatus, googleErrorMessage },
     },
   );
 };
@@ -875,11 +964,49 @@ export const resolveSiteFromText = async (
   options?: { source?: SiteResolverSource; limit?: number },
 ): Promise<SiteResolverResult> => {
   const source = options?.source ?? "chat";
+  let googleError: SiteSearchError | null = null;
   try {
     const googleConfig = getGoogleConfig();
-    const { candidates, normalizedQuery } = googleConfig.enabled
-      ? await resolveSiteWithGoogle(addressText, { key: googleConfig.key }, options)
-      : await resolveAddressToSite(addressText, options);
+    if (googleConfig.enabled) {
+      try {
+        const { candidates, normalizedQuery } = await resolveSiteWithGoogle(
+          addressText,
+          { key: googleConfig.key },
+          options,
+        );
+        const decision = decideSiteFromCandidates(candidates);
+        return {
+          status: "ok",
+          source,
+          normalizedQuery,
+          candidates,
+          decision,
+        };
+      } catch (error) {
+        const errorDetails = getErrorDetails(error);
+        const googleStatus =
+          errorDetails.details && "googleStatus" in errorDetails.details
+            ? (errorDetails.details.googleStatus as string)
+            : errorDetails.status;
+        const googleErrorMessage =
+          errorDetails.details && "googleErrorMessage" in errorDetails.details
+            ? (errorDetails.details.googleErrorMessage as string | null)
+            : errorDetails.message;
+        console.warn("[site-resolver-google-error]", {
+          provider: "google",
+          status: googleStatus,
+          error_message: googleErrorMessage,
+        });
+        googleError =
+          error instanceof SiteSearchError
+            ? error
+            : new SiteSearchError("property_search_failed", "Google Places request failed.", {
+                provider: "google",
+              });
+      }
+    }
+
+    const { candidates, normalizedQuery } = await resolveAddressToSite(addressText, options);
     const decision = decideSiteFromCandidates(candidates);
     return {
       status: "ok",
@@ -891,10 +1018,10 @@ export const resolveSiteFromText = async (
   } catch (error) {
     if (error instanceof SiteSearchError) {
       return {
-        status: error.code,
-        message: error.message,
-        provider: error.provider,
-        details: error.details,
+        status: (googleError ?? error).code,
+        message: (googleError ?? error).message,
+        provider: (googleError ?? error).provider,
+        details: (googleError ?? error).details,
       };
     }
     throw error;

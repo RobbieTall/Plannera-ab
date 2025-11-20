@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { buildGoogleAutocompleteUrl, getGoogleConfig, type GooglePlacesResponse } from "@/lib/site-resolver";
+import { getGoogleConfig, requestGoogleAutocomplete, type GooglePlacesResponse } from "@/lib/site-resolver";
 
 const TEST_INPUT = "6 myola rd newport";
 
@@ -10,30 +10,21 @@ export async function GET() {
     return NextResponse.json({ ok: false, reason: "missing_env" }, { status: 503 });
   }
 
-  const url = buildGoogleAutocompleteUrl(TEST_INPUT, googleConfig.key);
-
   try {
-    const response = await fetch(url.toString(), { cache: "no-store" });
-    const bodyText = await response.text();
-    let payload: GooglePlacesResponse | null = null;
-    try {
-      payload = bodyText ? (JSON.parse(bodyText) as GooglePlacesResponse) : null;
-    } catch (error) {
-      console.warn("[site-resolver-google-health-parse-error]", {
-        provider: "google",
-        message: (error as Error)?.message,
-      });
-    }
-
-    const status = payload?.status ?? (response.ok ? "UNKNOWN_ERROR" : "REQUEST_FAILED");
-    const ok = status === "OK" || status === "ZERO_RESULTS";
+    const { payload, googleStatus, googleErrorMessage } = await requestGoogleAutocomplete(TEST_INPUT, {
+      key: googleConfig.key,
+    });
+    const predictionsCount = Array.isArray((payload as GooglePlacesResponse | null)?.suggestions)
+      ? (payload as GooglePlacesResponse).suggestions!.length
+      : 0;
+    const ok = googleStatus === "OK" || googleStatus === "ZERO_RESULTS";
 
     return NextResponse.json(
       {
         ok,
-        status,
-        error_message: payload?.error_message ?? null,
-        predictions_count: payload?.predictions?.length ?? 0,
+        status: googleStatus,
+        error_message: googleErrorMessage,
+        predictions_count: predictionsCount,
       },
       { status: ok ? 200 : 503 },
     );
