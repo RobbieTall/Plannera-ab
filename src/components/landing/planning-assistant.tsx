@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useCallback, useMemo, useState } from "react";
 import { ArrowRight, Download, FileText, Share2, Sparkles, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -111,6 +111,21 @@ export function PlanningAssistant() {
     }
   };
 
+  const processSubmission = async () => {
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription || isGenerating) {
+      return;
+    }
+    const prospectiveId = buildProjectId();
+    const gate = canStartProject(prospectiveId);
+    if (!gate.allowed) {
+      setPendingProject({ id: prospectiveId, prompt: trimmedDescription });
+      setModalState({ type: "limit" });
+      return;
+    }
+    await createSummary(trimmedDescription, { shouldTrackProject: !gate.alreadyTracked, projectId: prospectiveId });
+  };
+
   const sendInitialWorkspaceMessage = useCallback(
     async (params: { project: Project; prompt: string; initialMessages: WorkspaceMessage[] }) => {
       const { project, prompt, initialMessages } = params;
@@ -182,20 +197,14 @@ export function PlanningAssistant() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!description.trim()) {
-      return;
+    await processSubmission();
+  };
+
+  const handleDescriptionKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void processSubmission();
     }
-    if (isGenerating) {
-      return;
-    }
-    const prospectiveId = buildProjectId();
-    const gate = canStartProject(prospectiveId);
-    if (!gate.allowed) {
-      setPendingProject({ id: prospectiveId, prompt: description });
-      setModalState({ type: "limit" });
-      return;
-    }
-    await createSummary(description, { shouldTrackProject: !gate.alreadyTracked, projectId: prospectiveId });
   };
 
   const handleRestrictedAction = (action: string) => {
@@ -239,6 +248,7 @@ export function PlanningAssistant() {
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
                 placeholder="Describe your development project..."
                 className="min-h-[140px] w-full resize-none rounded-2xl border border-white/10 bg-white/10 p-4 text-base text-white placeholder:text-blue-200 focus:border-blue-200 focus:outline-none"
               />

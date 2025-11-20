@@ -6,6 +6,7 @@ import "./globals.css";
 import { authOptions } from "@/lib/auth";
 import { AuthSessionProvider } from "@/components/session-provider";
 import { ExperienceProvider } from "@/components/providers/experience-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import type { UserTier } from "@/types/workspace";
 
 export const metadata: Metadata = {
@@ -30,10 +31,12 @@ export default async function RootLayout({ children }: RootLayoutProps) {
 
   return (
     <html lang="en">
-      <body className="bg-slate-50 text-slate-900 antialiased">
-        <AuthSessionProvider session={session}>
-          <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
-        </AuthSessionProvider>
+      <body className="antialiased">
+        <ThemeProvider>
+          <AuthSessionProvider session={session}>
+            <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
+          </AuthSessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
