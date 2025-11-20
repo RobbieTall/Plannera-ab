@@ -551,13 +551,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const handleRefresh = () => {
-    const history = getChatHistory(project.id);
-    if (history.length) {
-      setMessages(history);
-    } else {
-      setMessages([]);
-      saveChatHistory(project.id, []);
-    }
+    setMessages([]);
+    saveChatHistory(project.id, []);
+    setSessionSignalsState({});
+    setSessionSignals(project.id, {});
     setInput("");
   };
 
