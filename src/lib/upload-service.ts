@@ -65,12 +65,12 @@ export async function persistWorkspaceUploads({
   extractPdfText?: (file: File) => Promise<string | null>;
 }): Promise<UploadRecord[]> {
   if (!projectId) {
-    throw new UploadError("Invalid project", "invalid_project", 400);
+    throw new UploadError("Project id is required", "project_id_missing", 400);
   }
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) {
-    throw new UploadError("Project not found", "invalid_project", 404);
+    throw new UploadError("Project not found", "project_not_found", 404);
   }
 
   const uploads: Prisma.WorkspaceUploadCreateInput[] = [];
