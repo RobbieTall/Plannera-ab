@@ -577,6 +577,13 @@ type GoogleAutocompleteSuggestion = {
   };
 };
 
+type GoogleAutocompleteResult = {
+  predictions: { description: string; place_id: string }[];
+  googleStatus: string;
+  googleErrorMessage: string | null;
+  suggestionsCount: number;
+};
+
 type GoogleAddressComponent = {
   long_name?: string;
   short_name?: string;
@@ -685,9 +692,16 @@ const extractPredictionPlaceId = (prediction: GoogleAutocompleteSuggestion["plac
   return null;
 };
 
-const fetchGoogleAutocomplete = async (queryText: string, config: { key: string }) => {
+const fetchGoogleAutocomplete = async (
+  queryText: string,
+  config: { key: string },
+): Promise<GoogleAutocompleteResult> => {
   const { payload, status: httpStatus, ok, googleStatus, googleErrorMessage } =
     await requestGoogleAutocomplete(queryText, config);
+
+  const suggestions = Array.isArray((payload as GooglePlacesResponse | null)?.suggestions)
+    ? (payload as GooglePlacesResponse).suggestions ?? []
+    : [];
 
   if (!ok) {
     console.error("[site-resolver-error]", {
@@ -705,28 +719,46 @@ const fetchGoogleAutocomplete = async (queryText: string, config: { key: string 
   }
 
   if (googleStatus === "OK") {
-    return Array.isArray((payload as GooglePlacesResponse | null)?.suggestions)
-      ? ((payload as GooglePlacesResponse).suggestions ?? [])
-          .map((suggestion) => {
-            const prediction = suggestion.placePrediction;
-            const description = prediction?.text?.text ?? null;
-            const placeId = extractPredictionPlaceId(prediction);
-            if (!description || !placeId) return null;
-            return { description, place_id: placeId } as const;
-          })
-          .filter(
-            (
-              prediction,
-            ): prediction is {
-              description: string;
-              place_id: string;
-            } => Boolean(prediction),
-          )
-      : [];
+    const predictions = suggestions
+      .map((suggestion) => {
+        const prediction = suggestion.placePrediction;
+        const description = prediction?.text?.text ?? null;
+        const placeId = extractPredictionPlaceId(prediction);
+        if (!description || !placeId) return null;
+        return { description, place_id: placeId } as const;
+      })
+      .filter(
+        (
+          prediction,
+        ): prediction is {
+          description: string;
+          place_id: string;
+        } => Boolean(prediction),
+      );
+
+    console.info("[site-resolver-google-response]", {
+      provider: "google",
+      status: googleStatus,
+      suggestions: suggestions.length,
+      predictions: predictions.length,
+    });
+
+    return { predictions, googleStatus, googleErrorMessage, suggestionsCount: suggestions.length };
   }
 
   if (googleStatus === "ZERO_RESULTS") {
-    return [] as { description: string; place_id: string }[];
+    console.info("[site-resolver-google-response]", {
+      provider: "google",
+      status: googleStatus,
+      suggestions: suggestions.length,
+      predictions: 0,
+    });
+    return {
+      predictions: [] as { description: string; place_id: string }[],
+      googleStatus,
+      googleErrorMessage,
+      suggestionsCount: suggestions.length,
+    };
   }
 
   console.warn("[site-resolver-google-error]", {
@@ -841,14 +873,24 @@ const resolveSiteWithGoogle = async (
   addressText: string,
   config: { key: string },
   options?: { source?: SiteResolverSource; limit?: number },
-): Promise<{ candidates: SiteCandidate[]; normalizedQuery: string }> => {
+): Promise<{ candidates: SiteCandidate[]; normalizedQuery: string; suggestionsCount: number; googleStatus: string }> => {
   const source = options?.source ?? "chat";
   const normalizedQuery = normaliseForGoogleSearch(addressText);
   console.log("[site-resolver-request]", { provider: "google", q: normalizedQuery, source });
   if (!normalizedQuery) {
-    return { candidates: [], normalizedQuery };
+    return { candidates: [], normalizedQuery, suggestionsCount: 0, googleStatus: "ZERO_RESULTS" };
   }
-  const predictions = await fetchGoogleAutocomplete(normalizedQuery, config);
+  const { predictions, suggestionsCount, googleStatus } = await fetchGoogleAutocomplete(normalizedQuery, config);
+
+  if (googleStatus === "ZERO_RESULTS" || suggestionsCount === 0) {
+    console.info("[site-resolver-google-empty]", {
+      provider: "google",
+      q: normalizedQuery,
+      source,
+      suggestions: suggestionsCount,
+    });
+    return { candidates: [], normalizedQuery, suggestionsCount, googleStatus };
+  }
   const filteredPredictions = predictions.filter((prediction) =>
     prediction.description ? isNswAddress(prediction.description) : false,
   );
@@ -857,20 +899,23 @@ const resolveSiteWithGoogle = async (
   const resolvedCandidates: SiteCandidate[] = [];
   for (const prediction of rankedPredictions) {
     if (!prediction.description || !prediction.place_id) continue;
+    let geocoded: { formattedAddress: string | null; latitude: number | null; longitude: number | null; lgaName: string | null } | null = null;
     try {
-      const geocoded = await geocodePlaceId(prediction.place_id, config);
-      const formattedAddress = geocoded?.formattedAddress ?? prediction.description;
-      const candidate: SiteCandidate = {
-        id: prediction.place_id,
-        formattedAddress,
-        lgaName: geocoded?.lgaName ?? null,
-        latitude: geocoded?.latitude ?? null,
-        longitude: geocoded?.longitude ?? null,
-      };
-      resolvedCandidates.push({ ...candidate, confidence: scoreCandidate(normalizedQuery, candidate) });
+      geocoded = await geocodePlaceId(prediction.place_id, config);
     } catch (error) {
-      console.error("[site-resolver-error]", { provider: "google", ...getErrorDetails(error) });
+      console.error("[site-resolver-error]", { provider: "google", stage: "geocode", ...getErrorDetails(error) });
     }
+
+    const formattedAddress = geocoded?.formattedAddress ?? prediction.description;
+    const candidate: SiteCandidate = {
+      id: prediction.place_id,
+      formattedAddress,
+      lgaName: geocoded?.lgaName ?? null,
+      latitude: geocoded?.latitude ?? null,
+      longitude: geocoded?.longitude ?? null,
+    };
+    const confidenceScore = scoreCandidate(normalizedQuery, candidate) || 1;
+    resolvedCandidates.push({ ...candidate, confidence: confidenceScore });
   }
 
   const sortedCandidates = resolvedCandidates.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
@@ -881,7 +926,7 @@ const resolveSiteWithGoogle = async (
     candidates: sortedCandidates.length,
   });
 
-  return { candidates: sortedCandidates, normalizedQuery };
+  return { candidates: sortedCandidates, normalizedQuery, suggestionsCount, googleStatus };
 };
 
 const resolveAddressToSite = async (
@@ -965,23 +1010,37 @@ export const resolveSiteFromText = async (
 ): Promise<SiteResolverResult> => {
   const source = options?.source ?? "chat";
   let googleError: SiteSearchError | null = null;
+  let googleSuggestions = 0;
+  let googleStatus: string | null = null;
   try {
     const googleConfig = getGoogleConfig();
     if (googleConfig.enabled) {
       try {
-        const { candidates, normalizedQuery } = await resolveSiteWithGoogle(
+        const { candidates, normalizedQuery, suggestionsCount, googleStatus: resolvedStatus } = await resolveSiteWithGoogle(
           addressText,
           { key: googleConfig.key },
           options,
         );
-        const decision = decideSiteFromCandidates(candidates);
-        return {
-          status: "ok",
-          source,
-          normalizedQuery,
-          candidates,
-          decision,
-        };
+        googleSuggestions = suggestionsCount;
+        googleStatus = resolvedStatus;
+
+        if (resolvedStatus === "OK" && candidates.length > 0) {
+          const decision = decideSiteFromCandidates(candidates);
+          return {
+            status: "ok",
+            source,
+            normalizedQuery,
+            candidates,
+            decision,
+          };
+        }
+
+        console.info("[site-resolver-google-fallback]", {
+          provider: "google",
+          status: resolvedStatus,
+          suggestions: suggestionsCount,
+          reason: candidates.length === 0 ? "no_candidates" : "status_not_ok",
+        });
       } catch (error) {
         const errorDetails = getErrorDetails(error);
         const googleStatus =
@@ -1008,6 +1067,14 @@ export const resolveSiteFromText = async (
 
     const { candidates, normalizedQuery } = await resolveAddressToSite(addressText, options);
     const decision = decideSiteFromCandidates(candidates);
+    console.log("[site-resolver-fallback]", {
+      from: "google",
+      reason:
+        googleError?.details?.googleStatus ?? (googleSuggestions === 0 ? "google_zero_results" : "google_candidates_empty"),
+      googleStatus,
+      googleSuggestions,
+      provider: "nsw-point",
+    });
     return {
       status: "ok",
       source,
