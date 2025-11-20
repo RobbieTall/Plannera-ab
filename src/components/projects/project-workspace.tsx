@@ -262,6 +262,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
+  const siteContextMutationsDisabled =
+    process.env.NEXT_PUBLIC_DISABLE_SITE_CONTEXT === "true";
 
   const uploadUsage = getUploadUsage(project.id);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -784,6 +786,25 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     }
   };
 
+  const injectSelectedSiteIntoChat = async (
+    address: string,
+    pendingQuestion?: string,
+  ) => {
+    const trimmedAddress = address.trim();
+    if (!trimmedAddress) {
+      return;
+    }
+
+    const siteMessage = `My site is ${trimmedAddress}.`;
+    setSiteSelectionError(null);
+    closeSiteSelection();
+    await sendMessage({ message: siteMessage });
+
+    if (pendingQuestion) {
+      await sendMessage({ message: pendingQuestion, skipUserMessage: true });
+    }
+  };
+
   const handleSiteCandidateConfirm = async (candidateOverride?: SiteCandidate) => {
     const selectedCandidate =
       candidateOverride ??
@@ -835,8 +856,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       return;
     }
     const normalizedCandidate = normaliseCandidateForRequest(selectedCandidate);
+    const pendingQuestion = siteSelection?.pendingQuestion;
+    const fallbackAddress = normalizedCandidate.formattedAddress || manualAddressInput || "";
+    const fallbackToChatInjection = async () => {
+      await injectSelectedSiteIntoChat(fallbackAddress, pendingQuestion);
+    };
+
     setIsConfirmingSite(true);
     setSiteSelectionError(null);
+
+    if (siteContextMutationsDisabled) {
+      await fallbackToChatInjection();
+      setIsConfirmingSite(false);
+      return;
+    }
+
     try {
       console.log("[site-selection-confirm]", {
         provider: normalizedCandidate.provider,
@@ -852,14 +886,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       });
       setSiteContext(siteContextPayload ?? null);
       setSiteSelectionError(null);
-      const pendingQuestion = siteSelection?.pendingQuestion;
       closeSiteSelection();
       if (pendingQuestion) {
         await sendMessage({ message: pendingQuestion, skipUserMessage: true });
       }
     } catch (error) {
       console.error("Site candidate confirm error", error);
-      setSiteSelectionError("Unable to save the selected site. Please try again.");
+      await fallbackToChatInjection();
     } finally {
       setIsConfirmingSite(false);
     }
