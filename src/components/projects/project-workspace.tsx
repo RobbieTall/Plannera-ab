@@ -1042,25 +1042,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
-                <MapPin className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  {siteContext?.formattedAddress ?? "No site selected"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {siteContext
-                    ? siteSearchAvailable === "missing_env"
-                      ? "Set manually – NSW property search offline"
-                      : siteContext.lgaName
-                        ? `${siteContext.lgaName} council area`
-                        : "Site context saved for this workspace"
-                    : "Add the NSW address, suburb, or council for sharper LEP/SEPP lookups."}
-                </p>
-              </div>
-            </div>
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700">
                 <div className="flex items-start justify-between gap-3">
