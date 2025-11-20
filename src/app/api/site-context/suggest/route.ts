@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     if (result.status !== "ok") {
       const status = result.status === "property_search_not_configured" ? 503 : 502;
-      return NextResponse.json({ error: result.status }, { status });
+      return NextResponse.json({ error: result.status, message: result.message }, { status });
     }
 
     const candidates = result.candidates.slice(0, 10).map((candidate) => ({

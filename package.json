@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "tsx --test tests/map-snapshot.test.ts",
-    "test:site-resolver": "tsx --test tests/site-resolver.test.ts",
+    "test:site-resolver": "vitest run src/lib/site-resolver.test.ts",
+    "test:site-resolver:google": "vitest run src/lib/site-resolver.google.test.ts",
     "fetch:nsw-xml": "tsx scripts/fetch-nsw-xml.ts",
     "ingest:legislation": "tsx scripts/legislation-ingest.ts",
     "ingest:all-nsw": "tsx scripts/ingest-all-nsw.ts",
@@ -48,6 +49,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }
