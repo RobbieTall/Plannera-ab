@@ -74,7 +74,19 @@ export async function POST(request: Request) {
     }
 
     const { projectId, candidate, addressInput } = parsedUpdate.data;
-    const siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
+    let siteContext;
+    try {
+      siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
+    } catch (e) {
+      console.error("SET_SITE_ERROR", {
+        provider: candidate.provider,
+        coords: { lat: candidate.latitude, lng: candidate.longitude },
+        lga: (candidate as { lga?: unknown }).lga ?? candidate.lgaName,
+        received: candidate,
+        error: e,
+      });
+      throw e;
+    }
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
   } catch (error) {
     console.error("[site-context-update]", {
