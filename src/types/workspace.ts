@@ -26,6 +26,7 @@ export type WorkspaceArtefact = {
   type: WorkspaceArtefactType;
   noteType?: string;
   metadata?: string;
+  messages?: WorkspaceMessage[];
 };
 
 export type WorkspaceNoteCategory = "Note" | "Meeting minutes" | "Observation" | "Idea";

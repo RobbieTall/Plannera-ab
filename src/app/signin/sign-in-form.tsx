@@ -2,8 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+import { useExperience } from "@/components/providers/experience-provider";
 
 export function SignInForm() {
+  const router = useRouter();
+  const { setUserTier } = useExperience();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -26,7 +31,11 @@ export function SignInForm() {
     }
 
     setStatus("success");
-    setMessage("Check your inbox for a sign-in link.");
+    setMessage("Magic link sent. Check your inbox and enjoy free access (5 uploads). Redirecting to your dashboard...");
+    setUserTier("free");
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 600);
     setEmail("");
   };
 

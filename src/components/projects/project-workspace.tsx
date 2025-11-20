@@ -22,14 +22,17 @@ import {
   Layers3,
   Link2,
   ListChecks,
+  ListFilter,
   Mail,
   MapPin,
+  Moon,
   Notebook,
   Plus,
   RefreshCcw,
   Save,
   Search,
   Sparkles,
+  Sun,
   Upload,
   X,
 } from "lucide-react";
@@ -38,6 +41,7 @@ import { useRouter } from "next/navigation";
 import type { Project } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
+import { useTheme } from "@/components/providers/theme-provider";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { Modal } from "@/components/ui/modal";
 import type {
@@ -117,6 +121,18 @@ const tools: ToolCard[] = [
 
 const noteCategories: WorkspaceNoteCategory[] = ["Note", "Meeting minutes", "Observation", "Idea"];
 
+const sourceTypeLabels: Record<WorkspaceSourceType, string> = {
+  email: "Email",
+  document: "Document",
+  link: "Link",
+  pdf: "PDF",
+  spreadsheet: "Spreadsheet",
+  word: "Word",
+  image: "Image",
+  gis: "GIS",
+  other: "Other",
+};
+
 const sourceIcons: Record<WorkspaceSourceType, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   email: Mail,
   document: FileText,
@@ -188,6 +204,7 @@ function deriveSignalsFromAssistantPayload({
 
 export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const {
     getChatHistory,
     saveChatHistory,
@@ -205,6 +222,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const initialSources = useMemo<WorkspaceSource[]>(() => [], []);
 
   const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
+  const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -237,6 +255,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [isConfirmingSite, setIsConfirmingSite] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -253,6 +272,18 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       : state.userTier === "free"
         ? { href: "mailto:hello@plannera.ai", label: "Contact sales to upgrade" }
         : { href: "mailto:hello@plannera.ai", label: "Contact us to extend your plan" };
+
+  const displayedSources = useMemo(() => {
+    if (sourceFilter === "all") {
+      return sources;
+    }
+    const matching = sources.filter((source) => source.type === sourceFilter);
+    const nonMatching = sources.filter((source) => source.type !== sourceFilter);
+    return [...matching, ...nonMatching];
+  }, [sourceFilter, sources]);
+
+  const activeSourceFilterLabel = sourceFilter === "all" ? "All types" : sourceTypeLabels[sourceFilter];
+  const isDarkMode = theme === "dark";
 
 
   const fetchSiteSearchAvailability = useCallback(async () => {
@@ -281,6 +312,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   useEffect(() => {
     setSessionSignalsState(getSessionSignals(project.id));
   }, [getSessionSignals, project.id]);
+
+  useEffect(() => {
+    if (siteSelection?.source === "manual" && siteSearchInputRef.current) {
+      siteSearchInputRef.current.focus();
+      siteSearchInputRef.current.select();
+    }
+  }, [siteSelection]);
 
   useEffect(() => {
     const history = getChatHistory(project.id);
@@ -560,6 +598,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   const handleSaveChat = () => {
     const timestampLabel = new Date().toLocaleString();
+    const messagesSnapshot = messages.map((message) => ({ ...message }));
     const artefact: WorkspaceArtefact = {
       id: `chat-${Date.now()}`,
       title: `Chat Summary - ${timestampLabel}`,
@@ -567,9 +606,19 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       updatedAt: "Just now",
       type: "chat",
       metadata: `${messages.length} messages captured`,
+      messages: messagesSnapshot,
     };
     addArtefact(project.id, artefact);
     showToast("Chat saved to artefacts");
+  };
+
+  const handleArtefactOpen = (artefact: WorkspaceArtefact) => {
+    if (artefact.type !== "chat" || !artefact.messages?.length) {
+      return;
+    }
+    setMessages(artefact.messages);
+    saveChatHistory(project.id, artefact.messages);
+    showToast(`Restored ${artefact.messages.length} chat message${artefact.messages.length === 1 ? "" : "s"}`);
   };
 
   const openManualSiteSelection = () => {
@@ -926,7 +975,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 sm:px-6 lg:px-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-4">
           <span className="text-base font-semibold text-slate-900">Plannera.ai</span>
           <button
@@ -937,10 +986,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             ← My Projects
           </button>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900">
-          <Sparkles className="h-4 w-4" />
-          Get help
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100"
+            aria-label="Toggle light and dark mode"
+          >
+            {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDarkMode ? "Light mode" : "Dark mode"}
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100">
+            <Sparkles className="h-4 w-4" />
+            Get help
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -972,18 +1032,42 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           {limitMessage ? (
             <p className="text-xs font-semibold text-rose-600">{limitMessage}</p>
           ) : null}
-          <button
-            type="button"
-            onClick={handleAddSourceClick}
-            disabled={uploadLimitReached}
-            title={limitMessage ?? undefined}
-            className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-          >
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
+          <div className="flex flex-nowrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAddSourceClick}
+              disabled={uploadLimitReached}
+              title={limitMessage ?? undefined}
+              className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </button>
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+              <ListFilter className="h-3 w-3" aria-hidden />
+              <label htmlFor="source-filter" className="sr-only">
+                Filter sources
+              </label>
+              <select
+                id="source-filter"
+                value={sourceFilter}
+                onChange={(event) => setSourceFilter(event.target.value as WorkspaceSourceType | "all")}
+                className="bg-transparent pr-0 text-[11px] font-semibold focus:outline-none"
+              >
+                <option value="all">Show all</option>
+                {Object.entries(sourceTypeLabels).map(([type, label]) => (
+                  <option key={type} value={type}>
+                    {label} first
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {sourceFilter !== "all" ? (
+            <p className="text-[11px] text-slate-500">Prioritising {activeSourceFilterLabel.toLowerCase()} uploads.</p>
+          ) : null}
           <ul className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-            {sources.map((source) => {
+            {displayedSources.map((source) => {
               const Icon = sourceIcons[source.type] ?? FileText;
               return (
                 <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
@@ -1068,6 +1152,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                       <div className="relative flex-1">
                       <input
                         type="text"
+                        ref={siteSearchInputRef}
                         value={siteSearchQuery}
                         onChange={(event) => {
                           setSiteSearchQuery(event.target.value);
@@ -1338,6 +1423,21 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                       {artefact.type}
                     </span>
                   </div>
+                  {artefact.type === "chat" && artefact.messages?.length ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleArtefactOpen(artefact)}
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                        Reopen in chat
+                      </button>
+                      <p className="text-[11px] text-slate-500">
+                        Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
+                      </p>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
