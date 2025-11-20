@@ -54,18 +54,14 @@ export const candidateSchema = z
     }
 
     if (provider === "google") {
-      if (candidate.latitude === null || candidate.latitude === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Latitude is required for Google candidates",
-          path: ["latitude"],
-        });
-      }
-      if (candidate.longitude === null || candidate.longitude === undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Longitude is required for Google candidates",
-          path: ["longitude"],
+      const isMissingLatitude = candidate.latitude === null || candidate.latitude === undefined;
+      const isMissingLongitude = candidate.longitude === null || candidate.longitude === undefined;
+
+      if (isMissingLatitude || isMissingLongitude) {
+        console.warn("[site-context-update] Google candidate missing coords", {
+          provider: candidate.provider,
+          address: addressText,
+          placeId: candidate.placeId,
         });
       }
     }

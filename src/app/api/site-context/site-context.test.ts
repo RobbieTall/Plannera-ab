@@ -232,4 +232,50 @@ describe("site-context api validation", () => {
     });
     expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.address });
   });
+
+  it("accepts Google candidates without coordinates", async () => {
+    const candidate = {
+      provider: "google" as const,
+      address: "4 Jaques Avenue, Bondi Beach NSW, Australia",
+      placeId: "PLACE_WITHOUT_COORDS",
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-google-missing-coords",
+      projectId: "proj-google-missing-coords",
+      formattedAddress: candidate.address,
+      latitude: null,
+      longitude: null,
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    const request = new Request("http://localhost/api/site-context", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-google-missing-coords",
+        candidate,
+        addressInput: candidate.address,
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { siteContext?: unknown };
+
+    expect(response.status).toEqual(200);
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "proj-google-missing-coords" },
+      update: expect.objectContaining({
+        formattedAddress: candidate.address,
+        latitude: null,
+        longitude: null,
+      }),
+      create: expect.objectContaining({
+        formattedAddress: candidate.address,
+        latitude: null,
+        longitude: null,
+      }),
+    });
+    expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.address });
+  });
 });
