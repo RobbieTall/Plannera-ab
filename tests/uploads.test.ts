@@ -14,7 +14,14 @@ class MockPrisma {
 
   workspaceUpload = {
     create: async ({ data, select }: any) => {
-      const record = { id: `upload-${this.uploads.length + 1}`, createdAt: new Date(), ...data };
+      const projectId = data.projectId ?? data.project?.connect?.id;
+      const record = {
+        id: `upload-${this.uploads.length + 1}`,
+        createdAt: new Date(),
+        ...data,
+        projectId,
+      };
+      delete record.project;
       this.uploads.push(record);
       const selected: Record<string, unknown> = {};
       Object.entries(select ?? {}).forEach(([key, enabled]) => {
@@ -56,6 +63,21 @@ test("creates workspace uploads with metadata and extracted text", async () => {
   assert.equal(prisma.uploads[0].extractedText, "sample text");
 });
 
+test("associates uploads to an existing project", async () => {
+  const prisma = new MockPrisma(true);
+  const pdfFile = new File(["pdf-bytes"], "site.pdf", { type: "application/pdf" });
+
+  const uploads = await persistWorkspaceUploads({
+    projectId: "proj-42",
+    files: [pdfFile],
+    prisma: prisma as any,
+    saveFile: saveFileMock,
+  });
+
+  assert.equal(uploads[0].fileName, "site.pdf");
+  assert.equal(prisma.uploads[0].projectId, "proj-42");
+});
+
 test("rejects unsupported file types", async () => {
   const prisma = new MockPrisma(true);
   const badFile = new File(["noop"], "script.exe", { type: "application/octet-stream" });
@@ -71,6 +93,26 @@ test("rejects unsupported file types", async () => {
     (error) => {
       assert.ok(error instanceof UploadError);
       assert.equal(error.code, "unsupported_file_type");
+      return true;
+    },
+  );
+});
+
+test("rejects uploads when project does not exist", async () => {
+  const prisma = new MockPrisma(false);
+  const pdfFile = new File(["pdf-bytes"], "missing.pdf", { type: "application/pdf" });
+
+  await assert.rejects(
+    () =>
+      persistWorkspaceUploads({
+        projectId: "proj-missing",
+        files: [pdfFile],
+        prisma: prisma as any,
+        saveFile: saveFileMock,
+      }),
+    (error) => {
+      assert.ok(error instanceof UploadError);
+      assert.equal(error.code, "project_not_found");
       return true;
     },
   );

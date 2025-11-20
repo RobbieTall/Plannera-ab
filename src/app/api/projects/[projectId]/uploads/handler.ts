@@ -209,6 +209,21 @@ export async function handleUploadPost(
       return respondWithError("validation", "project_id_missing", 400, "A project id is required to upload files.");
     }
 
+    try {
+      const project = await resolvedDeps.prisma.project.findUnique({ where: { id: projectId } });
+      if (!project) {
+        return respondWithError(
+          "validation",
+          "project_not_found",
+          404,
+          "No project/workspace exists with this ID.",
+          { projectId },
+        );
+      }
+    } catch (error) {
+      return respondWithError("db", "db_read_failed", 500, "Unable to load workspace.", { projectId }, error);
+    }
+
     if (!storageStatus.ready) {
       const message =
         storageStatus.reason ||
