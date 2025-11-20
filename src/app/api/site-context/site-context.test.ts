@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { persistSiteContextFromCandidate } from "../../../lib/site-context";
+import { POST } from "./route";
 import { candidateSchema } from "./schema";
 
 const { upsertMock } = vi.hoisted(() => ({ upsertMock: vi.fn() }));
@@ -16,6 +17,30 @@ vi.mock("@/lib/prisma", () => ({
 beforeEach(() => {
   upsertMock.mockReset();
 });
+
+const buildMockSite = (overrides: Partial<ReturnType<typeof createBaseSite>> = {}) => ({
+  ...createBaseSite(),
+  ...overrides,
+});
+
+function createBaseSite() {
+  return {
+    id: "ctx-1",
+    projectId: "proj-1",
+    addressInput: "22 campbell",
+    formattedAddress: "22 Campbell Parade, Bondi Beach NSW 2026",
+    lgaName: null,
+    lgaCode: null,
+    parcelId: null,
+    lot: null,
+    planNumber: null,
+    latitude: -33.8915,
+    longitude: 151.2767,
+    zone: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as const;
+}
 
 describe("site-context api validation", () => {
   it("accepts Google candidates with pending LGA data", () => {
@@ -42,29 +67,19 @@ describe("site-context api validation", () => {
       lgaName: null,
     };
 
-    const mockSite = {
-      id: "ctx-1",
-      projectId: "proj-1",
-      addressInput: "22 campbell",
+    const parsedCandidate = candidateSchema.parse(candidate);
+    const mockSite = buildMockSite({
       formattedAddress: candidate.formattedAddress,
-      lgaName: null,
-      lgaCode: null,
-      parcelId: null,
-      lot: null,
-      planNumber: null,
-      latitude: -33.8915,
-      longitude: 151.2767,
-      zone: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      latitude: parsedCandidate.latitude,
+      longitude: parsedCandidate.longitude,
+    });
 
     upsertMock.mockResolvedValue(mockSite);
 
     const result = await persistSiteContextFromCandidate({
       projectId: "proj-1",
       addressInput: "22 campbell",
-      candidate: candidateSchema.parse(candidate),
+      candidate: parsedCandidate,
     });
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
@@ -73,11 +88,57 @@ describe("site-context api validation", () => {
       update: expect.objectContaining({
         formattedAddress: candidate.formattedAddress,
         lgaName: null,
-        latitude: candidateSchema.parse(candidate).latitude,
-        longitude: candidateSchema.parse(candidate).longitude,
+        latitude: parsedCandidate.latitude,
+        longitude: parsedCandidate.longitude,
       }),
       create: expect.objectContaining({ formattedAddress: candidate.formattedAddress }),
     });
     expect(result).toEqual(mockSite);
+  });
+
+  it("accepts set-site dialog payloads for Google candidates via the API route", async () => {
+    const candidate = {
+      id: "place-789",
+      formattedAddress: "22 Campbell Avenue, Normanhurst NSW 2076",
+      provider: "google" as const,
+      latitude: -33.738,
+      longitude: 151.093,
+      lgaName: null,
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-2",
+      projectId: "proj-2",
+      addressInput: "22 campbell",
+      formattedAddress: candidate.formattedAddress,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    const request = new Request("http://localhost/api/site-context", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "proj-2", candidate, addressInput: "22 campbell" }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { siteContext?: unknown };
+
+    expect(response.status).toEqual(200);
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "proj-2" },
+      update: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      }),
+      create: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      }),
+    });
+    expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.formattedAddress });
   });
 });
