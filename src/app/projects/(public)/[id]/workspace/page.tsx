@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { useExperience } from "@/components/providers/experience-provider";
 import type { Project } from "@/lib/mock-data";
+import { normalizeProjectId } from "@/lib/project-identifiers";
 
 interface WorkspacePageProps {
   params: { id: string };
@@ -19,6 +20,38 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
   useEffect(() => {
     setProject(getProject(params.id) ?? null);
   }, [getProject, params.id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const syncProject = async () => {
+      if (!project) {
+        return;
+      }
+
+      try {
+        await fetch("/api/projects/ensure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            publicId: normalizeProjectId(project.publicId ?? project.id),
+            name: project.name,
+            description: project.description,
+            propertyName: project.location ?? project.name,
+          }),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error("[project-sync-error]", error);
+      }
+    };
+
+    void syncProject();
+
+    return () => controller.abort();
+  }, [project]);
 
   if (!project) {
     return (
