@@ -13,9 +13,10 @@ export async function POST(request: Request) {
     if (result.status !== "ok") {
       const status = result.status === "property_search_not_configured" ? 503 : 502;
       const message =
-        result.status === "property_search_not_configured"
+        result.message ??
+        (result.status === "property_search_not_configured"
           ? "NSW property search is not configured in this environment."
-          : "NSW property search failed. Please try again.";
+          : "NSW property search failed. Please try again.");
       return NextResponse.json({ error: result.status, message }, { status });
     }
     return NextResponse.json({
