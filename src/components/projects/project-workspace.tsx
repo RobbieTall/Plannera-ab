@@ -74,6 +74,30 @@ type SiteSelectionState = {
   pendingQuestion?: string;
 };
 
+const normaliseCandidateForRequest = (candidate: SiteCandidate): SiteCandidate => {
+  const parseNumber = (value?: number | string | null) => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
+
+  return {
+    ...candidate,
+    provider: candidate.provider ?? (candidate.id?.startsWith("place") ? "google" : candidate.provider),
+    lgaName: candidate.lgaName ?? null,
+    lgaCode: candidate.lgaCode ?? null,
+    parcelId: candidate.parcelId ?? null,
+    lot: candidate.lot ?? null,
+    planNumber: candidate.planNumber ?? null,
+    latitude: parseNumber(candidate.latitude ?? null),
+    longitude: parseNumber(candidate.longitude ?? null),
+    zone: candidate.zone ?? null,
+  };
+};
+
 const tools: ToolCard[] = [
   {
     id: "pathway",
@@ -827,6 +851,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       setSiteSelectionError("Select a valid NSW site before confirming.");
       return;
     }
+    const normalizedCandidate = normaliseCandidateForRequest(selectedCandidate);
     setIsConfirmingSite(true);
     setSiteSelectionError(null);
     try {
@@ -835,8 +860,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: project.id,
-          candidate: selectedCandidate,
-          addressInput: manualAddressInput || selectedCandidate.formattedAddress,
+          candidate: normalizedCandidate,
+          addressInput: manualAddressInput || normalizedCandidate.formattedAddress,
         }),
       });
       const data: { siteContext?: SiteContextSummary | null; message?: string } = await response.json();

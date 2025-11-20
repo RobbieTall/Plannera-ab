@@ -7,13 +7,13 @@ import {
   persistSiteContextFromCandidate,
   serializeSiteContext,
 } from "@/lib/site-context";
-import { candidateSchema } from "./schema";
+import { persistableCandidateSchema } from "./schema";
 
 const getSchema = z.object({ projectId: z.string() });
 
 const updateSchema = z.object({
   projectId: z.string(),
-  candidate: candidateSchema,
+  candidate: persistableCandidateSchema,
   addressInput: z.string().min(3),
 });
 
@@ -57,12 +57,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
     }
 
-    const { projectId, candidate, addressInput } = updateSchema.parse(requestData);
+    const parsedUpdate = updateSchema.safeParse(requestData);
+    if (!parsedUpdate.success) {
+      console.error("[site-context-update]", {
+        stage: "validation",
+        issues: parsedUpdate.error.flatten().fieldErrors,
+        rawPayload: {
+          projectId: (requestData.projectId as string) ?? null,
+          hasCandidate: Boolean((requestData as { candidate?: unknown }).candidate),
+        },
+      });
+      return NextResponse.json(
+        { error: "validation_error", message: "Invalid site payload." },
+        { status: 400 },
+      );
+    }
+
+    const { projectId, candidate, addressInput } = parsedUpdate.data;
     const siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
   } catch (error) {
     console.error("[site-context-update]", {
+      stage: "persistence",
       message: error instanceof Error ? error.message : "Unknown error",
+      errorName: error instanceof Error ? error.name : typeof error,
       payloadSummary: (() => {
         const payloadObject =
           payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
