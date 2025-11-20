@@ -1043,7 +1043,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               <Plus className="h-4 w-4" />
               Add
             </button>
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+            <div className="ml-auto flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
               <ListFilter className="h-4 w-4" aria-hidden />
               <label htmlFor="source-filter" className="sr-only">
                 Filter sources
