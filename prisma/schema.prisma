@@ -61,6 +61,7 @@ model Property {
 /// Project groups tasks under a property and tracks its lifecycle.
 model Project {
   id               String            @id @default(cuid())
+  publicId         String            @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
   name             String
   description      String?
   status           ProjectStatus     @default(PLANNING)

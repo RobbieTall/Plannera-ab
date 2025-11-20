@@ -9,7 +9,13 @@ class MockPrisma {
   constructor(private projectExists = true) {}
 
   project = {
-    findUnique: async ({ where }: any) => (this.projectExists ? { id: where.id } : null),
+    findFirst: async ({ where }: any) => {
+      if (!this.projectExists) {
+        return null;
+      }
+      const lookupId = where?.OR?.[0]?.publicId ?? where?.id ?? where?.publicId;
+      return { id: `db-${lookupId}`, publicId: lookupId };
+    },
   };
 
   workspaceUpload = {
@@ -61,6 +67,7 @@ test("creates workspace uploads with metadata and extracted text", async () => {
   assert.equal(prisma.uploads[0].fileName, "report.pdf");
   assert.equal(prisma.uploads[0].fileExtension, "pdf");
   assert.equal(prisma.uploads[0].extractedText, "sample text");
+  assert.equal(prisma.uploads[0].projectId, "db-proj-1");
 });
 
 test("associates uploads to an existing project", async () => {
@@ -75,7 +82,7 @@ test("associates uploads to an existing project", async () => {
   });
 
   assert.equal(uploads[0].fileName, "site.pdf");
-  assert.equal(prisma.uploads[0].projectId, "proj-42");
+  assert.equal(prisma.uploads[0].projectId, "db-proj-42");
 });
 
 test("rejects unsupported file types", async () => {

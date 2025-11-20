@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
+import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 
@@ -104,17 +105,25 @@ async function assertProjectAccess(
   projectId: string,
   userId: string,
 ) {
-  const project = await prismaClient.project.findFirst({
+  const project = await findProjectByExternalId(prismaClient as unknown as PrismaClient, projectId);
+
+  if (!project) {
+    throw new ArtefactAccessError("Project not found or access denied");
+  }
+
+  const hasAccess = await prismaClient.project.findFirst({
     where: {
-      id: projectId,
+      id: project.id,
       OR: [{ createdById: userId }, { collaborators: { some: { userId } } }],
     },
     select: { id: true },
   });
 
-  if (!project) {
+  if (!hasAccess) {
     throw new ArtefactAccessError("Project not found or access denied");
   }
+
+  return project;
 }
 
 export type MapSnapshotArtefactInput = {
@@ -140,13 +149,13 @@ export async function createMapSnapshotArtefact({
 }): Promise<Artefact> {
   const { file, payload } = parseMapSnapshotFormData(formData, projectId);
 
-  await assertProjectAccess(deps.prisma, projectId, userId);
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
 
   const savedFile = await deps.saveFile(file);
 
   return deps.prisma.artefact.create({
     data: {
-      projectId,
+      projectId: project.id,
       createdById: userId,
       type: "map_snapshot" as ArtefactType,
       title: payload.title,
@@ -161,10 +170,10 @@ export async function createMapSnapshotArtefact({
 }
 
 export async function listProjectArtefacts(projectId: string, userId: string, deps = { prisma }) {
-  await assertProjectAccess(deps.prisma, projectId, userId);
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
 
   return deps.prisma.artefact.findMany({
-    where: { projectId },
+    where: { projectId: project.id },
     orderBy: { createdAt: "desc" },
   });
 }

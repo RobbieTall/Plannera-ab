@@ -16,6 +16,7 @@ import {
   UploadError,
   validateFileForUpload,
 } from "@/lib/upload-service";
+import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
 import { WORKSPACE_UPLOAD_LIMITS } from "@/lib/usage-limits";
 import type { UserTier } from "@/types/workspace";
 
@@ -149,8 +150,16 @@ const defaultDeps: UploadHandlerDeps = {
 
 export async function handleUploadGet(_request: NextRequest, { params }: { params: { projectId: string } }) {
   try {
+    const project = await findProjectByExternalId(prisma, params.projectId);
+    if (!project) {
+      return NextResponse.json<StructuredErrorResponse>(
+        { ok: false, errorCode: "project_not_found", error: "project_not_found", message: "No project/workspace exists with this ID." },
+        { status: 404 },
+      );
+    }
+
     const uploads = await prisma.workspaceUpload.findMany({
-      where: { projectId: params.projectId },
+      where: { projectId: project.id },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -185,7 +194,7 @@ export async function handleUploadPost(
   const resolvedDeps: UploadHandlerDeps = { ...defaultDeps, ...deps } as UploadHandlerDeps;
   const storageStatus = resolvedDeps.getStorageStatus();
   const storageMode = resolvedDeps.storageMode ?? storageStatus.provider;
-  const normalizedProjectId = params.projectId?.trim();
+  const normalizedProjectId = normalizeProjectId(params.projectId);
 
   const respondWithError = (
     stage: UploadStage,
@@ -209,8 +218,9 @@ export async function handleUploadPost(
       return respondWithError("validation", "project_id_missing", 400, "A project id is required to upload files.");
     }
 
+    let project: Awaited<ReturnType<typeof findProjectByExternalId>>;
     try {
-      const project = await resolvedDeps.prisma.project.findUnique({ where: { id: projectId } });
+      project = await findProjectByExternalId(resolvedDeps.prisma, projectId);
       if (!project) {
         return respondWithError(
           "validation",
@@ -270,11 +280,12 @@ export async function handleUploadPost(
     const limit = WORKSPACE_UPLOAD_LIMITS[tier];
     const userId = session?.user?.id;
 
+    const usageProjectId = project?.id ?? projectId;
     const usageFilter =
       tier === "guest" || !userId
-        ? { projectId }
+        ? { projectId: usageProjectId }
         : // Free and Pro plans are counted per workspace to match the existing Sources panel UI.
-          { projectId, userId };
+          { projectId: usageProjectId, userId };
 
     let existingUploads = 0;
     try {
@@ -295,12 +306,13 @@ export async function handleUploadPost(
 
     try {
       const created = await resolvedDeps.persistUploads({
-        projectId,
+        projectId: project?.publicId ?? projectId,
         files,
         userId,
         prisma: resolvedDeps.prisma,
         saveFile: resolvedDeps.saveFile,
         extractPdfText: resolvedDeps.extractPdfText,
+        project,
       });
       uploads.push(...created);
     } catch (error) {

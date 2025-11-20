@@ -4,7 +4,10 @@ import { persistSiteContextFromCandidate } from "../../../lib/site-context";
 import { POST } from "./route";
 import { candidateSchema } from "./schema";
 
-const { upsertMock } = vi.hoisted(() => ({ upsertMock: vi.fn() }));
+const { upsertMock, findProjectByExternalIdMock } = vi.hoisted(() => ({
+  upsertMock: vi.fn(),
+  findProjectByExternalIdMock: vi.fn(),
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -14,8 +17,18 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/project-identifiers", () => ({
+  findProjectByExternalId: findProjectByExternalIdMock,
+  normalizeProjectId: (value: string) => value?.trim?.() ?? value,
+}));
+
 beforeEach(() => {
   upsertMock.mockReset();
+  findProjectByExternalIdMock.mockReset();
+  findProjectByExternalIdMock.mockImplementation(async (_prisma, id: string) => ({
+    id: `db-${id}`,
+    publicId: id,
+  }));
 });
 
 const buildMockSite = (overrides: Partial<ReturnType<typeof createBaseSite>> = {}) => ({
@@ -26,7 +39,7 @@ const buildMockSite = (overrides: Partial<ReturnType<typeof createBaseSite>> = {
 function createBaseSite() {
   return {
     id: "ctx-1",
-    projectId: "proj-1",
+    projectId: "db-proj-1",
     addressInput: "22 campbell",
     formattedAddress: "22 Campbell Parade, Bondi Beach NSW 2026",
     lgaName: null,
@@ -84,7 +97,7 @@ describe("site-context api validation", () => {
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-1" },
+      where: { projectId: "db-proj-1" },
       update: expect.objectContaining({
         formattedAddress: candidate.formattedAddress,
         lgaName: null,
@@ -108,7 +121,7 @@ describe("site-context api validation", () => {
 
     const mockSite = buildMockSite({
       id: "ctx-2",
-      projectId: "proj-2",
+      projectId: "db-proj-2",
       addressInput: "22 campbell",
       formattedAddress: candidate.formattedAddress,
       latitude: candidate.latitude,
@@ -127,7 +140,7 @@ describe("site-context api validation", () => {
 
     expect(response.status).toEqual(200);
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-2" },
+      where: { projectId: "db-proj-2" },
       update: expect.objectContaining({
         formattedAddress: candidate.formattedAddress,
         latitude: candidate.latitude,
@@ -155,7 +168,7 @@ describe("site-context api validation", () => {
 
     const mockSite = buildMockSite({
       id: "ctx-google",
-      projectId: "proj-google",
+      projectId: "db-proj-google",
       formattedAddress: candidate.formattedAddress,
       latitude: candidate.latitude,
       longitude: candidate.longitude,
@@ -173,7 +186,7 @@ describe("site-context api validation", () => {
 
     expect(response.status).toEqual(200);
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-google" },
+      where: { projectId: "db-proj-google" },
       update: expect.objectContaining({
         formattedAddress: candidate.formattedAddress,
         latitude: candidate.latitude,
@@ -200,7 +213,7 @@ describe("site-context api validation", () => {
 
     const mockSite = buildMockSite({
       id: "ctx-google-e2e",
-      projectId: "proj-google-e2e",
+      projectId: "db-proj-google-e2e",
       formattedAddress: candidate.address,
       latitude: candidate.latitude,
       longitude: candidate.longitude,
@@ -218,7 +231,7 @@ describe("site-context api validation", () => {
 
     expect(response.status).toEqual(200);
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-google-e2e" },
+      where: { projectId: "db-proj-google-e2e" },
       update: expect.objectContaining({
         formattedAddress: candidate.address,
         latitude: candidate.latitude,
@@ -242,7 +255,7 @@ describe("site-context api validation", () => {
 
     const mockSite = buildMockSite({
       id: "ctx-google-missing-coords",
-      projectId: "proj-google-missing-coords",
+      projectId: "db-proj-google-missing-coords",
       formattedAddress: candidate.address,
       latitude: null,
       longitude: null,
@@ -264,7 +277,7 @@ describe("site-context api validation", () => {
 
     expect(response.status).toEqual(200);
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-google-missing-coords" },
+      where: { projectId: "db-proj-google-missing-coords" },
       update: expect.objectContaining({
         formattedAddress: candidate.address,
         latitude: null,
@@ -288,7 +301,7 @@ describe("site-context api validation", () => {
 
     const mockSite = buildMockSite({
       id: "ctx-google-null-coords",
-      projectId: "proj-google-null-coords",
+      projectId: "db-proj-google-null-coords",
       formattedAddress: candidate.formattedAddress,
       latitude: null,
       longitude: null,
@@ -304,7 +317,7 @@ describe("site-context api validation", () => {
     });
 
     expect(upsertMock).toHaveBeenCalledWith({
-      where: { projectId: "proj-google-null-coords" },
+      where: { projectId: "db-proj-google-null-coords" },
       update: expect.objectContaining({
         formattedAddress: candidate.formattedAddress,
         latitude: null,

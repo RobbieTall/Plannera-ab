@@ -224,6 +224,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     getSessionSignals,
     state,
   } = useExperience();
+  const projectKey = project.publicId ?? project.id;
 
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
@@ -247,7 +248,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
-    getSessionSignals(project.id)
+    getSessionSignals(projectKey)
   );
   const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
@@ -270,7 +271,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const siteContextMutationsDisabled =
     process.env.NEXT_PUBLIC_DISABLE_SITE_CONTEXT === "true";
 
-  const uploadUsage = getUploadUsage(project.id);
+  const uploadUsage = getUploadUsage(projectKey);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
   const limitMessage = uploadLimitReached
     ? state.userTier === "guest"
@@ -319,8 +320,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, []);
 
   useEffect(() => {
-    setSessionSignalsState(getSessionSignals(project.id));
-  }, [getSessionSignals, project.id]);
+    setSessionSignalsState(getSessionSignals(projectKey));
+  }, [getSessionSignals, projectKey]);
 
   useEffect(() => {
     if (siteSelection?.source === "manual" && siteSearchInputRef.current) {
@@ -330,19 +331,19 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, [siteSelection]);
 
   useEffect(() => {
-    const history = getChatHistory(project.id);
+    const history = getChatHistory(projectKey);
     if (history.length) {
       setMessages(history);
     } else {
       setMessages([]);
     }
-  }, [getChatHistory, project.id]);
+  }, [getChatHistory, projectKey]);
 
   useEffect(() => {
     let cancelled = false;
     const loadUploads = async () => {
       try {
-        const response = await fetch(`/api/projects/${project.id}/uploads`);
+        const response = await fetch(`/api/projects/${projectKey}/uploads`);
         if (!response.ok) {
           return;
         }
@@ -378,7 +379,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         if (typeof data.usage?.used === "number") {
           const delta = Math.max(data.usage.used - uploadUsage.used, 0);
           if (delta > 0) {
-            recordUpload(project.id, delta);
+            recordUpload(projectKey, delta);
           }
         }
       } catch (error) {
@@ -390,7 +391,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     return () => {
       cancelled = true;
     };
-  }, [project.id, recordUpload, uploadUsage.used]);
+  }, [projectKey, recordUpload, uploadUsage.used]);
 
   useEffect(() => {
     void fetchSiteSearchAvailability();
@@ -406,7 +407,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     let isMounted = true;
     const loadSiteContext = async () => {
       try {
-        const response = await fetch(`/api/site-context?projectId=${project.id}`);
+        const response = await fetch(`/api/site-context?projectId=${projectKey}`);
         if (!response.ok) {
           return;
         }
@@ -422,7 +423,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     return () => {
       isMounted = false;
     };
-  }, [project.id]);
+  }, [projectKey]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
@@ -557,11 +558,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     (updates: Partial<WorkspaceSessionSignals>) => {
       setSessionSignalsState((previous) => {
         const merged = { ...previous, ...updates };
-        setSessionSignals(project.id, merged);
+        setSessionSignals(projectKey, merged);
         return merged;
       });
     },
-    [project.id, setSessionSignals]
+    [projectKey, setSessionSignals]
   );
 
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
@@ -589,7 +590,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       };
       setMessages((previous) => {
         const updated = [...previous, newMessage];
-        saveChatHistory(project.id, updated);
+        saveChatHistory(projectKey, updated);
         return updated;
       });
       setInput("");
@@ -602,7 +603,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: trimmedInput,
-          projectId: project.id,
+          projectId: projectKey,
           projectName: project.name,
         }),
       });
@@ -658,7 +659,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       );
       setMessages((previous) => {
         const updated = [...previous, assistantMessage];
-        saveChatHistory(project.id, updated);
+        saveChatHistory(projectKey, updated);
         return updated;
       });
     } catch (error) {
@@ -672,7 +673,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       };
       setMessages((previous) => {
         const updated = [...previous, assistantMessage];
-        saveChatHistory(project.id, updated);
+        saveChatHistory(projectKey, updated);
         return updated;
       });
     } finally {
@@ -694,9 +695,9 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   const handleRefresh = () => {
     setMessages([]);
-    saveChatHistory(project.id, []);
+    saveChatHistory(projectKey, []);
     setSessionSignalsState({});
-    setSessionSignals(project.id, {});
+    setSessionSignals(projectKey, {});
     setInput("");
   };
 
@@ -712,7 +713,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       metadata: `${messages.length} messages captured`,
       messages: messagesSnapshot,
     };
-    addArtefact(project.id, artefact);
+    addArtefact(projectKey, artefact);
     showToast("Chat saved to artefacts");
   };
 
@@ -721,7 +722,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       return;
     }
     setMessages(artefact.messages);
-    saveChatHistory(project.id, artefact.messages);
+    saveChatHistory(projectKey, artefact.messages);
     showToast(`Restored ${artefact.messages.length} chat message${artefact.messages.length === 1 ? "" : "s"}`);
   };
 
@@ -881,7 +882,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            projectId: project.id,
+            projectId: projectKey,
             rawAddress: trimmedAddress,
             lgaName: siteContext?.lgaName ?? sessionSignals.lga ?? null,
             lgaCode: siteContext?.lgaCode ?? null,
@@ -935,7 +936,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         id: normalizedCandidate.id,
       });
       const siteContextPayload = await setSiteFromCandidate({
-        projectId: project.id,
+        projectId: projectKey,
         candidate: normalizedCandidate,
         addressInput: manualAddressInput || normalizedCandidate.formattedAddress,
       });
@@ -1076,7 +1077,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         formData.append("files", file);
       }
 
-      const response = await fetch(`/api/projects/${project.id}/uploads`, {
+      const response = await fetch(`/api/projects/${projectKey}/uploads`, {
         method: "POST",
         body: formData,
       });
@@ -1175,10 +1176,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       setSources((previous) => [...mappedSources, ...previous]);
       for (const file of uploadQueue) {
         const snippet = await extractContextSnippet(file);
-        appendSourceContext(project.id, snippet);
+        appendSourceContext(projectKey, snippet);
         applySessionSignals({ recentSource: file.name });
       }
-      recordUpload(project.id, Math.max(payload.usage.used - uploadUsage.used, 0));
+      recordUpload(projectKey, Math.max(payload.usage.used - uploadUsage.used, 0));
       setUploadStatuses(buildStatusMap("success"));
       showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
       setUploadQueue([]);
@@ -1195,7 +1196,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   const handleToolClick = (tool: ToolCard) => {
-    const usage = recordToolUsage(project.id, tool.id);
+    const usage = recordToolUsage(projectKey, tool.id);
     if (!usage.allowed) {
       setToolContext(tool.name);
       setUpgradeModal("tools");
@@ -1204,7 +1205,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     showToast(`${tool.name} received the latest chat context`);
   };
 
-  const experienceArtefacts = getArtefacts(project.id);
+  const experienceArtefacts = getArtefacts(projectKey);
   const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
 
   const handleSaveNote = () => {
@@ -1222,7 +1223,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       noteType,
       metadata: `${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}`,
     };
-    addArtefact(project.id, noteArtefact);
+    addArtefact(projectKey, noteArtefact);
     setIsNoteEditorOpen(false);
     setNoteBody("");
     setNoteTitle("");
@@ -1764,7 +1765,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 </button>
               </div>
               <MapSnapshotsPanel
-                projectId={project.id}
+                projectId={projectKey}
                 projectName={project.name}
                 onToast={showToast}
                 onClose={() => setShowMapsPanel(false)}

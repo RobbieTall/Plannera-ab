@@ -35,6 +35,7 @@ export interface ProjectActivity {
 
 export interface Project {
   id: string;
+  publicId?: string;
   name: string;
   description: string;
   location?: string;

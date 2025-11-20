@@ -13,12 +13,19 @@ class MockPrisma {
 
   project = {
     findFirst: async ({ where }: any) => {
+      const membershipCheck = where.OR?.some((clause: any) => clause.createdById || clause.collaborators);
+
+      if (!membershipCheck) {
+        const lookupId = where.id ?? where.OR?.[0]?.publicId ?? where.OR?.[1]?.id ?? where.publicId;
+        return lookupId ? { id: lookupId, publicId: lookupId } : undefined;
+      }
+
       const members = this.projectMembers[where.id] ?? [];
-      const ownerId = where.OR?.[0]?.createdById;
-      const collaboratorId = where.OR?.[1]?.collaborators?.some?.userId;
+      const ownerId = where.OR?.find((clause: any) => clause.createdById)?.createdById;
+      const collaboratorId = where.OR?.find((clause: any) => clause.collaborators)?.collaborators?.some?.userId;
 
       if ((ownerId && members.includes(ownerId)) || (collaboratorId && members.includes(collaboratorId))) {
-        return { id: where.id };
+        return { id: where.id, publicId: where.id };
       }
 
       return undefined;
