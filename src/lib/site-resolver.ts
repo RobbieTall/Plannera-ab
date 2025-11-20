@@ -794,22 +794,20 @@ const geocodePlaceId = async (placeId: string, config: { key: string }) => {
   url.searchParams.set("place_id", placeId);
   url.searchParams.set("key", config.key);
 
-  const response = await fetch(url.toString(), { cache: "no-store" });
-  const status = response.status;
-  const bodyText = await response.text();
-  if (!response.ok) {
-    console.error("[site-resolver-error]", {
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), { cache: "no-store" });
+  } catch (error) {
+    console.warn("[site-resolver-warning]", {
       provider: "google",
-      placeId,
-      source: "geocode",
-      status,
-      message: "Failed to reach Google Geocoding API",
+      stage: "geocode",
+      code: "geocode_unavailable",
+      details: { googleStatus: "REQUEST_FAILED", googleErrorMessage: error instanceof Error ? error.message : null },
     });
-    throw new SiteSearchError("property_search_failed", "Google Geocoding request failed.", {
-      status,
-      provider: "google",
-    });
+    return null;
   }
+
+  const bodyText = await response.text();
 
   let payload: {
     status?: string;
@@ -823,40 +821,29 @@ const geocodePlaceId = async (placeId: string, config: { key: string }) => {
   try {
     payload = bodyText ? JSON.parse(bodyText) : null;
   } catch (error) {
-    console.error("[site-resolver-error]", {
+    console.warn("[site-resolver-warning]", {
       provider: "google",
-      placeId,
-      source: "geocode",
-      status,
-      message: "Invalid Google Geocoding response",
-      details: getErrorDetails(error),
+      stage: "geocode",
+      code: "geocode_unavailable",
+      details: {
+        googleStatus: response.ok ? "INVALID_RESPONSE" : "REQUEST_FAILED",
+        googleErrorMessage: error instanceof Error ? error.message : null,
+      },
     });
-    throw new SiteSearchError("property_search_failed", "Invalid Google Geocoding response.", {
-      status,
-      provider: "google",
-      details: { body: bodyText.slice(0, 500) },
-    });
-  }
-
-  const googleStatus = payload?.status ?? "UNKNOWN_ERROR";
-  if (googleStatus === "ZERO_RESULTS") {
     return null;
   }
-  if (googleStatus !== "OK") {
-    console.warn("[site-resolver-google-error]", {
-      status: googleStatus,
-      error_message: payload?.error_message,
+
+  const googleStatus = payload?.status ?? (response.ok ? "UNKNOWN_ERROR" : "REQUEST_FAILED");
+  const googleErrorMessage = payload?.error_message ?? null;
+
+  if (!response.ok || googleStatus !== "OK") {
+    console.warn("[site-resolver-warning]", {
       provider: "google",
+      stage: "geocode",
+      code: "geocode_unavailable",
+      details: { googleStatus, googleErrorMessage },
     });
-    throw new SiteSearchError(
-      "property_search_failed",
-      `Google Geocoding returned an error (${googleStatus}).`,
-      {
-        status,
-        provider: "google",
-        details: { googleStatus, googleErrorMessage: payload?.error_message ?? null },
-      },
-    );
+    return null;
   }
 
   const firstResult = payload?.results?.[0];

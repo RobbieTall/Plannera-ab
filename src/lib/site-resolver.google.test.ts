@@ -189,4 +189,47 @@ describe("site-resolver (google)", () => {
       expect(result.candidates[0]?.formattedAddress).toContain("Myola Road");
     }
   });
+
+  it("returns candidates when geocoding is denied", async () => {
+    const autocompleteResponse = {
+      suggestions: [{ placePrediction: { text: { text: "4 Jaques Avenue, Bondi NSW" }, placeId: "place-denied" } }],
+    };
+    const geocodeResponse = { status: "REQUEST_DENIED", error_message: "API key invalid" };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.includes("places:autocomplete")) {
+          return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
+        }
+        if (url.includes("geocode")) {
+          expect(init?.method).toBeUndefined();
+          return new Response(JSON.stringify(geocodeResponse), { status: 200 });
+        }
+        return new Response("not-found", { status: 404 });
+      });
+
+    const result = await resolveSiteFromText("4 jaques ave bondi");
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[site-resolver-warning]",
+      expect.objectContaining({
+        provider: "google",
+        stage: "geocode",
+        code: "geocode_unavailable",
+        details: expect.objectContaining({ googleStatus: "REQUEST_DENIED" }),
+      }),
+    );
+
+    expect(result.status).toEqual("ok");
+    if (result.status === "ok") {
+      expect(result.candidates.length).toBeGreaterThan(0);
+      expect(result.candidates[0]?.formattedAddress).toContain("Jaques Avenue");
+      expect(result.candidates[0]?.latitude).toBeNull();
+      expect(result.candidates[0]?.longitude).toBeNull();
+    }
+  });
 });
