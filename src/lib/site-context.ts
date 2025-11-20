@@ -3,6 +3,7 @@ import type { SiteContext } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import { INSTRUMENT_CONFIG } from "./legislation/config";
+import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 import {
   decideSiteFromCandidates,
   extractCandidateAddress,
@@ -45,9 +46,14 @@ export const persistSiteContextFromCandidate = async (params: {
   candidate: SiteCandidate;
 }): Promise<SiteContext> => {
   const { projectId, addressInput, candidate } = params;
+  const normalizedProjectId = normalizeProjectId(projectId);
+  const project = await findProjectByExternalId(prisma, normalizedProjectId);
+  if (!project) {
+    throw new Error("Project not found for site context");
+  }
   const normalizedAddressInput = addressInput.trim() || addressInput;
   const data = {
-    projectId,
+    projectId: project.id,
     addressInput: normalizedAddressInput,
     formattedAddress: candidate.formattedAddress,
     lgaName: candidate.lgaName ?? null,
@@ -75,9 +81,14 @@ export const persistManualSiteContext = async (params: {
   resolverStatus?: string | null;
 }): Promise<SiteContext> => {
   const { projectId, rawAddress, lgaCode, lgaName } = params;
+  const normalizedProjectId = normalizeProjectId(projectId);
+  const project = await findProjectByExternalId(prisma, normalizedProjectId);
+  if (!project) {
+    throw new Error("Project not found for site context");
+  }
   const normalizedAddress = rawAddress.trim() || rawAddress;
   const data = {
-    projectId,
+    projectId: project.id,
     addressInput: normalizedAddress,
     formattedAddress: normalizedAddress,
     lgaName: lgaName ?? null,
@@ -97,8 +108,13 @@ export const persistManualSiteContext = async (params: {
   });
 };
 
-export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> =>
-  prisma.siteContext.findUnique({ where: { projectId } });
+export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> => {
+  const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
+  if (!project) {
+    return null;
+  }
+  return prisma.siteContext.findUnique({ where: { projectId: project.id } });
+};
 
 export const serializeSiteContext = (context: SiteContext | null): SiteContextSummary | null => {
   if (!context) return null;

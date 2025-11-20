@@ -1,7 +1,8 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient, Project } from "@prisma/client";
 
 import type { SavedFile } from "@/lib/storage";
 import { getAllowedDescriptor, MAX_FILE_SIZE_BYTES, type UploadCategory } from "@/lib/upload-constraints";
+import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 
 export class UploadError extends Error {
   code: string;
@@ -58,6 +59,7 @@ export async function persistWorkspaceUploads({
   prisma,
   saveFile,
   extractPdfText,
+  project,
 }: {
   projectId: string;
   files: File[];
@@ -65,14 +67,17 @@ export async function persistWorkspaceUploads({
   prisma: UploadPrismaClient;
   saveFile: (file: File) => Promise<SavedFile>;
   extractPdfText?: (file: File) => Promise<string | null>;
+  project?: Pick<Project, "id" | "publicId">;
 }): Promise<UploadRecord[]> {
-  const normalizedProjectId = projectId.trim();
+  const normalizedProjectId = normalizeProjectId(projectId);
   if (!normalizedProjectId) {
     throw new UploadError("Project id is required", "project_id_missing", 400);
   }
 
-  const project = await prisma.project.findUnique({ where: { id: normalizedProjectId } });
-  if (!project) {
+  const resolvedProject =
+    project ?? (await findProjectByExternalId(prisma as unknown as PrismaClient, normalizedProjectId));
+
+  if (!resolvedProject) {
     throw new UploadError("No project/workspace exists with this ID.", "project_not_found", 404);
   }
 
@@ -83,7 +88,7 @@ export async function persistWorkspaceUploads({
     const saved = await saveFile(file);
 
     uploads.push({
-      project: { connect: { id: project.id } },
+      project: { connect: { id: resolvedProject.id } },
       user: userId ? { connect: { id: userId } } : undefined,
       fileName: file.name,
       fileExtension: validation.extension,
