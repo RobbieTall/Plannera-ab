@@ -10,6 +10,7 @@ export type SiteCandidate = {
   planNumber?: string | null;
   zone?: string | null;
   confidence?: number;
+  provider?: "google" | "nsw-point";
 };
 
 export type SiteContextSummary = {

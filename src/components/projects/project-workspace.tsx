@@ -249,6 +249,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [siteSearchAvailable, setSiteSearchAvailable] = useState<"loading" | "ok" | "missing_env">("loading");
   const [suggestions, setSuggestions] = useState<SiteCandidate[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(true);
   const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState<number | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState<SiteCandidate | null>(null);
   const [isSiteSearchPending, setIsSiteSearchPending] = useState(false);
@@ -256,6 +257,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const suggestionAbortRef = useRef<AbortController | null>(null);
+  const suggestionTimeoutRef = useRef<number | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -374,6 +377,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   useEffect(() => {
     if (siteSelection?.source !== "manual") {
+      if (suggestionAbortRef.current) {
+        suggestionAbortRef.current.abort();
+        suggestionAbortRef.current = null;
+      }
+      if (suggestionTimeoutRef.current) {
+        window.clearTimeout(suggestionTimeoutRef.current);
+        suggestionTimeoutRef.current = null;
+      }
       setSuggestions([]);
       setSelectedSuggestion(null);
       setHighlightedSuggestionIndex(null);
@@ -384,6 +395,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   useEffect(() => {
     if (!siteSelection || siteSelection.source !== "manual") {
+      if (suggestions.length) {
+        setSuggestions([]);
+      }
+      return;
+    }
+    if (!suggestionsEnabled) {
+      setSuggestions([]);
+      setIsSuggesting(false);
+      setHighlightedSuggestionIndex(null);
       return;
     }
     if (siteSearchAvailable !== "ok") {
@@ -408,6 +428,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setIsSuggesting(true);
     setSiteSelectionError(null);
     const controller = new AbortController();
+    suggestionAbortRef.current = controller;
     const timer = window.setTimeout(async () => {
       try {
         const response = await fetch("/api/site-context/suggest", {
@@ -442,13 +463,33 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         if (!controller.signal.aborted) {
           setIsSuggesting(false);
         }
+        if (suggestionAbortRef.current === controller) {
+          suggestionAbortRef.current = null;
+        }
+        if (suggestionTimeoutRef.current === timer) {
+          suggestionTimeoutRef.current = null;
+        }
       }
     }, 350);
+    suggestionTimeoutRef.current = timer;
     return () => {
       controller.abort();
+      if (suggestionAbortRef.current === controller) {
+        suggestionAbortRef.current = null;
+      }
       window.clearTimeout(timer);
+      if (suggestionTimeoutRef.current === timer) {
+        suggestionTimeoutRef.current = null;
+      }
     };
-  }, [selectedSuggestion, siteSearchQuery, siteSelection, siteSearchAvailable]);
+  }, [
+    selectedSuggestion,
+    siteSearchQuery,
+    siteSelection,
+    siteSearchAvailable,
+    suggestionsEnabled,
+    suggestions.length,
+  ]);
 
   const applySessionSignals = useCallback(
     (updates: Partial<WorkspaceSessionSignals>) => {
@@ -630,6 +671,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(true);
   };
 
   const closeSiteSelection = () => {
@@ -640,7 +682,23 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSuggestions([]);
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(true);
   };
+
+  const dismissSuggestionOverlay = useCallback(() => {
+    if (suggestionAbortRef.current) {
+      suggestionAbortRef.current.abort();
+      suggestionAbortRef.current = null;
+    }
+    if (suggestionTimeoutRef.current) {
+      window.clearTimeout(suggestionTimeoutRef.current);
+      suggestionTimeoutRef.current = null;
+    }
+    setIsSuggesting(false);
+    setSuggestions([]);
+    setHighlightedSuggestionIndex(null);
+    setSuggestionsEnabled(false);
+  }, []);
 
   const applySuggestionSelection = (candidate: SiteCandidate) => {
     setSelectedSuggestion(candidate);
@@ -648,14 +706,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setSiteSelectionCandidateId(candidate.id);
     setSiteSelectionError(null);
     setSiteSearchQuery(candidate.formattedAddress);
-    setSuggestions([]);
-    setHighlightedSuggestionIndex(null);
+    dismissSuggestionOverlay();
   };
 
   const handleSiteSearch = async () => {
     if (!siteSelection || siteSelection.source !== "manual") {
       return;
     }
+    dismissSuggestionOverlay();
     const trimmedQuery = siteSearchQuery.trim();
     if (!trimmedQuery) {
       setSiteSelectionError("Enter an NSW address or suburb to search.");
@@ -1159,6 +1217,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                           setSelectedSuggestion(null);
                           setSiteSelectionCandidateId(null);
                           setHighlightedSuggestionIndex(null);
+                          setSuggestionsEnabled(true);
                         }}
                         onKeyDown={handleSuggestionKeyDown}
                         placeholder="e.g. 6 Myola Road Newport NSW"

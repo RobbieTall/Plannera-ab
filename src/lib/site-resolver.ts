@@ -429,6 +429,7 @@ const toSiteCandidateFromRecord = (record: RawPropertyRecord): SiteCandidate | n
     zone,
     latitude,
     longitude,
+    provider: "nsw-point",
   };
 };
 
@@ -913,6 +914,7 @@ const resolveSiteWithGoogle = async (
       lgaName: geocoded?.lgaName ?? null,
       latitude: geocoded?.latitude ?? null,
       longitude: geocoded?.longitude ?? null,
+      provider: "google",
     };
     const confidenceScore = scoreCandidate(normalizedQuery, candidate) || 1;
     resolvedCandidates.push({ ...candidate, confidence: confidenceScore });

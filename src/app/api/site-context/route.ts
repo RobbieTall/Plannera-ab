@@ -7,22 +7,9 @@ import {
   persistSiteContextFromCandidate,
   serializeSiteContext,
 } from "@/lib/site-context";
+import { candidateSchema } from "./schema";
 
 const getSchema = z.object({ projectId: z.string() });
-
-const candidateSchema = z.object({
-  id: z.string(),
-  formattedAddress: z.string(),
-  lgaName: z.string().nullable(),
-  lgaCode: z.string().nullable().optional(),
-  parcelId: z.string().nullable().optional(),
-  lot: z.string().nullable().optional(),
-  planNumber: z.string().nullable().optional(),
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
-  zone: z.string().nullable().optional(),
-  confidence: z.number().optional(),
-});
 
 const updateSchema = z.object({
   projectId: z.string(),
@@ -54,25 +41,41 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let payload: unknown;
   try {
-    const body = await request.json();
-    if ("rawAddress" in body && !("candidate" in body)) {
-      const { projectId, rawAddress, lgaCode, lgaName } = manualSchema.parse(body);
+    payload = await request.json();
+    const requestData = payload as Record<string, unknown>;
+    if ("rawAddress" in requestData && !("candidate" in requestData)) {
+      const { projectId, rawAddress, lgaCode, lgaName } = manualSchema.parse(requestData);
       const siteContext = await persistManualSiteContext({
         projectId,
         rawAddress,
         lgaCode,
         lgaName,
-        resolverStatus: body?.resolverStatus ?? null,
+        resolverStatus: (requestData.resolverStatus as string | null | undefined) ?? null,
       });
       return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
     }
 
-    const { projectId, candidate, addressInput } = updateSchema.parse(body);
+    const { projectId, candidate, addressInput } = updateSchema.parse(requestData);
     const siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
   } catch (error) {
-    console.error("[site-context-update]", error);
+    console.error("[site-context-update]", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      payloadSummary: (() => {
+        const payloadObject =
+          payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+        const candidate = payloadObject.candidate as { provider?: string } | undefined;
+        const addressInput = payloadObject.addressInput as string | undefined;
+        return {
+          projectId: typeof payloadObject.projectId === "string" ? payloadObject.projectId : null,
+          hasCandidate: Boolean(candidate),
+          candidateProvider: candidate?.provider ?? null,
+          addressLength: typeof addressInput === "string" ? addressInput.length : null,
+        };
+      })(),
+    });
     return NextResponse.json(buildErrorPayload("Unable to save the selected site."), { status: 400 });
   }
 }
