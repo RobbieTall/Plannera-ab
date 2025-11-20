@@ -185,6 +185,7 @@ export async function handleUploadPost(
   const resolvedDeps: UploadHandlerDeps = { ...defaultDeps, ...deps } as UploadHandlerDeps;
   const storageStatus = resolvedDeps.getStorageStatus();
   const storageMode = resolvedDeps.storageMode ?? storageStatus.provider;
+  const normalizedProjectId = params.projectId?.trim();
 
   const respondWithError = (
     stage: UploadStage,
@@ -194,7 +195,7 @@ export async function handleUploadPost(
     meta: Record<string, unknown> = {},
     error?: unknown,
   ) => {
-    logStructuredUploadError(stage, params.projectId, storageMode, error ?? message, meta);
+    logStructuredUploadError(stage, normalizedProjectId ?? params.projectId, storageMode, error ?? message, meta);
     return NextResponse.json<StructuredErrorResponse>(
       { ok: false, errorCode, error: errorCode, message },
       { status },
@@ -202,7 +203,9 @@ export async function handleUploadPost(
   };
 
   try {
-    if (!params.projectId) {
+    const projectId = normalizedProjectId;
+
+    if (!projectId) {
       return respondWithError("validation", "project_id_missing", 400, "A project id is required to upload files.");
     }
 
@@ -254,9 +257,9 @@ export async function handleUploadPost(
 
     const usageFilter =
       tier === "guest" || !userId
-        ? { projectId: params.projectId }
+        ? { projectId }
         : // Free and Pro plans are counted per workspace to match the existing Sources panel UI.
-          { projectId: params.projectId, userId };
+          { projectId, userId };
 
     let existingUploads = 0;
     try {
@@ -277,7 +280,7 @@ export async function handleUploadPost(
 
     try {
       const created = await resolvedDeps.persistUploads({
-        projectId: params.projectId,
+        projectId,
         files,
         userId,
         prisma: resolvedDeps.prisma,
