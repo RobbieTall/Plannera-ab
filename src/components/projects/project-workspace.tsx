@@ -1043,8 +1043,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               <Plus className="h-4 w-4" />
               Add
             </button>
-            <div className="ml-auto flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-              <ListFilter className="h-4 w-4" aria-hidden />
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+              <ListFilter className="h-3.5 w-3.5" aria-hidden />
               <label htmlFor="source-filter" className="sr-only">
                 Filter sources
               </label>
@@ -1052,7 +1052,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 id="source-filter"
                 value={sourceFilter}
                 onChange={(event) => setSourceFilter(event.target.value as WorkspaceSourceType | "all")}
-                className="bg-transparent text-xs font-semibold focus:outline-none"
+                className="bg-transparent pr-1 text-xs font-semibold focus:outline-none"
               >
                 <option value="all">Show all</option>
                 {Object.entries(sourceTypeLabels).map(([type, label]) => (

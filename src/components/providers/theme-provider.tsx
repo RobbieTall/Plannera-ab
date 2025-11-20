@@ -34,10 +34,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = prefersDark ? "dark" : "light";
-    setThemeState(initialTheme);
-    applyThemeClass(initialTheme);
+    setThemeState("light");
+    applyThemeClass("light");
   }, [applyThemeClass]);
 
   const setTheme = useCallback(
