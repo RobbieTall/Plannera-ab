@@ -78,6 +78,7 @@ describe("site-resolver (google)", () => {
       expect(result.candidates[0]?.formattedAddress).toContain("Myola Road");
       expect(result.candidates[0]?.latitude).toBeCloseTo(-33.654);
       expect(result.candidates[0]?.longitude).toBeCloseTo(151.313);
+      expect(result.candidates[0]?.provider).toEqual("google");
       expect((result.candidates[0]?.confidence ?? 0) > 0.5).toBe(true);
     }
   });

@@ -45,11 +45,12 @@ export const persistSiteContextFromCandidate = async (params: {
   candidate: SiteCandidate;
 }): Promise<SiteContext> => {
   const { projectId, addressInput, candidate } = params;
+  const normalizedAddressInput = addressInput.trim() || addressInput;
   const data = {
     projectId,
-    addressInput,
+    addressInput: normalizedAddressInput,
     formattedAddress: candidate.formattedAddress,
-    lgaName: candidate.lgaName,
+    lgaName: candidate.lgaName ?? null,
     lgaCode: candidate.lgaCode ?? null,
     parcelId: candidate.parcelId ?? null,
     lot: candidate.lot ?? null,

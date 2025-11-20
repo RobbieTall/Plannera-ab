@@ -256,6 +256,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const suggestionAbortRef = useRef<AbortController | null>(null);
+  const suggestionTimeoutRef = useRef<number | null>(null);
 
   const uploadUsage = getUploadUsage(project.id);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -374,6 +376,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   useEffect(() => {
     if (siteSelection?.source !== "manual") {
+      if (suggestionAbortRef.current) {
+        suggestionAbortRef.current.abort();
+        suggestionAbortRef.current = null;
+      }
+      if (suggestionTimeoutRef.current) {
+        window.clearTimeout(suggestionTimeoutRef.current);
+        suggestionTimeoutRef.current = null;
+      }
       setSuggestions([]);
       setSelectedSuggestion(null);
       setHighlightedSuggestionIndex(null);
@@ -408,6 +418,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setIsSuggesting(true);
     setSiteSelectionError(null);
     const controller = new AbortController();
+    suggestionAbortRef.current = controller;
     const timer = window.setTimeout(async () => {
       try {
         const response = await fetch("/api/site-context/suggest", {
@@ -442,11 +453,24 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         if (!controller.signal.aborted) {
           setIsSuggesting(false);
         }
+        if (suggestionAbortRef.current === controller) {
+          suggestionAbortRef.current = null;
+        }
+        if (suggestionTimeoutRef.current === timer) {
+          suggestionTimeoutRef.current = null;
+        }
       }
     }, 350);
+    suggestionTimeoutRef.current = timer;
     return () => {
       controller.abort();
+      if (suggestionAbortRef.current === controller) {
+        suggestionAbortRef.current = null;
+      }
       window.clearTimeout(timer);
+      if (suggestionTimeoutRef.current === timer) {
+        suggestionTimeoutRef.current = null;
+      }
     };
   }, [selectedSuggestion, siteSearchQuery, siteSelection, siteSearchAvailable]);
 
@@ -642,20 +666,34 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setHighlightedSuggestionIndex(null);
   };
 
+  const dismissSuggestionOverlay = useCallback(() => {
+    if (suggestionAbortRef.current) {
+      suggestionAbortRef.current.abort();
+      suggestionAbortRef.current = null;
+    }
+    if (suggestionTimeoutRef.current) {
+      window.clearTimeout(suggestionTimeoutRef.current);
+      suggestionTimeoutRef.current = null;
+    }
+    setIsSuggesting(false);
+    setSuggestions([]);
+    setHighlightedSuggestionIndex(null);
+  }, []);
+
   const applySuggestionSelection = (candidate: SiteCandidate) => {
     setSelectedSuggestion(candidate);
     setSiteSelection({ source: "manual", addressInput: candidate.formattedAddress, candidates: [candidate] });
     setSiteSelectionCandidateId(candidate.id);
     setSiteSelectionError(null);
     setSiteSearchQuery(candidate.formattedAddress);
-    setSuggestions([]);
-    setHighlightedSuggestionIndex(null);
+    dismissSuggestionOverlay();
   };
 
   const handleSiteSearch = async () => {
     if (!siteSelection || siteSelection.source !== "manual") {
       return;
     }
+    dismissSuggestionOverlay();
     const trimmedQuery = siteSearchQuery.trim();
     if (!trimmedQuery) {
       setSiteSelectionError("Enter an NSW address or suburb to search.");

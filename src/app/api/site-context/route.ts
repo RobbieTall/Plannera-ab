@@ -7,22 +7,9 @@ import {
   persistSiteContextFromCandidate,
   serializeSiteContext,
 } from "@/lib/site-context";
+import { candidateSchema } from "./schema";
 
 const getSchema = z.object({ projectId: z.string() });
-
-const candidateSchema = z.object({
-  id: z.string(),
-  formattedAddress: z.string(),
-  lgaName: z.string().nullable(),
-  lgaCode: z.string().nullable().optional(),
-  parcelId: z.string().nullable().optional(),
-  lot: z.string().nullable().optional(),
-  planNumber: z.string().nullable().optional(),
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
-  zone: z.string().nullable().optional(),
-  confidence: z.number().optional(),
-});
 
 const updateSchema = z.object({
   projectId: z.string(),

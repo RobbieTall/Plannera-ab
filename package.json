@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "tsx --test tests/map-snapshot.test.ts",
     "test:site-resolver": "vitest run src/lib/site-resolver.test.ts",
-    "test:site-resolver:google": "vitest run src/lib/site-resolver.google.test.ts",
+    "test:site-resolver:google": "vitest run src/lib/site-resolver.google.test.ts src/app/api/site-context/site-context.test.ts",
     "fetch:nsw-xml": "tsx scripts/fetch-nsw-xml.ts",
     "ingest:legislation": "tsx scripts/legislation-ingest.ts",
     "ingest:all-nsw": "tsx scripts/ingest-all-nsw.ts",
