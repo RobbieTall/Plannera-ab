@@ -1081,50 +1081,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorPayload = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          tier?: UserTier;
-          message?: string;
-        };
-        if (errorPayload?.error === "upload_limit_reached") {
-          setServerLimitReached(true);
-          setUpgradeModal("documents");
-          setShowUploadModal(false);
-          setUploadQueue([]);
-          setUploadStatuses(buildStatusMap("error", "Upload limit reached"));
-          return;
-        }
-        if (errorPayload?.error === "storage_not_configured") {
-          const message = "Document storage is not configured for this environment.";
-          setUploadStatuses(buildStatusMap("error", message));
-          setUploadError(message);
-          return;
-        }
-        if (errorPayload?.error === "storage_upload_failed") {
-          const message = "We couldn’t save that file right now. Please try again or contact support.";
-          setUploadStatuses(buildStatusMap("error", message));
-          setUploadError(message);
-          return;
-        }
-        if (errorPayload?.error === "invalid_file") {
-          setUploadError("Please choose at least one file to upload.");
-          return;
-        }
-        const message =
-          errorPayload?.message ||
-          (errorPayload?.error === "unsupported_file_type"
-            ? "One or more files are not supported."
-            : errorPayload?.error === "file_too_large"
-              ? "One or more files exceed the upload limit."
-              : "Unable to upload documents right now.");
-        setUploadStatuses(buildStatusMap("error", message));
-        setUploadError(message);
-        return;
-      }
-
-      const payload = (await response.json()) as {
-        uploads: Array<{
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        errorCode?: string;
+        message?: string;
+        tier?: UserTier;
+        limit?: number;
+        uploads?: Array<{
           id: string;
           fileName: string;
           fileExtension?: string | null;
@@ -1133,8 +1097,69 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           publicUrl: string;
           createdAt: string;
         }>;
-        usage: { used: number; limit: number };
+        usage?: { used: number; limit: number };
       };
+
+      if (!response.ok || payload?.ok === false) {
+        const errorCode = payload.errorCode ?? payload.error;
+        const messageFromServer = payload.message;
+
+        if (errorCode === "upload_limit_reached") {
+          setServerLimitReached(true);
+          setUpgradeModal("documents");
+          setShowUploadModal(false);
+          setUploadQueue([]);
+          setUploadStatuses(buildStatusMap("error", "Upload limit reached"));
+          return;
+        }
+
+        if (errorCode === "storage_config_missing") {
+          const message =
+            messageFromServer || "Document storage is not configured for this environment.";
+          setUploadStatuses(buildStatusMap("error", message));
+          setUploadError(message);
+          return;
+        }
+
+        if (errorCode === "storage_upload_failed") {
+          const message =
+            messageFromServer || "We couldn’t save that file right now. Please try again or contact support.";
+          setUploadStatuses(buildStatusMap("error", message));
+          setUploadError(message);
+          return;
+        }
+
+        if (errorCode === "invalid_file") {
+          const message = messageFromServer || "Please choose at least one file to upload.";
+          setUploadError(message);
+          setUploadStatuses(buildStatusMap("error", message));
+          return;
+        }
+
+        const message =
+          messageFromServer ||
+          (errorCode === "unsupported_file_type"
+            ? "Only PDF, DOCX, XLSX, CSV, TXT, MD, PNG, JPG, JPEG, ZIP are allowed."
+            : errorCode === "file_too_large"
+              ? "One or more files exceed the upload limit."
+              : errorCode === "project_not_found" || errorCode === "project_id_missing"
+                ? "Project could not be found."
+                : errorCode === "db_write_failed" || errorCode === "db_read_failed"
+                  ? "We couldn’t save that file right now. Please try again or contact support."
+                  : "Unable to upload documents right now.");
+
+        setUploadStatuses(buildStatusMap("error", message));
+        setUploadError(message);
+        return;
+      }
+
+      if (!payload?.usage || !payload.uploads) {
+        const message = "Unable to upload documents right now.";
+        setUploadStatuses(buildStatusMap("error", message));
+        setUploadError(message);
+        return;
+      }
+
       setServerLimitReached(payload.usage.limit > 0 && payload.usage.used >= payload.usage.limit);
       const mappedSources: WorkspaceSource[] = (payload.uploads ?? []).map((upload) => ({
         id: upload.id,
