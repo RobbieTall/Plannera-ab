@@ -278,4 +278,44 @@ describe("site-context api validation", () => {
     });
     expect(payload.siteContext).toMatchObject({ formattedAddress: candidate.address });
   });
+
+  it("persists Google candidates with null coordinates", async () => {
+    const candidate = {
+      provider: "google" as const,
+      formattedAddress: "4 Jaques Avenue, Bondi Beach NSW, Australia",
+      placeId: "PLACE_NULL_COORDS",
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-google-null-coords",
+      projectId: "proj-google-null-coords",
+      formattedAddress: candidate.formattedAddress,
+      latitude: null,
+      longitude: null,
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    const parsedCandidate = candidateSchema.parse(candidate);
+    const result = await persistSiteContextFromCandidate({
+      projectId: "proj-google-null-coords",
+      addressInput: candidate.formattedAddress,
+      candidate: parsedCandidate,
+    });
+
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "proj-google-null-coords" },
+      update: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: null,
+        longitude: null,
+      }),
+      create: expect.objectContaining({
+        formattedAddress: candidate.formattedAddress,
+        latitude: null,
+        longitude: null,
+      }),
+    });
+    expect(result).toEqual(mockSite);
+  });
 });
