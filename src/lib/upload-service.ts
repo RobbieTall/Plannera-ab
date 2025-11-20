@@ -49,6 +49,29 @@ export const validateFileForUpload = (
   return { extension, category: descriptor.category, mimeType };
 };
 
+type WorkspaceModel = { findUnique: (args: { where: { id: string } }) => Promise<unknown> };
+
+type UploadPrismaClient = Pick<PrismaClient, "project" | "workspaceUpload"> & { workspace?: WorkspaceModel };
+
+const findWorkspaceParent = async (projectId: string, prisma: UploadPrismaClient): Promise<unknown> => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    throw new UploadError("Project id is required", "project_id_missing", 400);
+  }
+
+  const project = await prisma.project.findUnique({ where: { id: normalizedProjectId } });
+  if (project) {
+    return project;
+  }
+
+  const workspaceClient = (prisma as UploadPrismaClient).workspace;
+  if (workspaceClient) {
+    return workspaceClient.findUnique({ where: { id: normalizedProjectId } });
+  }
+
+  return null;
+};
+
 export async function persistWorkspaceUploads({
   projectId,
   files,
@@ -60,17 +83,18 @@ export async function persistWorkspaceUploads({
   projectId: string;
   files: File[];
   userId?: string;
-  prisma: Pick<PrismaClient, "project" | "workspaceUpload">;
+  prisma: UploadPrismaClient;
   saveFile: (file: File) => Promise<SavedFile>;
   extractPdfText?: (file: File) => Promise<string | null>;
 }): Promise<UploadRecord[]> {
-  if (!projectId) {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
     throw new UploadError("Project id is required", "project_id_missing", 400);
   }
 
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project) {
-    throw new UploadError("Project not found", "project_not_found", 404);
+  const parent = await findWorkspaceParent(normalizedProjectId, prisma);
+  if (!parent) {
+    throw new UploadError("No project/workspace exists with this ID.", "project_not_found", 404);
   }
 
   const uploads: Prisma.WorkspaceUploadCreateInput[] = [];
@@ -80,7 +104,7 @@ export async function persistWorkspaceUploads({
     const saved = await saveFile(file);
 
     uploads.push({
-      projectId,
+      projectId: normalizedProjectId,
       user: userId ? { connect: { id: userId } } : undefined,
       fileName: file.name,
       fileExtension: validation.extension,
