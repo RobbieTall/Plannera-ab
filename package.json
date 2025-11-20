@@ -7,7 +7,7 @@
     "build": "node ./scripts/prisma-generate.js && next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test tests/map-snapshot.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "test:site-resolver": "vitest run --config vitest.config.ts src/lib/site-resolver.test.ts",
     "test:site-resolver:google": "vitest run --config vitest.config.ts src/lib/site-resolver.google.test.ts src/app/api/site-context/site-context.test.ts",
     "fetch:nsw-xml": "tsx scripts/fetch-nsw-xml.ts",

@@ -55,6 +55,7 @@ import type {
   WorkspaceSourceType,
 } from "@/types/workspace";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
+import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -123,6 +124,8 @@ const tools: ToolCard[] = [
 ];
 
 const noteCategories: WorkspaceNoteCategory[] = ["Note", "Meeting minutes", "Observation", "Idea"];
+
+const ACCEPTED_EXTENSION_SET = new Set(ACCEPTED_EXTENSIONS.map((ext) => ext.replace(".", "")));
 
 const sourceTypeLabels: Record<WorkspaceSourceType, string> = {
   email: "Email",
@@ -222,9 +225,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     state,
   } = useExperience();
 
-  const initialSources = useMemo<WorkspaceSource[]>(() => [], []);
-
-  const [sources, setSources] = useState<WorkspaceSource[]>(initialSources);
+  const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
   const [input, setInput] = useState("");
@@ -232,6 +233,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  const [uploadStatuses, setUploadStatuses] = useState<
+    Record<string, { status: "pending" | "uploading" | "success" | "error"; message?: string }>
+  >({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [serverLimitReached, setServerLimitReached] = useState(false);
   const [showMapsPanel, setShowMapsPanel] = useState(false);
@@ -314,10 +319,6 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   }, []);
 
   useEffect(() => {
-    setSources(initialSources);
-  }, [initialSources]);
-
-  useEffect(() => {
     setSessionSignalsState(getSessionSignals(project.id));
   }, [getSessionSignals, project.id]);
 
@@ -336,6 +337,60 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       setMessages([]);
     }
   }, [getChatHistory, project.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUploads = async () => {
+      try {
+        const response = await fetch(`/api/projects/${project.id}/uploads`);
+        if (!response.ok) {
+          return;
+        }
+        const data: {
+          uploads?: Array<{
+            id: string;
+            fileName: string;
+            fileExtension?: string | null;
+            mimeType?: string | null;
+            fileSize: number;
+            publicUrl: string;
+            createdAt: string;
+          }>;
+          usage?: { used?: number };
+        } = await response.json();
+
+        if (cancelled) return;
+
+        const mappedSources: WorkspaceSource[] = (data.uploads ?? []).map((upload) => ({
+          id: upload.id,
+          name: upload.fileName,
+          detail: upload.mimeType ?? upload.fileExtension ?? "File",
+          type: determineSourceType(upload.fileName),
+          uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
+          sizeLabel: formatFileSize(upload.fileSize),
+          status: "Synced",
+          url: upload.publicUrl,
+          fileExtension: upload.fileExtension ?? null,
+        }));
+
+        setSources(mappedSources);
+
+        if (typeof data.usage?.used === "number") {
+          const delta = Math.max(data.usage.used - uploadUsage.used, 0);
+          if (delta > 0) {
+            recordUpload(project.id, delta);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load project uploads", error);
+      }
+    };
+
+    void loadUploads();
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, recordUpload, uploadUsage.used]);
 
   useEffect(() => {
     void fetchSiteSearchAvailability();
@@ -946,9 +1001,65 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files?.length) {
       setUploadQueue([]);
+      setUploadStatuses({});
       return;
     }
-    setUploadQueue(Array.from(event.target.files));
+    setUploadError(null);
+    const files = Array.from(event.target.files);
+    const acceptedFiles = files.filter((file) => {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      return ext ? ACCEPTED_EXTENSION_SET.has(ext) : false;
+    });
+    if (!acceptedFiles.length) {
+      setUploadQueue([]);
+      setUploadStatuses({});
+      setUploadError("Unsupported file type. Please choose a PDF, document, spreadsheet, text, image, or ZIP file.");
+      return;
+    }
+    if (acceptedFiles.length < files.length) {
+      setUploadError("Some files were skipped because they are not supported.");
+    }
+    setUploadQueue(acceptedFiles);
+    const statusMap: Record<string, { status: "pending" }> = {};
+    acceptedFiles.forEach((file) => {
+      statusMap[file.name] = { status: "pending" };
+    });
+    setUploadStatuses(statusMap);
+  };
+
+  const handleFileDrop = (files: File[]) => {
+    if (!files.length) return;
+    setUploadError(null);
+    const acceptedFiles = files.filter((file) => {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      return ext ? ACCEPTED_EXTENSION_SET.has(ext) : false;
+    });
+    if (!acceptedFiles.length) {
+      setUploadQueue([]);
+      setUploadStatuses({});
+      setUploadError("Unsupported file type. Please choose a PDF, document, spreadsheet, text, image, or ZIP file.");
+      return;
+    }
+    if (acceptedFiles.length < files.length) {
+      setUploadError("Some files were skipped because they are not supported.");
+    }
+    setUploadQueue(acceptedFiles);
+    const statusMap: Record<string, { status: "pending" }> = {};
+    acceptedFiles.forEach((file) => {
+      statusMap[file.name] = { status: "pending" };
+    });
+    setUploadStatuses(statusMap);
+  };
+
+  const buildStatusMap = (
+    status: "pending" | "uploading" | "success" | "error",
+    message?: string,
+  ): Record<string, { status: "pending" | "uploading" | "success" | "error"; message?: string }> => {
+    const statusMap: Record<string, { status: "pending" | "uploading" | "success" | "error"; message?: string }> = {};
+    uploadQueue.forEach((file) => {
+      statusMap[file.name] = message ? { status, message } : { status };
+    });
+    return statusMap;
   };
 
   const handleUploadConfirm = async () => {
@@ -957,27 +1068,9 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       return;
     }
     setIsUploading(true);
+    setUploadError(null);
+    setUploadStatuses(buildStatusMap("uploading"));
     try {
-      const indexFilesLocally = async () => {
-        const newSources: WorkspaceSource[] = [];
-        for (const file of uploadQueue) {
-          const type = determineSourceType(file.name);
-          newSources.unshift({
-            id: `upload-${Date.now()}-${file.name}`,
-            name: file.name,
-            detail: `${file.type || "File"}`,
-            type,
-            uploadedAt: new Date().toLocaleDateString(),
-            sizeLabel: formatFileSize(file.size),
-            status: "Synced",
-          });
-          const snippet = await extractContextSnippet(file);
-          appendSourceContext(project.id, snippet);
-          applySessionSignals({ recentSource: file.name });
-        }
-        setSources((previous) => [...newSources, ...previous]);
-      };
-
       const formData = new FormData();
       for (const file of uploadQueue) {
         formData.append("files", file);
@@ -992,45 +1085,85 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         const errorPayload = (await response.json().catch(() => ({}))) as {
           error?: string;
           tier?: UserTier;
+          message?: string;
         };
         if (errorPayload?.error === "upload_limit_reached") {
           setServerLimitReached(true);
           setUpgradeModal("documents");
           setShowUploadModal(false);
           setUploadQueue([]);
+          setUploadStatuses(buildStatusMap("error", "Upload limit reached"));
           return;
         }
         if (errorPayload?.error === "storage_not_configured") {
-          showToast("Document storage is not configured for this environment. Please contact support.", "error");
-          setShowUploadModal(false);
-          setUploadQueue([]);
+          const message = "Document storage is not configured for this environment.";
+          setUploadStatuses(buildStatusMap("error", message));
+          setUploadError(message);
           return;
         }
         if (errorPayload?.error === "storage_upload_failed") {
-          showToast("We couldn’t save that file right now. Please try again or contact support.", "error");
-          setShowUploadModal(false);
-          setUploadQueue([]);
+          const message = "We couldn’t save that file right now. Please try again or contact support.";
+          setUploadStatuses(buildStatusMap("error", message));
+          setUploadError(message);
           return;
         }
         if (errorPayload?.error === "invalid_file") {
-          showToast("Please choose at least one file to upload.", "error");
+          setUploadError("Please choose at least one file to upload.");
           return;
         }
-        throw new Error(errorPayload?.error ?? "upload_failed");
+        const message =
+          errorPayload?.message ||
+          (errorPayload?.error === "unsupported_file_type"
+            ? "One or more files are not supported."
+            : errorPayload?.error === "file_too_large"
+              ? "One or more files exceed the upload limit."
+              : "Unable to upload documents right now.");
+        setUploadStatuses(buildStatusMap("error", message));
+        setUploadError(message);
+        return;
       }
 
       const payload = (await response.json()) as {
+        uploads: Array<{
+          id: string;
+          fileName: string;
+          fileExtension?: string | null;
+          mimeType?: string | null;
+          fileSize: number;
+          publicUrl: string;
+          createdAt: string;
+        }>;
         usage: { used: number; limit: number };
       };
       setServerLimitReached(payload.usage.limit > 0 && payload.usage.used >= payload.usage.limit);
-      await indexFilesLocally();
-      recordUpload(project.id, uploadQueue.length);
+      const mappedSources: WorkspaceSource[] = (payload.uploads ?? []).map((upload) => ({
+        id: upload.id,
+        name: upload.fileName,
+        detail: upload.mimeType ?? upload.fileExtension ?? "File",
+        type: determineSourceType(upload.fileName),
+        uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
+        sizeLabel: formatFileSize(upload.fileSize),
+        status: "Synced",
+        url: upload.publicUrl,
+        fileExtension: upload.fileExtension ?? null,
+      }));
+      setSources((previous) => [...mappedSources, ...previous]);
+      for (const file of uploadQueue) {
+        const snippet = await extractContextSnippet(file);
+        appendSourceContext(project.id, snippet);
+        applySessionSignals({ recentSource: file.name });
+      }
+      recordUpload(project.id, Math.max(payload.usage.used - uploadUsage.used, 0));
+      setUploadStatuses(buildStatusMap("success"));
       showToast(`Uploaded ${uploadQueue.length} document${uploadQueue.length === 1 ? "" : "s"}`);
       setUploadQueue([]);
       setShowUploadModal(false);
     } catch (error) {
       console.error("Workspace upload error", error);
-      showToast("Unable to upload documents right now", "error");
+      const message = "Unable to upload documents right now.";
+      setUploadError(message);
+      setUploadStatuses(buildStatusMap("error", message));
+      showToast(message, "error");
     } finally {
       setIsUploading(false);
     }
@@ -1170,19 +1303,54 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               const Icon = sourceIcons[source.type] ?? FileText;
               return (
                 <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-slate-900">{source.name}</p>
-                      <p className="text-xs text-slate-500">{source.detail}</p>
-                      <p className="text-[11px] text-slate-400">{source.uploadedAt} · {source.sizeLabel}</p>
+                  {source.url ? (
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-start gap-3 no-underline hover:text-slate-900"
+                    >
+                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-900">{source.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {source.detail}
+                          {source.fileExtension ? (
+                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600">
+                              {source.fileExtension}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-[11px] text-slate-400">{source.uploadedAt} · {source.sizeLabel}</p>
+                      </div>
+                      {source.status ? (
+                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600">{source.status}</span>
+                      ) : null}
+                    </a>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-900">{source.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {source.detail}
+                          {source.fileExtension ? (
+                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600">
+                              {source.fileExtension}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-[11px] text-slate-400">{source.uploadedAt} · {source.sizeLabel}</p>
+                      </div>
+                      {source.status ? (
+                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600">{source.status}</span>
+                      ) : null}
                     </div>
-                    {source.status ? (
-                      <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600">{source.status}</span>
-                    ) : null}
-                  </div>
+                  )}
                 </li>
               );
             })}
@@ -1586,6 +1754,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         onClose={() => {
           setShowUploadModal(false);
           setUploadQueue([]);
+          setUploadStatuses({});
+          setUploadError(null);
         }}
         title="Upload project sources"
         description="Sync PDFs, GIS files, and council emails to keep the assistant grounded in your evidence."
@@ -1593,29 +1763,54 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         <label
           htmlFor="source-upload"
           className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500"
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const droppedFiles = Array.from(event.dataTransfer?.files ?? []);
+            handleFileDrop(droppedFiles);
+          }}
         >
           <Upload className="mb-2 h-6 w-6 text-slate-400" />
           Drag & drop or click to browse
-          <span className="mt-2 text-xs text-slate-400">PDF, Word, Excel, JPEG/PNG, EML/MSG, SHP/KML/GeoJSON</span>
+          <span className="mt-2 text-xs text-slate-400">PDF, Word, Excel/CSV, TXT/MD, JPEG/PNG, ZIP</span>
           <input
             id="source-upload"
             type="file"
             className="hidden"
             multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.eml,.msg,.shp,.kml,.geojson,.txt"
+            accept={ACCEPTED_EXTENSIONS.join(",")}
             onChange={handleFileSelection}
           />
         </label>
         {uploadQueue.length ? (
           <ul className="mt-4 space-y-2 rounded-2xl border border-slate-100 p-3 text-sm text-slate-600">
             {uploadQueue.map((file) => (
-              <li key={file.name} className="flex items-center justify-between">
-                <span>{file.name}</span>
-                <span className="text-xs text-slate-400">{formatFileSize(file.size)}</span>
+              <li key={file.name} className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-800">{file.name}</p>
+                  <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                  {uploadStatuses[file.name]?.message ? (
+                    <p className="text-xs font-medium text-rose-600">{uploadStatuses[file.name]?.message}</p>
+                  ) : null}
+                </div>
+                <span className="text-xs text-slate-500">
+                  {uploadStatuses[file.name]?.status === "uploading"
+                    ? "Uploading…"
+                    : uploadStatuses[file.name]?.status === "success"
+                      ? "Uploaded"
+                      : uploadStatuses[file.name]?.status === "error"
+                        ? "Error"
+                        : "Queued"}
+                </span>
               </li>
             ))}
           </ul>
         ) : null}
+        {uploadError ? <p className="mt-2 text-xs font-semibold text-rose-600">{uploadError}</p> : null}
         <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <button
             type="button"
@@ -1715,7 +1910,9 @@ function determineSourceType(filename: string): WorkspaceSourceType {
   if (["pdf"].includes(extension)) return "pdf";
   if (["xls", "xlsx", "csv"].includes(extension)) return "spreadsheet";
   if (["doc", "docx", "rtf"].includes(extension)) return "word";
+  if (["txt", "md"].includes(extension)) return "document";
   if (["jpg", "jpeg", "png"].includes(extension)) return "image";
+  if (["zip"].includes(extension)) return "other";
   if (["shp", "kml", "geojson"].includes(extension)) return "gis";
   if (["eml", "msg"].includes(extension)) return "email";
   if (extension === "link") return "link";

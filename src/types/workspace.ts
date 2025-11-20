@@ -50,4 +50,6 @@ export type WorkspaceSource = {
   uploadedAt: string;
   sizeLabel: string;
   status?: string;
+  url?: string;
+  fileExtension?: string | null;
 };

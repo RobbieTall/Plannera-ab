@@ -42,14 +42,18 @@ const getStorageModeLabel = (provider: StorageProvider): StorageModeLabel => {
 
 let storageModeLogged = false;
 
+type PutOptions = Parameters<typeof put>[2];
+const AUTHENTICATED_ACCESS = "authenticated" as unknown as PutOptions["access"];
+
 const logStorageMode = () => {
   if (storageModeLogged) {
     return;
   }
   storageModeLogged = true;
+  const storageMode = getStorageModeLabel(WORKSPACE_STORAGE_PROVIDER);
   console.log("[storage-mode]", {
-    mode: getStorageModeLabel(WORKSPACE_STORAGE_PROVIDER),
-    hasBlobToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    mode: storageMode,
+    hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
     env: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   });
 };
@@ -71,6 +75,8 @@ const sanitizeFileName = (fileName: string) =>
   fileName
     .replace(/\s+/g, "-")
     .replace(/[^a-zA-Z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+/, "")
     .slice(0, 150);
 
 const saveFileLocally = async (file: File): Promise<SavedFile> => {
@@ -132,22 +138,21 @@ export class StorageUploadError extends Error {
 export const isStorageUploadError = (error: unknown): error is StorageUploadError => error instanceof StorageUploadError;
 
 const saveFileToBlob = async (file: File): Promise<SavedFile> => {
-  const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = sanitizeFileName(file.name) || "upload";
-  const objectPath = `workspace-uploads/${randomUUID()}-${fileName}`;
+  const timestamp = Date.now();
+  const objectPath = `workspace-uploads/${timestamp}-${fileName}`;
 
   try {
-    const blob = await put(objectPath, buffer, {
-      access: "public",
+    const blob = await put(objectPath, file, {
+      access: AUTHENTICATED_ACCESS,
       contentType: file.type || undefined,
-      token: blobToken,
     });
 
     return {
       url: blob.url,
       path: blob.pathname ?? objectPath,
       mimeType: blob.contentType ?? file.type ?? "application/octet-stream",
-      size: buffer.byteLength,
+      size: file.size,
     };
   } catch (error) {
     console.error("[blob-upload-error]", getErrorDetails(error));
@@ -228,14 +233,13 @@ export const getStorageHealth = async (): Promise<StorageHealth> => {
     const key = `storage-health/${randomUUID()}`;
     try {
       const blob = await put(key, "health-check", {
-        access: "public",
+        access: AUTHENTICATED_ACCESS,
         contentType: "text/plain",
-        token: blobToken,
       });
 
       if (blob?.url) {
         try {
-          await del(blob.url, { token: blobToken });
+          await del(blob.url);
         } catch (deleteError) {
           console.warn("[blob-health-warning]", getErrorDetails(deleteError));
         }
