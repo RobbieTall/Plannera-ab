@@ -60,6 +60,11 @@ describe("site-resolver (google)", () => {
     const result = await resolveSiteFromText("6 myola rd newpoet");
 
     expect(fetchMock).toHaveBeenCalled();
+    const calledUrls = fetchMock.mock.calls.map((call) => call[0]?.toString?.() ?? "");
+    expect(calledUrls[0]).toContain("components=country%3Aau");
+    expect(calledUrls[0]).toContain("types=geocode");
+    expect(calledUrls[0]).not.toContain("dataset");
+
     expect(result.status).toEqual("ok");
     if (result.status === "ok") {
       expect(result.candidates.length).toBeGreaterThanOrEqual(1);
@@ -86,6 +91,31 @@ describe("site-resolver (google)", () => {
     expect(result.status).toEqual("ok");
     if (result.status === "ok") {
       expect(result.candidates).toEqual([]);
+    }
+  });
+
+  it("returns a structured error when Google rejects the request", async () => {
+    const autocompleteResponse = {
+      status: "REQUEST_DENIED",
+      predictions: [],
+      error_message: "API key is invalid",
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(autocompleteResponse), { status: 200 }),
+    );
+
+    const result = await resolveSiteFromText("1 Main St Sydney");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[site-resolver-google-error]",
+      expect.objectContaining({ status: "REQUEST_DENIED", error_message: "API key is invalid" }),
+    );
+    expect(result.status).toEqual("property_search_failed");
+    if (result.status !== "ok") {
+      expect(result.details).toMatchObject({ googleStatus: "REQUEST_DENIED", googleErrorMessage: "API key is invalid" });
+      expect(result.provider).toEqual("google");
     }
   });
 });
