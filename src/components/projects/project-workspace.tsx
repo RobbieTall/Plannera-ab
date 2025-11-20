@@ -39,6 +39,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import type { Project } from "@/lib/mock-data";
+import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
 import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -74,29 +75,7 @@ type SiteSelectionState = {
   pendingQuestion?: string;
 };
 
-const normaliseCandidateForRequest = (candidate: SiteCandidate): SiteCandidate => {
-  const parseNumber = (value?: number | string | null) => {
-    if (typeof value === "number") return value;
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number.parseFloat(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
-  };
-
-  return {
-    ...candidate,
-    provider: candidate.provider ?? (candidate.id?.startsWith("place") ? "google" : candidate.provider),
-    lgaName: candidate.lgaName ?? null,
-    lgaCode: candidate.lgaCode ?? null,
-    parcelId: candidate.parcelId ?? null,
-    lot: candidate.lot ?? null,
-    planNumber: candidate.planNumber ?? null,
-    latitude: parseNumber(candidate.latitude ?? null),
-    longitude: parseNumber(candidate.longitude ?? null),
-    zone: candidate.zone ?? null,
-  };
-};
+const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
 const tools: ToolCard[] = [
   {
@@ -586,10 +565,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       }
 
       if (data.requiresSiteSelection && data.candidates?.length) {
+        const normalizedCandidates = data.candidates.map((candidate) => normaliseCandidateForRequest(candidate));
         setSiteSelection({
           source: "chat",
           addressInput: data.addressInput ?? trimmedInput,
-          candidates: data.candidates,
+          candidates: normalizedCandidates,
           pendingQuestion: trimmedInput,
         });
         setSiteSelectionCandidateId(null);
@@ -865,20 +845,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         longitude: normalizedCandidate.longitude,
         id: normalizedCandidate.id,
       });
-      const response = await fetch("/api/site-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: project.id,
-          candidate: normalizedCandidate,
-          addressInput: manualAddressInput || normalizedCandidate.formattedAddress,
-        }),
+      const siteContextPayload = await setSiteFromCandidate({
+        projectId: project.id,
+        candidate: normalizedCandidate,
+        addressInput: manualAddressInput || normalizedCandidate.formattedAddress,
       });
-      const data: { siteContext?: SiteContextSummary | null; message?: string } = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message ?? "Unable to save site");
-      }
-      setSiteContext(data.siteContext ?? null);
+      setSiteContext(siteContextPayload ?? null);
+      setSiteSelectionError(null);
       const pendingQuestion = siteSelection?.pendingQuestion;
       closeSiteSelection();
       if (pendingQuestion) {
