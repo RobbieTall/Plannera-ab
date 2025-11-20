@@ -4,12 +4,18 @@ import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { extractPdfText } from "@/lib/pdf-text";
 import {
   getWorkspaceStorageStatus,
   isStorageUploadError,
   saveFileToUploads,
   type StorageProvider,
 } from "@/lib/storage";
+import {
+  persistWorkspaceUploads,
+  UploadError,
+  validateFileForUpload,
+} from "@/lib/upload-service";
 import { WORKSPACE_UPLOAD_LIMITS } from "@/lib/usage-limits";
 import type { UserTier } from "@/types/workspace";
 
@@ -21,6 +27,7 @@ type UploadErrorResponse = {
   error: string;
   limit?: number;
   tier?: UploadTier;
+  message?: string;
 };
 
 type ErrorWithResponse = { status?: number; response?: { status?: number } };
@@ -72,6 +79,29 @@ const deriveTier = (session: Session | null): UploadTier => {
   return "free";
 };
 
+export async function GET(_request: NextRequest, { params }: { params: { projectId: string } }) {
+  try {
+    const uploads = await prisma.workspaceUpload.findMany({
+      where: { projectId: params.projectId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        fileName: true,
+        fileExtension: true,
+        mimeType: true,
+        fileSize: true,
+        publicUrl: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ uploads, usage: { used: uploads.length } });
+  } catch (error) {
+    logWorkspaceUploadError(error);
+    return NextResponse.json({ error: "unknown_error" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
   const storageStatus = getWorkspaceStorageStatus();
   const storageMode = storageStatus.provider;
@@ -89,7 +119,21 @@ export async function POST(request: NextRequest, { params }: { params: { project
     const formData = await request.formData();
     const files = formData.getAll("files").filter((file): file is File => file instanceof File);
     if (!files.length) {
-      return NextResponse.json<UploadErrorResponse>({ error: "invalid_file" }, { status: 400 });
+      return NextResponse.json<UploadErrorResponse>({ error: "invalid_file", message: "No files provided." }, { status: 400 });
+    }
+
+    try {
+      for (const file of files) {
+        validateFileForUpload(file);
+      }
+    } catch (error) {
+      if (error instanceof UploadError) {
+        return NextResponse.json<UploadErrorResponse>(
+          { error: error.code, message: error.message },
+          { status: error.status },
+        );
+      }
+      throw error;
     }
 
     const session = await getServerSession(authOptions);
@@ -128,43 +172,28 @@ export async function POST(request: NextRequest, { params }: { params: { project
       createdAt: Date;
     }>;
 
-    for (const file of files) {
-      let saved;
-      try {
-        saved = await saveFileToUploads(file);
-      } catch (error) {
-        logWorkspaceUploadError(error, storageMode);
-        if (isStorageUploadError(error)) {
-          return NextResponse.json<UploadErrorResponse>({ error: "storage_upload_failed" }, { status: 500 });
-        }
-        return NextResponse.json<UploadErrorResponse>({ error: "storage_not_configured" }, { status: 503 });
+    try {
+      const created = await persistWorkspaceUploads({
+        projectId: params.projectId,
+        files,
+        userId,
+        prisma,
+        saveFile: saveFileToUploads,
+        extractPdfText,
+      });
+      uploads.push(...created);
+    } catch (error) {
+      logWorkspaceUploadError(error, storageMode);
+      if (error instanceof UploadError) {
+        return NextResponse.json<UploadErrorResponse>(
+          { error: error.code, message: error.message },
+          { status: error.status },
+        );
       }
-
-      try {
-        const created = await prisma.workspaceUpload.create({
-          data: {
-            projectId: params.projectId,
-            userId,
-            fileName: file.name,
-            mimeType: saved.mimeType ?? file.type ?? null,
-            fileSize: saved.size,
-            storagePath: saved.path,
-            publicUrl: saved.url,
-          },
-          select: {
-            id: true,
-            fileName: true,
-            mimeType: true,
-            fileSize: true,
-            publicUrl: true,
-            createdAt: true,
-          },
-        });
-        uploads.push(created);
-      } catch (error) {
-        logWorkspaceUploadError(error, storageMode);
-        return NextResponse.json<UploadErrorResponse>({ error: "db_error" }, { status: 500 });
+      if (isStorageUploadError(error)) {
+        return NextResponse.json<UploadErrorResponse>({ error: "storage_upload_failed" }, { status: 500 });
       }
+      return NextResponse.json<UploadErrorResponse>({ error: "storage_upload_failed" }, { status: 500 });
     }
 
     const used = existingUploads + uploads.length;
