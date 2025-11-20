@@ -84,6 +84,8 @@ describe("site-resolver (google)", () => {
 
   it("returns empty candidates when Google autocomplete has no matches", async () => {
     const autocompleteResponse = { suggestions: [] };
+    process.env.NSW_PROPERTY_API_URL = "https://example.com/search";
+    process.env.NSW_PROPERTY_API_KEY = "property-key";
     const fetchMock = vi
       .spyOn(global, "fetch")
       .mockImplementation(async (input: RequestInfo | URL) => {
@@ -91,7 +93,7 @@ describe("site-resolver (google)", () => {
         if (url.includes("places:autocomplete")) {
           return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
         }
-        return new Response(JSON.stringify({ status: "OK", results: [] }), { status: 200 });
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
       });
 
     const result = await resolveSiteFromText("nonsense address 999");
@@ -103,7 +105,7 @@ describe("site-resolver (google)", () => {
     }
   });
 
-  it("returns a structured error when Google rejects the request", async () => {
+  it("returns a structured error when Google rejects the request and no NSW fallback is configured", async () => {
     const autocompleteResponse = {
       error: { status: "PERMISSION_DENIED", message: "API key is invalid" },
     };
@@ -123,6 +125,67 @@ describe("site-resolver (google)", () => {
     if (result.status !== "ok") {
       expect(result.details).toMatchObject({ googleStatus: "REQUEST_DENIED", googleErrorMessage: "API key is invalid" });
       expect(result.provider).toEqual("google");
+    }
+  });
+
+  it("falls back to NSW property search when Google rejects the request", async () => {
+    process.env.NSW_PROPERTY_API_URL = "https://example.com/search";
+    process.env.NSW_PROPERTY_API_KEY = "property-key";
+
+    const autocompleteResponse = {
+      error: { status: "PERMISSION_DENIED", message: "API key is invalid" },
+    };
+
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = input.toString();
+        if (url.includes("places:autocomplete")) {
+          return new Response(JSON.stringify(autocompleteResponse), { status: 403 });
+        }
+        return new Response(
+          JSON.stringify({
+            results: [
+              { id: "nsw-1", formattedAddress: "6 Myola Road, Newport NSW", lgaName: "Northern Beaches" },
+            ],
+          }),
+          { status: 200 },
+        );
+      });
+
+    const result = await resolveSiteFromText("6 Myola Road Newport NSW");
+
+    expect(fetchMock).toHaveBeenCalled();
+    if (result.status === "ok") {
+      expect(result.candidates[0]?.id).toEqual("nsw-1");
+    }
+  });
+
+  it("keeps Google candidates even if geocoding fails but suggestions exist", async () => {
+    const autocompleteResponse = {
+      suggestions: [{ placePrediction: { text: { text: "6 Myola Road, Newport NSW" }, placeId: "place-123" } }],
+    };
+
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = input.toString();
+        if (url.includes("places:autocomplete")) {
+          return new Response(JSON.stringify(autocompleteResponse), { status: 200 });
+        }
+        if (url.includes("geocode")) {
+          return new Response("geocode failure", { status: 500 });
+        }
+        return new Response("not-found", { status: 404 });
+      });
+
+    const result = await resolveSiteFromText("6 myola rd newport");
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result.status).toEqual("ok");
+    if (result.status === "ok") {
+      expect(result.candidates.length).toBeGreaterThan(0);
+      expect(result.candidates[0]?.formattedAddress).toContain("Myola Road");
     }
   });
 });
