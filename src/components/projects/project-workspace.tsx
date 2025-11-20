@@ -473,10 +473,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           setHighlightedSuggestionIndex(null);
           return;
         }
-        const candidates = data.candidates ?? [];
+        const candidates = (data.candidates ?? []).map((candidate) => normaliseCandidateForRequest(candidate));
         setSuggestions(candidates);
         setHighlightedSuggestionIndex(candidates.length ? 0 : null);
-        setSiteSelectionError(candidates.length ? null : "No NSW address matches were found. Try refining the suburb or street number.");
+        setSiteSelectionError(
+          candidates.length ? null : "No NSW address matches were found. Try refining the suburb or street number.",
+        );
       } catch (error) {
         if (controller.signal.aborted) return;
         console.error("Site suggest error", error);
@@ -785,8 +787,9 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         }
         throw new Error(data?.message ?? "Address search failed");
       }
+      const normalizedCandidates = (data.candidates ?? []).map((candidate) => normaliseCandidateForRequest(candidate));
       setSiteSelection((previous) =>
-        previous ? { ...previous, addressInput: trimmedQuery, candidates: data.candidates ?? [] } : previous,
+        previous ? { ...previous, addressInput: trimmedQuery, candidates: normalizedCandidates } : previous,
       );
       setSiteSelectionCandidateId(null);
       setSelectedSuggestion(null);
@@ -855,6 +858,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     setIsConfirmingSite(true);
     setSiteSelectionError(null);
     try {
+      console.log("[site-selection-confirm]", {
+        provider: normalizedCandidate.provider,
+        formattedAddress: normalizedCandidate.formattedAddress,
+        latitude: normalizedCandidate.latitude,
+        longitude: normalizedCandidate.longitude,
+        id: normalizedCandidate.id,
+      });
       const response = await fetch("/api/site-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
