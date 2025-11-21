@@ -42,9 +42,6 @@ const getStorageModeLabel = (provider: StorageProvider): StorageModeLabel => {
 
 let storageModeLogged = false;
 
-type PutOptions = Parameters<typeof put>[2];
-const AUTHENTICATED_ACCESS = "authenticated" as unknown as PutOptions["access"];
-
 const logStorageMode = () => {
   if (storageModeLogged) {
     return;
@@ -144,7 +141,8 @@ const saveFileToBlob = async (file: File): Promise<SavedFile> => {
 
   try {
     const blob = await put(objectPath, file, {
-      access: AUTHENTICATED_ACCESS,
+      // Vercel Blob requires explicit public access for uploads.
+      access: "public",
       contentType: file.type || undefined,
     });
 
@@ -233,7 +231,8 @@ export const getStorageHealth = async (): Promise<StorageHealth> => {
     const key = `storage-health/${randomUUID()}`;
     try {
       const blob = await put(key, "health-check", {
-        access: AUTHENTICATED_ACCESS,
+        // Health checks also need explicit public access to satisfy Blob requirements.
+        access: "public",
         contentType: "text/plain",
       });
 
