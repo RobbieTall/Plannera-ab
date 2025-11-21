@@ -58,7 +58,6 @@ export async function persistWorkspaceUploads({
   userId,
   prisma,
   saveFile,
-  extractPdfText,
   project,
 }: {
   projectId: string;
@@ -96,7 +95,6 @@ export async function persistWorkspaceUploads({
       fileSize: saved.size,
       storagePath: saved.path,
       publicUrl: saved.url,
-      extractedText: validation.category === "pdf" && extractPdfText ? await extractPdfText(file) : null,
     });
   }
 

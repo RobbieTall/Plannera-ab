@@ -48,9 +48,9 @@ const saveFileMock = async (file: File) => ({
   size: file.size,
 });
 
-test("creates workspace uploads with metadata and extracted text", async () => {
+test("creates workspace uploads with metadata only (no binary content)", async () => {
   const prisma = new MockPrisma(true);
-  const pdfFile = new File(["pdf-bytes"], "report.pdf", { type: "application/pdf" });
+  const pdfFile = new File([new Uint8Array([0, 1, 2, 3, 4])], "report.pdf", { type: "application/pdf" });
 
   const uploads = await persistWorkspaceUploads({
     projectId: "proj-1",
@@ -58,7 +58,6 @@ test("creates workspace uploads with metadata and extracted text", async () => {
     userId: "user-1",
     prisma: prisma as any,
     saveFile: saveFileMock,
-    extractPdfText: async () => "sample text",
   });
 
   assert.equal(uploads.length, 1);
@@ -66,8 +65,14 @@ test("creates workspace uploads with metadata and extracted text", async () => {
   assert.equal(uploads[0].mimeType, "application/pdf");
   assert.equal(prisma.uploads[0].fileName, "report.pdf");
   assert.equal(prisma.uploads[0].fileExtension, "pdf");
-  assert.equal(prisma.uploads[0].extractedText, "sample text");
+  assert.equal(prisma.uploads[0].extractedText, undefined);
   assert.equal(prisma.uploads[0].projectId, "db-proj-1");
+
+  const values = Object.values(prisma.uploads[0]);
+  const hasBinaryLikeValue = values.some(
+    (value) => value instanceof Buffer || value instanceof ArrayBuffer || value instanceof Uint8Array,
+  );
+  assert.equal(hasBinaryLikeValue, false);
 });
 
 test("associates uploads to an existing project", async () => {
