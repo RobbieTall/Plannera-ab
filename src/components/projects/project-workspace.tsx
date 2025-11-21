@@ -1232,14 +1232,14 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   };
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 sm:px-6 lg:px-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-4">
-          <span className="text-base font-semibold text-slate-900">Plannera.ai</span>
+          <span className="text-base font-semibold text-slate-900 dark:text-white">Plannera.ai</span>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
           >
             ← My Projects
           </button>
@@ -1254,7 +1254,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {isDarkMode ? "Light mode" : "Dark mode"}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100">
+          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
             <Sparkles className="h-4 w-4" />
             Get help
           </button>
@@ -1263,26 +1263,26 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Workspace</p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">{project.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white">{project.name}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900">
+        <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
           <Notebook className="h-4 w-4" />
           Share workspace
         </button>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sources</p>
-              <p className="text-sm text-slate-500">Emails, documents & references</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Sources</p>
+              <p className="text-sm text-slate-500 dark:text-slate-300">Emails, documents & references</p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Usage</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Usage</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">
                 {uploadUsage.limit === 0 ? "Sign up to upload" : `${uploadUsage.used} of ${uploadUsage.limit} documents used`}
               </p>
             </div>
@@ -1296,7 +1296,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               onClick={handleAddSourceClick}
               disabled={uploadLimitReached}
               title={limitMessage ?? undefined}
-              className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500"
             >
               <Plus className="h-4 w-4" />
               Add
@@ -1328,52 +1328,52 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             {displayedSources.map((source) => {
               const Icon = sourceIcons[source.type] ?? FileText;
               return (
-                <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
                   {source.url ? (
                     <a
                       href={source.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-start gap-3 no-underline hover:text-slate-900"
+                      className="flex items-start gap-3 no-underline hover:text-slate-900 dark:hover:text-white"
                     >
-                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
+                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
                         <Icon className="h-4 w-4" />
                       </span>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900">{source.name}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">
                           {source.detail}
                           {source.fileExtension ? (
-                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600">
+                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
                               {source.fileExtension}
                             </span>
                           ) : null}
                         </p>
-                        <p className="text-[11px] text-slate-400">{source.uploadedAt} · {source.sizeLabel}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
                       </div>
                       {source.status ? (
-                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600">{source.status}</span>
+                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
                       ) : null}
                     </a>
                   ) : (
                     <div className="flex items-start gap-3">
-                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600">
+                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
                         <Icon className="h-4 w-4" />
                       </span>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900">{source.name}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">
                           {source.detail}
                           {source.fileExtension ? (
-                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600">
+                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
                               {source.fileExtension}
                             </span>
                           ) : null}
                         </p>
-                        <p className="text-[11px] text-slate-400">{source.uploadedAt} · {source.sizeLabel}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
                       </div>
                       {source.status ? (
-                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600">{source.status}</span>
+                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
                       ) : null}
                     </div>
                   )}
@@ -1383,32 +1383,32 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </ul>
         </section>
 
-        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
+        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chat</p>
-              <p className="text-sm text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
+              <p className="text-sm text-slate-500 dark:text-slate-300">
                 Set the site, ask follow-ups, send to agents, or refresh to start over.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={openManualSiteSelection}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <MapPin className="h-3.5 w-3.5" />
                 {siteContext ? "Change site" : "Set site"}
               </button>
               <button
                 onClick={handleSaveChat}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <Save className="h-4 w-4" />
                 Save Chat
               </button>
               <button
                 onClick={handleRefresh}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <RefreshCcw className="h-4 w-4" />
                 Refresh
@@ -1417,13 +1417,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           </header>
           <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
             {siteSelection ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
                       {siteSelection.source === "chat" ? "Confirm the site for this question" : "Search for a new NSW site"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-200">
                       {siteSelection.source === "chat"
                         ? `Looking for: ${siteSelection.addressInput}`
                         : siteSelection.addressInput
@@ -1434,7 +1434,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   <button
                     type="button"
                     onClick={closeSiteSelection}
-                    className="rounded-full p-1 text-slate-500 transition hover:bg-white hover:text-slate-900"
+                    className="rounded-full p-1 text-slate-500 transition hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1456,13 +1456,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                         }}
                         onKeyDown={handleSuggestionKeyDown}
                         placeholder="e.g. 6 Myola Road Newport NSW"
-                        className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:border-slate-900 focus:outline-none"
+                        className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500"
                       />
                       {isSuggesting ? (
                         <span className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
                       ) : null}
                       {suggestions.length ? (
-                        <ul className="absolute z-20 mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg">
+                        <ul className="absolute z-20 mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
                           {suggestions.map((candidate, index) => (
                             <li key={candidate.id}>
                               <button
@@ -1474,11 +1474,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                                 onMouseEnter={() => setHighlightedSuggestionIndex(index)}
                                 className={cn(
                                   "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition",
-                                  index === highlightedSuggestionIndex ? "bg-slate-900/5" : "hover:bg-slate-900/5",
+                                  index === highlightedSuggestionIndex
+                                    ? "bg-slate-900/5 dark:bg-slate-700/60"
+                                    : "hover:bg-slate-900/5 dark:hover:bg-slate-800/60",
                                 )}
                               >
-                                <span className="font-semibold text-slate-900">{candidate.formattedAddress}</span>
-                                <span className="text-xs text-slate-500">{candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}</span>
+                                <span className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-300">{candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}</span>
                               </button>
                             </li>
                           ))}
@@ -1510,11 +1512,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   <ul className="mt-3 space-y-2">
                     {siteSelection.candidates.map((candidate) => (
                       <li key={candidate.id}>
-                        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
                           <input
                             type="radio"
                             name="site-candidate"
-                            className="h-4 w-4 text-slate-900"
+                            className="h-4 w-4 text-slate-900 dark:text-white"
                             value={candidate.id}
                             checked={siteSelectionCandidateId === candidate.id}
                             onChange={() => {
@@ -1524,8 +1526,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                             }}
                           />
                           <div>
-                            <p className="font-semibold text-slate-900">{candidate.formattedAddress}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-300">
                               {candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}
                             </p>
                           </div>
@@ -1558,7 +1560,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                   <button
                     type="button"
                     onClick={closeSiteSelection}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
                   >
                     Cancel
                   </button>
@@ -1571,7 +1573,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               aria-live="polite"
             >
               {messages.length === 0 ? (
-                <p className="text-sm text-slate-400">Start by typing a question to begin this chat.</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
               ) : (
                 messages.map((message) => (
                   <article
@@ -1579,23 +1581,23 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                     className={cn(
                       "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
                       message.role === "assistant"
-                        ? "border-slate-200 bg-slate-50 text-slate-800"
-                        : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900",
+                        ? "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100"
+                        : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
                     )}
                   >
                     <p>{message.content}</p>
-                    <p className="mt-2 text-xs text-slate-400">{message.timestamp}</p>
+                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
                   </article>
                 ))
               )}
               {isThinking ? (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
                   <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
                 </div>
               ) : null}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
               </label>
@@ -1606,13 +1608,13 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 onKeyDown={handleKeyDown}
                 rows={3}
                 placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
-                className="w-full resize-none border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0"
+                className="w-full resize-none border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-xs text-slate-400">Responses stay inside this project unless you share them.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
                 >
                   Send
                   <Sparkles className="h-4 w-4" />
@@ -1623,16 +1625,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         </section>
 
         <section className="flex flex-col gap-5">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Maps & External Tools</p>
-                <p className="text-sm text-slate-500">Keep overlays and exports aligned with the workspace.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Maps & External Tools</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Keep overlays and exports aligned with the workspace.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowMapsPanel(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <Globe2 className="h-4 w-4" />
                 Maps & external tools
@@ -1651,11 +1653,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
               onCancel={() => setIsNoteEditorOpen(false)}
             />
           ) : (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
               <header className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tools & Agents</p>
-                  <p className="text-sm text-slate-500">Send context or open in split view.</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Tools & Agents</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Send context or open in split view.</p>
                 </div>
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
                   Pro access
@@ -1669,16 +1671,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                       key={tool.id}
                       type="button"
                       onClick={() => handleToolClick(tool)}
-                      className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300"
+                      className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-slate-600"
                     >
                       <div className="flex items-center justify-between">
                         <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br", tool.accent)}>
-                          <Icon className="h-4 w-4 text-slate-900" />
+                          <Icon className="h-4 w-4 text-slate-900 dark:text-slate-100" />
                         </span>
                         <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Pro</span>
                       </div>
-                      <p className="mt-3 text-sm font-semibold text-slate-900">{tool.name}</p>
-                      <p className="text-xs text-slate-500">{tool.description}</p>
+                      <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">{tool.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300">{tool.description}</p>
                     </button>
                   );
                 })}
@@ -1686,16 +1688,16 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </div>
           )}
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
             <header className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Artefacts</p>
-                <p className="text-sm text-slate-500">Save outputs from tools or chats.</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsNoteEditorOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <Plus className="h-4 w-4" />
                 Add note
@@ -1703,15 +1705,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             </header>
             <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
               {artefacts.map((artefact) => (
-                <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{artefact.title}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300">
                         {artefact.owner} · {artefact.updatedAt}
                         {artefact.noteType ? ` · ${artefact.noteType}` : ""}
                       </p>
-                      {artefact.metadata ? <p className="text-[11px] text-slate-400">{artefact.metadata}</p> : null}
+                      {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
                     </div>
                     <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
                       {artefact.type}
@@ -1722,12 +1724,12 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                       <button
                         type="button"
                         onClick={() => handleArtefactOpen(artefact)}
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900"
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
                       >
                         <RefreshCcw className="h-3.5 w-3.5" />
                         Reopen in chat
                       </button>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
                       </p>
                     </div>
@@ -1735,7 +1737,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 </li>
               ))}
             </ul>
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500">
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
               Drop a chat summary or upload an attachment to pin it here.
             </div>
           </div>
@@ -1759,7 +1761,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
                 <button
                   type="button"
                   onClick={() => setShowMapsPanel(false)}
-                  className="rounded-2xl border border-white/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white"
+                  className="rounded-2xl border border-white/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
                 >
                   Close
                 </button>
@@ -2008,11 +2010,11 @@ function NoteEditor({ noteTitle, onTitleChange, noteType, onTypeChange, noteBody
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
       <header className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Note editor</p>
-          <p className="text-sm text-slate-500">Draft notes, minutes and ideas.</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Note editor</p>
+          <p className="text-sm text-slate-500 dark:text-slate-300">Draft notes, minutes and ideas.</p>
         </div>
       </header>
       <div className="mt-4 space-y-3">
@@ -2020,12 +2022,12 @@ function NoteEditor({ noteTitle, onTitleChange, noteType, onTypeChange, noteBody
           value={noteTitle}
           onChange={(event) => onTitleChange(event.target.value)}
           placeholder="Add a title"
-          className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+          className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-slate-500"
         />
         <select
           value={noteType}
           onChange={(event) => onTypeChange(event.target.value as WorkspaceNoteCategory)}
-          className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+          className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-slate-500"
         >
           {noteCategories.map((category) => (
             <option key={category} value={category}>
@@ -2033,39 +2035,39 @@ function NoteEditor({ noteTitle, onTitleChange, noteType, onTypeChange, noteBody
             </option>
           ))}
         </select>
-        <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-300">
           <button
             type="button"
             onClick={() => format("bold")}
-            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Bold
           </button>
           <button
             type="button"
             onClick={() => format("italic")}
-            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Italic
           </button>
           <button
             type="button"
             onClick={() => format("insertUnorderedList")}
-            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Bullets
           </button>
           <button
             type="button"
             onClick={() => format("insertOrderedList")}
-            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Numbers
           </button>
           <button
             type="button"
             onClick={handleLink}
-            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+            className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Link
           </button>
@@ -2075,21 +2077,21 @@ function NoteEditor({ noteTitle, onTitleChange, noteType, onTypeChange, noteBody
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
-          className="min-h-[160px] rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-slate-900"
+          className="min-h-[160px] rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-slate-500"
           dangerouslySetInnerHTML={{ __html: noteBody }}
         />
         <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <button
             type="button"
             onClick={onSave}
-            className="flex-1 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="flex-1 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
           >
             Save as artefact
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors dark:border-slate-700 dark:text-slate-100"
           >
             Cancel
           </button>
