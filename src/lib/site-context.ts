@@ -67,7 +67,7 @@ export const persistSiteContextFromCandidate = async (params: {
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
   return prisma.siteContext.upsert({
-    where: { projectId },
+    where: { projectId: project.id },
     update: data,
     create: data,
   });
@@ -102,7 +102,7 @@ export const persistManualSiteContext = async (params: {
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
   return prisma.siteContext.upsert({
-    where: { projectId },
+    where: { projectId: project.id },
     update: data,
     create: data,
   });
