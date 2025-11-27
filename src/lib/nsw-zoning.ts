@@ -257,7 +257,8 @@ export async function getZoningForSite(query: ZoningQuery): Promise<ZoningResult
 
   const resolvedLayerId = await resolveZoningLayerId(serviceUrl);
   const candidateLayerIds = [KNOWN_ZONING_LAYER_ID, resolvedLayerId].filter(
-    (value): value is number => Number.isFinite(value) && value >= 0,
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value) && value >= 0,
   );
   if (candidateLayerIds.length === 0) {
     console.warn("[nsw-zoning] No zoning layer could be resolved from service", { serviceUrl });
