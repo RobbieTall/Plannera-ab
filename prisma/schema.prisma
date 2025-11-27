@@ -67,6 +67,7 @@ model Project {
   status           ProjectStatus     @default(PLANNING)
   isDemo           Boolean           @default(false)
   lepData          Json?             @db.JsonB
+  dcpData          Json?             @db.JsonB
   zoningCode       String?
   zoningName       String?
   zoningSource     String?

@@ -2,6 +2,7 @@ import type { SiteContext } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
+import type { DcpParseResult } from "./dcp/types";
 import type { LepParseResult, LepZoneUses } from "./lep/types";
 import { INSTRUMENT_CONFIG } from "./legislation/config";
 import { getLgaMapInfo } from "./lga-map-registry";
@@ -63,6 +64,33 @@ const toLepSummary = (lepData: unknown) => {
     instrumentType,
     zones: zoneSummaries,
   } satisfies SiteContextSummary["lepSummary"];
+};
+
+const toDcpSummary = (dcpData: unknown) => {
+  if (!dcpData || !isObject(dcpData)) {
+    return undefined;
+  }
+
+  const typed = dcpData as Partial<DcpParseResult>;
+  const instrumentName = typeof typed.instrumentName === "string" ? typed.instrumentName : "";
+  const sections = Array.isArray(typed.sections) ? typed.sections : [];
+
+  const sectionHeadings = sections
+    .map((section) =>
+      isObject(section) && typeof section.heading === "string" ? section.heading : null,
+    )
+    .filter(Boolean) as string[];
+
+  const limitedHeadings = sectionHeadings.slice(0, 10);
+
+  if (!instrumentName && !limitedHeadings.length) {
+    return undefined;
+  }
+
+  return {
+    instrumentName: instrumentName || "Development Control Plan",
+    sectionHeadings: limitedHeadings,
+  } satisfies SiteContextSummary["dcpSummary"];
 };
 
 const LGA_LEGISLATION_REGISTRY: { lgaName: string; lgaCode?: string; lepSlug?: string }[] = [
@@ -205,6 +233,7 @@ export const serializeSiteContext = (
     zoningName: string | null;
     zoningSource: string | null;
     lepData?: unknown | null;
+    dcpData?: unknown | null;
   } | null,
 ): SiteContextSummary | null => {
   if (!context) return null;
@@ -226,6 +255,7 @@ export const serializeSiteContext = (
     zoningName: project?.zoningName ?? null,
     zoningSource: project?.zoningSource ?? null,
     lepSummary: project?.lepData ? toLepSummary(project.lepData) : undefined,
+    dcpSummary: project?.dcpData ? toDcpSummary(project.dcpData) : undefined,
     councilMap: lgaMapInfo
       ? {
           platform: lgaMapInfo.platform,

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       });
       const project = await prisma.project.findUnique({
         where: { id: siteContext.projectId },
-        select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true },
+        select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true, dcpData: true },
       });
       return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
     }
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     }
     const project = await prisma.project.findUnique({
       where: { id: siteContext.projectId },
-      select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true },
+      select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true, dcpData: true },
     });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
   } catch (error) {
