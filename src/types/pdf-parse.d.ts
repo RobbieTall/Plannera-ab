@@ -1,3 +1,5 @@
+// Local type declarations for pdf-parse
+
 declare module "pdf-parse" {
   export interface PdfParseMeta {
     info?: unknown;
