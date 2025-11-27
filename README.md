@@ -66,6 +66,8 @@ Configure these environment variables in your Vercel project settings so the dep
 
 Vercel runs `npm run build` during deployment, which now executes `prisma generate` before `next build` to ensure the Prisma client is available at build time.
 
+Pending Prisma migrations are applied automatically during deployments via `npm run migrate:deploy` (see the `vercel-build` script), so the hosted database stays in sync with `prisma/schema.prisma`.
+
 ## Database setup
 
 This project uses Prisma with a PostgreSQL database hosted on Vercel/Neon. Because `.env*` files are git-ignored, keep sensitive URLs out of commits and source them locally instead.
