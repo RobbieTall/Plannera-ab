@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { findLepZoneForZoningCode } from "@/lib/lep/lep-lookup";
+import type { LepParseResult, LepZoneUses } from "@/lib/lep/types";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const lepData = project.lepData as any | null;
+  const lepData = project.lepData as LepParseResult | null;
 
   const zoningCode = project.zoningCode ?? null;
   const zoningName = project.zoningName ?? null;
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
         }
       : null,
     lepZoneCodes: lepData
-      ? (lepData.zones ?? []).map((z: any) => ({
+      ? (lepData.zones ?? []).map((z: LepZoneUses) => ({
           zoneCode: z.zoneCode ?? null,
           zoneName: z.zoneName ?? null,
         }))
