@@ -21,6 +21,7 @@ Always read the user's question literally.
 Never invent user messages or assume multiple questions.
 If no SiteContext is available, ask for the NSW suburb, council or address before quoting detailed controls.
 Use provided site context (address, LGA, zone, LEP, SEPP) whenever available and reference the LGA name in your answer.
+In all answers, rely on any provided site details and do not ask the user to repeat an address that is already set.
 If a relevant LEP is not yet in Plannera, clearly explain that you are answering at a higher/state level using NSW SEPPs.`;
 
 const SITE_CHANGE_REGEX = /(change|update|set).*(site|address|property)|new site|different (?:address|property)/i;
@@ -144,6 +145,29 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
     lgaName: candidate.lgaName,
   }));
 
+const buildSiteContextMessage = (siteContext: SiteContextSummary | null) => {
+  if (!siteContext) return null;
+
+  const zoningLabel = [siteContext.zoningCode, siteContext.zoningName]
+    .filter(Boolean)
+    .join(" – ")
+    .trim();
+
+  const zone = zoningLabel || siteContext.zone;
+  const zoningSource = siteContext.zoningSource ? ` (${siteContext.zoningSource})` : "";
+
+  const siteLines = [
+    `The current project site is: ${siteContext.formattedAddress}.`,
+    siteContext.lgaName ? `LGA: ${siteContext.lgaName}.` : null,
+    zone ? `Zoning: ${zone}${zoningSource}.` : "Zoning is not available yet.",
+    "If a site is already set in the context, do not ask the user to provide the address again. Use the site details above in your answers.",
+    "If zoning is available, use it to frame what is likely permitted, but still advise the user to confirm via LEP/DCP and council.",
+    "If zoning is missing, provide general NSW guidance without requesting the address again.",
+  ];
+
+  return siteLines.filter(Boolean).join(" ");
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -242,8 +266,14 @@ export async function POST(request: Request) {
       instrumentMatch,
     });
 
+    const siteContextMessage = buildSiteContextMessage(siteContextSummary);
+
     const historyMessages = existingMemory?.messages ?? [];
     const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
+
+    if (siteContextMessage) {
+      messages.push({ role: "system", content: siteContextMessage });
+    }
 
     if (!siteContextSummary) {
       messages.push({
