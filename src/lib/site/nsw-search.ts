@@ -14,3 +14,9 @@ export const pickBestNswCandidate = (result: SiteResolverResult) => {
   }
   return null;
 };
+
+export const lookupNswSite = async (addressText: string) => {
+  const searchResult = await searchNswSite(addressText, { source: "site-search" });
+  const bestMatch = searchResult.status === "ok" ? pickBestNswCandidate(searchResult) : null;
+  return { result: searchResult, bestMatch } as const;
+};

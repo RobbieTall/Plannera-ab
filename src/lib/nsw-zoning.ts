@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { prisma } from "@/lib/prisma";
+
 export type ZoningResult = {
   zoneCode: string;
   zoneName: string;
@@ -297,4 +299,34 @@ export async function getZoningForSite(query: ZoningQuery): Promise<ZoningResult
     console.warn("[nsw-zoning] Unexpected zoning lookup error", error);
     return null;
   }
+}
+
+export async function fetchAndPersistNswZoning(params: {
+  projectId: string;
+  lat?: number | null;
+  lng?: number | null;
+  parcel?: { lot: string; dp: string } | null;
+  includeRaw?: boolean;
+}): Promise<ZoningResult | null> {
+  const { projectId, lat, lng, parcel, includeRaw } = params;
+  const zoning = await getZoningForSite({
+    coords: typeof lat === "number" && typeof lng === "number" ? { lat, lng } : undefined,
+    parcel: parcel ?? undefined,
+    includeRaw,
+  });
+
+  if (!zoning) {
+    return null;
+  }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      zoningCode: zoning.zoneCode,
+      zoningName: zoning.zoneName,
+      zoningSource: zoning.source,
+    },
+  });
+
+  return zoning;
 }

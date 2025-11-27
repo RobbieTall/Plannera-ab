@@ -3,9 +3,8 @@ import { z } from "zod";
 
 import { ensureProjectExists, ensureProjectInputSchema } from "@/lib/project-service";
 import { prisma } from "@/lib/prisma";
-import { extractAddressFromText } from "@/lib/site/extract-address-from-text";
-import { pickBestNswCandidate, searchNswSite } from "@/lib/site/nsw-search";
-import { persistSiteContextFromCandidate, serializeSiteContext } from "@/lib/site-context";
+import { autoSetSiteFromText } from "@/lib/site/auto-set-site-from-text";
+import { serializeSiteContext } from "@/lib/site-context";
 
 const requestSchema = ensureProjectInputSchema.extend({
   description: z.string().trim().optional(),
@@ -19,27 +18,25 @@ export async function POST(request: Request) {
     const project = await ensureProjectExists(payload);
 
     let siteContext = null;
-    const addressCandidate = landingPrompt ? extractAddressFromText(landingPrompt) : null;
-    if (addressCandidate) {
+    const promptText = landingPrompt ?? payload.description ?? payload.name;
+    if (promptText) {
       try {
-        const searchResult = await searchNswSite(addressCandidate, { source: "site-search" });
-        const bestCandidate = pickBestNswCandidate(searchResult);
-        if (bestCandidate) {
-          const persisted = await persistSiteContextFromCandidate({
-            projectId: project.publicId ?? project.id,
-            addressInput: addressCandidate,
-            candidate: bestCandidate,
-          });
-          const projectWithZoning = await prisma.project.findUnique({
-            where: { id: persisted.projectId },
-            select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true, dcpData: true },
-          });
-          siteContext = serializeSiteContext(persisted, projectWithZoning);
-        }
+        await autoSetSiteFromText({ projectId: project.id, text: promptText });
       } catch (error) {
         console.warn("[project-ensure-site-autoset]", {
           message: error instanceof Error ? error.message : "Unknown error",
         });
+      }
+    }
+
+    const existingSiteContext = await prisma.siteContext.findUnique({ where: { projectId: project.id } });
+    if (existingSiteContext) {
+      const projectWithZoning = await prisma.project.findUnique({
+        where: { id: project.id },
+        select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true, dcpData: true },
+      });
+      if (projectWithZoning) {
+        siteContext = serializeSiteContext(existingSiteContext, projectWithZoning);
       }
     }
 
