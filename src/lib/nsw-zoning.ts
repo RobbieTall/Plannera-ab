@@ -3,7 +3,7 @@ import { z } from "zod";
 export type ZoningResult = {
   zoneCode: string;
   zoneName: string;
-  source: "NSW_SIX";
+  source: "NSW_LZN";
   raw?: unknown;
 };
 
@@ -15,10 +15,11 @@ export type ZoningQuery = {
 };
 
 const DEFAULT_SERVICE_URL =
-  process.env.NSW_PLANNING_SERVICE_URL ?? "https://maps.six.nsw.gov.au/arcgis/rest/services/public/Planning/MapServer";
+  process.env.NSW_PLANNING_SERVICE_URL ??
+  "https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Planning/Environmental_Planning_Instrument_Land_Zoning/MapServer";
 
 const ZONING_LAYER_NAME_HINTS = ["Land Zoning", "Land Zoning (LZN)", "Zoning", "LZN"];
-const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "2", 10);
+const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "0", 10);
 
 export class NswZoningError extends Error {
   constructor(
@@ -147,36 +148,6 @@ function normaliseZoneString(value: unknown): string | undefined {
   return undefined;
 }
 
-function deriveZone(attributes: Record<string, unknown>): { zoneCode?: string; zoneName?: string } {
-  const normalizedEntries = Object.entries(attributes).reduce<Record<string, unknown>>((acc, [key, value]) => {
-    acc[key.toLowerCase()] = value;
-    return acc;
-  }, {});
-
-  const zoneCode = normaliseZoneString(
-    normalizedEntries["zone_code"] ??
-      normalizedEntries["zonecode"] ??
-      normalizedEntries["zone_lep"] ??
-      normalizedEntries["zone"] ??
-      normalizedEntries["lzn"] ??
-      normalizedEntries["lzn_code"] ??
-      normalizedEntries["lzncode"],
-  );
-
-  const zoneName = normaliseZoneString(
-    normalizedEntries["zone_name"] ??
-      normalizedEntries["zonename"] ??
-      normalizedEntries["zone_description"] ??
-      normalizedEntries["zone_desc"] ??
-      normalizedEntries["zone_label"] ??
-      normalizedEntries["zonelabel"] ??
-      normalizedEntries["label"] ??
-      normalizedEntries["description"],
-  );
-
-  return { zoneCode, zoneName };
-}
-
 async function queryZoningLayer(params: {
   layerId: number;
   coords: { lat: number; lng: number };
@@ -184,7 +155,15 @@ async function queryZoningLayer(params: {
   includeRaw?: boolean;
 }): Promise<ZoningResult | null> {
   const { layerId, coords, serviceUrl, includeRaw } = params;
-  const response = await fetchJson<unknown>(`${serviceUrl}/${layerId}/query`, {
+  const queryUrl = `${serviceUrl}/${layerId}/query`;
+  console.log("[nsw-zoning] querying zoning", {
+    serviceUrl,
+    coords,
+    layerId,
+    queryUrl,
+  });
+
+  const response = await fetchJson<unknown>(queryUrl, {
     f: "json",
     geometry: `${coords.lng},${coords.lat}`,
     geometryType: "esriGeometryPoint",
@@ -193,6 +172,18 @@ async function queryZoningLayer(params: {
     outFields: "*",
     returnGeometry: false,
     where: "1=1",
+  });
+
+  const rawData = response.data as { error?: unknown; features?: unknown[] };
+  if (rawData.error) {
+    console.warn("[nsw-zoning] ArcGIS error", { error: rawData.error });
+  }
+  console.log("[nsw-zoning] query result", {
+    featureCount: Array.isArray(rawData.features) ? rawData.features.length : 0,
+    sampleAttributes:
+      Array.isArray(rawData.features) && rawData.features.length > 0
+        ? (rawData.features[0] as { attributes?: unknown }).attributes ?? null
+        : null,
   });
 
   const parsed = queryResponseSchema.safeParse(response.data);
@@ -222,16 +213,33 @@ async function queryZoningLayer(params: {
     return null;
   }
 
-  const { zoneCode, zoneName } = deriveZone(feature.attributes);
-  if (!zoneCode && !zoneName) {
-    console.warn("[nsw-zoning] Zoning feature missing expected attributes", feature.attributes);
+  const attrs = feature.attributes as Record<string, unknown>;
+  const zoneCode =
+    normaliseZoneString(attrs.ZONE_CODE) ??
+    normaliseZoneString(attrs.ZONE) ??
+    normaliseZoneString(attrs.LZN_ZONE) ??
+    normaliseZoneString(attrs.LZNCODE) ??
+    normaliseZoneString(attrs.ZONE_LEP) ??
+    null;
+
+  const zoneName =
+    normaliseZoneString(attrs.ZONE_NAME) ??
+    normaliseZoneString(attrs.LZN_ZONE_NAME) ??
+    normaliseZoneString(attrs.ZONE_LABEL) ??
+    normaliseZoneString(attrs.LZN_LABEL) ??
+    normaliseZoneString(attrs.ZONE_DESC) ??
+    normaliseZoneString(attrs.ZONE_DESCRIPTION) ??
+    null;
+
+  if (!zoneCode) {
+    console.warn("[nsw-zoning] feature returned but no zone code field found", { attrs });
     return null;
   }
 
   return {
-    zoneCode: zoneCode ?? zoneName ?? "Unknown",
-    zoneName: zoneName ?? zoneCode ?? "Unknown",
-    source: "NSW_SIX",
+    zoneCode,
+    zoneName: zoneName ?? "",
+    source: "NSW_LZN",
     raw: includeRaw ? response.data : undefined,
   } satisfies ZoningResult;
 }
