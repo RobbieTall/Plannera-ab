@@ -126,7 +126,7 @@ async function findParcelCentroid({ parcel, serviceUrl }: { parcel: NonNullable<
   return null;
 }
 
-const zoningAttributesSchema = z.object({ attributes: z.record(z.unknown()) });
+const zoningAttributesSchema = z.object({ attributes: z.record(z.string(), z.unknown()) });
 const queryResponseSchema = z.object({
   features: z.array(zoningAttributesSchema).optional(),
   error: arcGisErrorSchema,
