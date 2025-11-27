@@ -52,6 +52,10 @@ export type SiteContextSummary = {
     instrumentType?: string;
     zones: { zoneCode: string; zoneName: string }[];
   };
+  dcpSummary?: {
+    instrumentName: string;
+    sectionHeadings: string[];
+  };
   councilMap?: CouncilMapContext;
   createdAt: string;
   updatedAt: string;
