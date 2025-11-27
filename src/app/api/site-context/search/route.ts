@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { resolveSiteFromText } from "@/lib/site-resolver";
+import { searchNswSite } from "@/lib/site/nsw-search";
 
 const searchSchema = z.object({ query: z.string().min(3) });
 
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { query } = searchSchema.parse(body);
-    const result = await resolveSiteFromText(query, { source: "site-search" });
+    const result = await searchNswSite(query, { source: "site-search" });
     if (result.status !== "ok") {
       const status = result.status === "property_search_not_configured" ? 503 : 502;
       const message =
