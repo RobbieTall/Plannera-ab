@@ -1291,6 +1291,17 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <Layers3 className="h-3.5 w-3.5" />
           {zoningLabel ? <span>Zoning: {zoningLabel}</span> : <span>Zoning: Not available</span>}
         </div>
+        {siteContext?.councilMap?.url ? (
+          <a
+            href={siteContext.councilMap.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Open council web map
+          </a>
+        ) : null}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">

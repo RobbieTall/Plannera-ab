@@ -3,6 +3,7 @@ import type { SiteContext } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import { INSTRUMENT_CONFIG } from "./legislation/config";
+import { getLgaMapInfo } from "./lga-map-registry";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 import {
@@ -163,6 +164,7 @@ export const serializeSiteContext = (
   project?: { zoningCode: string | null; zoningName: string | null; zoningSource: string | null } | null,
 ): SiteContextSummary | null => {
   if (!context) return null;
+  const lgaMapInfo = context.lgaName ? getLgaMapInfo(context.lgaName) : null;
   return {
     id: context.id,
     projectId: context.projectId,
@@ -179,6 +181,12 @@ export const serializeSiteContext = (
     zoningCode: project?.zoningCode ?? null,
     zoningName: project?.zoningName ?? null,
     zoningSource: project?.zoningSource ?? null,
+    councilMap: lgaMapInfo
+      ? {
+          platform: lgaMapInfo.platform,
+          url: lgaMapInfo.primaryMapUrl,
+        }
+      : undefined,
     createdAt: context.createdAt.toISOString(),
     updatedAt: context.updatedAt.toISOString(),
   };
