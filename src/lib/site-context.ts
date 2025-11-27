@@ -3,6 +3,7 @@ import type { SiteContext } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import { INSTRUMENT_CONFIG } from "./legislation/config";
+import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 import {
   decideSiteFromCandidates,
@@ -52,6 +53,30 @@ export const persistSiteContextFromCandidate = async (params: {
     throw new Error("Project not found for site context");
   }
   const normalizedAddressInput = addressInput.trim() || addressInput;
+
+  let zoningResult: ZoningResult | null = null;
+  try {
+    zoningResult = await getZoningForSite({
+      coords:
+        typeof candidate.latitude === "number" && typeof candidate.longitude === "number"
+          ? { lat: candidate.latitude, lng: candidate.longitude }
+          : null,
+      parcel:
+        candidate.lot && candidate.planNumber
+          ? { lot: candidate.lot, dp: candidate.planNumber }
+          : null,
+    });
+  } catch (error) {
+    console.warn("[site-context] zoning lookup failed", {
+      error,
+      provider: candidate.provider,
+      coords: { lat: candidate.latitude, lng: candidate.longitude },
+      lot: candidate.lot,
+      planNumber: candidate.planNumber,
+    });
+  }
+
+  const zoningLabel = formatZoningLabel(zoningResult) ?? candidate.zone ?? null;
   const data = {
     projectId: project.id,
     addressInput: normalizedAddressInput,
@@ -63,14 +88,24 @@ export const persistSiteContextFromCandidate = async (params: {
     planNumber: candidate.planNumber ?? null,
     latitude: candidate.latitude ?? null,
     longitude: candidate.longitude ?? null,
-    zone: candidate.zone ?? null,
+    zone: zoningLabel,
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
-  return prisma.siteContext.upsert({
+  const persisted = await prisma.siteContext.upsert({
     where: { projectId: project.id },
     update: data,
     create: data,
   });
+  await prisma.project.update({
+    where: { id: project.id },
+    data: {
+      zoningCode: zoningResult?.zoneCode ?? null,
+      zoningName: zoningResult?.zoneName ?? null,
+      zoningSource: zoningResult?.source ?? null,
+    },
+  });
+
+  return persisted;
 };
 
 export const persistManualSiteContext = async (params: {
@@ -101,11 +136,18 @@ export const persistManualSiteContext = async (params: {
     zone: null,
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
-  return prisma.siteContext.upsert({
+  const persisted = await prisma.siteContext.upsert({
     where: { projectId: project.id },
     update: data,
     create: data,
   });
+
+  await prisma.project.update({
+    where: { id: project.id },
+    data: { zoningCode: null, zoningName: null, zoningSource: null },
+  });
+
+  return persisted;
 };
 
 export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> => {
@@ -116,7 +158,10 @@ export const getSiteContextForProject = async (projectId: string): Promise<SiteC
   return prisma.siteContext.findUnique({ where: { projectId: project.id } });
 };
 
-export const serializeSiteContext = (context: SiteContext | null): SiteContextSummary | null => {
+export const serializeSiteContext = (
+  context: SiteContext | null,
+  project?: { zoningCode: string | null; zoningName: string | null; zoningSource: string | null } | null,
+): SiteContextSummary | null => {
   if (!context) return null;
   return {
     id: context.id,
@@ -131,6 +176,9 @@ export const serializeSiteContext = (context: SiteContext | null): SiteContextSu
     latitude: context.latitude,
     longitude: context.longitude,
     zone: context.zone,
+    zoningCode: project?.zoningCode ?? null,
+    zoningName: project?.zoningName ?? null,
+    zoningSource: project?.zoningSource ?? null,
     createdAt: context.createdAt.toISOString(),
     updatedAt: context.updatedAt.toISOString(),
   };

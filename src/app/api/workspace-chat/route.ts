@@ -11,6 +11,8 @@ import {
   serializeSiteContext,
   type SiteInstrumentMatch,
 } from "@/lib/site-context";
+import { prisma } from "@/lib/prisma";
+import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
 import { extractCandidateAddress, resolveSiteFromText } from "@/lib/site-resolver";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 
@@ -37,6 +39,18 @@ type WorkspaceMemory = {
 };
 
 const workspaceMemory = new Map<string, WorkspaceMemory>();
+
+const projectZoningSelect = { zoningCode: true, zoningName: true, zoningSource: true } as const;
+
+const getProjectZoningByExternalId = async (projectId: string) => {
+  const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
+  if (!project) return null;
+  const { zoningCode, zoningName, zoningSource } = project;
+  return { zoningCode, zoningName, zoningSource };
+};
+
+const getProjectZoningByInternalId = (projectId: string) =>
+  prisma.project.findUnique({ where: { id: projectId }, select: projectZoningSelect });
 
 type ErrorWithResponse = {
   message?: string;
@@ -147,7 +161,8 @@ export async function POST(request: Request) {
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
-        siteContextSummary = serializeSiteContext(dbSite);
+        const project = await getProjectZoningByExternalId(projectId);
+        siteContextSummary = serializeSiteContext(dbSite, project);
       } catch (siteLoadError) {
         console.warn("[workspace-chat-warning] Failed to load stored site context", getErrorDetails(siteLoadError));
       }
@@ -176,7 +191,8 @@ export async function POST(request: Request) {
               addressInput: candidateAddress,
               candidate: resolution.candidates[0],
             });
-            siteContextSummary = serializeSiteContext(persisted);
+            const project = await getProjectZoningByInternalId(persisted.projectId);
+            siteContextSummary = serializeSiteContext(persisted, project);
           } else if (resolution.status === "ok" && resolution.decision === "ambiguous") {
             return NextResponse.json({
               requiresSiteSelection: true,

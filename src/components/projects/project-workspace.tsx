@@ -161,6 +161,14 @@ const artefactBadges: Record<string, string> = {
 
 const zoningPattern = /\b(R1|R2|R3|R4|R5|B1|B2|B3|B4|IN1|IN2|MU1|E1|E2|E3|E4|SP1|SP2|W1|W2)\b/i;
 
+const buildZoningLabel = (context: SiteContextSummary | null) => {
+  if (!context) return null;
+  if (context.zoningCode || context.zoningName) {
+    return [context.zoningCode, context.zoningName].filter(Boolean).join(" – ");
+  }
+  return context.zone;
+};
+
 function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
   const normalized = message.toLowerCase();
   const zoneMatch = message.match(zoningPattern);
@@ -251,6 +259,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     getSessionSignals(projectKey)
   );
   const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
+  const zoningLabel = useMemo(() => buildZoningLabel(siteContext), [siteContext]);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
@@ -1271,6 +1280,17 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
           <Notebook className="h-4 w-4" />
           Share workspace
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+          <MapPin className="h-4 w-4 text-slate-500" />
+          <span>{siteContext?.formattedAddress ?? "No site set"}</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+          <Layers3 className="h-3.5 w-3.5" />
+          {zoningLabel ? <span>Zoning: {zoningLabel}</span> : <span>Zoning: Not available</span>}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">

@@ -97,6 +97,9 @@ describe("Set Site dialog", () => {
       latitude: -33.891,
       longitude: 151.276,
       zone: null,
+      zoningCode: null,
+      zoningName: null,
+      zoningSource: null,
       createdAt: "2024-01-01T00:00:00.000Z",
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
