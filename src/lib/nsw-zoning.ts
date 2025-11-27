@@ -18,6 +18,7 @@ const DEFAULT_SERVICE_URL =
   process.env.NSW_PLANNING_SERVICE_URL ?? "https://maps.six.nsw.gov.au/arcgis/rest/services/public/Planning/MapServer";
 
 const ZONING_LAYER_NAME_HINTS = ["Land Zoning", "Land Zoning (LZN)", "Zoning", "LZN"];
+const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "2", 10);
 
 export class NswZoningError extends Error {
   constructor(
@@ -37,7 +38,10 @@ const withToken = (url: URL) => {
   return url;
 };
 
-async function fetchJson<T>(baseUrl: string, params: Record<string, string | number | boolean>): Promise<T> {
+async function fetchJson<T>(
+  baseUrl: string,
+  params: Record<string, string | number | boolean>,
+): Promise<{ data: T; status: number; statusText: string }> {
   const url = new URL(baseUrl);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)));
   withToken(url);
@@ -51,7 +55,11 @@ async function fetchJson<T>(baseUrl: string, params: Record<string, string | num
     });
   }
 
-  return response.json() as Promise<T>;
+  return {
+    data: (await response.json()) as T,
+    status: response.status,
+    statusText: response.statusText,
+  };
 }
 
 const arcGisErrorSchema = z.object({ message: z.string().optional(), details: z.array(z.string()).optional() }).optional();
@@ -65,7 +73,7 @@ async function resolveZoningLayerId(serviceUrl: string): Promise<number | null> 
 
   try {
     const data = await fetchJson<unknown>(serviceUrl, { f: "json" });
-    const parsed = arcGisLayerListSchema.safeParse(data);
+    const parsed = arcGisLayerListSchema.safeParse(data.data);
     if (!parsed.success) {
       console.warn("[nsw-zoning] Unexpected layer response", { issues: parsed.error.issues });
       return null;
@@ -110,7 +118,7 @@ async function findParcelCentroid({ parcel, serviceUrl }: { parcel: NonNullable<
         layers: "all",
         returnGeometry: true,
       });
-      const parsed = findResponseSchema.safeParse(response);
+      const parsed = findResponseSchema.safeParse(response.data);
       if (!parsed.success) {
         console.warn("[nsw-zoning] Unexpected parcel find response", { term, issues: parsed.error.issues });
         continue;
@@ -145,26 +153,26 @@ function deriveZone(attributes: Record<string, unknown>): { zoneCode?: string; z
     return acc;
   }, {});
 
-  const zoneCode =
-    normaliseZoneString(
-      normalizedEntries["zone_code"] ??
-        normalizedEntries["zonecode"] ??
-        normalizedEntries["zone"] ??
-        normalizedEntries["lzn"] ??
-        normalizedEntries["lzn_code"] ??
-        normalizedEntries["lzncode"],
-    );
+  const zoneCode = normaliseZoneString(
+    normalizedEntries["zone_code"] ??
+      normalizedEntries["zonecode"] ??
+      normalizedEntries["zone_lep"] ??
+      normalizedEntries["zone"] ??
+      normalizedEntries["lzn"] ??
+      normalizedEntries["lzn_code"] ??
+      normalizedEntries["lzncode"],
+  );
 
-  const zoneName =
-    normaliseZoneString(
-      normalizedEntries["zone_name"] ??
-        normalizedEntries["zonename"] ??
-        normalizedEntries["zone_description"] ??
-        normalizedEntries["zone_desc"] ??
-        normalizedEntries["zonelabel"] ??
-        normalizedEntries["label"] ??
-        normalizedEntries["description"],
-    );
+  const zoneName = normaliseZoneString(
+    normalizedEntries["zone_name"] ??
+      normalizedEntries["zonename"] ??
+      normalizedEntries["zone_description"] ??
+      normalizedEntries["zone_desc"] ??
+      normalizedEntries["zone_label"] ??
+      normalizedEntries["zonelabel"] ??
+      normalizedEntries["label"] ??
+      normalizedEntries["description"],
+  );
 
   return { zoneCode, zoneName };
 }
@@ -187,13 +195,19 @@ async function queryZoningLayer(params: {
     where: "1=1",
   });
 
-  const parsed = queryResponseSchema.safeParse(response);
+  const parsed = queryResponseSchema.safeParse(response.data);
   if (!parsed.success) {
     console.warn("[nsw-zoning] Unexpected zoning query response", { issues: parsed.error.issues });
     return null;
   }
 
   if (parsed.data.error) {
+    console.warn("[nsw-zoning] zoning query returned error", {
+      coords,
+      status: response.status,
+      statusText: response.statusText,
+      error: parsed.data.error,
+    });
     throw new NswZoningError(parsed.data.error.message ?? "Unknown NSW zoning API error", {
       details: parsed.data.error.details,
     });
@@ -201,7 +215,10 @@ async function queryZoningLayer(params: {
 
   const feature = parsed.data.features?.[0];
   if (!feature?.attributes) {
-    console.warn("[nsw-zoning] No zoning feature found for coordinates", coords);
+    console.warn("[nsw-zoning] No zoning feature found for coordinates", {
+      coords,
+      status: response.status,
+    });
     return null;
   }
 
@@ -215,7 +232,7 @@ async function queryZoningLayer(params: {
     zoneCode: zoneCode ?? zoneName ?? "Unknown",
     zoneName: zoneName ?? zoneCode ?? "Unknown",
     source: "NSW_SIX",
-    raw: includeRaw ? response : undefined,
+    raw: includeRaw ? response.data : undefined,
   } satisfies ZoningResult;
 }
 
@@ -238,14 +255,26 @@ export async function getZoningForSite(query: ZoningQuery): Promise<ZoningResult
     return null;
   }
 
-  const layerId = await resolveZoningLayerId(serviceUrl);
-  if (layerId === null) {
+  const resolvedLayerId = await resolveZoningLayerId(serviceUrl);
+  const candidateLayerIds = [KNOWN_ZONING_LAYER_ID, resolvedLayerId].filter(
+    (value): value is number => Number.isFinite(value) && value >= 0,
+  );
+  if (candidateLayerIds.length === 0) {
     console.warn("[nsw-zoning] No zoning layer could be resolved from service", { serviceUrl });
     return null;
   }
 
   try {
-    return await queryZoningLayer({ layerId, coords: targetCoords, serviceUrl, includeRaw: query.includeRaw });
+    for (const layerId of candidateLayerIds) {
+      const result = await queryZoningLayer({
+        layerId,
+        coords: targetCoords,
+        serviceUrl,
+        includeRaw: query.includeRaw,
+      });
+      if (result) return result;
+    }
+    return null;
   } catch (error) {
     if (error instanceof NswZoningError) {
       console.warn("[nsw-zoning] Zoning lookup failed", error.context ?? error.message);
