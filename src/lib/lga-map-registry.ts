@@ -3,6 +3,7 @@ export type LgaMapInfo = {
   platform: "arcgis" | "intramaps" | "pozi" | "none";
   primaryMapUrl: string | null;
   notes?: string;
+  nswSpatialViewerUrl?: string; // optional fallback
 };
 
 const LGA_MAPS: LgaMapInfo[] = [
@@ -99,8 +100,10 @@ const LGA_MAPS: LgaMapInfo[] = [
   {
     lgaName: "Byron Shire Council",
     platform: "arcgis",
-    primaryMapUrl: "https://byronshire.maps.arcgis.com/home/index.html",
-    notes: "Council ArcGIS portal with zoning and overlays",
+    primaryMapUrl:
+      "https://www.arcgis.com/apps/instant/sidebar/index.html?appid=c741bd7f05e2485fb288bd45cc1a2c5c",
+    notes: "Byron Shire Council web map (zoning + overlays)",
+    nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
   },
   {
     lgaName: "Cabonne Council",
@@ -310,9 +313,11 @@ const LGA_MAPS: LgaMapInfo[] = [
   },
   {
     lgaName: "Kempsey Shire Council",
-    platform: "intramaps",
-    primaryMapUrl: "https://mapping.kempsey.nsw.gov.au/intramaps90/",
-    notes: "Kempsey public mapping viewer",
+    platform: "none",
+    primaryMapUrl: null,
+    notes:
+      "No unified council GIS; use NSW Planning Portal Spatial Viewer for zoning and overlays.",
+    nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
   },
   {
     lgaName: "Kiama Municipal Council",
@@ -447,8 +452,11 @@ const LGA_MAPS: LgaMapInfo[] = [
   },
   {
     lgaName: "Northern Beaches Council",
-    platform: "arcgis",
-    primaryMapUrl: "https://maps.northernbeaches.nsw.gov.au/Html5Viewer/Index.html?viewer=public",
+    platform: "intramaps",
+    primaryMapUrl:
+      "https://eservices.northernbeaches.nsw.gov.au/ePlanning/live/Public/xc.plan/PlanningMapsEsri.aspx",
+    notes: "Online Planning Maps (LEP, DCP, hazards)",
+    nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
   },
   {
     lgaName: "Oberon Council",
@@ -671,7 +679,10 @@ const LGA_MAPS: LgaMapInfo[] = [
   {
     lgaName: "Byron Shire",
     platform: "arcgis",
-    primaryMapUrl: "https://byronshire.maps.arcgis.com/home/index.html",
+    primaryMapUrl:
+      "https://www.arcgis.com/apps/instant/sidebar/index.html?appid=c741bd7f05e2485fb288bd45cc1a2c5c",
+    notes: "Byron Shire Council web map (zoning + overlays)",
+    nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
   },
   {
     lgaName: "Ballina",
@@ -685,8 +696,11 @@ const LGA_MAPS: LgaMapInfo[] = [
   },
   {
     lgaName: "Kempsey",
-    platform: "intramaps",
-    primaryMapUrl: "https://mapping.kempsey.nsw.gov.au/intramaps90/",
+    platform: "none",
+    primaryMapUrl: null,
+    notes:
+      "No unified council GIS; use NSW Planning Portal Spatial Viewer for zoning and overlays.",
+    nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
   },
   {
     lgaName: "Randwick",
