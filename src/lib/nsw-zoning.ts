@@ -14,12 +14,13 @@ export type ZoningQuery = {
   serviceUrl?: string;
 };
 
-const DEFAULT_SERVICE_URL =
-  process.env.NSW_PLANNING_SERVICE_URL ??
-  "https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Planning/Environmental_Planning_Instrument_Land_Zoning/MapServer";
+const NSW_EPI_ZONING_SERVICE_URL =
+  "https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer";
+
+const DEFAULT_SERVICE_URL = process.env.NSW_PLANNING_SERVICE_URL ?? NSW_EPI_ZONING_SERVICE_URL;
 
 const ZONING_LAYER_NAME_HINTS = ["Land Zoning", "Land Zoning (LZN)", "Zoning", "LZN"];
-const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "0", 10);
+const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "2", 10);
 
 export class NswZoningError extends Error {
   constructor(
