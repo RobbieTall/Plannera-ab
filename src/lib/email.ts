@@ -1,5 +1,24 @@
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+export function getBaseUrl(request?: Request): string {
+  const appUrl = process.env.APP_URL;
+  if (appUrl && appUrl.length > 0) {
+    return appUrl.replace(/\/+$/, "");
+  }
+
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl && vercelUrl.length > 0) {
+    return `https://${vercelUrl}`.replace(/\/+$/, "");
+  }
+
+  if (request) {
+    const url = new URL(request.url);
+    return `${url.protocol}//${url.host}`.replace(/\/+$/, "");
+  }
+
+  throw new Error("Base URL could not be determined");
+}
+
 const buildEmailBody = (to: string, magicLink: string) => ({
   from: process.env.EMAIL_FROM ?? "no-reply@plannera.ai",
   to,

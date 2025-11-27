@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createMagicLinkToken } from "@/lib/auth";
-import { sendMagicLinkEmail } from "@/lib/email";
-
-const getAppUrl = (): string | null => process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? null;
+import { getBaseUrl, sendMagicLinkEmail } from "@/lib/email";
 
 const isValidEmail = (value: unknown): value is string =>
   typeof value === "string" && /.+@.+\..+/.test(value.trim());
@@ -19,14 +17,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
     }
 
-    const appUrl = getAppUrl();
-    if (!appUrl) {
-      return NextResponse.json({ error: "APP_URL is not configured." }, { status: 500 });
-    }
-
     const email = emailInput.trim().toLowerCase();
     const token = createMagicLinkToken(email);
-    const verifyUrl = `${appUrl.replace(/\/$/, "")}/api/auth/verify?token=${encodeURIComponent(token)}`;
+    const baseUrl = getBaseUrl(request);
+    const verifyUrl = `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
 
     await sendMagicLinkEmail(email, verifyUrl);
 
