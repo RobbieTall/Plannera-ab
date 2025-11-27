@@ -1,6 +1,7 @@
 export type LepZoneUses = {
   zoneCode: string;
   zoneName: string;
+  zoneObjectives?: string[];
   permittedWithoutConsent: string[];
   permittedWithConsent: string[];
   prohibited: string[];
