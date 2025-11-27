@@ -3,7 +3,7 @@ import { z } from "zod";
 export type ZoningResult = {
   zoneCode: string;
   zoneName: string;
-  source: "NSW_LZN";
+  source: "NSW_LZN" | "NSW_EPI_LZN";
   raw?: unknown;
 };
 
@@ -216,6 +216,7 @@ async function queryZoningLayer(params: {
 
   const attrs = feature.attributes as Record<string, unknown>;
   const zoneCode =
+    normaliseZoneString(attrs.SYM_CODE) ??
     normaliseZoneString(attrs.ZONE_CODE) ??
     normaliseZoneString(attrs.ZONE) ??
     normaliseZoneString(attrs.LZN_ZONE) ??
@@ -224,6 +225,7 @@ async function queryZoningLayer(params: {
     null;
 
   const zoneName =
+    normaliseZoneString(attrs.LAY_CLASS) ??
     normaliseZoneString(attrs.ZONE_NAME) ??
     normaliseZoneString(attrs.LZN_ZONE_NAME) ??
     normaliseZoneString(attrs.ZONE_LABEL) ??
@@ -237,10 +239,12 @@ async function queryZoningLayer(params: {
     return null;
   }
 
+  console.log("[nsw-zoning] resolved zoning", { zoneCode, zoneName });
+
   return {
     zoneCode,
     zoneName: zoneName ?? "",
-    source: "NSW_LZN",
+    source: "NSW_EPI_LZN",
     raw: includeRaw ? response.data : undefined,
   } satisfies ZoningResult;
 }
