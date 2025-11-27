@@ -8,20 +8,23 @@ import { serializeSiteContext } from "@/lib/site-context";
 
 const requestSchema = ensureProjectInputSchema.extend({
   description: z.string().trim().optional(),
+  promptText: z.string().trim().optional(),
   landingPrompt: z.string().trim().optional(),
 });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { landingPrompt, ...payload } = requestSchema.parse(body);
+    const { landingPrompt, promptText, ...payload } = requestSchema.parse(body);
     const project = await ensureProjectExists(payload);
 
     let siteContext = null;
-    const promptText = landingPrompt ?? payload.description ?? payload.name;
-    if (promptText) {
+    const landingText = promptText ?? landingPrompt ?? payload.description ?? payload.name;
+    const trimmedLandingText = landingText?.trim();
+    let siteAutoSetResult: "set" | "skipped" = "skipped";
+    if (trimmedLandingText) {
       try {
-        await autoSetSiteFromText({ projectId: project.id, text: promptText });
+        siteAutoSetResult = await autoSetSiteFromText({ projectId: project.id, text: trimmedLandingText });
       } catch (error) {
         console.warn("[project-ensure-site-autoset]", {
           message: error instanceof Error ? error.message : "Unknown error",
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, project, siteContext });
+    return NextResponse.json({ ok: true, project, siteContext, siteAutoSetResult });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

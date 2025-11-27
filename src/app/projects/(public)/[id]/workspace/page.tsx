@@ -29,7 +29,7 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
       }
 
       try {
-        const landingPrompt = getChatHistory(project.id)[0]?.content;
+        const promptText = getChatHistory(project.id)[0]?.content;
         await fetch("/api/projects/ensure", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -38,7 +38,7 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
             name: project.name,
             description: project.description,
             propertyName: project.location ?? project.name,
-            landingPrompt: landingPrompt ?? project.description,
+            promptText: promptText ?? project.description,
           }),
           signal: controller.signal,
         });
