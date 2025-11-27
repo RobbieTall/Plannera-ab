@@ -97,16 +97,26 @@ export function PlanningAssistant() {
       const data: { summary: PlanningSummary; error?: string | null } = await response.json();
       setSummary(data.summary);
       setErrorMessage(data.error ?? null);
-      persistInitialConversation(options.projectId, value, data.summary, options.shouldTrackProject);
-      handleGoToWorkspace(options.projectId);
+      const ensuredProjectId = await persistInitialConversation(
+        options.projectId,
+        value,
+        data.summary,
+        options.shouldTrackProject,
+      );
+      handleGoToWorkspace(ensuredProjectId);
     } catch (error) {
       console.error(error);
       setErrorMessage("We couldn't reach the planning assistant. Showing a fallback pathway.");
       const parsed = parseProjectDescription(value);
       const fallback = generatePlanningInsights(parsed);
       setSummary(fallback);
-      persistInitialConversation(options.projectId, value, fallback, options.shouldTrackProject);
-      handleGoToWorkspace(options.projectId);
+      const ensuredProjectId = await persistInitialConversation(
+        options.projectId,
+        value,
+        fallback,
+        options.shouldTrackProject,
+      );
+      handleGoToWorkspace(ensuredProjectId);
     } finally {
       setIsGenerating(false);
     }
@@ -171,12 +181,60 @@ export function PlanningAssistant() {
     [getChatHistory, saveChatHistory]
   );
 
-  const persistInitialConversation = (
+  const ensureProjectOnServer = async (params: {
+    projectId: string;
+    promptValue: string;
+    summary: PlanningSummary;
+    fallbackName: string;
+    fallbackDescription?: string;
+  }) => {
+    const { projectId, promptValue, summary, fallbackName, fallbackDescription } = params;
+    const body = {
+      publicId: projectId,
+      name: fallbackName,
+      description: fallbackDescription ?? promptValue,
+      propertyName: summary.location || summary.developmentType || fallbackName,
+      propertyState: summary.state || undefined,
+      propertyCountry: "Australia",
+      landingPrompt: promptValue,
+    };
+
+    try {
+      const ensureRes = await fetch("/api/projects/ensure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!ensureRes.ok) {
+        console.warn("[landing-first-chat] Project ensure failed", await ensureRes.text());
+        return { projectId, projectName: fallbackName, projectDescription: body.description };
+      }
+
+      const ensureData: {
+        projectId?: string;
+        project?: { id?: string; publicId?: string; name?: string; description?: string | null };
+      } = await ensureRes.json();
+      const ensuredProject = ensureData.project ?? null;
+      const ensuredId = ensuredProject?.publicId ?? ensuredProject?.id ?? ensureData.projectId ?? projectId;
+
+      return {
+        projectId: ensuredId,
+        projectName: ensuredProject?.name ?? fallbackName,
+        projectDescription: ensuredProject?.description ?? body.description,
+      };
+    } catch (error) {
+      console.warn("[landing-first-chat] Project ensure error", error);
+      return { projectId, projectName: fallbackName, projectDescription: body.description };
+    }
+  };
+
+  const persistInitialConversation = async (
     projectId: string,
     promptValue: string,
     generatedSummary: PlanningSummary,
     shouldTrack: boolean
-  ) => {
+  ): Promise<string> => {
     const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const initialMessages: WorkspaceMessage[] = [
       {
@@ -186,14 +244,31 @@ export function PlanningAssistant() {
         timestamp,
       },
     ];
-    saveChatHistory(projectId, initialMessages);
-    const project = buildProjectFromSummary(projectId, promptValue, generatedSummary);
+
+    const fallbackProject = buildProjectFromSummary(projectId, promptValue, generatedSummary);
+    const ensuredProject = await ensureProjectOnServer({
+      projectId,
+      promptValue,
+      summary: generatedSummary,
+      fallbackName: fallbackProject.name,
+      fallbackDescription: fallbackProject.description,
+    });
+    const effectiveProjectId = ensuredProject.projectId;
+    const project: Project = {
+      ...fallbackProject,
+      id: effectiveProjectId,
+      name: ensuredProject.projectName,
+      description: ensuredProject.projectDescription ?? fallbackProject.description,
+    };
+
+    saveChatHistory(effectiveProjectId, initialMessages);
     registerProject(project);
-    setActiveProjectId(projectId);
+    setActiveProjectId(effectiveProjectId);
     if (shouldTrack) {
-      trackProjectCreation(projectId, initialMessages);
+      trackProjectCreation(effectiveProjectId, initialMessages);
     }
-    void sendInitialWorkspaceMessage({ project, prompt: promptValue, initialMessages });
+    await sendInitialWorkspaceMessage({ project, prompt: promptValue, initialMessages });
+    return effectiveProjectId;
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
