@@ -25,6 +25,11 @@ export type PersistableSiteCandidate = SiteCandidate & {
   zone?: string | null;
 };
 
+export type CouncilMapContext = {
+  platform: "arcgis" | "intramaps" | "pozi" | "none";
+  url: string | null;
+};
+
 export type SiteContextSummary = {
   id: string;
   projectId: string;
@@ -41,6 +46,7 @@ export type SiteContextSummary = {
   zoningCode: string | null;
   zoningName: string | null;
   zoningSource: string | null;
+  councilMap?: CouncilMapContext;
   createdAt: string;
   updatedAt: string;
 };
