@@ -38,6 +38,9 @@ export type SiteContextSummary = {
   latitude: number | null;
   longitude: number | null;
   zone: string | null;
+  zoningCode: string | null;
+  zoningName: string | null;
+  zoningSource: string | null;
   createdAt: string;
   updatedAt: string;
 };

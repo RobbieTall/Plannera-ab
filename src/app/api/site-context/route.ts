@@ -7,6 +7,8 @@ import {
   persistSiteContextFromCandidate,
   serializeSiteContext,
 } from "@/lib/site-context";
+import { prisma } from "@/lib/prisma";
+import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
 import { persistableCandidateSchema } from "./schema";
 
 const getSchema = z.object({ projectId: z.string() });
@@ -33,7 +35,8 @@ export async function GET(request: Request) {
     const projectId = searchParams.get("projectId");
     const { projectId: parsedProjectId } = getSchema.parse({ projectId });
     const siteContext = await getSiteContextForProject(parsedProjectId);
-    return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
+    const project = await findProjectByExternalId(prisma, normalizeProjectId(parsedProjectId));
+    return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
   } catch (error) {
     console.error("[site-context-get]", error);
     return NextResponse.json(buildErrorPayload("Unable to load site context."), { status: 400 });
@@ -54,7 +57,11 @@ export async function POST(request: Request) {
         lgaName,
         resolverStatus: (requestData.resolverStatus as string | null | undefined) ?? null,
       });
-      return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
+      const project = await prisma.project.findUnique({
+        where: { id: siteContext.projectId },
+        select: { zoningCode: true, zoningName: true, zoningSource: true },
+      });
+      return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
     }
 
     const parsedUpdate = updateSchema.safeParse(requestData);
@@ -87,7 +94,11 @@ export async function POST(request: Request) {
       });
       throw e;
     }
-    return NextResponse.json({ siteContext: serializeSiteContext(siteContext) });
+    const project = await prisma.project.findUnique({
+      where: { id: siteContext.projectId },
+      select: { zoningCode: true, zoningName: true, zoningSource: true },
+    });
+    return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
   } catch (error) {
     console.error("[site-context-update]", {
       stage: "persistence",
