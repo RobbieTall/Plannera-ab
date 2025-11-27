@@ -8,6 +8,8 @@ const getAppUrl = (): string | null => process.env.APP_URL ?? process.env.NEXTAU
 const isValidEmail = (value: unknown): value is string =>
   typeof value === "string" && /.+@.+\..+/.test(value.trim());
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));

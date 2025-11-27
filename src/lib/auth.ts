@@ -16,6 +16,7 @@ const smtpUser = process.env.EMAIL_SERVER_USER;
 const smtpPassword = process.env.EMAIL_SERVER_PASSWORD;
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "database",

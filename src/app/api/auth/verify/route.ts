@@ -5,10 +5,14 @@ import {
   createAnonymousSession,
   decodeSessionCookie,
   SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
   serializeSession,
   verifyMagicLinkToken,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,8 +31,8 @@ export async function GET(request: NextRequest) {
     const email = payload.email.trim().toLowerCase();
     const user = await prisma.user.upsert({
       where: { email },
-      update: { email },
-      create: { email },
+      update: { email, emailVerified: new Date() },
+      create: { email, emailVerified: new Date() },
     });
 
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -38,6 +42,28 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/", request.url));
     const serialized = serializeSession(upgradedSession);
     response.cookies.set(serialized.name, serialized.value, serialized.attributes);
+
+    const sessionToken = randomUUID();
+    const sessionExpires = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
+
+    await prisma.session.create({
+      data: {
+        sessionToken,
+        userId: user.id,
+        expires: sessionExpires,
+      },
+    });
+
+    const isSecure = request.nextUrl.protocol === "https:";
+    const nextAuthSessionCookieName = `${isSecure ? "__Secure-" : ""}next-auth.session-token`;
+
+    response.cookies.set(nextAuthSessionCookieName, sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: isSecure,
+      expires: sessionExpires,
+    });
 
     return response;
   } catch (error) {
