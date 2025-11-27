@@ -13,12 +13,13 @@ datasource db {
 /// Minimal identity model so Auth.js sessions can be persisted while we build
 /// out planning-specific entities.
 model User {
-  id                 String            @id @default(cuid())
+  id                 String            @id @default(uuid())
   name               String?
-  email              String?           @unique
+  email              String            @unique
   emailVerified      DateTime?
   image              String?
   plan               String            @default("free")
+  createdAt          DateTime          @default(now())
   sessions           Session[]
   projects           Project[]         @relation("ProjectCreatedBy")
   projectMemberships ProjectMember[]
