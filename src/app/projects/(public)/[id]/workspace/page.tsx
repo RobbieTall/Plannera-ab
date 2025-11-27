@@ -13,7 +13,7 @@ interface WorkspacePageProps {
 }
 
 export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
-  const { getProject } = useExperience();
+  const { getProject, getChatHistory } = useExperience();
   const [project, setProject] = useState<Project | null>(null);
   const router = useRouter();
 
@@ -29,6 +29,7 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
       }
 
       try {
+        const landingPrompt = getChatHistory(project.id)[0]?.content;
         await fetch("/api/projects/ensure", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -37,6 +38,7 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
             name: project.name,
             description: project.description,
             propertyName: project.location ?? project.name,
+            landingPrompt: landingPrompt ?? project.description,
           }),
           signal: controller.signal,
         });
@@ -51,7 +53,7 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
     void syncProject();
 
     return () => controller.abort();
-  }, [project]);
+  }, [getChatHistory, project]);
 
   if (!project) {
     return (
