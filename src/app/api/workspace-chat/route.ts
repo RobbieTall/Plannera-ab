@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
 import { extractCandidateAddress, resolveSiteFromText } from "@/lib/site-resolver";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
+import { buildSiteContextMessage } from "@/lib/chat/site-context-message";
+import type { LepParseResult } from "@/lib/lep/types";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -37,6 +39,7 @@ type WorkspaceMemory = {
   instruments: string[];
   lga: string | null;
   siteContext?: SiteContextSummary | null;
+  lepData?: LepParseResult | null;
 };
 
 const workspaceMemory = new Map<string, WorkspaceMemory>();
@@ -145,29 +148,6 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
     lgaName: candidate.lgaName,
   }));
 
-const buildSiteContextMessage = (siteContext: SiteContextSummary | null) => {
-  if (!siteContext) return null;
-
-  const zoningLabel = [siteContext.zoningCode, siteContext.zoningName]
-    .filter(Boolean)
-    .join(" – ")
-    .trim();
-
-  const zone = zoningLabel || siteContext.zone;
-  const zoningSource = siteContext.zoningSource ? ` (${siteContext.zoningSource})` : "";
-
-  const siteLines = [
-    `The current project site is: ${siteContext.formattedAddress}.`,
-    siteContext.lgaName ? `LGA: ${siteContext.lgaName}.` : null,
-    zone ? `Zoning: ${zone}${zoningSource}.` : "Zoning is not available yet.",
-    "If a site is already set in the context, do not ask the user to provide the address again. Use the site details above in your answers.",
-    "If zoning is available, use it to frame what is likely permitted, but still advise the user to confirm via LEP/DCP and council.",
-    "If zoning is missing, provide general NSW guidance without requesting the address again.",
-  ];
-
-  return siteLines.filter(Boolean).join(" ");
-};
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -182,10 +162,12 @@ export async function POST(request: Request) {
     const existingMemory = workspaceMemory.get(workspaceKey);
 
     let siteContextSummary: SiteContextSummary | null = existingMemory?.siteContext ?? null;
+    let lepData: LepParseResult | null = existingMemory?.lepData ?? null;
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
         const project = await getProjectZoningByExternalId(projectId);
+        lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
         siteContextSummary = serializeSiteContext(dbSite, project);
       } catch (siteLoadError) {
         console.warn("[workspace-chat-warning] Failed to load stored site context", getErrorDetails(siteLoadError));
@@ -216,6 +198,7 @@ export async function POST(request: Request) {
               candidate: resolution.candidates[0],
             });
             const project = await getProjectZoningByInternalId(persisted.projectId);
+            lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
             siteContextSummary = serializeSiteContext(persisted, project);
           } else if (resolution.status === "ok" && resolution.decision === "ambiguous") {
             return NextResponse.json({
@@ -266,7 +249,7 @@ export async function POST(request: Request) {
       instrumentMatch,
     });
 
-    const siteContextMessage = buildSiteContextMessage(siteContextSummary);
+    const siteContextMessage = buildSiteContextMessage(siteContextSummary, lepData);
 
     const historyMessages = existingMemory?.messages ?? [];
     const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
@@ -325,6 +308,7 @@ export async function POST(request: Request) {
       instruments: instrumentSlugs,
       lga: fallbackLga,
       siteContext: siteContextSummary,
+      lepData,
     });
 
     return NextResponse.json({
