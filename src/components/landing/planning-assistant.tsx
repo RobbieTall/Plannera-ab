@@ -12,9 +12,10 @@ import { Modal } from "@/components/ui/modal";
 import type { WorkspaceMessage } from "@/types/workspace";
 
 const examplePrompts = [
-  "I want to build 6 townhouses on a 1200sqm block in Bondi",
-  "Planning a dual occupancy development in Brisbane",
-  "Adding a second story to existing house in Melbourne",
+  "I want to build a secondary dwelling on my property",
+  "Planning a dual occupancy development on a suburban block",
+  "Adding a second storey to an existing house",
+  "Developing 6 townhouses on a 1,000sqm site",
 ];
 
 const quickStats = [
