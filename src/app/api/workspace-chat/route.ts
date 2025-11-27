@@ -40,13 +40,13 @@ type WorkspaceMemory = {
 
 const workspaceMemory = new Map<string, WorkspaceMemory>();
 
-const projectZoningSelect = { zoningCode: true, zoningName: true, zoningSource: true } as const;
+const projectZoningSelect = { zoningCode: true, zoningName: true, zoningSource: true, lepData: true } as const;
 
 const getProjectZoningByExternalId = async (projectId: string) => {
   const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
   if (!project) return null;
-  const { zoningCode, zoningName, zoningSource } = project;
-  return { zoningCode, zoningName, zoningSource };
+  const { zoningCode, zoningName, zoningSource, lepData } = project;
+  return { zoningCode, zoningName, zoningSource, lepData };
 };
 
 const getProjectZoningByInternalId = (projectId: string) =>

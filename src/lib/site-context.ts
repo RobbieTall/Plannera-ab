@@ -2,6 +2,7 @@ import type { SiteContext } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
+import type { LepParseResult, LepZoneUses } from "./lep/types";
 import { INSTRUMENT_CONFIG } from "./legislation/config";
 import { getLgaMapInfo } from "./lga-map-registry";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
@@ -24,6 +25,44 @@ export {
   type SiteDecision,
   type SiteResolverResult,
   type SiteResolverSource,
+};
+
+type LepZoneSummary = Pick<LepZoneUses, "zoneCode" | "zoneName">;
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const toLepSummary = (lepData: unknown) => {
+  if (!lepData || !isObject(lepData)) {
+    return undefined;
+  }
+
+  const typed = lepData as Partial<LepParseResult>;
+  const metadata = isObject(typed.metadata) ? typed.metadata : undefined;
+  const zones = Array.isArray(typed.zones) ? typed.zones : [];
+
+  const zoneSummaries = zones
+    .map((zone) =>
+      isObject(zone) && typeof zone.zoneCode === "string" && typeof zone.zoneName === "string"
+        ? { zoneCode: zone.zoneCode, zoneName: zone.zoneName }
+        : null,
+    )
+    .filter(Boolean) as LepZoneSummary[];
+
+  const lgaName = metadata && typeof metadata.lgaName === "string" ? metadata.lgaName : "";
+  const instrumentName = metadata && typeof metadata.instrumentName === "string" ? metadata.instrumentName : "";
+  const instrumentType = metadata && typeof metadata.instrumentType === "string" ? metadata.instrumentType : undefined;
+
+  if (!lgaName && !instrumentName && !instrumentType && !zoneSummaries.length) {
+    return undefined;
+  }
+
+  return {
+    lgaName,
+    instrumentName,
+    instrumentType,
+    zones: zoneSummaries,
+  } satisfies SiteContextSummary["lepSummary"];
 };
 
 const LGA_LEGISLATION_REGISTRY: { lgaName: string; lgaCode?: string; lepSlug?: string }[] = [
@@ -161,7 +200,12 @@ export const getSiteContextForProject = async (projectId: string): Promise<SiteC
 
 export const serializeSiteContext = (
   context: SiteContext | null,
-  project?: { zoningCode: string | null; zoningName: string | null; zoningSource: string | null } | null,
+  project?: {
+    zoningCode: string | null;
+    zoningName: string | null;
+    zoningSource: string | null;
+    lepData?: unknown | null;
+  } | null,
 ): SiteContextSummary | null => {
   if (!context) return null;
   const lgaMapInfo = context.lgaName ? getLgaMapInfo(context.lgaName) : null;
@@ -181,6 +225,7 @@ export const serializeSiteContext = (
     zoningCode: project?.zoningCode ?? null,
     zoningName: project?.zoningName ?? null,
     zoningSource: project?.zoningSource ?? null,
+    lepSummary: project?.lepData ? toLepSummary(project.lepData) : undefined,
     councilMap: lgaMapInfo
       ? {
           platform: lgaMapInfo.platform,

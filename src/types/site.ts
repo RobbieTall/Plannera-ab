@@ -46,6 +46,12 @@ export type SiteContextSummary = {
   zoningCode: string | null;
   zoningName: string | null;
   zoningSource: string | null;
+  lepSummary?: {
+    lgaName: string;
+    instrumentName: string;
+    instrumentType?: string;
+    zones: { zoneCode: string; zoneName: string }[];
+  };
   councilMap?: CouncilMapContext;
   createdAt: string;
   updatedAt: string;
