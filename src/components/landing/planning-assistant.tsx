@@ -55,7 +55,7 @@ export function ExampleStartButton({
 }) {
   const router = useRouter();
 
-  async function handleStart() {
+  async function startExample() {
     const res = await fetch("/api/projects/ensure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -72,7 +72,7 @@ export function ExampleStartButton({
   }
 
   return (
-    <button onClick={handleStart} className={className} type="button" disabled={disabled}>
+    <button onClick={startExample} className={className} type="button" disabled={disabled}>
       {children ?? "Use this example"}
     </button>
   );
