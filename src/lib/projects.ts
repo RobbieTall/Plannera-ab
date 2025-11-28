@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 
 export type ProjectSummary = Pick<Project, "id" | "title" | "address" | "zoning">;
 
+export type ProjectListItem = ProjectSummary & Pick<Project, "updatedAt">;
+
 const projectSummarySelect = {
   id: true,
   title: true,
@@ -16,6 +18,19 @@ const sanitizeProject = (project: ProjectSummary): ProjectSummary => ({
   title: project.title,
   address: project.address,
   zoning: project.zoning,
+});
+
+const projectListSelect = {
+  ...projectSummarySelect,
+  updatedAt: true,
+} as const;
+
+const sanitizeProjectListItem = (project: ProjectListItem): ProjectListItem => ({
+  id: project.id,
+  title: project.title,
+  address: project.address,
+  zoning: project.zoning,
+  updatedAt: project.updatedAt,
 });
 
 export const getOrCreateCurrentProject = async (
@@ -115,4 +130,58 @@ export const getProjectsForUser = async (userId: string): Promise<ProjectSummary
   });
 
   return projects.map(sanitizeProject);
+};
+
+export const listProjectsForUser = async (userId: string): Promise<ProjectListItem[]> => {
+  const projects = await prisma.project.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: projectListSelect,
+  });
+
+  return projects.map(sanitizeProjectListItem);
+};
+
+export const createProjectForUser = async (userId: string, title?: string): Promise<ProjectListItem> => {
+  const resolvedTitle = title?.trim() || "Untitled project";
+
+  const project = await prisma.project.create({
+    data: {
+      title: resolvedTitle,
+      name: resolvedTitle,
+      sessionId: null,
+      owner: { connect: { id: userId } },
+      property: {
+        create: {
+          name: resolvedTitle,
+          address: null,
+        },
+      },
+    },
+    select: projectListSelect,
+  });
+
+  return sanitizeProjectListItem(project);
+};
+
+export const deleteProjectForUser = async (
+  userId: string,
+  projectId: string,
+): Promise<{ ok: true } | { ok: false; reason: "not_found" | "forbidden" }> => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, userId: true },
+  });
+
+  if (!project) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  if (project.userId !== userId) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  await prisma.project.delete({ where: { id: projectId } });
+
+  return { ok: true };
 };
