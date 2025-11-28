@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "migrate:deploy": "prisma migrate deploy",
+    "migrate:deploy": "echo 'migrate disabled on vercel'",
+    "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "npm run migrate:deploy && node ./scripts/prisma-generate.js && next build",
+    "vercel-build": "npm run db:push && node ./scripts/prisma-generate.js && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "tsx --test tests/*.test.ts",
