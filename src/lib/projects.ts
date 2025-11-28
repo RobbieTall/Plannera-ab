@@ -99,24 +99,20 @@ export const claimProjectsForUser = async (
   sessionId: string,
   userId: string,
 ): Promise<ProjectSummary[]> => {
-  const candidates = await prisma.project.findMany({
+  await prisma.project.updateMany({
     where: { sessionId, userId: null },
-    select: { id: true },
+    data: { userId, sessionId: null },
   });
 
-  if (!candidates.length) {
-    return [];
-  }
+  return getProjectsForUser(userId);
+};
 
-  const claimed = await prisma.$transaction(
-    candidates.map((candidate) =>
-      prisma.project.update({
-        where: { id: candidate.id },
-        data: { userId, sessionId: null },
-        select: projectSummarySelect,
-      }),
-    ),
-  );
+export const getProjectsForUser = async (userId: string): Promise<ProjectSummary[]> => {
+  const projects = await prisma.project.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: projectSummarySelect,
+  });
 
-  return claimed.map(sanitizeProject);
+  return projects.map(sanitizeProject);
 };
