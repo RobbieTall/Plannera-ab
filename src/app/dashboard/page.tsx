@@ -1,12 +1,12 @@
 import { Metadata } from "next";
 
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
-import { createProjectForUser, deleteProjectForUser, listProjectsForUser } from "@/lib/projects";
+import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
 
 export const metadata: Metadata = {
   title: "My Projects | Plannera",
@@ -38,8 +38,25 @@ const createProject = async () => {
 const deleteProject = async (projectId: string) => {
   "use server";
 
-  const userId = requireUserId();
-  await deleteProjectForUser(userId, projectId);
+  requireUserId();
+  const cookieHeader = cookies()
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
+
+  const response = await fetch(
+    `${headers().get("origin") ?? "http://localhost:3000"}/api/projects/${projectId}`,
+    {
+      method: "DELETE",
+      headers: {
+        cookie: cookieHeader,
+      },
+    },
+  );
+
+  if (!response.ok && response.status === 401) {
+    redirect("/signin");
+  }
   revalidatePath("/dashboard");
 };
 
