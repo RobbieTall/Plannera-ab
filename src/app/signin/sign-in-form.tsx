@@ -1,13 +1,23 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 import { useExperience } from "@/components/providers/experience-provider";
 
+const postMagicLink = async (email: string) => {
+  const response = await fetch("/api/auth/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Failed to send magic link");
+  }
+};
+
 export function SignInForm() {
-  const router = useRouter();
   const { setUserTier } = useExperience();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -18,25 +28,16 @@ export function SignInForm() {
     setStatus("loading");
     setMessage(null);
 
-    const result = await signIn("email", {
-      email,
-      redirect: false,
-      callbackUrl: "/dashboard",
-    });
-
-    if (result?.error) {
+    try {
+      await postMagicLink(email.trim());
+      setStatus("success");
+      setMessage("Magic link sent. Check your inbox to finish signing in.");
+      setUserTier("free");
+      setEmail("");
+    } catch (error) {
       setStatus("error");
-      setMessage("We couldn't send the magic link. Please try again or contact support.");
-      return;
+      setMessage(error instanceof Error ? error.message : "Unable to send magic link.");
     }
-
-    setStatus("success");
-    setMessage("Magic link sent. Check your inbox and enjoy free access (5 uploads). Redirecting to your dashboard...");
-    setUserTier("free");
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 600);
-    setEmail("");
   };
 
   return (
