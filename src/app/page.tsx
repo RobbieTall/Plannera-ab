@@ -136,14 +136,27 @@ export default function HomePage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const value = prompt.trim();
-    if (!value || submitting) return;
+
+    if (!value) {
+      // TODO: replace with proper inline validation later
+      alert("Please enter a site address or project idea.");
+      return;
+    }
+
+    if (submitting) return;
 
     setSubmitting(true);
     try {
       const projectId = await ensureProject(value);
       if (!projectId) return;
 
-      await setSiteFromLanding(projectId, value);
+      // call site-setting helper, but don't let it block navigation
+      try {
+        await setSiteFromLanding(projectId, value);
+      } catch (error) {
+        console.error("Failed to set site from landing:", error);
+        // continue anyway
+      }
 
       router.push(`/projects/${projectId}/workspace`);
     } finally {
@@ -158,6 +171,8 @@ export default function HomePage() {
       const projectId = await ensureProject(title);
       if (!projectId) return;
       router.push(`/projects/${projectId}/workspace`);
+    } catch (error) {
+      console.error("Failed to start example project:", error);
     } finally {
       setSubmitting(false);
     }
@@ -225,7 +240,7 @@ export default function HomePage() {
                       />
                       <button
                         type="submit"
-                        disabled={submitting}
+                        disabled={submitting || !prompt.trim()}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-base font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {submitting ? "Starting workspace..." : "Generate planning pathway"}
