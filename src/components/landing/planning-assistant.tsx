@@ -42,6 +42,34 @@ const actionButtons = [
   { label: "Share with team", action: "share this plan", icon: Share2 },
 ];
 
+async function ensureProject(title: string) {
+  try {
+    const res = await fetch("/api/projects/ensure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to create project");
+      return null;
+    }
+
+    const data: { project?: { id?: string; publicId?: string; name?: string } } = await res.json();
+    const ensuredId = data.project?.id ?? data.project?.publicId;
+
+    if (!ensuredId) {
+      console.error("Project response missing id");
+      return null;
+    }
+
+    return { id: ensuredId, name: data.project?.name ?? title };
+  } catch (error) {
+    console.error("Failed to ensure project", error);
+    return null;
+  }
+}
+
 export function ExampleStartButton({
   title,
   className,
@@ -56,18 +84,10 @@ export function ExampleStartButton({
   const router = useRouter();
 
   async function handleStart() {
-    const res = await fetch("/api/projects/ensure", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-
-    if (!res.ok) {
-      console.error("Failed to create project");
+    const project = await ensureProject(title);
+    if (!project) {
       return;
     }
-
-    const { project } = await res.json();
     router.push(`/projects/${project.id}/workspace`);
   }
 
@@ -151,7 +171,11 @@ export function PlanningAssistant() {
     if (!trimmedDescription || isGenerating) {
       return;
     }
-    const prospectiveId = buildProjectId();
+    const ensuredProject = await ensureProject(trimmedDescription);
+    if (!ensuredProject) {
+      return;
+    }
+    const prospectiveId = ensuredProject.id;
     const gate = canStartProject(prospectiveId);
     if (!gate.allowed) {
       setPendingProject({ id: prospectiveId, prompt: trimmedDescription });
@@ -610,10 +634,6 @@ function NswDataCard({ title, description, items }: NswDataCardProps) {
       </ul>
     </div>
   );
-}
-
-function buildProjectId() {
-  return `proj-${Date.now()}`;
 }
 
 function buildProjectFromSummary(projectId: string, description: string, summary: PlanningSummary): Project {
