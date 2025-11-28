@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 
-import { PlanningAssistant } from "@/components/landing/planning-assistant";
+import LandingHero from "@/components/landing/LandingHero";
 import { SignOutButton } from "@/components/sign-out-button";
 import { authOptions } from "@/lib/auth";
 
@@ -69,7 +69,7 @@ export default async function HomePage() {
       <main className="flex-1">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <div id="product">
-            <PlanningAssistant />
+            <LandingHero />
           </div>
 
           <section id="how-it-works" className="mt-16 space-y-10">
