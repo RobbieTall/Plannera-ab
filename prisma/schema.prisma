@@ -27,6 +27,7 @@ model User {
   assignments        TaskAssignment[]
   artefacts          Artefact[]
   workspaceUploads   WorkspaceUpload[]
+  ownedProjects      Project[]         @relation("ProjectOwner")
 }
 
 model Session {
@@ -64,6 +65,7 @@ model Project {
   id               String            @id @default(cuid())
   publicId         String            @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
   name             String
+  title            String            @default("Untitled project")
   description      String?
   status           ProjectStatus     @default(PLANNING)
   isDemo           Boolean           @default(false)
@@ -72,10 +74,15 @@ model Project {
   zoningCode       String?
   zoningName       String?
   zoningSource     String?
+  zoning           String?
+  address          String?
+  sessionId        String?
+  userId           String?
   propertyId       String
   property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   createdById      String?
   createdBy        User?             @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  owner            User?             @relation("ProjectOwner", fields: [userId], references: [id])
   startDate        DateTime?
   dueDate          DateTime?
   tasks            Task[]
@@ -85,6 +92,9 @@ model Project {
   siteContext      SiteContext?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@index([sessionId])
+  @@index([userId])
 }
 
 /// Join table between users and projects, allowing role-specific access.
