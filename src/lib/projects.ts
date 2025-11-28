@@ -88,26 +88,29 @@ export const getOrCreateCurrentProject = async (
 
 export const getProjectForRequester = async (
   id: string,
-  sessionId: string,
+  sessionId?: string | null,
   userId?: string | null,
-): Promise<{ ok: true; project: ProjectSummary } | { ok: false; reason: "not_found" | "forbidden" }> => {
-  const project = await prisma.project.findUnique({
-    where: { id },
-    select: { ...projectSummarySelect, sessionId: true, userId: true },
+) => {
+  const ownershipConditions: Prisma.ProjectWhereInput[] = [];
+
+  if (userId) {
+    ownershipConditions.push({ userId });
+  }
+
+  if (sessionId) {
+    ownershipConditions.push({ sessionId });
+  }
+
+  if (ownershipConditions.length === 0) {
+    return null;
+  }
+
+  return prisma.project.findFirst({
+    where: {
+      id,
+      OR: ownershipConditions.length > 0 ? ownershipConditions : undefined,
+    },
   });
-
-  if (!project) {
-    return { ok: false, reason: "not_found" };
-  }
-
-  const ownsProject = Boolean(userId && project.userId && project.userId === userId);
-  const matchesSession = Boolean(project.sessionId && project.sessionId === sessionId);
-
-  if (!ownsProject && !matchesSession) {
-    return { ok: false, reason: project.userId ? "forbidden" : "not_found" };
-  }
-
-  return { ok: true, project: sanitizeProject(project) };
 };
 
 export const claimProjectsForUser = async (
@@ -164,24 +167,10 @@ export const createProjectForUser = async (userId: string, title?: string): Prom
   return sanitizeProjectListItem(project);
 };
 
-export const deleteProjectForUser = async (
-  userId: string,
-  projectId: string,
-): Promise<{ ok: true } | { ok: false; reason: "not_found" | "forbidden" }> => {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, userId: true },
+export const deleteProjectForUser = async (userId: string, projectId: string) =>
+  prisma.project.deleteMany({
+    where: {
+      id: projectId,
+      userId,
+    },
   });
-
-  if (!project) {
-    return { ok: false, reason: "not_found" };
-  }
-
-  if (project.userId !== userId) {
-    return { ok: false, reason: "forbidden" };
-  }
-
-  await prisma.project.delete({ where: { id: projectId } });
-
-  return { ok: true };
-};

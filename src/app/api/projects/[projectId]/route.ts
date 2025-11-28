@@ -11,19 +11,21 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const session = getSessionFromRequest(request);
+  const project = await getProjectForRequester(params.projectId, session?.sessionId, session?.userId);
 
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  const result = await getProjectForRequester(params.projectId, session.sessionId, session.userId);
-
-  if (!result.ok) {
-    const status = result.reason === "forbidden" ? 403 : 404;
-    return NextResponse.json({ ok: false, error: "Project not accessible" }, { status });
-  }
-
-  return NextResponse.json({ ok: true, project: result.project });
+  return NextResponse.json({
+    project: {
+      id: project.id,
+      title: project.title,
+      address: project.address,
+      zoning: project.zoning,
+      updatedAt: project.updatedAt.toISOString(),
+    },
+  });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
@@ -35,9 +37,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   const deletion = await deleteProjectForUser(session.userId, params.projectId);
 
-  if (!deletion.ok) {
-    const status = deletion.reason === "forbidden" ? 403 : 404;
-    return NextResponse.json({ error: "Unable to delete project" }, { status });
+  if (!deletion.count || deletion.count === 0) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true });
