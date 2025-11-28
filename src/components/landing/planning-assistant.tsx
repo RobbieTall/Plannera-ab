@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, ReactNode, useCallback, useMemo, useState } from "react";
 import { ArrowRight, Download, FileText, Share2, Sparkles, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -42,6 +42,42 @@ const actionButtons = [
   { label: "Share with team", action: "share this plan", icon: Share2 },
 ];
 
+export function ExampleStartButton({
+  title,
+  className,
+  children,
+  disabled,
+}: {
+  title: string;
+  className?: string;
+  children?: ReactNode;
+  disabled?: boolean;
+}) {
+  const router = useRouter();
+
+  async function handleStart() {
+    const res = await fetch("/api/projects/ensure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to create project");
+      return;
+    }
+
+    const { project } = await res.json();
+    router.push(`/projects/${project.id}/workspace`);
+  }
+
+  return (
+    <button onClick={handleStart} className={className} type="button" disabled={disabled}>
+      {children ?? "Use this example"}
+    </button>
+  );
+}
+
 export function PlanningAssistant() {
   const router = useRouter();
   const { state, canStartProject, trackProjectCreation, saveChatHistory, getChatHistory, registerProject } = useExperience();
@@ -64,18 +100,6 @@ export function PlanningAssistant() {
     if (targetId) {
       router.push(`/projects/${targetId}/workspace`);
     }
-  };
-
-  const handlePromptSelection = (prompt: string) => {
-    setDescription(prompt);
-    const prospectiveId = buildProjectId();
-    const gate = canStartProject(prospectiveId);
-    if (!gate.allowed) {
-      setPendingProject({ id: prospectiveId, prompt });
-      setModalState({ type: "limit" });
-      return;
-    }
-    void createSummary(prompt, { shouldTrackProject: !gate.alreadyTracked, projectId: prospectiveId });
   };
 
   const createSummary = async (value: string, options: { shouldTrackProject: boolean; projectId: string }) => {
@@ -346,15 +370,14 @@ export function PlanningAssistant() {
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">Try an example</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 {examplePrompts.map((prompt) => (
-                  <button
+                  <ExampleStartButton
                     key={prompt}
-                    type="button"
-                    onClick={() => handlePromptSelection(prompt)}
-                    disabled={isGenerating}
+                    title={prompt}
                     className="rounded-full border border-white/20 px-4 py-2 text-left text-sm text-white transition hover:border-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isGenerating}
                   >
                     {prompt}
-                  </button>
+                  </ExampleStartButton>
                 ))}
               </div>
             </div>
