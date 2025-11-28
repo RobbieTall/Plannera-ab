@@ -36,31 +36,20 @@ const sanitizeProjectListItem = (project: ProjectListItem): ProjectListItem => (
 export const getOrCreateCurrentProject = async (
   sessionId: string,
   userId?: string | null,
-  title?: string,
-): Promise<ProjectSummary> => {
-  const resolvedTitle = title?.trim() || "Untitled project";
+  initialTitle?: string,
+): Promise<Project> => {
+  const ownershipFilters = [userId ? { userId } : null, { sessionId }].filter(Boolean) as Prisma.ProjectWhereInput[];
 
-  if (userId) {
-    const userProject = await prisma.project.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "asc" },
-      select: projectSummarySelect,
-    });
-
-    if (userProject) {
-      return sanitizeProject(userProject);
-    }
-  }
-
-  const sessionProject = await prisma.project.findFirst({
-    where: { sessionId },
+  const existing = await prisma.project.findFirst({
+    where: { OR: ownershipFilters },
     orderBy: { createdAt: "asc" },
-    select: projectSummarySelect,
   });
 
-  if (sessionProject) {
-    return sanitizeProject(sessionProject);
+  if (existing) {
+    return existing;
   }
+
+  const resolvedTitle = initialTitle?.trim() || "Untitled project";
 
   const projectData: Prisma.ProjectCreateInput = {
     title: resolvedTitle,
@@ -72,18 +61,12 @@ export const getOrCreateCurrentProject = async (
         address: null,
       },
     },
+    ...(userId ? { owner: { connect: { id: userId } } } : {}),
   };
 
-  if (userId) {
-    projectData.owner = { connect: { id: userId } };
-  }
-
-  const project = await prisma.project.create({
+  return prisma.project.create({
     data: projectData,
-    select: projectSummarySelect,
   });
-
-  return sanitizeProject(project);
 };
 
 export const getProjectForRequester = async (
