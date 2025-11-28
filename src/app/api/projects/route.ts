@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getOrCreateCurrentProject } from "@/lib/projects";
+import { getOrCreateCurrentProject, getProjectsForUser } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -29,5 +29,25 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[projects-create]", error);
     return NextResponse.json({ ok: false, error: "Unable to resolve project" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!session.userId) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 400 });
+  }
+
+  try {
+    const projects = await getProjectsForUser(session.userId);
+    return NextResponse.json({ ok: true, projects });
+  } catch (error) {
+    console.error("[projects-list]", error);
+    return NextResponse.json({ ok: false, error: "Unable to list projects" }, { status: 500 });
   }
 }

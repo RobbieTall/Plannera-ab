@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!session.userId) {
-    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 400 });
   }
 
   try {
