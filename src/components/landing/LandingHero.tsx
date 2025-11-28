@@ -59,7 +59,7 @@ async function ensureProject(title: string): Promise<string | null> {
   }
 }
 
-async function setSiteForProjectFromLanding(projectId: string, query: string) {
+async function setSite(projectId: string, query: string) {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return;
 
@@ -110,14 +110,15 @@ export default function LandingHero() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!prompt.trim() || submitting) return;
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt || submitting) return;
 
     setSubmitting(true);
     try {
-      const projectId = await ensureProject(prompt.trim());
+      const projectId = await ensureProject(trimmedPrompt);
       if (!projectId) return;
 
-      await setSiteForProjectFromLanding(projectId, prompt.trim());
+      await setSite(projectId, trimmedPrompt);
       router.push(`/projects/${projectId}/workspace`);
     } finally {
       setSubmitting(false);
