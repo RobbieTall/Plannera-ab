@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { useExperience } from "@/components/providers/experience-provider";
@@ -13,13 +14,65 @@ interface WorkspacePageProps {
 }
 
 export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
-  const { getProject, getChatHistory } = useExperience();
+  const { data: session } = useSession();
+  const { getProject, getChatHistory, saveChatHistory } = useExperience();
   const [project, setProject] = useState<Project | null>(null);
+  const [persistedProjectId, setPersistedProjectId] = useState<string | null>(null);
+  const [hasClaimed, setHasClaimed] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setProject(getProject(params.id) ?? null);
   }, [getProject, params.id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const ensurePersistedProject = async () => {
+      if (!project || persistedProjectId) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: project.name }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          console.error("[project-persist-error]", await response.text());
+          return;
+        }
+
+        const data: { project?: { id: string; title?: string } } = await response.json();
+        const persistedProject = data.project;
+        if (!persistedProject?.id) {
+          return;
+        }
+
+        const currentHistory = getChatHistory(project.id);
+        setPersistedProjectId(persistedProject.id);
+        setProject((previous) => {
+          if (!previous) return previous;
+          if (currentHistory.length) {
+            saveChatHistory(persistedProject.id, currentHistory);
+          }
+          return { ...previous, id: persistedProject.id, name: persistedProject.title ?? previous.name };
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error("[project-persist-error]", error);
+      }
+    };
+
+    void ensurePersistedProject();
+
+    return () => controller.abort();
+  }, [getChatHistory, persistedProjectId, project, saveChatHistory]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,6 +107,39 @@ export default function ProjectWorkspacePage({ params }: WorkspacePageProps) {
 
     return () => controller.abort();
   }, [getChatHistory, project]);
+
+  useEffect(() => {
+    if (!session?.user?.id || hasClaimed) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const claimProjects = async () => {
+      try {
+        const response = await fetch("/api/projects/claim", { method: "POST", signal: controller.signal });
+        if (!response.ok) {
+          console.warn("[project-claim-error]", await response.text());
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error("[project-claim-error]", error);
+      } finally {
+        setHasClaimed(true);
+      }
+    };
+
+    void claimProjects();
+
+    return () => controller.abort();
+  }, [hasClaimed, session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setHasClaimed(false);
+    }
+  }, [session?.user?.id]);
 
   if (!project) {
     return (
