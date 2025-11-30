@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 
 import { MainNavigation } from "@/components/navigation/main-navigation";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Logo } from "@/components/ui/logo";
 import { authOptions } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -59,12 +60,18 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-lg font-semibold text-white">
-                {initials}
-              </div>
-              <div className="leading-tight">
-                <p className="text-sm font-medium text-slate-500">Welcome back</p>
-                <p className="text-base font-semibold text-slate-900">{session.user.name ?? session.user.email}</p>
+              <Link href="/" className="flex items-center gap-2" aria-label="Home">
+                <Logo className="text-lg" />
+                <span className="sr-only">Home</span>
+              </Link>
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-lg font-semibold text-white">
+                  {initials}
+                </div>
+                <div className="leading-tight">
+                  <p className="text-sm font-medium text-slate-500">Welcome back</p>
+                  <p className="text-base font-semibold text-slate-900">{session.user.name ?? session.user.email}</p>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
