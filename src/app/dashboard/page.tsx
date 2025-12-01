@@ -64,7 +64,7 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-semibold text-slate-900">My Projects</h1>
           <p className="text-sm text-slate-500">Projects you own and can continue editing.</p>
         </div>
-        <NewProjectButton />
+        <NewProjectButton projectCount={projects.length} existingProjectId={projects[0]?.id} />
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
