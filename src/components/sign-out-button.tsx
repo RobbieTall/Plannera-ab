@@ -1,5 +1,6 @@
 "use client";
 
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, MouseEvent } from "react";
 
@@ -15,6 +16,8 @@ export function SignOutButton({ onClick, children, ...props }: SignOutButtonProp
     await fetch("/api/auth/signout", {
       method: "POST",
     });
+
+    await signOut({ redirect: false });
 
     router.push("/");
     router.refresh();

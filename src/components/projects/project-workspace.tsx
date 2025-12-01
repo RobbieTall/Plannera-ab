@@ -41,15 +41,19 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import type { Project } from "@/lib/mock-data";
-import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
-import { cn } from "@/lib/utils";
-import { useExperience } from "@/components/providers/experience-provider";
-import { useTheme } from "@/components/providers/theme-provider";
+import { SignInModal } from "@/components/SignInModal";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
+import { useExperience } from "@/components/providers/experience-provider";
+import { useTheme } from "@/components/providers/theme-provider";
+import { useAuthState } from "@/hooks/use-auth-state";
+import type { Project } from "@/lib/mock-data";
+import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
+import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
+import { cn } from "@/lib/utils";
+import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type {
   UserTier,
   WorkspaceArtefact,
@@ -59,8 +63,6 @@ import type {
   WorkspaceSource,
   WorkspaceSourceType,
 } from "@/types/workspace";
-import type { SiteCandidate, SiteContextSummary } from "@/types/site";
-import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
 
 interface ProjectWorkspaceProps {
   project: Project;
@@ -277,6 +279,7 @@ function deriveSignalsFromAssistantPayload({
 export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated } = useAuthState();
   const {
     getChatHistory,
     saveChatHistory,
@@ -292,6 +295,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   } = useExperience();
   const projectKey = project.publicId ?? project.id;
 
+  const [showSignIn, setShowSignIn] = useState(false);
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
@@ -318,6 +322,8 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   );
   const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
   const zoningLabel = useMemo(() => buildZoningLabel(siteContext), [siteContext]);
+  const openSignIn = () => setShowSignIn(true);
+  const closeSignIn = () => setShowSignIn(false);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
@@ -1306,13 +1312,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-          >
-            ← My Projects
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+            >
+              ← My Projects
+            </button>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -1328,10 +1336,23 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             <Sparkles className="h-4 w-4" />
             Get help
           </button>
-          <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </SignOutButton>
+          {isAuthenticated ? (
+            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </SignOutButton>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={openSignIn}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+              >
+                Sign in
+              </button>
+              <SignInModal open={showSignIn} onClose={closeSignIn} />
+            </>
+          )}
         </div>
       </div>
 
