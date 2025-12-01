@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { claimSessionProjectsForUser } from "@/lib/projects";
+import { getSessionFromRequest } from "@/lib/session";
 import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
 
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     const decodedSession = decodeSessionCookie(sessionCookie);
+    const requestSession = getSessionFromRequest(request);
     // Only use the client-provided session id for claiming anonymous projects so we target the
     // same records created from the landing page flow. If the cookie is missing/invalid, we still
     // create a fresh session for the authenticated user, but skip the claim.
@@ -59,8 +61,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (decodedSession?.id) {
-      await claimSessionProjectsForUser(decodedSession.id, user.id);
+    if (requestSession?.sessionId) {
+      await claimSessionProjectsForUser(requestSession.sessionId, user.id);
     }
 
     const isSecure = request.nextUrl.protocol === "https:";
