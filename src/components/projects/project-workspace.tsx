@@ -24,6 +24,7 @@ import {
   Link2,
   ListChecks,
   ListFilter,
+  LogOut,
   Mail,
   MapPin,
   Moon,
@@ -46,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
 import type {
@@ -212,7 +214,7 @@ function ProjectTitleEditor({
       onChange={(event) => setTitle(event.target.value)}
       onBlur={handleBlur}
       disabled={isPending}
-      className="mt-2 bg-transparent text-3xl font-semibold text-slate-900 outline-none ring-0 transition focus:border-b focus:border-border dark:text-white"
+      className="mt-2 w-full max-w-xl bg-transparent text-xl font-semibold text-slate-900 outline-none ring-0 transition focus:border-b focus:border-border dark:text-white"
     />
   );
 }
@@ -1298,9 +1300,9 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 text-inherit">
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
@@ -1312,7 +1314,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             ← My Projects
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={toggleTheme}
@@ -1326,11 +1328,15 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
             <Sparkles className="h-4 w-4" />
             Get help
           </button>
+          <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </SignOutButton>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex min-w-[260px] flex-1 flex-col">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
           <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>

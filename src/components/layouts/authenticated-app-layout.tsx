@@ -57,29 +57,31 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
         </div>
       </aside>
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
+        <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950 text-white backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2">
+              <Link href="/" className="flex items-center gap-2 text-inherit">
                 <Logo className="h-6 w-auto" />
                 <span className="sr-only">Home</span>
               </Link>
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-lg font-semibold text-white">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-lg font-semibold text-slate-900">
                   {initials}
                 </div>
-                <div className="leading-tight">
-                  <p className="text-sm font-medium text-slate-500">Welcome back</p>
-                  <p className="text-base font-semibold text-slate-900">{session.user.name ?? session.user.email}</p>
+                <div className="leading-tight text-white">
+                  <p className="text-sm font-medium text-slate-300">Welcome back</p>
+                  <p className="text-base font-semibold">{session.user.name ?? session.user.email}</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <MainNavigation items={navigationItems} orientation="horizontal" className="lg:hidden" />
-              <SignOutButton className="group inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-900 hover:text-slate-900">
-                <LogOut className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
-                Sign out
-              </SignOutButton>
+              {session ? (
+                <SignOutButton className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20">
+                  <LogOut className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
+                  Logout
+                </SignOutButton>
+              ) : null}
             </div>
           </div>
         </header>

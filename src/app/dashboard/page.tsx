@@ -2,11 +2,12 @@ import { Metadata } from "next";
 
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
-import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
+import { listProjectsForUser } from "@/lib/projects";
+import { NewProjectButton } from "@/components/dashboard/new-project-button";
 
 export const metadata: Metadata = {
   title: "My Projects | Plannera",
@@ -25,14 +26,6 @@ const requireUserId = () => {
   }
 
   return session.userId;
-};
-
-const createProject = async () => {
-  "use server";
-
-  const userId = requireUserId();
-  await createProjectForUser(userId);
-  revalidatePath("/dashboard");
 };
 
 const deleteProject = async (projectId: string) => {
@@ -92,11 +85,7 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-semibold text-slate-900">My Projects</h1>
           <p className="text-sm text-slate-500">Projects you own and can continue editing.</p>
         </div>
-        <form action={createProject}>
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
-            New project
-          </button>
-        </form>
+        <NewProjectButton />
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
