@@ -15,6 +15,9 @@ export async function POST() {
   res.cookies.set(SESSION_COOKIE_NAME, "", expiredCookie);
   res.cookies.set("next-auth.session-token", "", expiredCookie);
   res.cookies.set("__Secure-next-auth.session-token", "", expiredCookie);
+  res.cookies.set("next-auth.csrf-token", "", { path: "/", maxAge: 0 });
+  res.cookies.set("__Host-next-auth.csrf-token", "", { path: "/", maxAge: 0 });
+  res.cookies.set("next-auth.callback-url", "", { path: "/", maxAge: 0 });
 
   return res;
 }

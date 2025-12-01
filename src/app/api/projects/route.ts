@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
-import { getSessionFromRequest } from "@/lib/session";
+import { getSessionContext } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = getSessionFromRequest(request);
+  const session = await getSessionContext();
 
   if (!session?.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const session = getSessionFromRequest(request);
+export async function GET() {
+  const session = await getSessionContext();
 
   if (!session?.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
