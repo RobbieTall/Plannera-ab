@@ -157,3 +157,29 @@ export const deleteProjectForUser = async (userId: string, projectId: string) =>
       userId,
     },
   });
+
+export async function renameProjectForRequester(
+  projectId: string,
+  userId: string | null,
+  sessionId: string | null,
+  title: string,
+) {
+  const ownershipFilters = [
+    userId ? { userId } : undefined,
+    sessionId ? { sessionId } : undefined,
+  ].filter(Boolean) as Prisma.ProjectWhereInput[];
+
+  if (!ownershipFilters.length) {
+    return { count: 0 } as Prisma.BatchPayload;
+  }
+
+  return prisma.project.updateMany({
+    where: {
+      id: projectId,
+      OR: ownershipFilters,
+    },
+    data: {
+      title,
+    },
+  });
+}
