@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  NEXT_AUTH_SESSION_COOKIE,
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
   attachUserToSession,
   createAnonymousSession,
   decodeSessionCookie,
-  SESSION_COOKIE_NAME,
-  SESSION_MAX_AGE_SECONDS,
   serializeSession,
   verifyMagicLinkToken,
 } from "@/lib/auth";
@@ -54,14 +55,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const isSecure = request.nextUrl.protocol === "https:";
-    const nextAuthSessionCookieName = `${isSecure ? "__Secure-" : ""}next-auth.session-token`;
-
-    response.cookies.set(nextAuthSessionCookieName, sessionToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: isSecure,
+    response.cookies.set(NEXT_AUTH_SESSION_COOKIE.name, sessionToken, {
+      ...NEXT_AUTH_SESSION_COOKIE.options,
       expires: sessionExpires,
     });
 
