@@ -28,6 +28,8 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
     redirect("/signin");
   }
 
+  const isSignedIn = Boolean(session.user.id);
+
   const initials = session.user.name?.slice(0, 2).toUpperCase() ?? session.user.email.slice(0, 2).toUpperCase();
 
   return (
@@ -76,7 +78,15 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
             </div>
             <div className="flex items-center gap-2">
               <MainNavigation items={navigationItems} orientation="horizontal" className="lg:hidden" />
-              {session ? (
+              {isSignedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20"
+                >
+                  My Projects
+                </Link>
+              ) : null}
+              {isSignedIn ? (
                 <SignOutButton className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20">
                   <LogOut className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
                   Logout

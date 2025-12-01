@@ -276,12 +276,8 @@ function deriveSignalsFromAssistantPayload({
 }
 
 export function ProjectWorkspace({ project, userId }: ProjectWorkspaceProps) {
-  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const isSignedIn = Boolean(userId);
-  const handleMyProjectsClick = () => {
-    router.push(isSignedIn ? "/dashboard" : "/signin");
-  };
   const {
     getChatHistory,
     saveChatHistory,
@@ -1311,13 +1307,14 @@ export function ProjectWorkspace({ project, userId }: ProjectWorkspaceProps) {
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          <button
-            type="button"
-            onClick={handleMyProjectsClick}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-          >
-            ← My Projects
-          </button>
+          {isSignedIn ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+            >
+              ← My Projects
+            </Link>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -1333,6 +1330,14 @@ export function ProjectWorkspace({ project, userId }: ProjectWorkspaceProps) {
             <Sparkles className="h-4 w-4" />
             Get help
           </button>
+          {!isSignedIn ? (
+            <Link
+              href="/signin"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+            >
+              Sign in
+            </Link>
+          ) : null}
           {isSignedIn ? (
             <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
               <LogOut className="h-4 w-4" />
@@ -1348,10 +1353,20 @@ export function ProjectWorkspace({ project, userId }: ProjectWorkspaceProps) {
           <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
-          <Notebook className="h-4 w-4" />
-          Share workspace
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isSignedIn ? (
+            <Link
+              href="/signin"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+            >
+              Sign in to save this project
+            </Link>
+          ) : null}
+          <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
+            <Notebook className="h-4 w-4" />
+            Share workspace
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">

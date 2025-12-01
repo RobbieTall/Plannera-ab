@@ -5,7 +5,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { getSessionContext } from "@/lib/auth/session";
 import { listProjectsForUser } from "@/lib/projects";
 import { NewProjectButton } from "@/components/dashboard/new-project-button";
 
@@ -13,25 +13,14 @@ export const metadata: Metadata = {
   title: "My Projects | Plannera",
 };
 
-const readSession = () => {
-  const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
-  return decodeSessionCookie(sessionCookie);
-};
-
-const requireUserId = () => {
-  const session = readSession();
-
-  if (!session?.userId) {
-    redirect("/signin");
-  }
-
-  return session.userId;
-};
-
 const deleteProject = async (projectId: string) => {
   "use server";
 
-  requireUserId();
+  const { userId } = await getSessionContext();
+
+  if (!userId) {
+    redirect("/signin");
+  }
   const cookieHeader = cookies()
     .getAll()
     .map(({ name, value }) => `${name}=${value}`)
@@ -57,9 +46,9 @@ const formatUpdatedAt = (date: Date) =>
   date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 export default async function DashboardPage() {
-  const session = readSession();
+  const { userId } = await getSessionContext();
 
-  if (!session?.userId) {
+  if (!userId) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-6 py-10">
         <div className="space-y-2">
@@ -76,7 +65,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const projects = await listProjectsForUser(session.userId);
+  const projects = await listProjectsForUser(userId);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-10">

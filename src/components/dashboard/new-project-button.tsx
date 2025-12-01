@@ -18,11 +18,12 @@ export function NewProjectButton() {
 
     setIsCreating(true);
     try {
-      const response = await fetch("/api/projects/ensure", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Untitled project" }),
-      });
+      const response = await fetch("/api/projects", { method: "POST" });
+
+      if (response.status === 401) {
+        router.push("/signin");
+        return;
+      }
 
       if (!response.ok) return;
 
