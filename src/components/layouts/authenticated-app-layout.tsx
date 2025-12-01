@@ -60,8 +60,8 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2" aria-label="Home">
-                <Logo className="text-lg" />
+              <Link href="/" className="flex items-center gap-2">
+                <Logo className="h-6 w-auto" />
                 <span className="sr-only">Home</span>
               </Link>
               <div className="flex items-center gap-4">

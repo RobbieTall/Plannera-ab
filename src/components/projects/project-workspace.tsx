@@ -37,6 +37,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type { Project } from "@/lib/mock-data";
@@ -45,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
+import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
 import type {
   UserTier,
@@ -1298,7 +1300,10 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-4">
-          <span className="text-base font-semibold text-slate-900 dark:text-white">Plannera.ai</span>
+          <Link href="/" className="flex items-center gap-2">
+            <Logo className="h-6 w-auto" />
+            <span className="sr-only">Home</span>
+          </Link>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
