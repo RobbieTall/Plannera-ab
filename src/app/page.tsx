@@ -183,8 +183,8 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-          <Link href="/" className="flex items-center gap-2" aria-label="Home">
-            <Logo className="text-lg" />
+          <Link href="/" className="flex items-center gap-2">
+            <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
