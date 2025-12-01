@@ -8,8 +8,6 @@ import { FileText, Sparkles, Users } from "lucide-react";
 
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
-import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
-import type { SiteCandidate } from "@/types/site";
 
 const navigation: { label: string; href: string }[] = [
   { label: "Product", href: "#product" },
@@ -57,126 +55,62 @@ const quickStats = [
   },
 ];
 
+async function startProjectFromPrompt(
+  prompt: string,
+  opts?: {
+    setSubmitting?: (v: boolean) => void;
+    setPrompt?: (v: string) => void;
+    router?: ReturnType<typeof useRouter>;
+  },
+) {
+  const trimmed = prompt.trim();
+  if (!trimmed) return;
+
+  const { setSubmitting, setPrompt, router } = opts ?? {};
+
+  if (setSubmitting) setSubmitting(true);
+
+  try {
+    if (setPrompt) setPrompt(trimmed);
+
+    const res = await fetch("/api/projects/ensure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: trimmed }),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to ensure project from landing", await res.text());
+      return;
+    }
+
+    const data = await res.json();
+    const projectId = data?.project?.id as string | undefined;
+    if (!projectId || !router) return;
+
+    router.push(`/projects/${projectId}/workspace`);
+  } catch (error) {
+    console.error("startProjectFromPrompt error", error);
+  } finally {
+    if (setSubmitting) setSubmitting(false);
+  }
+}
+
 export default function HomePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  async function ensureProject(title: string): Promise<string | null> {
-    try {
-      const res = await fetch("/api/projects/ensure", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-
-      if (!res.ok) {
-        console.error("Failed to ensure project", await res.text());
-        return null;
-      }
-
-      const data = await res.json();
-      const id = data?.project?.id as string | undefined;
-      if (!id) {
-        console.error("No project id returned from /api/projects/ensure", data);
-        return null;
-      }
-
-      return id;
-    } catch (error) {
-      console.error("Error ensuring project", error);
-      return null;
-    }
-  }
-
-  async function setSiteFromLanding(projectId: string, query: string) {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) return;
-
-    try {
-      const searchResponse = await fetch("/api/site-context/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: trimmedQuery }),
-      });
-
-      const searchData: { candidates?: SiteCandidate[]; error?: string } = await searchResponse.json();
-
-      if (searchResponse.ok && searchData.candidates?.length) {
-        const candidate = toPersistableSiteCandidate(searchData.candidates[0]);
-        await setSiteFromCandidate({ projectId, addressInput: trimmedQuery, candidate });
-        return;
-      }
-
-      if (!searchResponse.ok && searchData?.error !== "property_search_not_configured") {
-        console.error("Site search failed", searchData);
-        return;
-      }
-
-      const fallbackResponse = await fetch("/api/site-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          rawAddress: trimmedQuery,
-          resolverStatus: "manual_from_landing",
-          lgaName: null,
-          lgaCode: null,
-        }),
-      });
-
-      if (!fallbackResponse.ok) {
-        console.error("Unable to save manual site from landing", await fallbackResponse.text());
-      }
-    } catch (error) {
-      console.error("Set site from landing error", error);
-    }
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const value = prompt.trim();
-
-    if (!value) {
-      // TODO: replace with proper inline validation later
-      alert("Please enter a site address or project idea.");
-      return;
-    }
-
     if (submitting) return;
 
-    setSubmitting(true);
-    try {
-      const projectId = await ensureProject(value);
-      if (!projectId) return;
-
-      // call site-setting helper, but don't let it block navigation
-      try {
-        await setSiteFromLanding(projectId, value);
-      } catch (error) {
-        console.error("Failed to set site from landing:", error);
-        // continue anyway
-      }
-
-      router.push(`/projects/${projectId}/workspace`);
-    } finally {
-      setSubmitting(false);
-    }
+    await startProjectFromPrompt(prompt, { setSubmitting, router, setPrompt });
   }
 
   async function handleExampleClick(title: string) {
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      const projectId = await ensureProject(title);
-      if (!projectId) return;
-      router.push(`/projects/${projectId}/workspace`);
-    } catch (error) {
-      console.error("Failed to start example project:", error);
-    } finally {
-      setSubmitting(false);
-    }
+    await startProjectFromPrompt(title, { setSubmitting, setPrompt, router });
   }
 
   return (
