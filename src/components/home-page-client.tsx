@@ -105,10 +105,14 @@ export function HomePageClient({ userId }: HomePageClientProps) {
       const candidate: SiteCandidate = {
         id: crypto.randomUUID(),
         formattedAddress: trimmedPrompt,
-        source: "query",
+        lgaName: null,
       };
 
-      setSiteFromCandidate(toPersistableSiteCandidate(candidate));
+      setSiteFromCandidate({
+        projectId,
+        addressInput: trimmedPrompt,
+        candidate: toPersistableSiteCandidate(candidate),
+      });
       setPrompt("");
       router.push(`/projects/${projectId}/workspace`);
     } catch (error) {
