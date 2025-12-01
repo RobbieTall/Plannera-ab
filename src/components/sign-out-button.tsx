@@ -10,11 +10,12 @@ export function SignOutButton({ onClick, children, ...props }: SignOutButtonProp
     onClick?.(event);
     if (event.defaultPrevented) return;
 
-    await fetch("/api/auth/signout", {
+    await fetch("/api/auth/clear-session", {
       method: "POST",
+      cache: "no-store",
     });
 
-    await signOut({ callbackUrl: "/" });
+    await signOut({ callbackUrl: "/", redirect: true });
   };
 
   return (
