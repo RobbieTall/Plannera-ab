@@ -3,11 +3,9 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { FileText, Sparkles, Users } from "lucide-react";
 
-import { SignOutButton } from "@/components/sign-out-button";
-import { Logo } from "@/components/ui/logo";
+import { SiteHeader } from "@/components/navigation/site-header";
 
 const navigation: { label: string; href: string }[] = [
   { label: "Product", href: "#product" },
@@ -97,7 +95,6 @@ async function startProjectFromPrompt(
 }
 
 export default function HomePage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -115,43 +112,7 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-6 w-auto" />
-            <span className="sr-only">Home</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-            {navigation.map((item) => (
-              <Link key={item.href} href={item.href} className="transition hover:text-slate-900">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-3">
-            {session?.user ? (
-              <>
-                <Link
-                  href="/dashboard"
-                  className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 sm:inline-flex"
-                >
-                  Dashboard
-                </Link>
-                <SignOutButton className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
-                  Sign out
-                </SignOutButton>
-              </>
-            ) : (
-              <Link
-                href="/signin"
-                className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
-              >
-                Sign in
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader navigation={navigation} />
 
       <main className="flex-1">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">

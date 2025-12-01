@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { authOptions } from "@/lib/auth";
+import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
@@ -53,7 +53,7 @@ export async function requireSessionUser() {
   }
 
   const hasSessionCookie = Boolean(
-    cookies().get("__Secure-next-auth.session-token") ?? cookies().get("next-auth.session-token"),
+    cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ?? cookies().get("__Secure-next-auth.session-token") ?? cookies().get("next-auth.session-token"),
   );
 
   throw new ArtefactAccessError(
