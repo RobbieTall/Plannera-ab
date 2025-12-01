@@ -9,12 +9,7 @@ export function SignOutButton({ onClick, children, ...props }: SignOutButtonProp
   const handleClick = async (event: MouseEvent<HTMLButtonElement>) => {
     onClick?.(event);
     if (event.defaultPrevented) return;
-
-    await fetch("/api/auth/clear-session", {
-      method: "POST",
-      cache: "no-store",
-    });
-
+    console.log("Sign out clicked");
     await signOut({ callbackUrl: "/" });
   };
 
