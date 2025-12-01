@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { createAnonymousSession, decodeSessionCookie, serializeSession, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export type RequestSession = {
   sessionId: string;
@@ -18,5 +18,23 @@ export const getSessionFromRequest = (request: NextRequest): RequestSession | nu
   return {
     sessionId: parsed.id,
     userId: parsed.userId ?? null,
+  };
+};
+
+export const getOrCreateSessionFromRequest = (
+  request: NextRequest,
+): { session: RequestSession; serializedCookie: ReturnType<typeof serializeSession> | null } => {
+  const existingSession = getSessionFromRequest(request);
+
+  if (existingSession) {
+    return { session: existingSession, serializedCookie: null };
+  }
+
+  const anonymousSession = createAnonymousSession();
+  const serializedCookie = serializeSession(anonymousSession);
+
+  return {
+    session: { sessionId: anonymousSession.id, userId: anonymousSession.userId ?? null },
+    serializedCookie,
   };
 };
