@@ -7,5 +7,5 @@ type ProjectsAuthenticatedLayoutProps = {
 };
 
 export default function ProjectsAuthenticatedLayout({ children }: ProjectsAuthenticatedLayoutProps) {
-  return <AuthenticatedAppLayout>{children}</AuthenticatedAppLayout>;
+  return <AuthenticatedAppLayout requireSession={false}>{children}</AuthenticatedAppLayout>;
 }

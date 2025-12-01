@@ -11,6 +11,8 @@ import {
   verifyMagicLinkToken,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { claimSessionProjectsForUser } from "@/lib/projects";
+import { getSessionFromRequest } from "@/lib/session";
 import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +39,13 @@ export async function GET(request: NextRequest) {
     });
 
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-    const existingSession = decodeSessionCookie(sessionCookie) ?? createAnonymousSession();
-    const upgradedSession = attachUserToSession(existingSession, user.id);
+    const decodedSession = decodeSessionCookie(sessionCookie);
+    const requestSession = getSessionFromRequest(request);
+    // Only use the client-provided session id for claiming anonymous projects so we target the
+    // same records created from the landing page flow. If the cookie is missing/invalid, we still
+    // create a fresh session for the authenticated user, but skip the claim.
+    const baseSession = decodedSession ?? createAnonymousSession();
+    const upgradedSession = attachUserToSession(baseSession, user.id);
 
     const response = NextResponse.redirect(new URL("/", request.url));
     const serialized = serializeSession(upgradedSession);
@@ -55,6 +62,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    if (requestSession?.sessionId) {
+      await claimSessionProjectsForUser(requestSession.sessionId, user.id);
+    }
+
+    const isSecure = request.nextUrl.protocol === "https:";
+    const nextAuthSessionCookieName = `${isSecure ? "__Secure-" : ""}next-auth.session-token`;
+
+    response.cookies.set(nextAuthSessionCookieName, sessionToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: isSecure,
+        });
     response.cookies.set(NEXT_AUTH_SESSION_COOKIE.name, sessionToken, {
       ...NEXT_AUTH_SESSION_COOKIE.options,
       expires: sessionExpires,
