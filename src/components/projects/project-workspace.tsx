@@ -11,6 +11,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from "react";
 import {
   Archive,
@@ -160,6 +161,59 @@ const artefactBadges: Record<string, string> = {
 };
 
 const zoningPattern = /\b(R1|R2|R3|R4|R5|B1|B2|B3|B4|IN1|IN2|MU1|E1|E2|E3|E4|SP1|SP2|W1|W2)\b/i;
+
+function ProjectTitleEditor({
+  projectId,
+  initialTitle,
+}: {
+  projectId: string;
+  initialTitle: string;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(initialTitle || "Untitled project");
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setTitle(initialTitle || "Untitled project");
+  }, [initialTitle]);
+
+  const handleBlur = () => {
+    const trimmed = title.trim();
+
+    if (!trimmed) {
+      setTitle(initialTitle || "Untitled project");
+      return;
+    }
+
+    if (trimmed === initialTitle) return;
+
+    startTransition(async () => {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to rename project");
+        setTitle(initialTitle || "Untitled project");
+        return;
+      }
+
+      router.refresh();
+    });
+  };
+
+  return (
+    <input
+      value={title}
+      onChange={(event) => setTitle(event.target.value)}
+      onBlur={handleBlur}
+      disabled={isPending}
+      className="mt-2 bg-transparent text-3xl font-semibold text-slate-900 outline-none ring-0 transition focus:border-b focus:border-border dark:text-white"
+    />
+  );
+}
 
 const buildZoningLabel = (context: SiteContextSummary | null) => {
   if (!context) return null;
@@ -1273,7 +1327,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white">{project.name}</h1>
+          <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
         </div>
         <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">

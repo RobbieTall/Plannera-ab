@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { deleteProjectForUser, getProjectForRequester } from "@/lib/projects";
+import { deleteProjectForUser, getProjectForRequester, renameProjectForRequester } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +38,35 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const deletion = await deleteProjectForUser(session.userId, params.projectId);
 
   if (!deletion.count || deletion.count === 0) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const { title } = await request.json();
+
+  if (!title || typeof title !== "string") {
+    return NextResponse.json({ error: "Invalid title" }, { status: 400 });
+  }
+
+  const trimmedTitle = title.trim();
+
+  if (!trimmedTitle) {
+    return NextResponse.json({ error: "Invalid title" }, { status: 400 });
+  }
+
+  const session = getSessionFromRequest(request);
+
+  const result = await renameProjectForRequester(
+    params.projectId,
+    session?.userId ?? null,
+    session?.sessionId ?? null,
+    trimmedTitle,
+  );
+
+  if (!result.count) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 

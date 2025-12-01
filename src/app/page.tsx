@@ -33,7 +33,7 @@ const featureHighlights: { title: string; description: string }[] = [
 ];
 
 const examplePrompts = [
-  "6 Myola Road, Newport",
+  "Mixed-use development in Australia",
   "Dual occupancy on a suburban block",
   "Secondary dwelling for family in the backyard",
   "Mixed-use concept on a 1,000sqm site",
