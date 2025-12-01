@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getOrCreateCurrentProject } from "@/lib/projects";
-import { getOrCreateSessionFromRequest } from "@/lib/session";
+import { getSessionContext } from "@/lib/getSessionContext";
 
 const requestSchema = z.object({
   title: z.string().trim().optional(),
@@ -11,7 +11,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const { session, serializedCookie } = getOrCreateSessionFromRequest(request);
+  const session = getSessionContext();
 
   const body = request.headers.get("content-type")?.includes("application/json") ? await request.json() : {};
   const { title, name } = requestSchema.parse(body ?? {});
@@ -24,10 +24,5 @@ export async function POST(request: NextRequest) {
       title: project.title,
     },
   });
-
-  if (serializedCookie) {
-    response.cookies.set(serializedCookie.name, serializedCookie.value, serializedCookie.attributes);
-  }
-
   return response;
 }
