@@ -1,11 +1,12 @@
 import { Metadata } from "next";
 
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
 
-import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { listProjectsForUser } from "@/lib/projects";
 import { NewProjectButton } from "@/components/dashboard/new-project-button";
 
@@ -13,42 +14,33 @@ export const metadata: Metadata = {
   title: "My Projects | Plannera",
 };
 
-const readSession = () => {
-  const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
-  return decodeSessionCookie(sessionCookie);
-};
+const requireUserId = async () => {
+  const session = await getServerSession(authOptions);
 
-const requireUserId = () => {
-  const session = readSession();
-
-  if (!session?.userId) {
-    redirect("/signin");
+  if (!session?.user?.id) {
+    redirect("/");
   }
 
-  return session.userId;
+  return session.user.id;
 };
 
 const deleteProject = async (projectId: string) => {
   "use server";
 
-  requireUserId();
-  const cookieHeader = cookies()
-    .getAll()
-    .map(({ name, value }) => `${name}=${value}`)
-    .join("; ");
+  await requireUserId();
+  const requestHeaders = headers();
+  const cookieHeader = requestHeaders.get("cookie");
 
   const response = await fetch(
-    `${headers().get("origin") ?? "http://localhost:3000"}/api/projects/${projectId}`,
+    `${requestHeaders.get("origin") ?? "http://localhost:3000"}/api/projects/${projectId}`,
     {
       method: "DELETE",
-      headers: {
-        cookie: cookieHeader,
-      },
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     },
   );
 
   if (!response.ok && response.status === 401) {
-    redirect("/signin");
+    redirect("/");
   }
   revalidatePath("/dashboard");
 };
@@ -57,26 +49,13 @@ const formatUpdatedAt = (date: Date) =>
   date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 export default async function DashboardPage() {
-  const session = readSession();
+  const session = await getServerSession(authOptions);
 
-  if (!session?.userId) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-6 py-10">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-slate-900">My Projects</h1>
-          <p className="text-slate-600">Sign in to view your saved workspaces.</p>
-        </div>
-        <Link
-          href="/signin"
-          className="inline-flex w-fit items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-        >
-          Go to sign in
-        </Link>
-      </div>
-    );
+  if (!session?.user?.id) {
+    redirect("/");
   }
 
-  const projects = await listProjectsForUser(session.userId);
+  const projects = await listProjectsForUser(session.user.id);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-10">

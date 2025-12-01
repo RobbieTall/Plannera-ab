@@ -15,11 +15,28 @@ const smtpPort = process.env.EMAIL_SERVER_PORT
 const smtpUser = process.env.EMAIL_SERVER_USER;
 const smtpPassword = process.env.EMAIL_SERVER_PASSWORD;
 
+const isSecureEnvironment = Boolean(
+  process.env.NEXTAUTH_URL?.startsWith("https://") || process.env.VERCEL,
+);
+
+export const NEXT_AUTH_SESSION_COOKIE = {
+  name: `${isSecureEnvironment ? "__Secure-" : ""}next-auth.session-token`,
+  options: {
+    httpOnly: true as const,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: isSecureEnvironment,
+  },
+};
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "database",
+  },
+  cookies: {
+    sessionToken: NEXT_AUTH_SESSION_COOKIE,
   },
   pages: {
     signIn: "/signin",
