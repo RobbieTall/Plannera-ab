@@ -87,36 +87,59 @@ export function HomePageClient({ userId }: HomePageClientProps) {
     }
   }
 
+  async function startProjectFromPrompt(promptValue: string) {
+    const trimmedPrompt = promptValue.trim();
+    if (!trimmedPrompt) return;
+
+    const projectId = await ensureProject(trimmedPrompt);
+
+    if (!projectId) {
+      return;
+    }
+
+    const candidate: SiteCandidate = {
+      id: crypto.randomUUID(),
+      formattedAddress: trimmedPrompt,
+      lgaName: null,
+    };
+
+    setSiteFromCandidate({
+      projectId,
+      addressInput: trimmedPrompt,
+      candidate: toPersistableSiteCandidate(candidate),
+    });
+    setPrompt("");
+    router.push(`/projects/${projectId}/workspace`);
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) return;
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt) return;
 
     setSubmitting(true);
 
     try {
-      const projectId = await ensureProject(trimmedPrompt);
-
-      if (!projectId) {
-        setSubmitting(false);
-        return;
-      }
-
-      const candidate: SiteCandidate = {
-        id: crypto.randomUUID(),
-        formattedAddress: trimmedPrompt,
-        lgaName: null,
-      };
-
-      setSiteFromCandidate({
-        projectId,
-        addressInput: trimmedPrompt,
-        candidate: toPersistableSiteCandidate(candidate),
-      });
-      setPrompt("");
-      router.push(`/projects/${projectId}/workspace`);
+      await startProjectFromPrompt(trimmedPrompt);
     } catch (error) {
       console.error("Failed to submit prompt", error);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleExampleClick(title: string) {
+    if (submitting) return;
+
+    setSubmitting(true);
+    setPrompt(title);
+
+    try {
+      await startProjectFromPrompt(title);
+    } catch (error) {
+      console.error("Failed to start project from example", error);
+    } finally {
       setSubmitting(false);
     }
   }
@@ -200,7 +223,7 @@ export function HomePageClient({ userId }: HomePageClientProps) {
                           <button
                             key={example}
                             type="button"
-                            onClick={() => setPrompt(example)}
+                            onClick={() => handleExampleClick(example)}
                             className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-blue-100 transition hover:border-white/40 hover:text-white"
                           >
                             {example}
