@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       path: "/",
       secure: isSecure,
+        });
     response.cookies.set(NEXT_AUTH_SESSION_COOKIE.name, sessionToken, {
       ...NEXT_AUTH_SESSION_COOKIE.options,
       expires: sessionExpires,
