@@ -90,5 +90,5 @@ export default async function ProjectWorkspacePage({ params }: WorkspacePageProp
 
   const workspaceProject = buildWorkspaceProject(project);
 
-  return <ProjectWorkspace project={workspaceProject} />;
+  return <ProjectWorkspace project={workspaceProject} userId={session?.userId ?? null} />;
 }
