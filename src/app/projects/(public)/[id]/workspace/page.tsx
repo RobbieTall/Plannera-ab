@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { getSessionContext } from "@/lib/getSessionContext";
 import { getProjectForRequester } from "@/lib/projects";
 import type { Project as PrismaProject } from "@prisma/client";
 import type { Project } from "@/lib/mock-data";
@@ -77,12 +76,9 @@ function NotFoundState() {
 }
 
 export default async function ProjectWorkspacePage({ params }: WorkspacePageProps) {
-  const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
-  const session = sessionCookie ? decodeSessionCookie(sessionCookie) : null;
+  const session = getSessionContext();
 
-  const project = session
-    ? await getProjectForRequester(params.id, session.id, session.userId ?? null)
-    : null;
+  const project = await getProjectForRequester(params.id, session.sessionId, session.userId);
 
   if (!project) {
     return <NotFoundState />;
