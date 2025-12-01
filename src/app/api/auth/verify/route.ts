@@ -10,6 +10,7 @@ import {
   verifyMagicLinkToken,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { claimSessionProjectsForUser } from "@/lib/projects";
 import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,10 @@ export async function GET(request: NextRequest) {
         expires: sessionExpires,
       },
     });
+
+    if (existingSession.id) {
+      await claimSessionProjectsForUser(existingSession.id, user.id);
+    }
 
     const isSecure = request.nextUrl.protocol === "https:";
     const nextAuthSessionCookieName = `${isSecure ? "__Secure-" : ""}next-auth.session-token`;

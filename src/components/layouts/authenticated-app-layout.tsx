@@ -19,16 +19,23 @@ const navigationItems = [
 
 interface AuthenticatedAppLayoutProps {
   children: ReactNode;
+  requireSession?: boolean;
 }
 
-export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayoutProps) {
+export async function AuthenticatedAppLayout({ children, requireSession = true }: AuthenticatedAppLayoutProps) {
   const session = await getServerSession(authOptions);
+  const isAuthenticated = Boolean(session?.user?.email);
 
-  if (!session?.user?.email) {
+  if (requireSession && !isAuthenticated) {
     redirect("/signin");
   }
 
-  const initials = session.user.name?.slice(0, 2).toUpperCase() ?? session.user.email.slice(0, 2).toUpperCase();
+  const resolvedSession = isAuthenticated ? session : null;
+  const initials =
+    resolvedSession?.user?.name?.slice(0, 2).toUpperCase() ??
+    resolvedSession?.user?.email?.slice(0, 2).toUpperCase() ??
+    "PL";
+  const displayName = resolvedSession?.user?.name ?? resolvedSession?.user?.email ?? "Guest";
 
   return (
     <div className="flex min-h-screen bg-slate-100">
@@ -70,13 +77,13 @@ export async function AuthenticatedAppLayout({ children }: AuthenticatedAppLayou
                 </div>
                 <div className="leading-tight text-white">
                   <p className="text-sm font-medium text-slate-300">Welcome back</p>
-                  <p className="text-base font-semibold">{session.user.name ?? session.user.email}</p>
+                  <p className="text-base font-semibold">{displayName}</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <MainNavigation items={navigationItems} orientation="horizontal" className="lg:hidden" />
-              {session ? (
+              {resolvedSession ? (
                 <SignOutButton className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20">
                   <LogOut className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
                   Logout

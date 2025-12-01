@@ -96,7 +96,7 @@ export const getProjectForRequester = async (
   });
 };
 
-export const claimProjectsForUser = async (
+export const claimSessionProjectsForUser = async (
   sessionId: string,
   userId: string,
 ): Promise<ProjectSummary[]> => {
@@ -107,6 +107,9 @@ export const claimProjectsForUser = async (
 
   return getProjectsForUser(userId);
 };
+
+// Backwards-compatible alias used by existing routes; prefer claimSessionProjectsForUser.
+export const claimProjectsForUser = claimSessionProjectsForUser;
 
 export const getProjectsForUser = async (userId: string): Promise<ProjectSummary[]> => {
   const projects = await prisma.project.findMany({
