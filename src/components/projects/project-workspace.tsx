@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { SignInModal } from "@/components/SignInModal";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
@@ -48,7 +49,6 @@ import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useTheme } from "@/components/providers/theme-provider";
-import { useAuthState } from "@/hooks/use-auth-state";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
 import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
@@ -279,7 +279,7 @@ function deriveSignalsFromAssistantPayload({
 export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated } = useAuthState();
+  const { data: session, status } = useSession();
   const {
     getChatHistory,
     saveChatHistory,
@@ -328,6 +328,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
   const [siteSelectionError, setSiteSelectionError] = useState<string | null>(null);
+  const isAuthenticated = status === "authenticated" && Boolean(session?.user);
   const [siteSearchAvailable, setSiteSearchAvailable] = useState<"loading" | "ok" | "missing_env">("loading");
   const [suggestions, setSuggestions] = useState<SiteCandidate[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);

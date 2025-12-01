@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useSession } from "next-auth/react";
+
 import { SignInModal } from "@/components/SignInModal";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
-import { useAuthState } from "@/hooks/use-auth-state";
 
 type NavigationItem = {
   label: string;
@@ -18,8 +19,10 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ navigation }: SiteHeaderProps) {
-  const { isAuthenticated } = useAuthState();
+  const { data: session, status } = useSession();
   const [showSignIn, setShowSignIn] = useState(false);
+
+  const isAuthenticated = status === "authenticated" && Boolean(session?.user);
 
   const openSignIn = () => setShowSignIn(true);
   const closeSignIn = () => setShowSignIn(false);
