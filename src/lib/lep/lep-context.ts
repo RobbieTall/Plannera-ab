@@ -1,3 +1,4 @@
+import { lookupLepInstruments, type LepSearchResponse } from "@/lib/lep/lep-search";
 import type { SiteContextSummary } from "@/types/site";
 
 export type LepClauseContext = { ref: string; title: string | null; text: string };
@@ -17,17 +18,6 @@ export type LepContextResolution = {
   lepClauseCount: number;
   usedFallback: boolean;
 };
-
-type LepSearchInstrument = {
-  id: string;
-  lga: string;
-  name: string;
-  code: string;
-  clauseCount?: number;
-  clauses?: { id: string; ref: string; title: string | null; text: string }[];
-};
-
-type LepSearchResponse = { instruments: LepSearchInstrument[] };
 
 const MAX_LEP_CLAUSES = 20;
 const MAX_CLAUSE_TEXT = 400;
@@ -73,36 +63,10 @@ const deriveLgaCode = (
   return fallbackCandidate;
 };
 
-const fetchLepSearch = async (params: {
-  requestOrigin: string;
-  lga: string;
-  instrument?: string | null;
-}): Promise<LepSearchResponse | null> => {
-  const searchUrl = new URL("/api/lep/search", params.requestOrigin);
-  searchUrl.searchParams.set("lga", params.lga);
-  if (params.instrument) {
-    searchUrl.searchParams.set("instrument", params.instrument);
-  }
-
-  try {
-    const response = await fetch(searchUrl, { method: "GET" });
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      console.warn("[lep-context] LEP search failed", await response.text());
-      return null;
-    }
-    return (await response.json()) as LepSearchResponse;
-  } catch (error) {
-    console.warn("[lep-context] LEP search threw", error);
-    return null;
-  }
-};
-
 const selectInstrumentWithClauses = (payload: LepSearchResponse | null) =>
   payload?.instruments?.find((instrument) => instrument.clauses?.length) ?? null;
 
 export const getLepContextForProject = async (params: {
-  requestOrigin: string;
   siteContext?: SiteContextSummary | null;
   fallbackLga?: string | null;
   instrumentSlug?: string | null;
@@ -127,11 +91,7 @@ export const getLepContextForProject = async (params: {
     instrumentSlug: params.instrumentSlug,
   });
 
-  const initialResult = await fetchLepSearch({
-    requestOrigin: params.requestOrigin,
-    lga: lgaCode,
-    instrument: params.instrumentSlug,
-  });
+  const initialResult = await lookupLepInstruments({ lga: lgaCode, instrument: params.instrumentSlug });
 
   let instrumentWithClauses = selectInstrumentWithClauses(initialResult);
   let summaryResult = initialResult;
@@ -146,16 +106,11 @@ export const getLepContextForProject = async (params: {
   });
 
   if (!instrumentWithClauses) {
-    summaryResult = summaryResult ??
-      (await fetchLepSearch({ requestOrigin: params.requestOrigin, lga: lgaCode }));
+    summaryResult = summaryResult ?? (await lookupLepInstruments({ lga: lgaCode }));
     const firstInstrumentCode = summaryResult?.instruments?.[0]?.code;
 
     if (firstInstrumentCode) {
-      const detailedResult = await fetchLepSearch({
-        requestOrigin: params.requestOrigin,
-        lga: lgaCode,
-        instrument: firstInstrumentCode,
-      });
+      const detailedResult = await lookupLepInstruments({ lga: lgaCode, instrument: firstInstrumentCode });
       instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
     }
   }

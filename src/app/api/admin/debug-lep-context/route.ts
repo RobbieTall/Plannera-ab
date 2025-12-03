@@ -17,7 +17,6 @@ export async function GET(request: Request) {
   }
 
   const resolution = await getLepContextForProject({
-    requestOrigin: url.origin,
     fallbackLga: lga,
     siteContext: null,
     instrumentSlug: null,

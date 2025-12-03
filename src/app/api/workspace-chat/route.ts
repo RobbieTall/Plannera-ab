@@ -186,7 +186,6 @@ export async function POST(request: Request) {
     let lepData: LepParseResult | null = existingMemory?.lepData ?? null;
     let lepContext: LepContext | null = existingMemory?.lepContext ?? null;
     let usedLepFallback = existingMemory?.usedLepFallback ?? false;
-    const requestOrigin = new URL(request.url).origin;
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
@@ -262,7 +261,6 @@ export async function POST(request: Request) {
 
     if (siteContextSummary || fallbackLga) {
       const lepResolution = await getLepContextForProject({
-        requestOrigin,
         siteContext: siteContextSummary,
         fallbackLga,
         instrumentSlug: instrumentMatch?.lepInstrumentSlug,
