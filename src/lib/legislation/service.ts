@@ -262,6 +262,10 @@ export const syncInstrument = async (slug: string): Promise<SyncResult> => {
   return syncInstrumentInternal(config);
 };
 
+export const syncInstrumentWithConfig = async (
+  config: InstrumentConfigType,
+): Promise<SyncResult> => syncInstrumentInternal(config);
+
 export const syncAllInstruments = async (): Promise<SyncResult[]> => {
   const results: SyncResult[] = [];
 
