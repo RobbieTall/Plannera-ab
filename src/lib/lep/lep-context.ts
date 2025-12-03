@@ -21,9 +21,39 @@ export type LepContextResolution = {
 
 const MAX_LEP_CLAUSES = 20;
 const MAX_CLAUSE_TEXT = 400;
+const PRIORITY_KEYWORDS = ["acid sulfate soils", "acid sulphate soils"];
 
 const truncateText = (value: string) =>
   value.length > MAX_CLAUSE_TEXT ? `${value.slice(0, MAX_CLAUSE_TEXT)}…` : value;
+
+const normalise = (value: string | null | undefined) => value?.toLowerCase() ?? "";
+
+const prioritiseClauses = <T extends { ref: string; title: string | null; text: string }>(
+  clauses: T[],
+) => {
+  const sorted = [...clauses].sort((first, second) =>
+    first.ref.localeCompare(second.ref, undefined, { numeric: true, sensitivity: "base" }),
+  );
+
+  const keywordMatches = sorted.filter((clause) =>
+    PRIORITY_KEYWORDS.some((keyword) =>
+      normalise(clause.title).includes(keyword) || normalise(clause.text).includes(keyword),
+    ),
+  );
+
+  const ordered = [...keywordMatches, ...sorted];
+  const deduped: T[] = [];
+  const seen = new Set<string>();
+
+  for (const clause of ordered) {
+    if (seen.has(clause.ref)) continue;
+    deduped.push(clause);
+    seen.add(clause.ref);
+  }
+
+  const limit = Math.min(deduped.length, MAX_LEP_CLAUSES + keywordMatches.length);
+  return deduped.slice(0, limit);
+};
 
 const LGA_SEARCH_MAP: Record<string, string> = {
   "byron": "byron",
@@ -128,7 +158,7 @@ export const getLepContextForProject = async (params: {
         lga: params.siteContext?.lgaName ?? params.fallbackLga ?? lgaCode,
         instrumentName: instrumentWithClauses.name,
         instrumentCode: instrumentWithClauses.code,
-        clauses: instrumentWithClauses.clauses.slice(0, MAX_LEP_CLAUSES).map((clause) => ({
+        clauses: prioritiseClauses(instrumentWithClauses.clauses).map((clause) => ({
           ref: clause.ref,
           title: clause.title,
           text: truncateText(clause.text),
