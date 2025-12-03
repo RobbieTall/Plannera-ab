@@ -3,13 +3,15 @@ import path from "path";
 import { NextResponse } from "next/server";
 
 import { buildLepConfigFromFile } from "@/lib/lep/lep-ingest-files";
-import { syncInstrumentWithConfig } from "@/lib/legislation/service";
+import { parseInstrumentDocument } from "@/lib/legislation/parser";
+import { syncInstrumentFromDocument } from "@/lib/legislation/service";
+import { prisma } from "@/lib/prisma";
 
 /**
- * Admin-only endpoint to ingest every NSW LEP XML file under data/nsw/xml.
+ * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
  *
  * Usage (after setting INGEST_ADMIN_SECRET in the environment):
- *   POST https://<prod-domain>/api/admin/ingest-lep?secret=<value>
+ *   POST https://<prod-domain>/api/admin/ingest-lep?secret=<value>&lga=BYRON
  *
  * The endpoint will parse each XML, upsert the instrument + clauses, and
  * can be safely re-run without creating duplicates.
@@ -23,46 +25,86 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const xmlDir = path.resolve(process.cwd(), "data/nsw/xml");
-  let xmlFiles: string[];
+  const lgaParam = url.searchParams.get("lga")?.trim();
+  const normalizedLga = lgaParam?.toUpperCase().replace(/[^A-Z0-9]+/g, "_") ?? null;
+
+  console.log("[INGEST-LEP] Start", { lga: normalizedLga });
+
+  if (normalizedLga !== "BYRON") {
+    return NextResponse.json({ error: "Only BYRON ingest is supported for now" }, { status: 400 });
+  }
+
+  const xmlDir = path.join(process.cwd(), "data", "nsw", "xml");
+  const byronFileName = "Byron-lep-2014.xml";
+  const xmlPath = path.join(xmlDir, byronFileName);
 
   try {
-    xmlFiles = (await fs.readdir(xmlDir)).filter((file) => file.toLowerCase().endsWith(".xml"));
+    await fs.access(xmlPath);
   } catch (error) {
-    console.error("[lep-ingest] Unable to read XML directory", error);
-    return NextResponse.json({ error: "Failed to read LEP XML directory" }, { status: 500 });
+    const message = `Byron XML not found at ${xmlPath}`;
+    console.error("[INGEST-LEP] Byron error", error);
+    return NextResponse.json({ error: "LEP ingestion failed for BYRON", details: message }, { status: 500 });
   }
 
-  const summary = {
-    instrumentsProcessed: 0,
-    totalClauses: 0,
-    failures: [] as { file: string; error: string }[],
-  };
+  try {
+    console.log("[INGEST-LEP] Byron config ready", { xmlPath, lgaCode: "BYRON" });
 
-  for (const fileName of xmlFiles) {
-    const filePath = path.join(xmlDir, fileName);
-    try {
-      const { config } = await buildLepConfigFromFile(filePath);
-      const result = await syncInstrumentWithConfig(config);
+    const xmlDocument = await fs.readFile(xmlPath, "utf-8");
+    const { config } = await buildLepConfigFromFile(xmlPath, { xml: xmlDocument });
+    const parsedClauses = parseInstrumentDocument(config, xmlDocument, "xml");
 
-      if (result.status === "ok") {
-        summary.instrumentsProcessed += 1;
-        summary.totalClauses += result.parsedClauses;
-        continue;
-      }
+    console.log("[INGEST-LEP] Byron parsed clauses length", parsedClauses.length);
 
-      summary.failures.push({
-        file: fileName,
-        error:
-          result.status === "skipped"
-            ? result.reason
-            : result.error?.message ?? "Unknown ingestion failure",
-      });
-    } catch (error) {
-      console.error(`[lep-ingest] Failed to process ${fileName}`, error);
-      summary.failures.push({ file: fileName, error: error instanceof Error ? error.message : String(error) });
+    if (!parsedClauses.length) {
+      return NextResponse.json(
+        { error: "LEP ingestion failed for BYRON", details: "No clauses parsed from XML" },
+        { status: 500 },
+      );
     }
-  }
 
-  return NextResponse.json(summary);
+    const result = await syncInstrumentFromDocument(config, xmlDocument, {
+      parsedClauses,
+      format: "xml",
+      forceReplace: true,
+    });
+
+    const instrumentsProcessed = result.status === "ok" ? 1 : 0;
+    const totalClauses =
+      result.status === "ok"
+        ? await prisma.clause.count({ where: { instrumentId: result.instrument.id, isCurrent: true } })
+        : 0;
+
+    let failed: string[] = [];
+    if (result.status === "error") {
+      const message = result.error?.message ?? "Unknown ingestion failure";
+      failed = [message];
+    }
+
+    if (result.status === "ok" && parsedClauses.length > 0 && totalClauses === 0) {
+      const details = "Parsed clauses but none were persisted";
+      console.error("[INGEST-LEP] Byron error", details);
+      return NextResponse.json({ error: "LEP ingestion failed for BYRON", details }, { status: 500 });
+    }
+
+    console.log("[INGEST-LEP] Byron result", {
+      instrumentsProcessed,
+      totalClauses,
+      failedCount: failed.length,
+    });
+
+    if (result.status === "ok") {
+      console.log("[INGEST-LEP] Byron sync complete", {
+        instrumentId: result.instrument.id,
+        clauseCount: totalClauses,
+      });
+
+      console.log("[INGEST-LEP] Byron DB clause count", totalClauses);
+    }
+
+    return NextResponse.json({ lga: "BYRON", instrumentsProcessed, totalClauses, failed });
+  } catch (error) {
+    console.error("[INGEST-LEP] Byron error", error);
+    const details = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: "LEP ingestion failed for BYRON", details }, { status: 500 });
+  }
 }

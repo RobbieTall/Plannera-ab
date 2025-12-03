@@ -40,11 +40,14 @@ export const parseLepFilename = (fileName: string): LepFilenameInfo => {
   return { instrumentSlug, lgaName, lgaCode, year };
 };
 
-export const buildLepConfigFromFile = async (filePath: string): Promise<LepConfigPreparation> => {
+export const buildLepConfigFromFile = async (
+  filePath: string,
+  options?: { xml?: string },
+): Promise<LepConfigPreparation> => {
   const fileName = path.basename(filePath);
   const filenameInfo = parseLepFilename(fileName);
 
-  const xml = await fs.readFile(filePath, "utf-8");
+  const xml = options?.xml ?? (await fs.readFile(filePath, "utf-8"));
   const parsed = parseNswLepXml(xml);
 
   const derivedYear =
