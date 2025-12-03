@@ -25,15 +25,36 @@ const MAX_CLAUSE_TEXT = 400;
 const truncateText = (value: string) =>
   value.length > MAX_CLAUSE_TEXT ? `${value.slice(0, MAX_CLAUSE_TEXT)}…` : value;
 
-const deriveLgaCode = (siteContext?: SiteContextSummary | null, fallbackLga?: string | null) => {
-  if (siteContext?.lgaCode) return siteContext.lgaCode;
-  if (siteContext?.lgaName) return siteContext.lgaName;
-  if (fallbackLga) return fallbackLga;
+const LGA_SEARCH_MAP: Record<string, string> = {
+  "byron": "byron",
+  "byron shire": "byron",
+  "byron shire council": "byron",
+};
 
-  const normalizedName = siteContext?.lgaName?.toLowerCase() ?? fallbackLga?.toLowerCase() ?? "";
-  if (normalizedName.includes("byron")) {
-    // Temporary mapping until full LGA code coverage is available
-    return "BYRON";
+const normaliseLgaValue = (value: string | null | undefined) => value?.trim().toLowerCase() ?? null;
+
+const deriveLgaCode = (
+  siteContext?: SiteContextSummary | null,
+  fallbackLga?: string | null,
+  instrumentSlug?: string | null,
+) => {
+  const candidates = [siteContext?.lgaCode, siteContext?.lgaName, fallbackLga];
+  for (const candidate of candidates) {
+    const normalized = normaliseLgaValue(candidate);
+    if (!normalized) continue;
+    if (LGA_SEARCH_MAP[normalized]) {
+      return LGA_SEARCH_MAP[normalized];
+    }
+    // If the LGA string already contains a known keyword, use the keyword so it matches instrument slugs/names.
+    if (normalized.includes("byron")) {
+      return "byron";
+    }
+    return candidate as string;
+  }
+
+  if (instrumentSlug) {
+    // Fall back to the LEP slug to keep the search aligned with how instruments are stored.
+    return instrumentSlug;
   }
 
   return null;
@@ -73,10 +94,16 @@ export const getLepContextForProject = async (params: {
   fallbackLga?: string | null;
   instrumentSlug?: string | null;
 }): Promise<LepContext | null> => {
-  const lgaCode = deriveLgaCode(params.siteContext, params.fallbackLga);
+  const lgaCode = deriveLgaCode(params.siteContext, params.fallbackLga, params.instrumentSlug);
   if (!lgaCode) {
     return null;
   }
+
+  console.log("[lep-context] derived LGA for LEP search", {
+    lgaCode,
+    lgaName: params.siteContext?.lgaName ?? params.fallbackLga,
+    instrumentSlug: params.instrumentSlug,
+  });
 
   const initialResult = await fetchLepSearch({
     requestOrigin: params.requestOrigin,
@@ -100,6 +127,14 @@ export const getLepContextForProject = async (params: {
       });
       instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
     }
+  }
+
+  if (!instrumentWithClauses) {
+    console.log("[lep-context] no LEP instrument with clauses returned", {
+      lgaCode,
+      instrumentSlug: params.instrumentSlug,
+      summaryCount: summaryResult?.instruments?.length ?? 0,
+    });
   }
 
   if (!instrumentWithClauses || !instrumentWithClauses.clauses?.length) {
