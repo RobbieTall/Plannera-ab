@@ -5,6 +5,7 @@ import path from "path";
 import type { InstrumentConfig } from "@/lib/legislation/types";
 
 import { parseNswLepXml } from "./nsw-lep-parser";
+import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
 
 const toTitleCase = (value: string) =>
   value
@@ -25,6 +26,7 @@ export interface LepConfigPreparation {
   details: LepFilenameInfo & {
     fileName: string;
     instrumentName: string;
+    canonicalLga: string | null;
   };
 }
 
@@ -56,6 +58,7 @@ export const buildLepConfigFromFile = async (
 
   const lgaName = parsed.metadata.lgaName?.trim() || filenameInfo.lgaName;
   const lgaCode = lgaName.toUpperCase().replace(/[^A-Z0-9]+/g, "_") || filenameInfo.lgaCode;
+  const canonicalLga = resolveCanonicalNswLga(lgaName) ?? resolveCanonicalNswLga(lgaCode);
 
   const instrumentName =
     parsed.metadata.instrumentName || `${lgaName || filenameInfo.lgaName} Local Environmental Plan ${derivedYear ?? ""}`.trim();
@@ -84,6 +87,7 @@ export const buildLepConfigFromFile = async (
       lgaName,
       lgaCode,
       instrumentName,
+      canonicalLga,
     },
   };
 };
@@ -103,6 +107,7 @@ export const buildLepConfigFromFileSync = (
 
   const lgaName = parsed.metadata.lgaName?.trim() || filenameInfo.lgaName;
   const lgaCode = lgaName.toUpperCase().replace(/[^A-Z0-9]+/g, "_") || filenameInfo.lgaCode;
+  const canonicalLga = resolveCanonicalNswLga(lgaName) ?? resolveCanonicalNswLga(lgaCode);
 
   const instrumentName =
     parsed.metadata.instrumentName || `${lgaName || filenameInfo.lgaName} Local Environmental Plan ${derivedYear ?? ""}`.trim();
@@ -131,6 +136,7 @@ export const buildLepConfigFromFileSync = (
       lgaName,
       lgaCode,
       instrumentName,
+      canonicalLga,
     },
   };
 };

@@ -5,6 +5,8 @@ import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type { DcpParseResult } from "./dcp/types";
 import type { LepParseResult, LepZoneUses } from "./lep/types";
 import { ALL_INSTRUMENT_CONFIG } from "./legislation/config";
+import { findLocalNswLepsByLga } from "./lep/nsw-lep-registry";
+import { resolveCanonicalNswLga } from "./lep/nsw-lga-normaliser";
 import { getLgaMapInfo } from "./lga-map-registry";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
@@ -93,21 +95,19 @@ const toDcpSummary = (dcpData: unknown) => {
   } satisfies SiteContextSummary["dcpSummary"];
 };
 
-const LGA_LEGISLATION_REGISTRY: { lgaName: string; lgaCode?: string; lepSlug?: string }[] = [
-  { lgaName: "City of Sydney", lepSlug: "city-of-sydney-lep-2012" },
-  { lgaName: "Waverley", lepSlug: "waverley-lep-2012" },
-  { lgaName: "Randwick", lepSlug: "randwick-lep-2012" },
-  { lgaName: "Woollahra", lepSlug: "woollahra-lep-2014" },
-  { lgaName: "Ballina", lepSlug: "ballina-lep-2012" },
-  { lgaName: "Byron Shire", lepSlug: "byron-lep-2014" },
-  { lgaName: "Clarence Valley", lepSlug: "clarence-valley-lep-2011" },
-  { lgaName: "Coffs Harbour", lepSlug: "coffs-harbour-lep-2013" },
-  { lgaName: "Northern Beaches" },
-];
-
 const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
   (config) => config.slug,
 );
+
+const resolveLepForLga = (lgaName: string | null | undefined) => {
+  const match = findLocalNswLepsByLga(lgaName)[0];
+  if (!match) return null;
+
+  return {
+    lepInstrumentSlug: match.config.slug,
+    lgaCode: match.details.lgaCode ?? match.details.canonicalLga ?? resolveCanonicalNswLga(lgaName) ?? undefined,
+  };
+};
 
 export const persistSiteContextFromCandidate = async (params: {
   projectId: string;
@@ -278,12 +278,12 @@ export const resolveInstrumentsForSite = (site: { lgaName: string | null } | nul
   if (!site?.lgaName) {
     return { seppInstrumentSlugs };
   }
-  const registryEntry = LGA_LEGISLATION_REGISTRY.find(
-    (entry) => entry.lgaName.toLowerCase() === site.lgaName?.toLowerCase(),
-  );
+
+  const lepMatch = resolveLepForLga(site.lgaName);
+
   return {
-    lepInstrumentSlug: registryEntry?.lepSlug,
+    lepInstrumentSlug: lepMatch?.lepInstrumentSlug,
     seppInstrumentSlugs,
-    lgaCode: registryEntry?.lgaCode,
+    lgaCode: lepMatch?.lgaCode,
   };
 };

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { lookupLepInstruments } from "@/lib/lep/lep-search";
+import { findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
+import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +14,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing required parameter: lga" }, { status: 400 });
     }
 
-    const instruments = await lookupLepInstruments({ lga, instrument, clauseRef });
+    const registryMatches = findLocalNswLepsByLga(lga);
+    const normalizedLga = registryMatches[0]?.details.canonicalLga ?? resolveCanonicalNswLga(lga);
+    if (!normalizedLga) {
+      return NextResponse.json({ error: "Unable to normalise LGA" }, { status: 400 });
+    }
+
+    const targetInstrument = instrument ?? (clauseRef ? registryMatches[0]?.config.slug : undefined);
+
+    const instruments = await lookupLepInstruments({ lga: normalizedLga, instrument: targetInstrument, clauseRef });
 
     if (!instruments?.instruments?.length) {
       return NextResponse.json({ error: "No LEP found for that query" }, { status: 404 });

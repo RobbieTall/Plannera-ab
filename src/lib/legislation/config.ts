@@ -1,9 +1,8 @@
-import fs from "fs";
 import path from "path";
 
 import instruments from "./instruments.json";
 import type { InstrumentConfig } from "./types";
-import { buildLepConfigFromFileSync } from "../lep/lep-ingest-files";
+import { LOCAL_NSW_LEP_CONFIGS } from "../lep/nsw-lep-registry";
 
 const projectRoot = process.cwd();
 
@@ -29,31 +28,7 @@ export const INSTRUMENT_CONFIG: InstrumentConfig[] = instruments.map((config) =>
   normaliseInstrument(config as InstrumentConfig),
 );
 
-const loadLocalLepConfigs = (): InstrumentConfig[] => {
-  const xmlRoot = path.resolve(projectRoot, "data/nsw/xml");
-  try {
-    const entries = fs.readdirSync(xmlRoot, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && /lep/i.test(entry.name) && /\.xml$/i.test(entry.name))
-      .map((entry) => path.join(xmlRoot, entry.name))
-      .flatMap((filePath) => {
-        try {
-          return [buildLepConfigFromFileSync(filePath).config];
-        } catch (error) {
-          console.warn(`[legislation-config] Failed to build LEP config for ${filePath}:`, error);
-          return [];
-        }
-      });
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err.code !== "ENOENT") {
-      console.warn("[legislation-config] Unable to read NSW LEP directory", err);
-    }
-    return [];
-  }
-};
-
-const localLepConfigs = loadLocalLepConfigs();
+const localLepConfigs = LOCAL_NSW_LEP_CONFIGS.map((config) => normaliseInstrument(config));
 
 const merged = [...INSTRUMENT_CONFIG];
 const existingSlugs = new Set(merged.map((config) => config.slug));
