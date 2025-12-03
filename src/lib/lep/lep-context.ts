@@ -8,6 +8,16 @@ export type LepContext = {
   clauses: LepClauseContext[];
 };
 
+export type LepContextResolution = {
+  lepContext: LepContext | null;
+  rawLga: string | null;
+  normalisedLga: string | null;
+  instruments: { id: string; lga: string; code: string; clauseCount?: number }[];
+  chosenInstrumentId: string | null;
+  lepClauseCount: number;
+  usedFallback: boolean;
+};
+
 type LepSearchInstrument = {
   id: string;
   lga: string;
@@ -96,10 +106,19 @@ export const getLepContextForProject = async (params: {
   siteContext?: SiteContextSummary | null;
   fallbackLga?: string | null;
   instrumentSlug?: string | null;
-}): Promise<LepContext | null> => {
+}): Promise<LepContextResolution> => {
+  const rawLga = params.siteContext?.lgaName ?? params.fallbackLga ?? params.siteContext?.lgaCode ?? null;
   const lgaCode = deriveLgaCode(params.siteContext, params.fallbackLga, params.instrumentSlug);
   if (!lgaCode) {
-    return null;
+    return {
+      lepContext: null,
+      rawLga,
+      normalisedLga: null,
+      instruments: [],
+      chosenInstrumentId: null,
+      lepClauseCount: 0,
+      usedFallback: true,
+    } satisfies LepContextResolution;
   }
 
   console.log("[lep-context] derived LGA for LEP search", {
@@ -149,20 +168,28 @@ export const getLepContextForProject = async (params: {
     });
   }
 
-  if (!instrumentWithClauses || !instrumentWithClauses.clauses?.length) {
-    return null;
-  }
+  const lepContext = instrumentWithClauses?.clauses?.length
+    ? ({
+        lga: params.siteContext?.lgaName ?? params.fallbackLga ?? lgaCode,
+        instrumentName: instrumentWithClauses.name,
+        instrumentCode: instrumentWithClauses.code,
+        clauses: instrumentWithClauses.clauses.slice(0, MAX_LEP_CLAUSES).map((clause) => ({
+          ref: clause.ref,
+          title: clause.title,
+          text: truncateText(clause.text),
+        })),
+      } satisfies LepContext)
+    : null;
 
   return {
-    lga: params.siteContext?.lgaName ?? params.fallbackLga ?? lgaCode,
-    instrumentName: instrumentWithClauses.name,
-    instrumentCode: instrumentWithClauses.code,
-    clauses: instrumentWithClauses.clauses.slice(0, MAX_LEP_CLAUSES).map((clause) => ({
-      ref: clause.ref,
-      title: clause.title,
-      text: truncateText(clause.text),
-    })),
-  } satisfies LepContext;
+    lepContext,
+    rawLga,
+    normalisedLga: lgaCode,
+    instruments: summaryResult?.instruments ?? [],
+    chosenInstrumentId: instrumentWithClauses?.id ?? null,
+    lepClauseCount: instrumentWithClauses?.clauses?.length ?? 0,
+    usedFallback: !lepContext,
+  } satisfies LepContextResolution;
 };
 
 export const buildLepPromptMessage = (lepContext: LepContext | null) => {
