@@ -30,6 +30,16 @@ export interface LepConfigPreparation {
   };
 }
 
+const buildInstrumentNames = (filenameInfo: LepFilenameInfo) => {
+  const instrumentName =
+    `${filenameInfo.lgaName} Local Environmental Plan ${filenameInfo.year ?? ""}`.trim() ||
+    filenameInfo.instrumentSlug;
+
+  const shortName = `${filenameInfo.lgaName} LEP ${filenameInfo.year ?? ""}`.trim() || instrumentName;
+
+  return { instrumentName, shortName };
+};
+
 export const parseLepFilename = (fileName: string): LepFilenameInfo => {
   const base = fileName.replace(/\.xml$/i, "");
   const normalizedBase = base.replace(/\s+/g, "-");
@@ -135,6 +145,41 @@ export const buildLepConfigFromFileSync = (
       fileName,
       lgaName,
       lgaCode,
+      instrumentName,
+      canonicalLga,
+    },
+  };
+};
+
+export const buildLepConfigFromMetadata = (filePath: string): LepConfigPreparation => {
+  const fileName = path.basename(filePath);
+  const filenameInfo = parseLepFilename(fileName);
+  const canonicalLga = resolveCanonicalNswLga(filenameInfo.lgaName) ?? resolveCanonicalNswLga(filenameInfo.lgaCode);
+  const { instrumentName, shortName } = buildInstrumentNames(filenameInfo);
+
+  const clausePrefixBase = `${filenameInfo.lgaCode}${filenameInfo.year ? `_${filenameInfo.year}` : ""}`
+    .replace(/__+/g, "_")
+    .replace(/_$/, "");
+
+  const config: InstrumentConfig = {
+    slug: filenameInfo.instrumentSlug,
+    name: instrumentName,
+    shortName,
+    instrumentType: "LEP",
+    sourceUrl: `file://${filePath}`,
+    xmlLocalPath: filePath,
+    clausePrefix:
+      clausePrefixBase || filenameInfo.instrumentSlug.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase(),
+    topics: ["LEP"],
+  };
+
+  return {
+    config,
+    details: {
+      ...filenameInfo,
+      fileName,
+      lgaName: filenameInfo.lgaName,
+      lgaCode: filenameInfo.lgaCode,
       instrumentName,
       canonicalLga,
     },

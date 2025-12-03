@@ -3,7 +3,7 @@ import path from "path";
 
 import type { InstrumentConfig } from "../legislation/types";
 
-import { buildLepConfigFromFileSync, type LepConfigPreparation } from "./lep-ingest-files";
+import { buildLepConfigFromMetadata, type LepConfigPreparation } from "./lep-ingest-files";
 import {
   expandNswLgaAliases,
   normalizeNswLgaName,
@@ -13,6 +13,14 @@ import {
 const projectRoot = process.cwd();
 const xmlRoot = path.resolve(projectRoot, "data/nsw/xml");
 
+type RegistryState = {
+  preparations: LepConfigPreparation[];
+  lgaIndex: Map<string, LepConfigPreparation[]>;
+  slugIndex: Map<string, LepConfigPreparation>;
+};
+
+const getGlobalRegistry = () => globalThis as typeof globalThis & { __nswLepRegistry?: RegistryState };
+
 const loadLocalLepPreparations = (): LepConfigPreparation[] => {
   try {
     const entries = fs.readdirSync(xmlRoot, { withFileTypes: true });
@@ -21,7 +29,7 @@ const loadLocalLepPreparations = (): LepConfigPreparation[] => {
       .flatMap((entry) => {
         const filePath = path.join(xmlRoot, entry.name);
         try {
-          return [buildLepConfigFromFileSync(filePath)];
+          return [buildLepConfigFromMetadata(filePath)];
         } catch (error) {
           console.warn(`[nsw-lep-registry] Failed to build LEP config for ${filePath}:`, error);
           return [];
@@ -36,40 +44,56 @@ const loadLocalLepPreparations = (): LepConfigPreparation[] => {
   }
 };
 
-const LOCAL_PREPARATIONS = loadLocalLepPreparations();
+const buildRegistry = (): RegistryState => {
+  const preparations = loadLocalLepPreparations();
+  const lgaIndex = new Map<string, LepConfigPreparation[]>();
+  const slugIndex = new Map<string, LepConfigPreparation>();
 
-const LGA_INDEX = new Map<string, LepConfigPreparation[]>();
-const SLUG_INDEX = new Map<string, LepConfigPreparation>();
+  for (const prep of preparations) {
+    const primaryKeys = expandNswLgaAliases(prep.details.canonicalLga ?? prep.details.lgaName);
+    const fallbackKeys = [
+      resolveCanonicalNswLga(prep.details.lgaCode),
+      normalizeNswLgaName(prep.details.lgaName),
+      normalizeNswLgaName(prep.details.lgaCode),
+    ];
 
-for (const prep of LOCAL_PREPARATIONS) {
-  const primaryKeys = expandNswLgaAliases(prep.details.canonicalLga ?? prep.details.lgaName);
-  const fallbackKeys = [
-    resolveCanonicalNswLga(prep.details.lgaCode),
-    normalizeNswLgaName(prep.details.lgaName),
-    normalizeNswLgaName(prep.details.lgaCode),
-  ];
+    const candidateKeys = new Set<string>([...primaryKeys, ...fallbackKeys.filter(Boolean) as string[]]);
 
-  const candidateKeys = new Set<string>([...primaryKeys, ...fallbackKeys.filter(Boolean) as string[]]);
+    for (const key of candidateKeys) {
+      const existing = lgaIndex.get(key) ?? [];
+      existing.push(prep);
+      lgaIndex.set(key, existing);
+    }
 
-  for (const key of candidateKeys) {
-    const existing = LGA_INDEX.get(key) ?? [];
-    existing.push(prep);
-    LGA_INDEX.set(key, existing);
+    slugIndex.set(prep.config.slug, prep);
   }
 
-  SLUG_INDEX.set(prep.config.slug, prep);
-}
+  return { preparations, lgaIndex, slugIndex };
+};
 
-export const LOCAL_NSW_LEP_CONFIGS: InstrumentConfig[] = LOCAL_PREPARATIONS.map((prep) => prep.config);
+const getRegistry = (): RegistryState => {
+  const globalRegistry = getGlobalRegistry();
+  if (globalRegistry.__nswLepRegistry) {
+    return globalRegistry.__nswLepRegistry;
+  }
 
-export const listNswLgaKeys = () => Array.from(LGA_INDEX.keys());
+  const built = buildRegistry();
+  globalRegistry.__nswLepRegistry = built;
+  return built;
+};
+
+export const LOCAL_NSW_LEP_CONFIGS: InstrumentConfig[] = getRegistry().preparations.map((prep) => prep.config);
+
+export const listNswLgaKeys = () => Array.from(getRegistry().lgaIndex.keys());
 
 export const resolveNswLgaKey = (lga: string | null | undefined): string | null => {
   const candidates = expandNswLgaAliases(lga);
   if (!candidates.length) return null;
 
+  const { lgaIndex } = getRegistry();
+
   for (const key of candidates) {
-    if (LGA_INDEX.has(key)) {
+    if (lgaIndex.has(key)) {
       return key;
     }
   }
@@ -83,9 +107,10 @@ export const findLocalNswLepsByLga = (lga: string | null | undefined): LepConfig
 
   const seen = new Set<string>();
   const matches: LepConfigPreparation[] = [];
+  const { lgaIndex } = getRegistry();
 
   for (const key of candidateKeys) {
-    const entries = LGA_INDEX.get(key) ?? [];
+    const entries = lgaIndex.get(key) ?? [];
     for (const entry of entries) {
       if (seen.has(entry.config.slug)) continue;
       seen.add(entry.config.slug);
@@ -98,5 +123,6 @@ export const findLocalNswLepsByLga = (lga: string | null | undefined): LepConfig
 
 export const findLocalNswLepBySlug = (slug: string | null | undefined): LepConfigPreparation | null => {
   if (!slug) return null;
-  return SLUG_INDEX.get(slug) ?? null;
+  const { slugIndex } = getRegistry();
+  return slugIndex.get(slug) ?? null;
 };

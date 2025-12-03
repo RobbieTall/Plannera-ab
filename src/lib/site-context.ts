@@ -114,6 +114,7 @@ export const persistSiteContextFromCandidate = async (params: {
   addressInput: string;
   candidate: SiteCandidate;
 }): Promise<SiteContext> => {
+  const start = Date.now();
   const { projectId, addressInput, candidate } = params;
   const normalizedProjectId = normalizeProjectId(projectId);
   const project = await findProjectByExternalId(prisma, normalizedProjectId);
@@ -123,7 +124,9 @@ export const persistSiteContextFromCandidate = async (params: {
   const normalizedAddressInput = addressInput.trim() || addressInput;
 
   let zoningResult: ZoningResult | null = null;
+  let zoningDurationMs = 0;
   try {
+    const zoningStart = Date.now();
     zoningResult = await getZoningForSite({
       coords:
         typeof candidate.latitude === "number" && typeof candidate.longitude === "number"
@@ -134,6 +137,7 @@ export const persistSiteContextFromCandidate = async (params: {
           ? { lot: candidate.lot, dp: candidate.planNumber }
           : null,
     });
+    zoningDurationMs = Date.now() - zoningStart;
   } catch (error) {
     console.warn("[site-context] zoning lookup failed", {
       error,
@@ -159,6 +163,7 @@ export const persistSiteContextFromCandidate = async (params: {
     zone: zoningLabel,
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
+  const persistStart = Date.now();
   const persisted = await prisma.siteContext.upsert({
     where: { projectId: project.id },
     update: data,
@@ -171,6 +176,14 @@ export const persistSiteContextFromCandidate = async (params: {
       zoningName: zoningResult?.zoneName ?? null,
       zoningSource: zoningResult?.source ?? null,
     },
+  });
+
+  console.log("[site-context] persist complete", {
+    provider: candidate.provider,
+    lga: candidate.lgaName ?? candidate.lgaCode,
+    zoningMs: zoningDurationMs,
+    persistMs: Date.now() - persistStart,
+    totalMs: Date.now() - start,
   });
 
   return persisted;
