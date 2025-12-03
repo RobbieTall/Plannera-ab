@@ -182,8 +182,21 @@ const findContentRoot = (html: string) => {
 };
 
 const XML_HEADING_TAGS = ["heading", "title", "name", "hd"];
-const XML_CLAUSE_TAGS = ["clause", "section", "provision", "prov", "item", "zoningtable", "zoning-table"];
-const XML_TIER_TYPES = new Set(["chapter", "part", "division", "subdivision", "schedule"]);
+const XML_CLAUSE_TAGS = [
+  "clause",
+  "section",
+  "provision",
+  "prov",
+  "item",
+  "zoningtable",
+  "zoning-table",
+  "cl",
+  "sect",
+  "rule",
+];
+const XML_TIER_TYPES = new Set(["chapter", "part", "division", "subdivision", "schedule", "annexure", "attachment"]);
+const XML_CLAUSE_TYPES = new Set(["clause", "section", "provision", "prov", "zoningtable", "zoning-table", "item"]);
+const XML_TIER_TAGS = new Set(["chapter", "part", "division", "subdivision", "schedule", "annexure", "attachment"]);
 
 const detectDocumentFormat = (content: string, declared?: InstrumentFetchResult["format"]) => {
   if (declared) {
@@ -216,21 +229,30 @@ const extractHeadingFromXmlNode = (element: HTMLElement) => {
   return null;
 };
 
+const fallbackHeadingFromContent = (element: HTMLElement) => {
+  const text = normaliseWhitespace(element.text || "");
+  if (!text) return null;
+  const tokens = text.split(/\s+/).slice(0, 12).join(" ");
+  return tokens.length ? tokens : null;
+};
+
 const buildXmlClauseHeading = (element: HTMLElement): ClauseHeading | null => {
   const headingText = extractHeadingFromXmlNode(element);
   const clauseNumber =
-    extractAttribute(element, ["clausenumber", "number", "num", "provisionnumber"]) ??
+    extractAttribute(element, ["clausenumber", "number", "num", "provisionnumber", "id"]) ??
     extractHeadingFromXmlNode(element);
 
-  if (!headingText && !clauseNumber) {
+  const fallbackHeading = headingText || fallbackHeadingFromContent(element);
+
+  if (!fallbackHeading && !clauseNumber) {
     return null;
   }
 
-  const clauseTitle = normaliseWhitespace([clauseNumber, headingText].filter(Boolean).join(" "));
+  const clauseTitle = normaliseWhitespace([clauseNumber, fallbackHeading].filter(Boolean).join(" "));
   const clauseLabel = clauseNumber ? `Clause ${clauseNumber}` : clauseTitle || "Clause";
   return {
     clauseNumber: clauseNumber ?? null,
-    clauseTitle: clauseTitle || headingText || clauseLabel,
+    clauseTitle: clauseTitle || fallbackHeading || clauseLabel,
     clauseLabel,
   };
 };
@@ -311,8 +333,10 @@ const traverseXml = (
     return;
   }
 
+  const tierType = XML_TIER_TAGS.has(tagName) ? tagName : type;
+
   if (tagName === "level") {
-    if (type === "clause") {
+    if (XML_CLAUSE_TYPES.has(type)) {
       const clauseHeading = buildClauseHeadingFromLevel(element) ?? buildXmlClauseHeading(element);
       if (!clauseHeading) {
         return;
@@ -337,6 +361,13 @@ const traverseXml = (
       element.childNodes.forEach((child) => traverseXml(config, child as HTMLElement, nextTiers, clauses));
       return;
     }
+  }
+
+  if (XML_TIER_TAGS.has(tagName)) {
+    const tierLabel = buildTierLabel(element, tierType || tagName);
+    const nextTiers = [...tiers, tierLabel];
+    element.childNodes.forEach((child) => traverseXml(config, child as HTMLElement, nextTiers, clauses));
+    return;
   }
 
   if (XML_CLAUSE_TAGS.includes(tagName)) {

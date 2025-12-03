@@ -1,4 +1,4 @@
-import { INSTRUMENT_CONFIG } from "./config";
+import { ALL_INSTRUMENT_CONFIG } from "./config";
 import type { SiteResolutionResult } from "./types";
 
 interface SiteInput {
@@ -16,7 +16,7 @@ const LGA_KEYWORDS: Record<string, string[]> = {
   "Byron Shire": ["byron", "byron bay", "mullumbimby", "bangalow", "ocean shores"],
 };
 
-const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
+const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
   (config) => config.slug,
 );
 

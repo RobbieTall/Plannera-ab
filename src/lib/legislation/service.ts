@@ -2,7 +2,7 @@ import { Prisma, type Instrument } from "@prisma/client";
 
 import { prisma } from "../prisma";
 
-import { INSTRUMENT_CONFIG, getInstrumentConfig } from "./config";
+import { ALL_INSTRUMENT_CONFIG, getInstrumentConfig } from "./config";
 import { resolveSiteInstruments } from "./site-resolution";
 import type {
   ApplicableClausesResult,
@@ -302,7 +302,7 @@ export const syncInstrumentFromDocument = async (
 export const syncAllInstruments = async (): Promise<SyncResult[]> => {
   const results: SyncResult[] = [];
 
-  for (const config of INSTRUMENT_CONFIG) {
+  for (const config of ALL_INSTRUMENT_CONFIG) {
     try {
       const result = await syncInstrumentInternal(config);
       results.push(result);

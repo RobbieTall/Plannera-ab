@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type { DcpParseResult } from "./dcp/types";
 import type { LepParseResult, LepZoneUses } from "./lep/types";
-import { INSTRUMENT_CONFIG } from "./legislation/config";
+import { ALL_INSTRUMENT_CONFIG } from "./legislation/config";
 import { getLgaMapInfo } from "./lga-map-registry";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
@@ -105,7 +105,7 @@ const LGA_LEGISLATION_REGISTRY: { lgaName: string; lgaCode?: string; lepSlug?: s
   { lgaName: "Northern Beaches" },
 ];
 
-const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
+const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
   (config) => config.slug,
 );
 
