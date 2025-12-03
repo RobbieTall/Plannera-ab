@@ -25,6 +25,9 @@ const MAX_CLAUSE_TEXT = 400;
 const truncateText = (value: string) =>
   value.length > MAX_CLAUSE_TEXT ? `${value.slice(0, MAX_CLAUSE_TEXT)}…` : value;
 
+const getInstrumentClauseCount = (instrument: LepSearchInstrument | null | undefined) =>
+  instrument?.clauseCount ?? instrument?.clauses?.length ?? 0;
+
 const normaliseLgaCode = (value: string | null | undefined) =>
   value
     ?.toUpperCase()
@@ -78,11 +81,61 @@ const fetchLepSearch = async (params: {
   }
 };
 
-const selectInstrumentWithClauses = (payload: LepSearchResponse | null) =>
-  payload?.instruments?.find((instrument) => instrument.clauses?.length) ?? null;
+const fetchInstrumentClauses = async (params: {
+  requestOrigin: string;
+  lga: string;
+  instrumentId: string;
+  instrumentCode: string;
+}): Promise<LepClauseContext[] | null> => {
+  const clauseUrl = new URL("/api/lep/search", params.requestOrigin);
+  clauseUrl.searchParams.set("lga", params.lga);
+  clauseUrl.searchParams.set("instrument", params.instrumentCode);
 
-const instrumentHasClauseCount = (instrument: LepSearchInstrument | undefined) =>
-  Boolean(instrument && (instrument.clauses?.length || instrument.clauseCount));
+  console.log("[CHAT-LEP] Fetching clauses from", `${clauseUrl.pathname}${clauseUrl.search}`);
+
+  try {
+    const response = await fetch(clauseUrl, { method: "GET" });
+    if (!response.ok) {
+      console.warn("[CHAT-LEP] Clause fetch failed", await response.text());
+      return null;
+    }
+
+    const payload = (await response.json()) as LepSearchResponse;
+    const instrument = payload.instruments.find(
+      (record) => record.id === params.instrumentId || record.code === params.instrumentCode,
+    );
+    const clauses = instrument?.clauses ?? [];
+
+    console.log("[CHAT-LEP] Received", clauses.length, "clauses");
+
+    if (!clauses.length) {
+      console.warn("[CHAT-LEP] Clause fetch returned empty for instrument", params.instrumentId);
+    }
+
+    return clauses;
+  } catch (error) {
+    console.warn("[CHAT-LEP] Clause fetch threw", error);
+    return null;
+  }
+};
+
+const selectInstrumentWithMostClauses = (payload: LepSearchResponse | null) => {
+  if (!payload?.instruments?.length) return null;
+
+  return payload.instruments.reduce<{
+    instrument: LepSearchInstrument | null;
+    count: number;
+  }>(
+    (acc, instrument) => {
+      const clauseCount = getInstrumentClauseCount(instrument);
+      if (clauseCount > acc.count) {
+        return { instrument, count: clauseCount };
+      }
+      return acc;
+    },
+    { instrument: null, count: 0 },
+  ).instrument;
+};
 
 export const getLepContextForProject = async (params: {
   requestOrigin: string;
@@ -110,12 +163,11 @@ export const getLepContextForProject = async (params: {
     initialResult?.instruments?.map((instrument) => ({
       lga: instrument.lga,
       name: instrument.name,
-      clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+      clauseCount: getInstrumentClauseCount(instrument),
     })) ?? [],
   );
 
-  let instrumentWithClauses = selectInstrumentWithClauses(initialResult);
-  let summaryResult = initialResult ??
+  const summaryResult = initialResult ??
     (await fetchLepSearch({ requestOrigin: params.requestOrigin, lga: lgaCode }));
 
   if (summaryResult && summaryResult !== initialResult) {
@@ -124,54 +176,54 @@ export const getLepContextForProject = async (params: {
       summaryResult?.instruments?.map((instrument) => ({
         lga: instrument.lga,
         name: instrument.name,
-        clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+        clauseCount: getInstrumentClauseCount(instrument),
       })) ?? [],
     );
   }
 
-  if (!instrumentWithClauses && summaryResult?.instruments?.length) {
-    const instrumentWithCount = summaryResult.instruments.find((instrument) => instrumentHasClauseCount(instrument));
-    if (instrumentWithCount?.code || params.instrumentSlug) {
-      const detailedResult = await fetchLepSearch({
-        requestOrigin: params.requestOrigin,
-        lga: lgaCode,
-        instrument: instrumentWithCount?.code ?? params.instrumentSlug,
-      });
-      console.log(
-        "[CHAT-LEP] Detailed search response instruments",
-        detailedResult?.instruments?.map((instrument) => ({
-          lga: instrument.lga,
-          name: instrument.name,
-          clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
-        })) ?? [],
-      );
-      instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
-      summaryResult = detailedResult ?? summaryResult;
-    }
+  const instrumentCandidate = selectInstrumentWithMostClauses(summaryResult);
+
+  if (!instrumentCandidate) {
+    console.warn("[CHAT-LEP] No LEP clauses found for LGA", lgaCode, "falling back to generic guidance");
+    return null;
   }
 
-  if (!instrumentWithClauses) {
+  const clauseCount = getInstrumentClauseCount(instrumentCandidate);
+  console.log(
+    "[CHAT-LEP] Using instrument",
+    instrumentCandidate.id,
+    "with clauseCount",
+    clauseCount,
+  );
+
+  if (!clauseCount) {
+    console.warn("[CHAT-LEP] No clause count available for instrument", instrumentCandidate.id);
+    return null;
+  }
+
+  const clauses = instrumentCandidate.clauses?.length
+    ? instrumentCandidate.clauses
+    : await fetchInstrumentClauses({
+        requestOrigin: params.requestOrigin,
+        lga: lgaCode,
+        instrumentId: instrumentCandidate.id,
+        instrumentCode: instrumentCandidate.code,
+      });
+
+  if (!clauses?.length) {
     console.warn(
       "[CHAT-LEP] No LEP clauses found for LGA",
       lgaCode,
       "falling back to generic guidance",
-      {
-        instrumentSlug: params.instrumentSlug,
-        summaryCount: summaryResult?.instruments?.length ?? 0,
-        hasClauseCount: Boolean(summaryResult?.instruments?.some((instrument) => instrumentHasClauseCount(instrument))),
-      },
     );
-  }
-
-  if (!instrumentWithClauses || !instrumentWithClauses.clauses?.length) {
     return null;
   }
 
   return {
     lga: params.siteContext?.lgaName ?? params.fallbackLga ?? lgaCode,
-    instrumentName: instrumentWithClauses.name,
-    instrumentCode: instrumentWithClauses.code,
-    clauses: instrumentWithClauses.clauses.slice(0, MAX_LEP_CLAUSES).map((clause) => ({
+    instrumentName: instrumentCandidate.name,
+    instrumentCode: instrumentCandidate.code,
+    clauses: clauses.slice(0, MAX_LEP_CLAUSES).map((clause) => ({
       ref: clause.ref,
       title: clause.title,
       text: truncateText(clause.text),
