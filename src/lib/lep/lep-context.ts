@@ -52,7 +52,7 @@ const deriveLgaCode = (
       return "byron";
     }
     // Keep the first non-empty candidate as a fallback if we cannot normalise it.
-    fallbackCandidate = fallbackCandidate ?? candidate;
+    fallbackCandidate = fallbackCandidate ?? (candidate ?? null);
   }
 
   if (instrumentSlug) {
