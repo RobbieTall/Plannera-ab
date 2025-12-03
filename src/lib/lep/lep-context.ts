@@ -181,11 +181,18 @@ export const getLepContextForProject = async (params: {
       } satisfies LepContext)
     : null;
 
+  const instrumentSummaries = (summaryResult?.instruments ?? []).map((instrument) => ({
+    id: instrument.id,
+    lga: instrument.lga,
+    code: instrument.code,
+    clauseCount: instrument.clauseCount ?? instrument.clauses?.length,
+  } satisfies LepContextResolution["instruments"][number]));
+
   return {
     lepContext,
     rawLga,
     normalisedLga: lgaCode,
-    instruments: summaryResult?.instruments ?? [],
+    instruments: instrumentSummaries,
     chosenInstrumentId: instrumentWithClauses?.id ?? null,
     lepClauseCount: instrumentWithClauses?.clauses?.length ?? 0,
     usedFallback: !lepContext,
