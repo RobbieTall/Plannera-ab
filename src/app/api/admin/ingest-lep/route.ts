@@ -52,9 +52,12 @@ export async function POST(request: Request) {
 
     const instrumentsProcessed = result.status === "ok" ? 1 : 0;
     const totalClauses = result.status === "ok" ? result.parsedClauses : 0;
-    const failed = result.status === "ok"
-      ? []
-      : [result.error?.message || result.reason || "Unknown ingestion failure"];
+
+    let failed: string[] = [];
+    if (result.status === "error") {
+      const message = result.error?.message ?? result.reason ?? "Unknown ingestion failure";
+      failed = [message];
+    }
 
     console.log("[INGEST-LEP] Byron result", {
       instrumentsProcessed,
