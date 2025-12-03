@@ -9,6 +9,7 @@ import type {
   ClauseDetail,
   ClauseSummary,
   InstrumentConfig as InstrumentConfigType,
+  InstrumentFetchResult,
   ParsedClause,
   SearchClausesParams,
   SiteResolutionResult,
@@ -121,61 +122,13 @@ const computeRelevance = (bodyText: string, query?: string) => {
   return tokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
 };
 
-export const ingestInstrument = async (slug: string) => {
-  const config = getInstrumentConfig(slug);
-  if (!config) {
-    throw new Error(`Unknown instrument slug: ${slug}`);
-  }
-
-  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
-    loadParserModule(),
-    loadFetcherModule(),
-  ]);
-  const fetchResult = await fetchInstrumentXml(config);
-  const parsedClauses = dedupeParsedClauses(parseInstrumentDocument(config, fetchResult.document, fetchResult.format));
-
+const ingestParsedClauses = async (
+  config: InstrumentConfigType,
+  parsedClauses: ParsedClause[],
+  retrievedAt: Date,
+): Promise<SyncSuccessResult> => {
   const instrument = await upsertInstrument(config);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
-    await Promise.all(
-      parsedClauses.map((clause) =>
-        tx.clause.create({
-          data: {
-            instrumentId: instrument.id,
-            clauseKey: clause.clauseKey,
-            title: clause.title,
-            bodyHtml: clause.bodyHtml,
-            bodyText: clause.bodyText,
-            hierarchyPath: clause.hierarchyPath,
-            version: 1,
-            isCurrent: true,
-            retrievedAt: fetchResult.fetchedAt,
-            contentHash: clause.contentHash,
-            searchIndex: { create: { bodyText: clause.bodyText } },
-          },
-        }),
-      ),
-    );
-  });
-
-  const updatedInstrument = await prisma.instrument.update({
-    where: { id: instrument.id },
-    data: { lastSyncedAt: fetchResult.fetchedAt },
-  });
-
-  return { instrument: updatedInstrument, clauseCount: parsedClauses.length };
-};
-
-const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<SyncResult> => {
-  const instrument = await upsertInstrument(config);
-  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
-    loadParserModule(),
-    loadFetcherModule(),
-  ]);
-  const fetchResult = await fetchInstrumentXml(config);
-  const parsedClauses = dedupeParsedClauses(parseInstrumentDocument(config, fetchResult.document, fetchResult.format));
-  const now = fetchResult.fetchedAt;
+  const uniqueClauses = dedupeParsedClauses(parsedClauses);
   const currentClauses = await prisma.clause.findMany({
     where: { instrumentId: instrument.id, isCurrent: true },
   });
@@ -184,7 +137,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
   let added = 0;
 
   await prisma.$transaction(async (tx) => {
-    for (const clause of parsedClauses) {
+    for (const clause of uniqueClauses) {
       const existing = currentClauses.find((record) => record.clauseKey === clause.clauseKey);
       if (!existing) {
         await tx.clause.create({
@@ -197,7 +150,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
             hierarchyPath: clause.hierarchyPath,
             version: 1,
             isCurrent: true,
-            retrievedAt: now,
+            retrievedAt,
             contentHash: clause.contentHash,
             searchIndex: { create: { bodyText: clause.bodyText } },
           },
@@ -212,7 +165,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
 
       await tx.clause.update({
         where: { id: existing.id },
-        data: { isCurrent: false, effectiveTo: now },
+        data: { isCurrent: false, effectiveTo: retrievedAt },
       });
 
       await tx.clause.create({
@@ -225,7 +178,7 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
           hierarchyPath: clause.hierarchyPath,
           version: existing.version + 1,
           isCurrent: true,
-          retrievedAt: now,
+          retrievedAt,
           contentHash: clause.contentHash,
           searchIndex: { create: { bodyText: clause.bodyText } },
         },
@@ -233,13 +186,13 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
       updated += 1;
     }
 
-    const parsedKeys = new Set(parsedClauses.map((clause) => clause.clauseKey));
+    const parsedKeys = new Set(uniqueClauses.map((clause) => clause.clauseKey));
     const removedClauses = currentClauses.filter((clause) => !parsedKeys.has(clause.clauseKey));
     await Promise.all(
       removedClauses.map((clause) =>
         tx.clause.update({
           where: { id: clause.id },
-          data: { isCurrent: false, effectiveTo: now },
+          data: { isCurrent: false, effectiveTo: retrievedAt },
         }),
       ),
     );
@@ -247,10 +200,39 @@ const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<Syn
 
   const updatedInstrument = await prisma.instrument.update({
     where: { id: instrument.id },
-    data: { lastSyncedAt: now },
+    data: { lastSyncedAt: retrievedAt },
   });
 
-  return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: parsedClauses.length };
+  return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: uniqueClauses.length };
+};
+
+export const ingestInstrument = async (slug: string) => {
+  const config = getInstrumentConfig(slug);
+  if (!config) {
+    throw new Error(`Unknown instrument slug: ${slug}`);
+  }
+
+  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
+    loadParserModule(),
+    loadFetcherModule(),
+  ]);
+  const fetchResult = await fetchInstrumentXml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
+
+  const result = await ingestParsedClauses(config, parsedClauses, fetchResult.fetchedAt);
+
+  return { instrument: result.instrument, clauseCount: result.parsedClauses };
+};
+
+const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<SyncResult> => {
+  const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
+    loadParserModule(),
+    loadFetcherModule(),
+  ]);
+  const fetchResult = await fetchInstrumentXml(config);
+  const parsedClauses = parseInstrumentDocument(config, fetchResult.document, fetchResult.format);
+
+  return ingestParsedClauses(config, parsedClauses, fetchResult.fetchedAt);
 };
 
 export const syncInstrument = async (slug: string): Promise<SyncResult> => {
@@ -265,6 +247,18 @@ export const syncInstrument = async (slug: string): Promise<SyncResult> => {
 export const syncInstrumentWithConfig = async (
   config: InstrumentConfigType,
 ): Promise<SyncResult> => syncInstrumentInternal(config);
+
+export const syncInstrumentFromDocument = async (
+  config: InstrumentConfigType,
+  document: string,
+  options?: { format?: InstrumentFetchResult["format"]; parsedClauses?: ParsedClause[]; fetchedAt?: Date },
+): Promise<SyncResult> => {
+  const [{ parseInstrumentDocument }] = await Promise.all([loadParserModule()]);
+  const parsedClauses = options?.parsedClauses ?? parseInstrumentDocument(config, document, options?.format);
+  const fetchedAt = options?.fetchedAt ?? new Date();
+
+  return ingestParsedClauses(config, parsedClauses, fetchedAt);
+};
 
 export const syncAllInstruments = async (): Promise<SyncResult[]> => {
   const results: SyncResult[] = [];

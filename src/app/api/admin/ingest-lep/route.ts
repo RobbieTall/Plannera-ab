@@ -3,7 +3,8 @@ import path from "path";
 import { NextResponse } from "next/server";
 
 import { buildLepConfigFromFile } from "@/lib/lep/lep-ingest-files";
-import { syncInstrumentWithConfig } from "@/lib/legislation/service";
+import { parseInstrumentDocument } from "@/lib/legislation/parser";
+import { syncInstrumentFromDocument } from "@/lib/legislation/service";
 
 /**
  * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
@@ -47,8 +48,23 @@ export async function POST(request: Request) {
   try {
     console.log("[INGEST-LEP] Byron config ready", { xmlPath, lgaCode: "BYRON" });
 
-    const { config } = await buildLepConfigFromFile(xmlPath);
-    const result = await syncInstrumentWithConfig(config);
+    const xmlDocument = await fs.readFile(xmlPath, "utf-8");
+    const { config } = await buildLepConfigFromFile(xmlPath, { xml: xmlDocument });
+    const parsedClauses = parseInstrumentDocument(config, xmlDocument, "xml");
+
+    console.log("[INGEST-LEP] Byron parsed clauses:", parsedClauses.length);
+
+    if (!parsedClauses.length) {
+      return NextResponse.json(
+        { error: "LEP ingestion failed for BYRON", details: "No clauses parsed from XML" },
+        { status: 500 },
+      );
+    }
+
+    const result = await syncInstrumentFromDocument(config, xmlDocument, {
+      parsedClauses,
+      format: "xml",
+    });
 
     const instrumentsProcessed = result.status === "ok" ? 1 : 0;
     const totalClauses = result.status === "ok" ? result.parsedClauses : 0;
@@ -64,6 +80,13 @@ export async function POST(request: Request) {
       totalClauses,
       failedCount: failed.length,
     });
+
+    if (result.status === "ok") {
+      console.log("[INGEST-LEP] Byron sync complete", {
+        instrumentId: result.instrument.id,
+        clauseCount: totalClauses,
+      });
+    }
 
     return NextResponse.json({ lga: "BYRON", instrumentsProcessed, totalClauses, failed });
   } catch (error) {
