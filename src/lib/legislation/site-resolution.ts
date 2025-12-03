@@ -1,5 +1,7 @@
-import { INSTRUMENT_CONFIG } from "./config";
+import { ALL_INSTRUMENT_CONFIG } from "./config";
 import type { SiteResolutionResult } from "./types";
+import { findLocalNswLepsByLga } from "../lep/nsw-lep-registry";
+import { resolveCanonicalNswLga } from "../lep/nsw-lga-normaliser";
 
 interface SiteInput {
   address: string;
@@ -16,15 +18,9 @@ const LGA_KEYWORDS: Record<string, string[]> = {
   "Byron Shire": ["byron", "byron bay", "mullumbimby", "bangalow", "ocean shores"],
 };
 
-const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
+const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
   (config) => config.slug,
 );
-
-const LEP_BY_LGA: Record<string, string> = {
-  "City of Sydney": "city-of-sydney-lep-2012",
-  Ballina: "ballina-lep-2012",
-  "Byron Shire": "byron-lep-2014",
-};
 
 const inferLgaFromAddress = (address: string) => {
   const lower = address.toLowerCase();
@@ -38,14 +34,16 @@ const inferLgaFromAddress = (address: string) => {
 
 export const resolveSiteInstruments = async (input: SiteInput): Promise<SiteResolutionResult> => {
   const inferredLga = input.lga ?? inferLgaFromAddress(input.address);
-  const lepSlug = inferredLga ? LEP_BY_LGA[inferredLga] : undefined;
+  const lepMatch = findLocalNswLepsByLga(inferredLga)[0];
+  const canonicalLga = lepMatch?.details.canonicalLga ?? resolveCanonicalNswLga(inferredLga);
+  const lepSlug = lepMatch?.config.slug;
 
   const instrumentSlugs = [...DEFAULT_SEPP_SLUGS];
   const rationale = ["Default NSW SEPPs apply state-wide."];
 
   if (lepSlug) {
     instrumentSlugs.push(lepSlug);
-    rationale.push(`Matched LGA ${inferredLga} and added ${lepSlug}.`);
+    rationale.push(`Matched LGA ${inferredLga ?? canonicalLga} and added ${lepSlug}.`);
   }
 
   return {

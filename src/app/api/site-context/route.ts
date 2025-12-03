@@ -81,6 +81,12 @@ export async function POST(request: Request) {
     }
 
     const { projectId, candidate, addressInput } = parsedUpdate.data;
+    const startedAt = Date.now();
+    console.log("[site-context-update] begin", {
+      projectId,
+      provider: candidate.provider,
+      lga: candidate.lgaName ?? candidate.lgaCode ?? null,
+    });
     let siteContext;
     try {
       siteContext = await persistSiteContextFromCandidate({ projectId, addressInput, candidate });
@@ -97,6 +103,11 @@ export async function POST(request: Request) {
     const project = await prisma.project.findUnique({
       where: { id: siteContext.projectId },
       select: { zoningCode: true, zoningName: true, zoningSource: true, lepData: true, dcpData: true },
+    });
+    console.log("[site-context-update] complete", {
+      projectId: siteContext.projectId,
+      provider: candidate.provider,
+      durationMs: Date.now() - startedAt,
     });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
   } catch (error) {

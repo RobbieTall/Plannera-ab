@@ -1,6 +1,9 @@
 import { lookupLepInstruments, type LepSearchResponse } from "@/lib/lep/lep-search";
 import type { SiteContextSummary } from "@/types/site";
 
+import { findLocalNswLepBySlug, findLocalNswLepsByLga } from "./nsw-lep-registry";
+import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
+
 export type LepClauseContext = { ref: string; title: string | null; text: string };
 export type LepContext = {
   lga: string;
@@ -55,42 +58,34 @@ const prioritiseClauses = <T extends { ref: string; title: string | null; text: 
   return deduped.slice(0, limit);
 };
 
-const LGA_SEARCH_MAP: Record<string, string> = {
-  "byron": "byron",
-  "byron shire": "byron",
-  "byron shire council": "byron",
-};
-
-const normaliseLgaValue = (value: string | null | undefined) => value?.trim().toLowerCase() ?? null;
-
 const deriveLgaCode = (
   siteContext?: SiteContextSummary | null,
   fallbackLga?: string | null,
   instrumentSlug?: string | null,
 ) => {
   const candidates = [siteContext?.lgaName, fallbackLga, siteContext?.lgaCode];
-  let fallbackCandidate: string | null = null;
 
   for (const candidate of candidates) {
-    const normalized = normaliseLgaValue(candidate);
-    if (!normalized) continue;
-    if (LGA_SEARCH_MAP[normalized]) {
-      return LGA_SEARCH_MAP[normalized];
+    const matches = findLocalNswLepsByLga(candidate);
+    if (matches.length) {
+      return (
+        matches[0]?.details.canonicalLga ?? matches[0]?.details.lgaCode ?? resolveCanonicalNswLga(candidate)
+      );
     }
-    // If the LGA string already contains a known keyword, use the keyword so it matches instrument slugs/names.
-    if (normalized.includes("byron")) {
-      return "byron";
-    }
-    // Keep the first non-empty candidate as a fallback if we cannot normalise it.
-    fallbackCandidate = fallbackCandidate ?? (candidate ?? null);
   }
 
   if (instrumentSlug) {
-    // Fall back to the LEP slug to keep the search aligned with how instruments are stored.
-    return instrumentSlug;
+    const registryMatch = findLocalNswLepBySlug(instrumentSlug);
+    if (registryMatch?.details.canonicalLga) {
+      return registryMatch.details.canonicalLga;
+    }
+    const slugDerived = resolveCanonicalNswLga(instrumentSlug.replace(/[-_]+/g, " "));
+    if (slugDerived) {
+      return slugDerived;
+    }
   }
 
-  return fallbackCandidate;
+  return null;
 };
 
 const selectInstrumentWithClauses = (payload: LepSearchResponse | null) =>
@@ -121,10 +116,37 @@ export const getLepContextForProject = async (params: {
     instrumentSlug: params.instrumentSlug,
   });
 
-  const initialResult = await lookupLepInstruments({ lga: lgaCode, instrument: params.instrumentSlug });
+  const registryMatches = lgaCode ? findLocalNswLepsByLga(lgaCode) : [];
+  const preferredInstrumentSlugs = [
+    ...(params.instrumentSlug ? [params.instrumentSlug] : []),
+    ...registryMatches.map((entry) => entry.config.slug),
+  ];
 
-  let instrumentWithClauses = selectInstrumentWithClauses(initialResult);
-  let summaryResult = initialResult;
+  const summaryResult = await lookupLepInstruments({ lga: lgaCode });
+
+  const summaryCandidates = (summaryResult?.instruments ?? [])
+    .slice()
+    .sort((first, second) => (second.clauseCount ?? 0) - (first.clauseCount ?? 0))
+    .map((instrument) => instrument.code);
+
+  const clauseCountLookup = new Map(
+    (summaryResult?.instruments ?? []).map((instrument) => [
+      instrument.code,
+      instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+    ] as const),
+  );
+
+  const candidateCodes = Array.from(new Set([...preferredInstrumentSlugs, ...summaryCandidates].filter(Boolean))).sort(
+    (first, second) => (clauseCountLookup.get(second) ?? 0) - (clauseCountLookup.get(first) ?? 0),
+  );
+
+  let instrumentWithClauses: LepSearchResponse["instruments"][number] | null = null;
+
+  for (const code of candidateCodes) {
+    const detailedResult = await lookupLepInstruments({ lga: lgaCode, instrument: code });
+    instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
+    if (instrumentWithClauses) break;
+  }
 
   console.log("[lep-context] LEP search result", {
     summaryCount: summaryResult?.instruments?.length ?? 0,
@@ -134,16 +156,6 @@ export const getLepContextForProject = async (params: {
       clausesLoaded: instrument.clauses?.length,
     })),
   });
-
-  if (!instrumentWithClauses) {
-    summaryResult = summaryResult ?? (await lookupLepInstruments({ lga: lgaCode }));
-    const firstInstrumentCode = summaryResult?.instruments?.[0]?.code;
-
-    if (firstInstrumentCode) {
-      const detailedResult = await lookupLepInstruments({ lga: lgaCode, instrument: firstInstrumentCode });
-      instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
-    }
-  }
 
   if (!instrumentWithClauses) {
     console.log("[lep-context] no LEP instrument with clauses returned", {

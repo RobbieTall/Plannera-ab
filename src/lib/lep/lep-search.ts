@@ -1,5 +1,7 @@
 import { InstrumentType, Prisma } from "@prisma/client";
 
+import { expandNswLgaAliases } from "./nsw-lga-normaliser";
+
 import { prisma } from "@/lib/prisma";
 
 export type LepSearchInstrument = {
@@ -17,23 +19,37 @@ export const buildLepInstrumentFilter = (
   lga: string,
   instrument?: string,
 ): Prisma.InstrumentWhereInput => {
-  const lgaFilter: Prisma.StringFilter = { contains: lga, mode: "insensitive" };
+  const lgaKeys = expandNswLgaAliases(lga);
+  const normalizedKeys = lgaKeys.length ? lgaKeys : [lga];
+
+  const baseOr: Prisma.InstrumentWhereInput[] = normalizedKeys.flatMap((key) => {
+    const normalizedKey = key.toLowerCase();
+    const titleKey = normalizedKey.replace(/\b\w/g, (char) => char.toUpperCase());
+    return [
+      { slug: { contains: normalizedKey } },
+      { name: { contains: titleKey } },
+      { shortName: { contains: titleKey } },
+    ];
+  });
 
   const baseFilter: Prisma.InstrumentWhereInput = {
     instrumentType: InstrumentType.LEP,
-    OR: [{ slug: lgaFilter }, { name: lgaFilter }, { shortName: lgaFilter }],
+    OR: baseOr,
   };
 
   if (!instrument) {
     return baseFilter;
   }
 
+  const normalizedInstrument = instrument.toLowerCase();
+  const titleCaseInstrument = normalizedInstrument.replace(/\b\w/g, (char) => char.toUpperCase());
+
   const instrumentFilter: Prisma.InstrumentWhereInput = {
     OR: [
-      { slug: { equals: instrument, mode: "insensitive" } },
-      { slug: { contains: instrument, mode: "insensitive" } },
-      { name: { contains: instrument, mode: "insensitive" } },
-      { shortName: { contains: instrument, mode: "insensitive" } },
+      { slug: { equals: normalizedInstrument } },
+      { slug: { contains: normalizedInstrument } },
+      { name: { contains: titleCaseInstrument } },
+      { shortName: { contains: titleCaseInstrument } },
     ],
   };
 
@@ -49,9 +65,7 @@ export const lookupLepInstruments = async (params: {
 
   const clauseWhere: Prisma.ClauseWhereInput = {
     isCurrent: true,
-    ...(params.clauseRef
-      ? { clauseKey: { equals: params.clauseRef, mode: "insensitive" } satisfies Prisma.StringFilter }
-      : {}),
+    ...(params.clauseRef ? { clauseKey: { equals: params.clauseRef } satisfies Prisma.StringFilter } : {}),
   };
 
   const instrumentsWithClauses = params.instrument
@@ -102,7 +116,10 @@ export const lookupLepInstruments = async (params: {
             text: clause.bodyText,
           }))
         : undefined,
-      clauseCount: "_count" in instrumentRecord ? instrumentRecord._count.clauses : undefined,
+      clauseCount:
+        "_count" in instrumentRecord
+          ? instrumentRecord._count.clauses
+          : instrumentRecord.clauses?.length,
     })),
   } satisfies LepSearchResponse;
 };

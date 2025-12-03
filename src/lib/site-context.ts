@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type { DcpParseResult } from "./dcp/types";
 import type { LepParseResult, LepZoneUses } from "./lep/types";
-import { INSTRUMENT_CONFIG } from "./legislation/config";
+import { ALL_INSTRUMENT_CONFIG } from "./legislation/config";
+import { findLocalNswLepsByLga } from "./lep/nsw-lep-registry";
+import { resolveCanonicalNswLga } from "./lep/nsw-lga-normaliser";
 import { getLgaMapInfo } from "./lga-map-registry";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
@@ -93,27 +95,26 @@ const toDcpSummary = (dcpData: unknown) => {
   } satisfies SiteContextSummary["dcpSummary"];
 };
 
-const LGA_LEGISLATION_REGISTRY: { lgaName: string; lgaCode?: string; lepSlug?: string }[] = [
-  { lgaName: "City of Sydney", lepSlug: "city-of-sydney-lep-2012" },
-  { lgaName: "Waverley", lepSlug: "waverley-lep-2012" },
-  { lgaName: "Randwick", lepSlug: "randwick-lep-2012" },
-  { lgaName: "Woollahra", lepSlug: "woollahra-lep-2014" },
-  { lgaName: "Ballina", lepSlug: "ballina-lep-2012" },
-  { lgaName: "Byron Shire", lepSlug: "byron-lep-2014" },
-  { lgaName: "Clarence Valley", lepSlug: "clarence-valley-lep-2011" },
-  { lgaName: "Coffs Harbour", lepSlug: "coffs-harbour-lep-2013" },
-  { lgaName: "Northern Beaches" },
-];
-
-const DEFAULT_SEPP_SLUGS = INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
+const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
   (config) => config.slug,
 );
+
+const resolveLepForLga = (lgaName: string | null | undefined) => {
+  const match = findLocalNswLepsByLga(lgaName)[0];
+  if (!match) return null;
+
+  return {
+    lepInstrumentSlug: match.config.slug,
+    lgaCode: match.details.lgaCode ?? match.details.canonicalLga ?? resolveCanonicalNswLga(lgaName) ?? undefined,
+  };
+};
 
 export const persistSiteContextFromCandidate = async (params: {
   projectId: string;
   addressInput: string;
   candidate: SiteCandidate;
 }): Promise<SiteContext> => {
+  const start = Date.now();
   const { projectId, addressInput, candidate } = params;
   const normalizedProjectId = normalizeProjectId(projectId);
   const project = await findProjectByExternalId(prisma, normalizedProjectId);
@@ -123,7 +124,9 @@ export const persistSiteContextFromCandidate = async (params: {
   const normalizedAddressInput = addressInput.trim() || addressInput;
 
   let zoningResult: ZoningResult | null = null;
+  let zoningDurationMs = 0;
   try {
+    const zoningStart = Date.now();
     zoningResult = await getZoningForSite({
       coords:
         typeof candidate.latitude === "number" && typeof candidate.longitude === "number"
@@ -134,6 +137,7 @@ export const persistSiteContextFromCandidate = async (params: {
           ? { lot: candidate.lot, dp: candidate.planNumber }
           : null,
     });
+    zoningDurationMs = Date.now() - zoningStart;
   } catch (error) {
     console.warn("[site-context] zoning lookup failed", {
       error,
@@ -159,6 +163,7 @@ export const persistSiteContextFromCandidate = async (params: {
     zone: zoningLabel,
   } satisfies Omit<SiteContext, "id" | "createdAt" | "updatedAt">;
 
+  const persistStart = Date.now();
   const persisted = await prisma.siteContext.upsert({
     where: { projectId: project.id },
     update: data,
@@ -171,6 +176,14 @@ export const persistSiteContextFromCandidate = async (params: {
       zoningName: zoningResult?.zoneName ?? null,
       zoningSource: zoningResult?.source ?? null,
     },
+  });
+
+  console.log("[site-context] persist complete", {
+    provider: candidate.provider,
+    lga: candidate.lgaName ?? candidate.lgaCode,
+    zoningMs: zoningDurationMs,
+    persistMs: Date.now() - persistStart,
+    totalMs: Date.now() - start,
   });
 
   return persisted;
@@ -278,12 +291,12 @@ export const resolveInstrumentsForSite = (site: { lgaName: string | null } | nul
   if (!site?.lgaName) {
     return { seppInstrumentSlugs };
   }
-  const registryEntry = LGA_LEGISLATION_REGISTRY.find(
-    (entry) => entry.lgaName.toLowerCase() === site.lgaName?.toLowerCase(),
-  );
+
+  const lepMatch = resolveLepForLga(site.lgaName);
+
   return {
-    lepInstrumentSlug: registryEntry?.lepSlug,
+    lepInstrumentSlug: lepMatch?.lepInstrumentSlug,
     seppInstrumentSlugs,
-    lgaCode: registryEntry?.lgaCode,
+    lgaCode: lepMatch?.lgaCode,
   };
 };
