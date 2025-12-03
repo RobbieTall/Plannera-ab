@@ -112,6 +112,19 @@ const dedupeParsedClauses = (clauses: ParsedClause[]): ParsedClause[] => {
   return unique;
 };
 
+const chunkArray = <T>(items: T[], size: number): T[][] => {
+  if (size <= 0) {
+    throw new Error("Chunk size must be greater than zero");
+  }
+
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
 const computeRelevance = (bodyText: string, query?: string) => {
   if (!query) {
     return 0;
@@ -130,17 +143,20 @@ const ingestParsedClauses = async (
 ): Promise<SyncSuccessResult> => {
   const instrument = await upsertInstrument(config);
   const uniqueClauses = dedupeParsedClauses(parsedClauses);
+  const isByron = config.slug.toUpperCase().includes("BYRON");
 
   let updated = 0;
   let added = 0;
 
   if (options?.forceReplace) {
-    await prisma.$transaction(async (tx) => {
-      await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
+    await prisma.clause.deleteMany({ where: { instrumentId: instrument.id } });
 
-      for (const clause of uniqueClauses) {
-        await tx.clause.create({
-          data: {
+    const clauseChunks = chunkArray(uniqueClauses, 200);
+
+    try {
+      for (const chunk of clauseChunks) {
+        const result = await prisma.clause.createMany({
+          data: chunk.map((clause) => ({
             instrumentId: instrument.id,
             clauseKey: clause.clauseKey,
             title: clause.title,
@@ -151,17 +167,28 @@ const ingestParsedClauses = async (
             isCurrent: true,
             retrievedAt,
             contentHash: clause.contentHash,
-            searchIndex: { create: { bodyText: clause.bodyText } },
-          },
+          })),
+          skipDuplicates: true,
         });
-        added += 1;
+        added += result.count;
       }
-    });
+    } catch (error) {
+      if (isByron) {
+        console.error("[INGEST-LEP] Byron clause batch insert failed", error);
+      }
+      await prisma.clause.deleteMany({ where: { instrumentId: instrument.id } });
+      throw error;
+    }
 
     const updatedInstrument = await prisma.instrument.update({
       where: { id: instrument.id },
       data: { lastSyncedAt: retrievedAt },
     });
+
+    if (isByron) {
+      const clauseCount = await prisma.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
+      console.log("[INGEST-LEP] Byron DB clause count after sync", clauseCount);
+    }
 
     return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: uniqueClauses.length };
   }

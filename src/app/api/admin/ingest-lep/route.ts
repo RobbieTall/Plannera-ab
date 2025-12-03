@@ -98,7 +98,7 @@ export async function POST(request: Request) {
         clauseCount: totalClauses,
       });
 
-      console.log("[INGEST-LEP] Byron DB clause count", totalClauses);
+      console.log("[INGEST-LEP] Byron DB clause count after sync", totalClauses);
     }
 
     return NextResponse.json({ lga: "BYRON", instrumentsProcessed, totalClauses, failed });
