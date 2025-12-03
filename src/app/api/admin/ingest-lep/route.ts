@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     let failed: string[] = [];
     if (result.status === "error") {
-      const message = result.error?.message ?? result.reason ?? "Unknown ingestion failure";
+      const message = result.error?.message ?? "Unknown ingestion failure";
       failed = [message];
     }
 
