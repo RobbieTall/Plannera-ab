@@ -17,6 +17,7 @@ import { extractCandidateAddress, resolveSiteFromText } from "@/lib/site-resolve
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import { buildSiteContextMessage } from "@/lib/chat/site-context-message";
 import type { LepParseResult } from "@/lib/lep/types";
+import { buildLepPromptMessage, getLepContextForProject, type LepContext } from "@/lib/lep/lep-context";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -40,6 +41,7 @@ type WorkspaceMemory = {
   lga: string | null;
   siteContext?: SiteContextSummary | null;
   lepData?: LepParseResult | null;
+  lepContext?: LepContext | null;
 };
 
 const workspaceMemory = new Map<string, WorkspaceMemory>();
@@ -108,6 +110,7 @@ const buildLegislationContext = (params: {
   instruments: string[];
   clauses: Awaited<ReturnType<typeof searchClauses>>;
   instrumentMatch: SiteInstrumentMatch | null;
+  lepContext?: LepContext | null;
 }) => {
   const introParts: string[] = [];
   if (params.siteContext) {
@@ -123,10 +126,16 @@ const buildLegislationContext = (params: {
     introParts.push(`LGA: ${params.fallbackLga}`);
   }
 
-  if (params.instrumentMatch?.lepInstrumentSlug) {
-    introParts.push(`LEP: ${params.instrumentMatch.lepInstrumentSlug}`);
-  } else if (params.siteContext?.lgaName) {
-    introParts.push(`LEP: Not yet ingested for ${params.siteContext.lgaName}`);
+  if (params.lepContext) {
+    introParts.push(`LEP: ${params.lepContext.instrumentCode}`);
+  } else if (params.instrumentMatch?.lepInstrumentSlug && params.siteContext?.lgaName) {
+    introParts.push(
+      `LEP: ${params.instrumentMatch.lepInstrumentSlug} is not yet available for ${params.siteContext.lgaName}; rely on NSW SEPPs and confirm with council or the official LEP.`,
+    );
+  } else if (params.siteContext?.lgaName && !params.lepContext) {
+    introParts.push(
+      `LEP: No direct LEP clauses available yet for ${params.siteContext.lgaName}; rely on NSW SEPPs and confirm with council or the official LEP.`,
+    );
   }
 
   if (params.instruments.length) {
@@ -169,6 +178,8 @@ export async function POST(request: Request) {
 
     let siteContextSummary: SiteContextSummary | null = existingMemory?.siteContext ?? null;
     let lepData: LepParseResult | null = existingMemory?.lepData ?? null;
+    let lepContext: LepContext | null = existingMemory?.lepContext ?? null;
+    const requestOrigin = new URL(request.url).origin;
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
@@ -232,6 +243,17 @@ export async function POST(request: Request) {
         ).filter(Boolean) as string[]
       : existingMemory?.instruments ?? [];
 
+    const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
+
+    if (siteContextSummary || fallbackLga) {
+      lepContext = await getLepContextForProject({
+        requestOrigin,
+        siteContext: siteContextSummary,
+        fallbackLga,
+        instrumentSlug: instrumentMatch?.lepInstrumentSlug,
+      });
+    }
+
     let clauses: Awaited<ReturnType<typeof searchClauses>> = [];
     if (instrumentSlugs.length) {
       try {
@@ -245,23 +267,27 @@ export async function POST(request: Request) {
         console.warn("[workspace-chat-warning] Failed to search clauses", getErrorDetails(clauseError));
       }
     }
-
-    const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
     const legislationContext = buildLegislationContext({
       siteContext: siteContextSummary,
       fallbackLga,
       instruments: instrumentSlugs,
       clauses,
       instrumentMatch,
+      lepContext,
     });
 
     const siteContextMessage = buildSiteContextMessage(siteContextSummary, lepData);
+    const lepContextMessage = buildLepPromptMessage(lepContext);
 
     const historyMessages = existingMemory?.messages ?? [];
     const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
 
     if (siteContextMessage) {
       messages.push({ role: "system", content: siteContextMessage });
+    }
+
+    if (lepContextMessage) {
+      messages.push({ role: "system", content: lepContextMessage });
     }
 
     if (!siteContextSummary) {
@@ -315,6 +341,7 @@ export async function POST(request: Request) {
       lga: fallbackLga,
       siteContext: siteContextSummary,
       lepData,
+      lepContext,
     });
 
     return NextResponse.json({
