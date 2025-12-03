@@ -38,7 +38,9 @@ const deriveLgaCode = (
   fallbackLga?: string | null,
   instrumentSlug?: string | null,
 ) => {
-  const candidates = [siteContext?.lgaCode, siteContext?.lgaName, fallbackLga];
+  const candidates = [siteContext?.lgaName, fallbackLga, siteContext?.lgaCode];
+  let fallbackCandidate: string | null = null;
+
   for (const candidate of candidates) {
     const normalized = normaliseLgaValue(candidate);
     if (!normalized) continue;
@@ -49,7 +51,8 @@ const deriveLgaCode = (
     if (normalized.includes("byron")) {
       return "byron";
     }
-    return candidate as string;
+    // Keep the first non-empty candidate as a fallback if we cannot normalise it.
+    fallbackCandidate = fallbackCandidate ?? candidate;
   }
 
   if (instrumentSlug) {
@@ -57,7 +60,7 @@ const deriveLgaCode = (
     return instrumentSlug;
   }
 
-  return null;
+  return fallbackCandidate;
 };
 
 const fetchLepSearch = async (params: {
@@ -113,6 +116,15 @@ export const getLepContextForProject = async (params: {
 
   let instrumentWithClauses = selectInstrumentWithClauses(initialResult);
   let summaryResult = initialResult;
+
+  console.log("[lep-context] LEP search result", {
+    summaryCount: summaryResult?.instruments?.length ?? 0,
+    codes: summaryResult?.instruments?.map((instrument) => ({
+      code: instrument.code,
+      clauseCount: instrument.clauseCount,
+      clausesLoaded: instrument.clauses?.length,
+    })),
+  });
 
   if (!instrumentWithClauses) {
     summaryResult = summaryResult ??

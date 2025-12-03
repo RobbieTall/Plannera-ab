@@ -245,6 +245,14 @@ export async function POST(request: Request) {
 
     const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
 
+    console.log("[workspace-chat] instrument resolution", {
+      lgaName: siteContextSummary?.lgaName,
+      lgaCode: siteContextSummary?.lgaCode,
+      instrumentMatch,
+      instrumentSlugs,
+      fallbackLga,
+    });
+
     if (siteContextSummary || fallbackLga) {
       lepContext = await getLepContextForProject({
         requestOrigin,
@@ -267,6 +275,13 @@ export async function POST(request: Request) {
         console.warn("[workspace-chat-warning] Failed to search clauses", getErrorDetails(clauseError));
       }
     }
+
+    console.log("[workspace-chat] legislation context", {
+      lepContextInstrument: lepContext?.instrumentCode,
+      lepClauses: lepContext?.clauses?.length ?? 0,
+      clauseSearchCount: clauses.length,
+      instrumentSlugs,
+    });
     const legislationContext = buildLegislationContext({
       siteContext: siteContextSummary,
       fallbackLga,
