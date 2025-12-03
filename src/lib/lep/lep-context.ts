@@ -25,13 +25,13 @@ const MAX_CLAUSE_TEXT = 400;
 const truncateText = (value: string) =>
   value.length > MAX_CLAUSE_TEXT ? `${value.slice(0, MAX_CLAUSE_TEXT)}…` : value;
 
-const LGA_SEARCH_MAP: Record<string, string> = {
-  "byron": "byron",
-  "byron shire": "byron",
-  "byron shire council": "byron",
-};
-
-const normaliseLgaValue = (value: string | null | undefined) => value?.trim().toLowerCase() ?? null;
+const normaliseLgaCode = (value: string | null | undefined) =>
+  value
+    ?.toUpperCase()
+    .replace(/\s+COUNCIL$/, "")
+    .replace(/\s+SHIRE$/, "")
+    .trim()
+    .replace(/\s+/g, " ") ?? null;
 
 const deriveLgaCode = (
   siteContext?: SiteContextSummary | null,
@@ -40,16 +40,9 @@ const deriveLgaCode = (
 ) => {
   const candidates = [siteContext?.lgaCode, siteContext?.lgaName, fallbackLga];
   for (const candidate of candidates) {
-    const normalized = normaliseLgaValue(candidate);
+    const normalized = normaliseLgaCode(candidate);
     if (!normalized) continue;
-    if (LGA_SEARCH_MAP[normalized]) {
-      return LGA_SEARCH_MAP[normalized];
-    }
-    // If the LGA string already contains a known keyword, use the keyword so it matches instrument slugs/names.
-    if (normalized.includes("byron")) {
-      return "byron";
-    }
-    return candidate as string;
+    return normalized;
   }
 
   if (instrumentSlug) {
@@ -75,12 +68,12 @@ const fetchLepSearch = async (params: {
     const response = await fetch(searchUrl, { method: "GET" });
     if (response.status === 404) return null;
     if (!response.ok) {
-      console.warn("[lep-context] LEP search failed", await response.text());
+      console.warn("[CHAT-LEP] LEP search failed", await response.text());
       return null;
     }
     return (await response.json()) as LepSearchResponse;
   } catch (error) {
-    console.warn("[lep-context] LEP search threw", error);
+    console.warn("[CHAT-LEP] LEP search threw", error);
     return null;
   }
 };
@@ -88,22 +81,23 @@ const fetchLepSearch = async (params: {
 const selectInstrumentWithClauses = (payload: LepSearchResponse | null) =>
   payload?.instruments?.find((instrument) => instrument.clauses?.length) ?? null;
 
+const instrumentHasClauseCount = (instrument: LepSearchInstrument | undefined) =>
+  Boolean(instrument && (instrument.clauses?.length || instrument.clauseCount));
+
 export const getLepContextForProject = async (params: {
   requestOrigin: string;
   siteContext?: SiteContextSummary | null;
   fallbackLga?: string | null;
   instrumentSlug?: string | null;
 }): Promise<LepContext | null> => {
+  const rawLga = params.siteContext?.lgaName ?? params.fallbackLga ?? params.siteContext?.lgaCode ?? null;
   const lgaCode = deriveLgaCode(params.siteContext, params.fallbackLga, params.instrumentSlug);
   if (!lgaCode) {
     return null;
   }
 
-  console.log("[lep-context] derived LGA for LEP search", {
-    lgaCode,
-    lgaName: params.siteContext?.lgaName ?? params.fallbackLga,
-    instrumentSlug: params.instrumentSlug,
-  });
+  console.log("[CHAT-LEP] Site LGA raw", rawLga);
+  console.log("[CHAT-LEP] Site LGA normalised", lgaCode);
 
   const initialResult = await fetchLepSearch({
     requestOrigin: params.requestOrigin,
@@ -111,30 +105,62 @@ export const getLepContextForProject = async (params: {
     instrument: params.instrumentSlug,
   });
 
+  console.log(
+    "[CHAT-LEP] Search response instruments",
+    initialResult?.instruments?.map((instrument) => ({
+      lga: instrument.lga,
+      name: instrument.name,
+      clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+    })) ?? [],
+  );
+
   let instrumentWithClauses = selectInstrumentWithClauses(initialResult);
-  let summaryResult = initialResult;
+  let summaryResult = initialResult ??
+    (await fetchLepSearch({ requestOrigin: params.requestOrigin, lga: lgaCode }));
 
-  if (!instrumentWithClauses) {
-    summaryResult = summaryResult ??
-      (await fetchLepSearch({ requestOrigin: params.requestOrigin, lga: lgaCode }));
-    const firstInstrumentCode = summaryResult?.instruments?.[0]?.code;
+  if (summaryResult && summaryResult !== initialResult) {
+    console.log(
+      "[CHAT-LEP] Summary search response instruments",
+      summaryResult?.instruments?.map((instrument) => ({
+        lga: instrument.lga,
+        name: instrument.name,
+        clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+      })) ?? [],
+    );
+  }
 
-    if (firstInstrumentCode) {
+  if (!instrumentWithClauses && summaryResult?.instruments?.length) {
+    const instrumentWithCount = summaryResult.instruments.find((instrument) => instrumentHasClauseCount(instrument));
+    if (instrumentWithCount?.code || params.instrumentSlug) {
       const detailedResult = await fetchLepSearch({
         requestOrigin: params.requestOrigin,
         lga: lgaCode,
-        instrument: firstInstrumentCode,
+        instrument: instrumentWithCount?.code ?? params.instrumentSlug,
       });
+      console.log(
+        "[CHAT-LEP] Detailed search response instruments",
+        detailedResult?.instruments?.map((instrument) => ({
+          lga: instrument.lga,
+          name: instrument.name,
+          clauseCount: instrument.clauseCount ?? instrument.clauses?.length ?? 0,
+        })) ?? [],
+      );
       instrumentWithClauses = selectInstrumentWithClauses(detailedResult);
+      summaryResult = detailedResult ?? summaryResult;
     }
   }
 
   if (!instrumentWithClauses) {
-    console.log("[lep-context] no LEP instrument with clauses returned", {
+    console.warn(
+      "[CHAT-LEP] No LEP clauses found for LGA",
       lgaCode,
-      instrumentSlug: params.instrumentSlug,
-      summaryCount: summaryResult?.instruments?.length ?? 0,
-    });
+      "falling back to generic guidance",
+      {
+        instrumentSlug: params.instrumentSlug,
+        summaryCount: summaryResult?.instruments?.length ?? 0,
+        hasClauseCount: Boolean(summaryResult?.instruments?.some((instrument) => instrumentHasClauseCount(instrument))),
+      },
+    );
   }
 
   if (!instrumentWithClauses || !instrumentWithClauses.clauses?.length) {
