@@ -92,8 +92,11 @@ export async function POST(request: Request) {
           clauseCount,
           slug: config.slug,
         });
-      } else {
+      } else if (result.status === "error") {
         const message = result.error?.message ?? `Unknown ingestion failure for ${config.slug}`;
+        failed.push(message);
+      } else {
+        const message = result.reason ?? `Ingestion skipped for ${config.slug}`;
         failed.push(message);
       }
     }
