@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { buildLepConfigFromFile } from "@/lib/lep/lep-ingest-files";
 import { parseInstrumentDocument } from "@/lib/legislation/parser";
 import { syncInstrumentFromDocument } from "@/lib/legislation/service";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     const { config } = await buildLepConfigFromFile(xmlPath, { xml: xmlDocument });
     const parsedClauses = parseInstrumentDocument(config, xmlDocument, "xml");
 
-    console.log("[INGEST-LEP] Byron parsed clauses:", parsedClauses.length);
+    console.log("[INGEST-LEP] Byron parsed clauses length", parsedClauses.length);
 
     if (!parsedClauses.length) {
       return NextResponse.json(
@@ -64,15 +65,25 @@ export async function POST(request: Request) {
     const result = await syncInstrumentFromDocument(config, xmlDocument, {
       parsedClauses,
       format: "xml",
+      forceReplace: true,
     });
 
     const instrumentsProcessed = result.status === "ok" ? 1 : 0;
-    const totalClauses = result.status === "ok" ? result.parsedClauses : 0;
+    const totalClauses =
+      result.status === "ok"
+        ? await prisma.clause.count({ where: { instrumentId: result.instrument.id, isCurrent: true } })
+        : 0;
 
     let failed: string[] = [];
     if (result.status === "error") {
       const message = result.error?.message ?? "Unknown ingestion failure";
       failed = [message];
+    }
+
+    if (result.status === "ok" && parsedClauses.length > 0 && totalClauses === 0) {
+      const details = "Parsed clauses but none were persisted";
+      console.error("[INGEST-LEP] Byron error", details);
+      return NextResponse.json({ error: "LEP ingestion failed for BYRON", details }, { status: 500 });
     }
 
     console.log("[INGEST-LEP] Byron result", {
@@ -86,6 +97,8 @@ export async function POST(request: Request) {
         instrumentId: result.instrument.id,
         clauseCount: totalClauses,
       });
+
+      console.log("[INGEST-LEP] Byron DB clause count", totalClauses);
     }
 
     return NextResponse.json({ lga: "BYRON", instrumentsProcessed, totalClauses, failed });

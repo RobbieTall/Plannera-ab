@@ -126,15 +126,49 @@ const ingestParsedClauses = async (
   config: InstrumentConfigType,
   parsedClauses: ParsedClause[],
   retrievedAt: Date,
+  options?: { forceReplace?: boolean },
 ): Promise<SyncSuccessResult> => {
   const instrument = await upsertInstrument(config);
   const uniqueClauses = dedupeParsedClauses(parsedClauses);
-  const currentClauses = await prisma.clause.findMany({
-    where: { instrumentId: instrument.id, isCurrent: true },
-  });
 
   let updated = 0;
   let added = 0;
+
+  if (options?.forceReplace) {
+    await prisma.$transaction(async (tx) => {
+      await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
+
+      for (const clause of uniqueClauses) {
+        await tx.clause.create({
+          data: {
+            instrumentId: instrument.id,
+            clauseKey: clause.clauseKey,
+            title: clause.title,
+            bodyHtml: clause.bodyHtml,
+            bodyText: clause.bodyText,
+            hierarchyPath: clause.hierarchyPath,
+            version: 1,
+            isCurrent: true,
+            retrievedAt,
+            contentHash: clause.contentHash,
+            searchIndex: { create: { bodyText: clause.bodyText } },
+          },
+        });
+        added += 1;
+      }
+    });
+
+    const updatedInstrument = await prisma.instrument.update({
+      where: { id: instrument.id },
+      data: { lastSyncedAt: retrievedAt },
+    });
+
+    return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: uniqueClauses.length };
+  }
+
+  const currentClauses = await prisma.clause.findMany({
+    where: { instrumentId: instrument.id, isCurrent: true },
+  });
 
   await prisma.$transaction(async (tx) => {
     for (const clause of uniqueClauses) {
@@ -251,13 +285,18 @@ export const syncInstrumentWithConfig = async (
 export const syncInstrumentFromDocument = async (
   config: InstrumentConfigType,
   document: string,
-  options?: { format?: InstrumentFetchResult["format"]; parsedClauses?: ParsedClause[]; fetchedAt?: Date },
+  options?: {
+    format?: InstrumentFetchResult["format"];
+    parsedClauses?: ParsedClause[];
+    fetchedAt?: Date;
+    forceReplace?: boolean;
+  },
 ): Promise<SyncResult> => {
   const [{ parseInstrumentDocument }] = await Promise.all([loadParserModule()]);
   const parsedClauses = options?.parsedClauses ?? parseInstrumentDocument(config, document, options?.format);
   const fetchedAt = options?.fetchedAt ?? new Date();
 
-  return ingestParsedClauses(config, parsedClauses, fetchedAt);
+  return ingestParsedClauses(config, parsedClauses, fetchedAt, { forceReplace: options?.forceReplace });
 };
 
 export const syncAllInstruments = async (): Promise<SyncResult[]> => {
