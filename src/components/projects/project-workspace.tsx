@@ -44,6 +44,7 @@ import { useSession } from "next-auth/react";
 
 import { SignInModal } from "@/components/SignInModal";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
+import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
@@ -1794,6 +1795,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </section>
 
         <section className="flex flex-col gap-5">
+          <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
