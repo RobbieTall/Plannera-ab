@@ -1402,7 +1402,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               >
                 Sign in
               </button>
-              <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} />
+              <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} projectId={project.id} />
             </>
           )}
         </div>
