@@ -7,6 +7,10 @@ export async function GET() {
     return NextResponse.json({ status: "skipped" });
   }
 
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: "database_not_configured" }, { status: 503 });
+  }
+
   try {
     process.env.LEGISLATION_USE_FIXTURES = "true";
     const result = await ingestInstrument("sydney-lep-2012");

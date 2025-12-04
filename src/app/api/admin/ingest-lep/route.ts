@@ -8,6 +8,8 @@ import { parseInstrumentDocument } from "@/lib/legislation/parser";
 import { syncInstrumentFromDocument } from "@/lib/legislation/service";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
  *
@@ -24,6 +26,10 @@ export async function POST(request: Request) {
 
   if (!adminSecret || providedSecret !== adminSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: "database_not_configured" }, { status: 503 });
   }
 
   const lgaParam = url.searchParams.get("lga")?.trim();

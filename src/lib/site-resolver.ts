@@ -245,13 +245,18 @@ export async function getSiteResolverConfigStatus(): Promise<SiteResolverConfigS
 const getPropertySearchConfig = (): PropertySearchConfig => {
   const url = process.env.NSW_PROPERTY_API_URL;
   const apiKey = process.env.NSW_PROPERTY_API_KEY;
-  if (!url || !apiKey) {
-    throw new SiteSearchError(
-      "property_search_not_configured",
-      "NSW property search API is not configured.",
-    );
+  const missingEnv = [
+    ...(url ? [] : ["NSW_PROPERTY_API_URL"]),
+    ...(apiKey ? [] : ["NSW_PROPERTY_API_KEY"]),
+  ];
+
+  if (missingEnv.length) {
+    throw new SiteSearchError("property_search_not_configured", "NSW property search API is not configured.", {
+      details: { missingEnv },
+      provider: "nsw-point",
+    });
   }
-  return { url, apiKey };
+  return { url: url!, apiKey: apiKey! };
 };
 
 const normaliseAddressInput = (value: string) => value.trim().replace(/\s+/g, " ");
