@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { listProjectsForUser } from "@/lib/projects";
+import { getUserContext } from "@/lib/getUserContext";
 import { NewProjectButton } from "@/components/dashboard/new-project-button";
 
 export const metadata: Metadata = {
@@ -49,13 +50,13 @@ const formatUpdatedAt = (date: Date) =>
   date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const { userId, sessionId } = await getUserContext();
 
-  if (!session?.user?.id) {
+  if (!userId) {
     redirect("/");
   }
 
-  const projects = await listProjectsForUser(session.user.id);
+  const projects = await listProjectsForUser(userId, sessionId);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-10">

@@ -121,7 +121,17 @@ export const getProjectsForUser = async (userId: string): Promise<ProjectSummary
   return projects.map(sanitizeProject);
 };
 
-export const listProjectsForUser = async (userId: string): Promise<ProjectListItem[]> => {
+export const listProjectsForUser = async (
+  userId: string,
+  sessionId?: string | null,
+): Promise<ProjectListItem[]> => {
+  if (sessionId) {
+    await prisma.project.updateMany({
+      where: { sessionId, userId: null },
+      data: { userId, sessionId: null },
+    });
+  }
+
   const projects = await prisma.project.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },

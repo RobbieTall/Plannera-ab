@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  const { userId } = await getUserContext();
+  const { userId, sessionId } = await getUserContext();
 
   if (!userId) {
     return (
@@ -20,7 +20,7 @@ export default async function ProjectsPage() {
     );
   }
 
-  const projects = await listProjectsForUser(userId);
+  const projects = await listProjectsForUser(userId, sessionId);
 
   return (
     <div className="space-y-6">

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const projects = await listProjectsForUser(session.userId);
+    const projects = await listProjectsForUser(session.userId, session.sessionId);
     return NextResponse.json({
       projects: projects.map((project) => ({
         ...project,
