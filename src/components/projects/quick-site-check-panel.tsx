@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { AlertTriangle, MapPin, RefreshCcw, Sparkles } from "lucide-react";
 
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { Modal } from "@/components/ui/modal";
 import type {
   QuickSiteCheckArtefactRequest,
@@ -50,6 +51,7 @@ export function QuickSiteCheckPanel({
   projectId: string;
   siteContext: SiteContextSummary | null;
 }) {
+  const { requireAuth } = useAuthGuard();
   const [isOpen, setIsOpen] = useState(false);
   const [report, setReport] = useState<QuickSiteCheckReport | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -84,7 +86,7 @@ export function QuickSiteCheckPanel({
     }
   };
 
-  const saveArtefact = async () => {
+  const saveArtefact = useCallback(async () => {
     if (!report) return;
     setSaveStatus("saving");
     setSaveMessage(null);
@@ -120,6 +122,10 @@ export function QuickSiteCheckPanel({
       setSaveStatus("error");
       setSaveMessage(err instanceof Error ? err.message : "Unable to save artefact");
     }
+  }, [projectId, report]);
+
+  const handleSaveArtefact = () => {
+    requireAuth(saveArtefact);
   };
 
   const handleOpen = () => {
@@ -230,7 +236,7 @@ export function QuickSiteCheckPanel({
                 <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <button
                     type="button"
-                    onClick={saveArtefact}
+                    onClick={handleSaveArtefact}
                     disabled={!report || saveStatus === "saving" || status === "loading"}
                     className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
                   >

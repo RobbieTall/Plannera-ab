@@ -1,19 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
-import { SignInModal } from "./SignInModal";
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 
 export function AuthButton() {
-  const { data } = useSession();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [open, setOpen] = useState(false);
+  const { isAuthenticated, openAuthModal } = useAuthGuard();
 
-  const isAuthenticated = Boolean(data?.user?.id || data?.user?.email);
   const label = isAuthenticated ? "Account" : "Sign in";
 
   const handleClick = () => {
@@ -22,22 +16,12 @@ export function AuthButton() {
       return;
     }
 
-    setOpen(true);
+    openAuthModal();
   };
 
-  const callbackUrl = useMemo(() => {
-    const search = searchParams.toString();
-    return search ? `${pathname}?${search}` : pathname;
-  }, [pathname, searchParams]);
-
-  const projectId = useMemo(() => pathname.match(/\/projects\/([^/]+)\/workspace/)?.[1], [pathname]);
-
   return (
-    <>
-      <button type="button" onClick={handleClick} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium">
-        {label}
-      </button>
-      <SignInModal open={open} onClose={() => setOpen(false)} callbackUrl={callbackUrl} projectId={projectId} />
-    </>
+    <button type="button" onClick={handleClick} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium">
+      {label}
+    </button>
   );
 }

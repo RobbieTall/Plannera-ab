@@ -39,16 +39,15 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
-import { SignInModal } from "@/components/SignInModal";
 import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
 import { useExperience } from "@/components/providers/experience-provider";
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
@@ -280,10 +279,8 @@ function deriveSignalsFromAssistantPayload({
 
 export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspaceProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
-  const { data: session, status } = useSession();
+  const { requireAuth, openAuthModal, isAuthenticated } = useAuthGuard();
   const {
     getChatHistory,
     saveChatHistory,
@@ -299,7 +296,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   } = useExperience();
   const projectKey = project.publicId ?? project.id;
 
-  const [showSignIn, setShowSignIn] = useState(false);
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
@@ -327,17 +323,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   );
   const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
   const zoningLabel = useMemo(() => buildZoningLabel(siteContext), [siteContext]);
-  const openSignIn = () => setShowSignIn(true);
-  const closeSignIn = () => setShowSignIn(false);
-  const callbackUrl = useMemo(() => {
-    const search = searchParams.toString();
-    return search ? `${pathname}?${search}` : pathname;
-  }, [pathname, searchParams]);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
   const [siteSelectionError, setSiteSelectionError] = useState<string | null>(null);
-  const isAuthenticated = status === "authenticated" && Boolean(session?.user);
   const [siteSearchAvailable, setSiteSearchAvailable] = useState<"loading" | "ok" | "missing_env">("loading");
   const [suggestions, setSuggestions] = useState<SiteCandidate[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -827,7 +816,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     setInput("");
   };
 
-  const handleSaveChat = () => {
+  const saveChatArtefact = useCallback(() => {
     const timestampLabel = new Date().toLocaleString();
     const messagesSnapshot = messages.map((message) => ({ ...message }));
     const artefact: WorkspaceArtefact = {
@@ -841,7 +830,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     };
     addArtefact(projectKey, artefact);
     showToast("Chat saved to artefacts");
-  };
+  }, [addArtefact, messages, projectKey, showToast]);
+
+  const handleSaveChat = useCallback(() => {
+    requireAuth(saveChatArtefact);
+  }, [requireAuth, saveChatArtefact]);
 
   const handleArtefactOpen = (artefact: WorkspaceArtefact) => {
     if (artefact.type !== "chat" || !artefact.messages?.length) {
@@ -988,6 +981,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   };
 
   const handleSiteCandidateConfirm = async (candidateOverride?: SiteCandidate) => {
+    if (!isAuthenticated) {
+      requireAuth(() => handleSiteCandidateConfirm(candidateOverride));
+      return;
+    }
     const selectedCandidate =
       candidateOverride ??
       selectedSuggestion ??
@@ -1117,13 +1114,17 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     }
   };
 
-  const handleAddSourceClick = () => {
+  const openUploadFlow = useCallback(() => {
     if (uploadLimitReached || uploadUsage.limit === 0) {
       setUpgradeModal("documents");
       return;
     }
     setShowUploadModal(true);
-  };
+  }, [uploadLimitReached, uploadUsage.limit]);
+
+  const handleAddSourceClick = useCallback(() => {
+    requireAuth(openUploadFlow);
+  }, [openUploadFlow, requireAuth]);
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files?.length) {
@@ -1190,6 +1191,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   };
 
   const handleUploadConfirm = async () => {
+    if (!isAuthenticated) {
+      requireAuth(handleUploadConfirm);
+      return;
+    }
     if (!uploadQueue.length) {
       setShowUploadModal(false);
       return;
@@ -1321,20 +1326,27 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     }
   };
 
-  const handleToolClick = (tool: ToolCard) => {
-    const usage = recordToolUsage(projectKey, tool.id);
-    if (!usage.allowed) {
-      setToolContext(tool.name);
-      setUpgradeModal("tools");
-      return;
-    }
-    showToast(`${tool.name} received the latest chat context`);
-  };
+  const handleToolClick = useCallback(
+    (tool: ToolCard) => {
+      if (!isAuthenticated) {
+        requireAuth(() => handleToolClick(tool));
+        return;
+      }
+      const usage = recordToolUsage(projectKey, tool.id);
+      if (!usage.allowed) {
+        setToolContext(tool.name);
+        setUpgradeModal("tools");
+        return;
+      }
+      showToast(`${tool.name} received the latest chat context`);
+    },
+    [isAuthenticated, projectKey, recordToolUsage, requireAuth, showToast],
+  );
 
   const experienceArtefacts = getArtefacts(projectKey);
   const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
 
-  const handleSaveNote = () => {
+  const saveNoteArtefact = useCallback(() => {
     if (!noteTitle.trim()) {
       showToast("Add a title before saving", "error");
       return;
@@ -1355,7 +1367,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     setNoteTitle("");
     setNoteType("Note");
     showToast("Note saved to artefacts");
-  };
+  }, [addArtefact, noteBody, noteTitle, noteType, projectKey, showToast]);
+
+  const handleSaveNote = useCallback(() => {
+    requireAuth(saveNoteArtefact);
+  }, [requireAuth, saveNoteArtefact]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
@@ -1398,12 +1414,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             <>
               <button
                 type="button"
-                onClick={openSignIn}
+                onClick={() => openAuthModal()}
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 Sign in
               </button>
-              <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} projectId={project.id} />
             </>
           )}
         </div>

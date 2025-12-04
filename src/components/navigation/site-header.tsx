@@ -1,12 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 
-import { useSession } from "next-auth/react";
-import { usePathname, useSearchParams } from "next/navigation";
-
-import { SignInModal } from "@/components/SignInModal";
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 
@@ -20,22 +16,7 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ navigation }: SiteHeaderProps) {
-  const { data: session, status } = useSession();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [showSignIn, setShowSignIn] = useState(false);
-
-  const isAuthenticated = status === "authenticated" && Boolean(session?.user);
-
-  const openSignIn = () => setShowSignIn(true);
-  const closeSignIn = () => setShowSignIn(false);
-
-  const callbackUrl = useMemo(() => {
-    const search = searchParams.toString();
-    return search ? `${pathname}?${search}` : pathname;
-  }, [pathname, searchParams]);
-
-  const projectId = useMemo(() => pathname.match(/\/projects\/([^/]+)\/workspace/)?.[1], [pathname]);
+  const { isAuthenticated, openAuthModal } = useAuthGuard();
 
   return (
     <>
@@ -69,12 +50,11 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
               <>
                 <button
                   type="button"
-                  onClick={openSignIn}
+                  onClick={() => openAuthModal()}
                   className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
                 >
                   Sign in
                 </button>
-                <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} projectId={projectId} />
               </>
             )}
           </div>
