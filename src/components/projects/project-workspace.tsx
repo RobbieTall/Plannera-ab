@@ -66,6 +66,7 @@ import type {
 
 interface ProjectWorkspaceProps {
   project: Project;
+  initialPrompt?: string | null;
 }
 
 interface ToolCard {
@@ -276,7 +277,7 @@ function deriveSignalsFromAssistantPayload({
   };
 }
 
-export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { data: session, status } = useSession();
@@ -342,6 +343,7 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
+  const initialPromptAppliedRef = useRef(false);
   const siteContextMutationsDisabled =
     process.env.NEXT_PUBLIC_DISABLE_SITE_CONTEXT === "true";
 
@@ -644,10 +646,11 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
     window.setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const sendMessage = async (options?: { message?: string; skipUserMessage?: boolean }) => {
-    const prompt = options?.message ?? input;
-    const trimmedInput = prompt.trim();
-    if (!trimmedInput) return;
+  const sendMessage = useCallback(
+    async (options?: { message?: string; skipUserMessage?: boolean }) => {
+      const prompt = options?.message ?? input;
+      const trimmedInput = prompt.trim();
+      if (!trimmedInput) return;
 
     const skipUserMessage = options?.skipUserMessage ?? false;
 
@@ -750,10 +753,30 @@ export function ProjectWorkspace({ project }: ProjectWorkspaceProps) {
         saveChatHistory(projectKey, updated);
         return updated;
       });
-    } finally {
-      setIsThinking(false);
+      } finally {
+        setIsThinking(false);
+      }
+    },
+    [
+      applySessionSignals,
+      input,
+      project.name,
+      projectKey,
+      saveChatHistory,
+      sessionSignals,
+      sources,
+    ],
+  );
+
+  useEffect(() => {
+    const trimmedPrompt = initialPrompt?.trim();
+    if (!trimmedPrompt || initialPromptAppliedRef.current || messages.length > 0) {
+      return;
     }
-  };
+    initialPromptAppliedRef.current = true;
+    setInput(trimmedPrompt);
+    void sendMessage({ message: trimmedPrompt });
+  }, [initialPrompt, messages.length, sendMessage]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
