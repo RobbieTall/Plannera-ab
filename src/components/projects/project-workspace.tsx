@@ -1795,7 +1795,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </section>
 
         <section className="flex flex-col gap-5">
-          <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1835,6 +1834,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                 </span>
               </header>
               <div className="mt-4 grid grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
                 {tools.map((tool) => {
                   const Icon = tool.icon;
                   return (

@@ -8,17 +8,20 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   description?: string;
+  size?: "md" | "lg";
   children: ReactNode;
 }
 
-export function Modal({ open, onClose, title, description, children }: ModalProps) {
+export function Modal({ open, onClose, title, description, size = "md", children }: ModalProps) {
   if (!open) {
     return null;
   }
 
+  const widthClass = size === "lg" ? "max-w-4xl" : "max-w-lg";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+      <div className={`w-full ${widthClass} rounded-3xl bg-white p-6 shadow-2xl`}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Plannera.ai</p>
