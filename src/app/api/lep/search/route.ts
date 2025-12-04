@@ -3,8 +3,17 @@ import { lookupLepInstruments } from "@/lib/lep/lep-search";
 import { findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
 import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { error: "LEP search is not configured without a database connection" },
+        { status: 503 },
+      );
+    }
+
     const url = new URL(request.url);
     const lga = url.searchParams.get("lga")?.trim();
     const instrument = url.searchParams.get("instrument")?.trim();

@@ -10,6 +10,10 @@ export async function ingestLepXmlForProject({
   projectId: string;
   xml: string;
 }): Promise<LepParseResult> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("Cannot ingest LEP XML without DATABASE_URL configured.");
+  }
+
   const parsed = parseNswLepXml(xml);
 
   await prisma.project.update({

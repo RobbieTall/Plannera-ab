@@ -5,6 +5,8 @@ import { ingestLepXmlForProject } from "@/lib/lep/ingest-service";
 import { prisma } from "@/lib/prisma";
 import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
 
+export const dynamic = "force-dynamic";
+
 const normalizeSourceId = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -48,6 +50,10 @@ const loadUploadXml = async (upload: { storagePath: string; publicUrl: string })
 
 export async function POST(request: Request, { params }: { params: { projectId: string } }) {
   try {
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({ ok: false, error: "database_not_configured" }, { status: 503 });
+    }
+
     const normalizedProjectId = normalizeProjectId(params.projectId);
     if (!normalizedProjectId) {
       return NextResponse.json({ ok: false, error: "project_id_missing" }, { status: 400 });

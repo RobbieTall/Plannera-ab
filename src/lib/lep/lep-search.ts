@@ -61,6 +61,11 @@ export const lookupLepInstruments = async (params: {
   instrument?: string | null;
   clauseRef?: string | null;
 }): Promise<LepSearchResponse> => {
+  if (!process.env.DATABASE_URL) {
+    console.warn("[lep-search] DATABASE_URL is not configured; returning empty LEP results");
+    return { instruments: [] } satisfies LepSearchResponse;
+  }
+
   const instrumentWhere = buildLepInstrumentFilter(params.lga, params.instrument ?? undefined);
 
   const clauseWhere: Prisma.ClauseWhereInput = {
