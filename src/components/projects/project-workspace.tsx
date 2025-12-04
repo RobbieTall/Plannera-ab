@@ -39,7 +39,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { SignInModal } from "@/components/SignInModal";
@@ -279,6 +279,8 @@ function deriveSignalsFromAssistantPayload({
 
 export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspaceProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
   const { data: session, status } = useSession();
   const {
@@ -326,6 +328,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const zoningLabel = useMemo(() => buildZoningLabel(siteContext), [siteContext]);
   const openSignIn = () => setShowSignIn(true);
   const closeSignIn = () => setShowSignIn(false);
+  const callbackUrl = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
   const [siteSearchQuery, setSiteSearchQuery] = useState("");
@@ -1396,7 +1402,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               >
                 Sign in
               </button>
-              <SignInModal open={showSignIn} onClose={closeSignIn} />
+              <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} />
             </>
           )}
         </div>

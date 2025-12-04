@@ -17,10 +17,25 @@ import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
+const resolveCallbackPath = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+    return null;
+  }
+
+  return trimmed;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
+    const callbackUrl = resolveCallbackPath(searchParams.get("callbackUrl"));
 
     if (!token) {
       return NextResponse.json({ error: "Missing token" }, { status: 400 });
@@ -47,7 +62,7 @@ export async function GET(request: NextRequest) {
     const baseSession = decodedSession ?? createAnonymousSession();
     const upgradedSession = attachUserToSession(baseSession, user.id);
 
-    const response = NextResponse.redirect(new URL("/", request.url));
+    const response = NextResponse.redirect(new URL(callbackUrl ?? "/dashboard", request.url));
     const serialized = serializeSession(upgradedSession);
     response.cookies.set(serialized.name, serialized.value, serialized.attributes);
 

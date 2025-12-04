@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useSession } from "next-auth/react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { SignInModal } from "@/components/SignInModal";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -20,12 +21,19 @@ type SiteHeaderProps = {
 
 export function SiteHeader({ navigation }: SiteHeaderProps) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [showSignIn, setShowSignIn] = useState(false);
 
   const isAuthenticated = status === "authenticated" && Boolean(session?.user);
 
   const openSignIn = () => setShowSignIn(true);
   const closeSignIn = () => setShowSignIn(false);
+
+  const callbackUrl = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
 
   return (
     <>
@@ -64,7 +72,7 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
                 >
                   Sign in
                 </button>
-                <SignInModal open={showSignIn} onClose={closeSignIn} />
+                <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} />
               </>
             )}
           </div>
