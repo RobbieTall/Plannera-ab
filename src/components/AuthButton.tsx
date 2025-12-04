@@ -30,12 +30,14 @@ export function AuthButton() {
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
 
+  const projectId = useMemo(() => pathname.match(/\/projects\/([^/]+)\/workspace/)?.[1], [pathname]);
+
   return (
     <>
       <button type="button" onClick={handleClick} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium">
         {label}
       </button>
-      <SignInModal open={open} onClose={() => setOpen(false)} callbackUrl={callbackUrl} />
+      <SignInModal open={open} onClose={() => setOpen(false)} callbackUrl={callbackUrl} projectId={projectId} />
     </>
   );
 }

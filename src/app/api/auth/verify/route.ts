@@ -11,11 +11,21 @@ import {
   verifyMagicLinkToken,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { claimSessionProjectsForUser } from "@/lib/projects";
+import { claimProjectForUser, claimSessionProjectsForUser } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
 import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
+
+const resolveProjectId = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
+};
 
 const resolveCallbackPath = (value: string | null): string | null => {
   if (!value) {
@@ -36,6 +46,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
     const callbackUrl = resolveCallbackPath(searchParams.get("callbackUrl"));
+    const projectId = resolveProjectId(searchParams.get("projectId"));
 
     if (!token) {
       return NextResponse.json({ error: "Missing token" }, { status: 400 });
@@ -78,7 +89,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (requestSession?.sessionId) {
-      await claimSessionProjectsForUser(requestSession.sessionId, user.id);
+      const targetedClaimed = projectId
+        ? await claimProjectForUser(projectId, user.id, requestSession.sessionId)
+        : false;
+
+      if (!targetedClaimed) {
+        await claimSessionProjectsForUser(requestSession.sessionId, user.id);
+      }
     }
 
     const isSecure = request.nextUrl.protocol === "https:";

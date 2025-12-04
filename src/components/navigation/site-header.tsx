@@ -35,6 +35,8 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
 
+  const projectId = useMemo(() => pathname.match(/\/projects\/([^/]+)\/workspace/)?.[1], [pathname]);
+
   return (
     <>
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
@@ -72,7 +74,7 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
                 >
                   Sign in
                 </button>
-                <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} />
+                <SignInModal open={showSignIn} onClose={closeSignIn} callbackUrl={callbackUrl} projectId={projectId} />
               </>
             )}
           </div>

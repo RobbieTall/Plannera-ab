@@ -111,6 +111,25 @@ export const claimSessionProjectsForUser = async (
 // Backwards-compatible alias used by existing routes; prefer claimSessionProjectsForUser.
 export const claimProjectsForUser = claimSessionProjectsForUser;
 
+export const claimProjectForUser = async (
+  projectId: string,
+  userId: string,
+  sessionId?: string | null,
+): Promise<boolean> => {
+  const where: Prisma.ProjectWhereInput = { id: projectId, userId: null };
+
+  if (sessionId) {
+    where.sessionId = sessionId;
+  }
+
+  const result = await prisma.project.updateMany({
+    where,
+    data: { userId, sessionId: null },
+  });
+
+  return result.count > 0;
+};
+
 export const getProjectsForUser = async (userId: string): Promise<ProjectSummary[]> => {
   const projects = await prisma.project.findMany({
     where: { userId },

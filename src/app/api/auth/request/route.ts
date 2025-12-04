@@ -6,6 +6,16 @@ import { getBaseUrl, sendMagicLinkEmail } from "@/lib/email";
 const isValidEmail = (value: unknown): value is string =>
   typeof value === "string" && /.+@.+\..+/.test(value.trim());
 
+const resolveProjectId = (value: unknown): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
+};
+
 const resolveCallbackPath = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
@@ -33,12 +43,17 @@ export async function POST(request: Request) {
 
     const email = emailInput.trim().toLowerCase();
     const callbackUrl = resolveCallbackPath(body?.callbackUrl);
+    const projectId = resolveProjectId(body?.projectId);
     const token = createMagicLinkToken(email);
     const baseUrl = getBaseUrl(request);
     const verifyUrl = new URL(`/api/auth/verify?token=${encodeURIComponent(token)}`, baseUrl);
 
     if (callbackUrl) {
       verifyUrl.searchParams.set("callbackUrl", callbackUrl);
+    }
+
+    if (projectId) {
+      verifyUrl.searchParams.set("projectId", projectId);
     }
 
     await sendMagicLinkEmail(email, verifyUrl.toString());

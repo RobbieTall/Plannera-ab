@@ -6,13 +6,18 @@ import { createPortal } from "react-dom";
 type MagicLinkRequest = {
   email: string;
   callbackUrl?: string;
+  projectId?: string;
 };
 
-const postMagicLink = async ({ email, callbackUrl }: MagicLinkRequest) => {
+const postMagicLink = async ({ email, callbackUrl, projectId }: MagicLinkRequest) => {
   const payload: MagicLinkRequest = { email };
 
   if (callbackUrl) {
     payload.callbackUrl = callbackUrl;
+  }
+
+  if (projectId) {
+    payload.projectId = projectId;
   }
 
   const response = await fetch("/api/auth/request", {
@@ -31,9 +36,10 @@ type SignInModalProps = {
   open: boolean;
   onClose: () => void;
   callbackUrl?: string;
+  projectId?: string;
 };
 
-export function SignInModal({ open, onClose, callbackUrl }: SignInModalProps) {
+export function SignInModal({ open, onClose, callbackUrl, projectId }: SignInModalProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -49,7 +55,7 @@ export function SignInModal({ open, onClose, callbackUrl }: SignInModalProps) {
     setMessage(null);
 
     try {
-      await postMagicLink({ email: email.trim(), callbackUrl });
+      await postMagicLink({ email: email.trim(), callbackUrl, projectId });
       setStatus("sent");
       setMessage("Magic link sent. Check your inbox to finish signing in.");
     } catch (error) {
