@@ -16,12 +16,12 @@ interface MapsToolsModalProps {
 
 const externalTools = [
   {
-    label: "NSW Spatial Viewer (fallback)",
+    label: "NSW Planning Portal Spatial Viewer",
     href: NSW_SPATIAL_VIEWER_URL,
   },
   {
-    label: "NSW Planning Portal (external)",
-    href: "https://www.planningportal.nsw.gov.au",
+    label: "NSW Explorer (advanced GIS)",
+    href: "https://maps.six.nsw.gov.au/",
   },
   {
     label: "NSW SEED Environment Explorer",
@@ -69,14 +69,14 @@ export function MapsToolsModal({ open, onClose, siteContext }: MapsToolsModalPro
       } = await response.json();
 
       if (data.source === "nsw_spatial_viewer") {
-        showToast("Council map unavailable. Opening NSW Spatial Viewer instead.");
+        showToast("Council map unavailable. Opening NSW Planning Portal Spatial Viewer instead.");
       }
 
       if (data.resolvedUrl) {
         window.open(data.resolvedUrl, "_blank", "noopener,noreferrer");
       }
     } catch {
-      showToast("Council map unavailable. Opening NSW Spatial Viewer instead.");
+      showToast("Council map unavailable. Opening NSW Planning Portal Spatial Viewer instead.");
       window.open(NSW_SPATIAL_VIEWER_URL, "_blank", "noopener,noreferrer");
     } finally {
       setIsResolving(false);

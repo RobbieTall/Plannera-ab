@@ -981,10 +981,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   };
 
   const handleSiteCandidateConfirm = async (candidateOverride?: SiteCandidate) => {
-    if (!isAuthenticated) {
-      requireAuth(() => handleSiteCandidateConfirm(candidateOverride));
-      return;
-    }
     const selectedCandidate =
       candidateOverride ??
       selectedSuggestion ??
