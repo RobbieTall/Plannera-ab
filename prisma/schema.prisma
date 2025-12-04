@@ -220,12 +220,13 @@ model Artefact {
   createdBy   User?        @relation(fields: [createdById], references: [id])
   type        ArtefactType
   title       String
-  source      String
+  source      String?
   sourceUrl   String?
-  overlays    String[]
+  overlays    String[]     @default([])
   notes       String?
-  imageUrl    String
-  capturedAt  DateTime     @default(now())
+  imageUrl    String?
+  payload     Json?
+  capturedAt  DateTime?    @default(now())
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -234,6 +235,7 @@ model Artefact {
 
 enum ArtefactType {
   map_snapshot
+  quick_site_check
 }
 
 model Instrument {

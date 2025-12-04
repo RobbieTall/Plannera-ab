@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { AlertTriangle, MapPin, RefreshCcw, Sparkles } from "lucide-react";
 
-import type { QuickSiteCheckControl, QuickSiteCheckReport, QuickSiteCheckResponse } from "@/types/quick-site-check";
+import type {
+  QuickSiteCheckArtefactRequest,
+  QuickSiteCheckControl,
+  QuickSiteCheckReport,
+  QuickSiteCheckResponse,
+} from "@/types/quick-site-check";
 import type { SiteContextSummary } from "@/types/site";
 import { cn, formatShortDate } from "@/lib/utils";
 
@@ -47,6 +52,8 @@ export function QuickSiteCheckPanel({
   const [report, setReport] = useState<QuickSiteCheckReport | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const hasSite = Boolean(siteContext);
 
@@ -54,6 +61,8 @@ export function QuickSiteCheckPanel({
     if (!projectId) return;
     setStatus("loading");
     setError(null);
+    setSaveStatus("idle");
+    setSaveMessage(null);
 
     try {
       const response = await fetch(`/api/projects/${projectId}/quick-site-check`, { cache: "no-store" });
@@ -66,6 +75,44 @@ export function QuickSiteCheckPanel({
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Unable to run Quick Site Check");
+    }
+  };
+
+  const saveArtefact = async () => {
+    if (!report) return;
+    setSaveStatus("saving");
+    setSaveMessage(null);
+
+    const title = report.site.address
+      ? `Quick Site Check — ${report.site.address}`
+      : `Quick Site Check — ${projectId}`;
+
+    const payload: QuickSiteCheckArtefactRequest = {
+      projectId,
+      title,
+      type: "quick_site_check",
+      report,
+    };
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/artefacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const message = response.status === 401 ? "Please sign in to save artefacts." : data.error ?? data.message;
+        throw new Error(message ?? "Unable to save artefact");
+      }
+
+      setSaveStatus("success");
+      setSaveMessage("Saved to artefacts.");
+    } catch (err) {
+      setSaveStatus("error");
+      setSaveMessage(err instanceof Error ? err.message : "Unable to save artefact");
     }
   };
 
@@ -107,10 +154,35 @@ export function QuickSiteCheckPanel({
       {report ? (
         <div className="mt-5 space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
-              <MapPin className="h-4 w-4" />
-              <span>{report.site.address ?? "No address"}</span>
-              {report.site.lga ? <span className="text-slate-400">• {report.site.lga}</span> : null}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-200">
+                <MapPin className="h-4 w-4" />
+                <span>{report.site.address ?? "No address"}</span>
+                {report.site.lga ? <span className="text-slate-400">• {report.site.lga}</span> : null}
+              </div>
+              <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <button
+                  type="button"
+                  onClick={saveArtefact}
+                  disabled={!report || saveStatus === "saving" || status === "loading"}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  {saveStatus === "saving" ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Save as artefact
+                </button>
+                {saveMessage ? (
+                  <p
+                    className={cn(
+                      "text-xs font-semibold",
+                      saveStatus === "success"
+                        ? "text-emerald-600 dark:text-emerald-300"
+                        : "text-rose-600 dark:text-rose-300",
+                    )}
+                  >
+                    {saveMessage}
+                  </p>
+                ) : null}
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-100">
               <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">

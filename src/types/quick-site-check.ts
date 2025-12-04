@@ -48,3 +48,10 @@ export type QuickSiteCheckResponse = {
   report?: QuickSiteCheckReport;
   message?: string;
 };
+
+export type QuickSiteCheckArtefactRequest = {
+  projectId: string;
+  title: string;
+  type: "quick_site_check";
+  report: QuickSiteCheckReport;
+};

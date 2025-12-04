@@ -5,7 +5,9 @@ import {
   ArtefactAccessError,
   ArtefactValidationError,
   createMapSnapshotArtefact,
+  createQuickSiteCheckArtefact,
 } from "@/lib/artefact-service";
+import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 class MockPrisma {
   artefacts: any[] = [];
@@ -121,4 +123,49 @@ test("validates that an image file is required", async () => {
       return true;
     },
   );
+});
+
+test("creates a quick_site_check artefact with the report payload", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "123 Test St" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: {
+        label: "Height of building",
+        value: "12m",
+        present: true,
+        interpretation: "Test interpretation",
+      },
+      floorSpaceRatio: {
+        label: "FSR",
+        value: "1:1",
+        present: true,
+        interpretation: "FSR interpretation",
+      },
+      minimumLotSize: {
+        label: "MLS",
+        value: "450sqm",
+        present: true,
+        interpretation: "MLS interpretation",
+      },
+    },
+    notes: ["A note"],
+    nextSteps: ["Do something"],
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — 123 Test St", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: { prisma },
+  });
+
+  assert.equal(artefact.type, "quick_site_check");
+  assert.equal(artefact.title, "Quick Site Check — 123 Test St");
+  assert.deepEqual(artefact.payload, report);
+  assert.equal(artefact.notes, "A note");
 });

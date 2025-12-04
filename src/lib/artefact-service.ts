@@ -7,6 +7,7 @@ import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
+import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 type PrismaClientArtefact = Pick<PrismaClient["artefact"], "create" | "findMany">;
 type PrismaClientProject = Pick<PrismaClient["project"], "findFirst">;
@@ -32,6 +33,66 @@ const mapSnapshotSchema = z.object({
   overlays: overlayEntrySchema.default([]),
   notes: z.string().trim().max(2000).optional(),
   capturedAt: z.preprocess((value) => (value ? new Date(value as string) : undefined), z.date().optional()),
+});
+
+const quickSiteCheckControlSchema = z.object({
+  label: z.string(),
+  value: z.string().nullable(),
+  present: z.boolean(),
+  source: z.string().nullable().optional(),
+  clauseRef: z.string().nullable().optional(),
+  detail: z.string().nullable().optional(),
+  interpretation: z.string(),
+});
+
+const quickSiteCheckReportSchema = z
+  .object({
+    projectId: z.string().trim().min(1),
+    generatedAt: z.string().trim().min(1),
+    site: z
+      .object({
+        address: z.string().nullable().optional(),
+        lga: z.string().nullable().optional(),
+        zoneCode: z.string().nullable().optional(),
+        zoneName: z.string().nullable().optional(),
+        zoneLabel: z.string().nullable().optional(),
+        zoningSource: z.string().nullable().optional(),
+      })
+      .passthrough(),
+    lepInstrument: z
+      .object({
+        name: z.string().nullable().optional(),
+        code: z.string().nullable().optional(),
+        lga: z.string().nullable().optional(),
+        source: z.enum(["project", "ingestion"]).optional(),
+      })
+      .nullable()
+      .optional(),
+    permissibility: z
+      .object({
+        zoneLabel: z.string().nullable().optional(),
+        permittedWithoutConsent: z.array(z.string()),
+        permittedWithConsent: z.array(z.string()),
+        prohibited: z.array(z.string()),
+        interpretation: z.string(),
+      })
+      .nullable()
+      .optional(),
+    controls: z.object({
+      heightOfBuilding: quickSiteCheckControlSchema,
+      floorSpaceRatio: quickSiteCheckControlSchema,
+      minimumLotSize: quickSiteCheckControlSchema,
+    }),
+    notes: z.array(z.string()),
+    nextSteps: z.array(z.string()),
+  })
+  .passthrough();
+
+const quickSiteCheckArtefactSchema = z.object({
+  projectId: z.string().trim().min(1, "projectId is required"),
+  title: z.string().trim().min(1, "title is required").max(200),
+  type: z.literal("quick_site_check"),
+  report: quickSiteCheckReportSchema,
 });
 
 export class ArtefactValidationError extends Error {
@@ -136,6 +197,13 @@ export type MapSnapshotArtefactInput = {
   capturedAt?: Date;
 };
 
+export type QuickSiteCheckArtefactInput = {
+  projectId: string;
+  title: string;
+  type: Extract<ArtefactType, "quick_site_check">;
+  report: QuickSiteCheckReport;
+};
+
 export async function createMapSnapshotArtefact({
   formData,
   projectId,
@@ -165,6 +233,58 @@ export async function createMapSnapshotArtefact({
       notes: payload.notes,
       imageUrl: savedFile.url,
       capturedAt: payload.capturedAt ?? new Date(),
+    },
+  });
+}
+
+export async function createQuickSiteCheckArtefact({
+  body,
+  projectId,
+  userId,
+  deps = { prisma },
+}: {
+  body: unknown;
+  projectId: string;
+  userId: string;
+  deps?: Pick<ArtefactDependencies, "prisma">;
+}): Promise<Artefact> {
+  const parsed = quickSiteCheckArtefactSchema.safeParse(body);
+
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid Quick Site Check payload";
+    throw new ArtefactValidationError(message);
+  }
+
+  const { projectId: payloadProjectId, report, title } = parsed.data as QuickSiteCheckArtefactInput;
+
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
+  const projectIdentifiers = [project.id, (project as { publicId?: string | null }).publicId].filter(Boolean);
+
+  if (!projectIdentifiers.includes(payloadProjectId)) {
+    throw new ArtefactValidationError("Project mismatch between URL and payload");
+  }
+
+  if (!projectIdentifiers.includes(report.projectId)) {
+    throw new ArtefactValidationError("Report belongs to a different project");
+  }
+
+  const generatedAt = new Date(report.generatedAt ?? Date.now());
+  const capturedAt = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
+
+  const source = report.site?.address ?? report.site?.zoneLabel ?? "Quick Site Check";
+  const notes = report.notes.length ? report.notes.join(" ") : null;
+
+  return deps.prisma.artefact.create({
+    data: {
+      projectId: project.id,
+      createdById: userId,
+      type: "quick_site_check" as ArtefactType,
+      title,
+      source,
+      overlays: [],
+      notes,
+      payload: report,
+      capturedAt,
     },
   });
 }
