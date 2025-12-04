@@ -6,6 +6,7 @@ import "./globals.css";
 import { authOptions } from "@/lib/auth";
 import { AuthSessionProvider } from "@/components/session-provider";
 import { ExperienceProvider } from "@/components/providers/experience-provider";
+import { AuthGuardProvider } from "@/components/providers/auth-guard-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import type { UserTier } from "@/types/workspace";
 
@@ -34,7 +35,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body className="antialiased">
         <ThemeProvider>
           <AuthSessionProvider session={session}>
-            <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
+            <AuthGuardProvider>
+              <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
+            </AuthGuardProvider>
           </AuthSessionProvider>
         </ThemeProvider>
       </body>

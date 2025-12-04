@@ -6,6 +6,7 @@ import Image from "next/image";
 import { cn, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
 import { X } from "lucide-react";
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 
 interface MapSnapshotsPanelProps {
   projectId: string;
@@ -55,6 +56,7 @@ function getDefaultTitle(projectName: string) {
 }
 
 export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: MapSnapshotsPanelProps) {
+  const { requireAuth } = useAuthGuard();
   const [snapshots, setSnapshots] = useState<MapSnapshotArtefact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -156,8 +158,7 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     return otherSource.trim() ? otherSource.trim() : "Other";
   }, [otherSource, source]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submitSnapshot = async () => {
     if (!selectedFile) {
       setSubmitError("Please add an image before saving.");
       return;
@@ -214,6 +215,11 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    requireAuth(submitSnapshot);
   };
 
   return (
