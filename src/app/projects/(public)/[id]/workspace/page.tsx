@@ -8,6 +8,7 @@ import type { Project } from "@/lib/mock-data";
 
 interface WorkspacePageProps {
   params: { id: string };
+  searchParams?: { prompt?: string };
 }
 
 const buildWorkspaceProject = (project: PrismaProject): Project => {
@@ -75,7 +76,7 @@ function NotFoundState() {
   );
 }
 
-export default async function ProjectWorkspacePage({ params }: WorkspacePageProps) {
+export default async function ProjectWorkspacePage({ params, searchParams }: WorkspacePageProps) {
   const session = getSessionContext();
 
   const project = await getProjectForRequester(params.id, session.sessionId, session.userId);
@@ -86,5 +87,5 @@ export default async function ProjectWorkspacePage({ params }: WorkspacePageProp
 
   const workspaceProject = buildWorkspaceProject(project);
 
-  return <ProjectWorkspace project={workspaceProject} />;
+  return <ProjectWorkspace project={workspaceProject} initialPrompt={searchParams?.prompt} />;
 }
