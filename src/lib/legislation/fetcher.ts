@@ -63,6 +63,30 @@ const readFixture = async (fixturePath: string) => {
 const detectFormat = (content: string): InstrumentFetchResult["format"] =>
   /<html|<!DOCTYPE html/i.test(content) ? "html" : "xml";
 
+const tryReadCaseInsensitiveFile = async (
+  targetPath: string,
+): Promise<{ document: string; resolvedPath: string } | null> => {
+  const directory = path.dirname(targetPath);
+  const targetName = path.basename(targetPath).toLowerCase();
+
+  try {
+    const entries = await fs.readdir(directory);
+    const match = entries.find((entry) => entry.toLowerCase() === targetName);
+    if (!match) {
+      return null;
+    }
+    const resolvedPath = path.join(directory, match);
+    const document = await fs.readFile(resolvedPath, "utf-8");
+    return { document, resolvedPath };
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code && err.code !== "ENOENT") {
+      throw err;
+    }
+    return null;
+  }
+};
+
 const loadFromLocalXml = async (config: InstrumentConfig): Promise<InstrumentFetchResult | null> => {
   if (!config.xmlLocalPath) {
     return null;
@@ -81,6 +105,17 @@ const loadFromLocalXml = async (config: InstrumentConfig): Promise<InstrumentFet
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {
+      const fallback = await tryReadCaseInsensitiveFile(config.xmlLocalPath);
+      if (fallback) {
+        return {
+          document: fallback.document,
+          fetchedAt: new Date(),
+          status: 200,
+          sourceUrl: fallback.resolvedPath,
+          usedFixture: true,
+          format: detectFormat(fallback.document),
+        };
+      }
       return null;
     }
     throw err;

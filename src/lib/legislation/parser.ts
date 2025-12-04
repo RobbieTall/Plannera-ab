@@ -15,6 +15,119 @@ const bareNumberPattern = /^((?:\d+[A-Za-z]?)(?:\.\d+[A-Za-z]?)*)(.*)$/;
 
 const normaliseWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
 
+const blockLikeTags = new Set([
+  "p",
+  "div",
+  "section",
+  "block",
+  "tier",
+  "list",
+  "ul",
+  "ol",
+  "li",
+  "pre",
+  "row",
+  "entry",
+  "tr",
+  "td",
+  "th",
+  "thead",
+  "tbody",
+]);
+
+type ParsedTableRow = { cells: string[]; isHeader: boolean };
+
+const renderTableToMarkdown = (table: HTMLElement): string => {
+  const rows = table.querySelectorAll("row, tr");
+  if (!rows.length) {
+    return normaliseWhitespace(table.text || "");
+  }
+
+  const parsedRows: ParsedTableRow[] = [];
+
+  rows.forEach((row) => {
+    const element = row as HTMLElement;
+    const cells = element.querySelectorAll("entry, th, td");
+    if (!cells.length) {
+      return;
+    }
+
+    const cellTexts = cells
+      .map((cell) => normaliseWhitespace((cell as HTMLElement).text || ""))
+      .filter(Boolean);
+    if (!cellTexts.length) {
+      return;
+    }
+
+    const parentTag = ((element.parentNode as HTMLElement | null)?.tagName || "").toLowerCase();
+    const isHeader = parentTag === "thead" || cells.every((cell) => (cell as HTMLElement).tagName?.toLowerCase() === "th");
+
+    parsedRows.push({ cells: cellTexts, isHeader });
+  });
+
+  if (!parsedRows.length) {
+    return normaliseWhitespace(table.text || "");
+  }
+
+  const headerIndex = parsedRows.findIndex((row) => row.isHeader);
+  const headerRow = parsedRows[headerIndex >= 0 ? headerIndex : 0];
+  const bodyRows = parsedRows.filter((_, index) => index !== (headerIndex >= 0 ? headerIndex : 0));
+
+  const lines: string[] = ["Table:"];
+  if (headerRow.cells.length) {
+    lines.push(headerRow.cells.join(" | "));
+    lines.push(headerRow.cells.map(() => "---").join(" | "));
+  }
+
+  bodyRows.forEach((row) => {
+    lines.push(row.cells.join(" | "));
+  });
+
+  return lines.join("\n").trim();
+};
+
+const serialiseNodeToText = (node: Node): string => {
+  const element = node as HTMLElement;
+  if (element?.tagName) {
+    const tag = element.tagName.toLowerCase();
+    if (tag === "table") {
+      return renderTableToMarkdown(element);
+    }
+
+    const childTexts = element.childNodes.map((child) => serialiseNodeToText(child)).filter(Boolean);
+    if (!childTexts.length) {
+      return "";
+    }
+
+    const separator = blockLikeTags.has(tag) ? "\n" : " ";
+    const joined = childTexts.join(separator).trim();
+
+    if (!joined) {
+      return "";
+    }
+
+    if (tag === "li") {
+      return `- ${joined}`;
+    }
+
+    return joined;
+  }
+
+  return normaliseWhitespace((node as HTMLElement).text || (node as { rawText?: string }).rawText || "");
+};
+
+const serialiseNodesToText = (nodes: Node[]): string => {
+  const lines = nodes
+    .map((node) => serialiseNodeToText(node))
+    .filter(Boolean)
+    .join("\n")
+    .split("\n")
+    .map((line) => normaliseWhitespace(line))
+    .filter(Boolean);
+
+  return lines.join("\n");
+};
+
 const computeHash = (value: string) => createHash("sha256").update(value).digest("hex");
 
 const isHeadingElement = (element: HTMLElement) => {
@@ -31,20 +144,20 @@ const isHeadingElement = (element: HTMLElement) => {
 
 const extractClauseBody = (heading: HTMLElement) => {
   const fragments: string[] = [];
-  const textFragments: string[] = [];
+  const textNodes: Node[] = [];
   let pointer = heading.nextElementSibling;
   while (pointer) {
     if (isHeadingElement(pointer as HTMLElement)) {
       break;
     }
     fragments.push(pointer.toString());
-    textFragments.push(pointer.text);
+    textNodes.push(pointer as unknown as Node);
     pointer = pointer.nextElementSibling;
   }
 
   return {
     html: fragments.join("\n").trim(),
-    text: normaliseWhitespace(textFragments.join(" ")),
+    text: serialiseNodesToText(textNodes),
   };
 };
 
@@ -270,7 +383,7 @@ const stripHeadingFromBody = (element: HTMLElement) => {
     return !XML_HEADING_TAGS.includes(tag);
   });
   const html = filtered.map((node) => node.toString()).join("").trim();
-  const text = normaliseWhitespace(filtered.map((node) => (node as HTMLElement).text ?? node.text).join(" "));
+  const text = serialiseNodesToText(filtered);
   return { html, text };
 };
 
@@ -392,7 +505,12 @@ const traverseXml = (
 };
 
 const parseXmlDocument = (config: InstrumentConfig, xml: string): ParsedClause[] => {
-  const root = parse(xml, { lowerCaseTagName: false });
+  const normalizedXml = xml.replace(/<pre\b[^>]*>/gi, "<div>").replace(/<\/pre>/gi, "</div>");
+
+  const root = parse(normalizedXml, {
+    lowerCaseTagName: false,
+    blockTextElements: { script: false, style: false, pre: false },
+  });
   const clauses: ParsedClause[] = [];
 
   traverseXml(config, root as unknown as HTMLElement, [], clauses);
