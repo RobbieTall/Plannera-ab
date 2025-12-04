@@ -303,6 +303,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
+  const [hasClaimedProjects, setHasClaimedProjects] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
   const [uploadStatuses, setUploadStatuses] = useState<
@@ -394,6 +395,27 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
       setSiteSearchAvailable("missing_env");
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || hasClaimedProjects) {
+      return;
+    }
+
+    const claimProjects = async () => {
+      try {
+        const response = await fetch("/api/projects/claim", { method: "POST" });
+        if (!response.ok) {
+          return;
+        }
+        setHasClaimedProjects(true);
+        router.refresh();
+      } catch (error) {
+        console.error("[workspace] Failed to claim projects", error);
+      }
+    };
+
+    void claimProjects();
+  }, [hasClaimedProjects, isAuthenticated, router]);
 
   useEffect(() => {
     setSessionSignalsState(getSessionSignals(projectKey));
