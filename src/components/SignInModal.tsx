@@ -3,11 +3,22 @@
 import { FormEvent, useState } from "react";
 import { createPortal } from "react-dom";
 
-const postMagicLink = async (email: string) => {
+type MagicLinkRequest = {
+  email: string;
+  callbackUrl?: string;
+};
+
+const postMagicLink = async ({ email, callbackUrl }: MagicLinkRequest) => {
+  const payload: MagicLinkRequest = { email };
+
+  if (callbackUrl) {
+    payload.callbackUrl = callbackUrl;
+  }
+
   const response = await fetch("/api/auth/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -19,9 +30,10 @@ const postMagicLink = async (email: string) => {
 type SignInModalProps = {
   open: boolean;
   onClose: () => void;
+  callbackUrl?: string;
 };
 
-export function SignInModal({ open, onClose }: SignInModalProps) {
+export function SignInModal({ open, onClose, callbackUrl }: SignInModalProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -37,7 +49,7 @@ export function SignInModal({ open, onClose }: SignInModalProps) {
     setMessage(null);
 
     try {
-      await postMagicLink(email.trim());
+      await postMagicLink({ email: email.trim(), callbackUrl });
       setStatus("sent");
       setMessage("Magic link sent. Check your inbox to finish signing in.");
     } catch (error) {

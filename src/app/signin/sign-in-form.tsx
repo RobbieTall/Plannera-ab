@@ -4,11 +4,11 @@ import { FormEvent, useState } from "react";
 
 import { useExperience } from "@/components/providers/experience-provider";
 
-const postMagicLink = async (email: string) => {
+const postMagicLink = async (email: string, callbackUrl?: string) => {
   const response = await fetch("/api/auth/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, callbackUrl }),
   });
 
   if (!response.ok) {
@@ -29,7 +29,7 @@ export function SignInForm() {
     setMessage(null);
 
     try {
-      await postMagicLink(email.trim());
+      await postMagicLink(email.trim(), "/dashboard");
       setStatus("success");
       setMessage("Magic link sent. Check your inbox to finish signing in.");
       setUserTier("free");
