@@ -4,6 +4,7 @@ import {
   ArtefactAccessError,
   ArtefactValidationError,
   createMapSnapshotArtefact,
+  createQuickSiteCheckArtefact,
   listProjectArtefacts,
   requireSessionUser,
 } from "@/lib/artefact-service";
@@ -27,13 +28,19 @@ export async function GET(_request: NextRequest, { params }: { params: { project
 export async function POST(request: NextRequest, { params }: { params: { projectId: string } }) {
   try {
     const { userId } = await requireSessionUser();
-    const formData = await request.formData();
+    const contentType = request.headers.get("content-type") ?? "";
 
-    const artefact = await createMapSnapshotArtefact({
-      formData,
-      projectId: params.projectId,
-      userId,
-    });
+    const artefact = contentType.includes("application/json")
+      ? await createQuickSiteCheckArtefact({
+          body: await request.json(),
+          projectId: params.projectId,
+          userId,
+        })
+      : await createMapSnapshotArtefact({
+          formData: await request.formData(),
+          projectId: params.projectId,
+          userId,
+        });
 
     return NextResponse.json(artefact, { status: 201 });
   } catch (error) {
