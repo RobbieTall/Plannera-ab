@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { getSessionContext } from "@/lib/getSessionContext";
-import { getProjectForRequester } from "@/lib/projects";
+import { getUserContext } from "@/lib/getUserContext";
+import { claimSessionProjectsForUser, getProjectForRequester } from "@/lib/projects";
 import type { Project as PrismaProject } from "@prisma/client";
 import type { Project } from "@/lib/mock-data";
 
@@ -77,12 +77,17 @@ function NotFoundState() {
 }
 
 export default async function ProjectWorkspacePage({ params, searchParams }: WorkspacePageProps) {
-  const session = getSessionContext();
+  const session = await getUserContext();
 
-  const project = await getProjectForRequester(params.id, session.sessionId, session.userId);
+  let project = await getProjectForRequester(params.id, session.sessionId, session.userId);
 
   if (!project) {
     return <NotFoundState />;
+  }
+
+  if (session.userId && !project.userId && project.sessionId === session.sessionId) {
+    await claimSessionProjectsForUser(session.sessionId, session.userId);
+    project = (await getProjectForRequester(params.id, session.sessionId, session.userId)) ?? project;
   }
 
   const workspaceProject = buildWorkspaceProject(project);

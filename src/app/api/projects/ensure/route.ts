@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getOrCreateCurrentProject } from "@/lib/projects";
-import { getSessionContext } from "@/lib/getSessionContext";
+import { getUserContext } from "@/lib/getUserContext";
 
 const requestSchema = z.object({
   title: z.string().trim().optional(),
@@ -11,7 +11,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = getSessionContext();
+  const session = await getUserContext();
 
   const body = request.headers.get("content-type")?.includes("application/json") ? await request.json() : {};
   const { title, name } = requestSchema.parse(body ?? {});
