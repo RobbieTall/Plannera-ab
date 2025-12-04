@@ -2,9 +2,12 @@ export type LgaMapInfo = {
   lgaName: string;
   platform: "arcgis" | "intramaps" | "pozi" | "none";
   primaryMapUrl: string | null;
+  fallbackMapUrls?: string[];
   notes?: string;
   nswSpatialViewerUrl?: string; // optional fallback
 };
+
+export const NSW_SPATIAL_VIEWER_URL = "https://maps.six.nsw.gov.au/";
 
 const LGA_MAPS: LgaMapInfo[] = [
   {
