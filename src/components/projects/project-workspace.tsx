@@ -41,7 +41,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { MapSnapshotsPanel } from "@/components/projects/map-snapshots-panel";
+import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
@@ -311,7 +311,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [serverLimitReached, setServerLimitReached] = useState(false);
-  const [showMapsPanel, setShowMapsPanel] = useState(false);
+  const [isMapsToolsModalOpen, setIsMapsToolsModalOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -1818,7 +1818,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </div>
               <button
                 type="button"
-                onClick={() => setShowMapsPanel(true)}
+                onClick={() => setIsMapsToolsModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
               >
                 <Globe2 className="h-4 w-4" />
@@ -1939,29 +1939,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </section>
       </div>
 
-      {showMapsPanel ? (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm">
-          <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6">
-            <div className="mx-auto max-w-6xl space-y-3">
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowMapsPanel(false)}
-                  className="rounded-2xl border border-white/60 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
-                >
-                  Close
-                </button>
-              </div>
-              <MapSnapshotsPanel
-                projectId={projectKey}
-                projectName={project.name}
-                onToast={showToast}
-                onClose={() => setShowMapsPanel(false)}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <MapsToolsModal
+        open={isMapsToolsModalOpen}
+        onClose={() => setIsMapsToolsModalOpen(false)}
+        siteContext={siteContext}
+      />
 
       <Modal
         open={showUploadModal}
