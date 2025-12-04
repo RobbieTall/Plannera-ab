@@ -731,7 +731,7 @@ for (const info of LGA_MAPS) {
   LGA_MAP_INDEX.set(normalizeLgaName(info.lgaName), info);
 }
 
-export function getLgaMapInfo(lgaName: string): LgaMapInfo | null {
+export function getLgaMapInfo(lgaName: string | null | undefined): LgaMapInfo | null {
   if (!lgaName) return null;
   const normalizedQuery = normalizeLgaName(lgaName);
   return LGA_MAP_INDEX.get(normalizedQuery) ?? null;
