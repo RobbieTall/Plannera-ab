@@ -88,14 +88,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (requestSession?.sessionId) {
-      const targetedClaimed = projectId
-        ? await claimProjectForUser(projectId, user.id, requestSession.sessionId)
-        : false;
+    const targetedClaimed = projectId
+      ? await claimProjectForUser(projectId, user.id, requestSession?.sessionId ?? undefined)
+      : false;
 
-      if (!targetedClaimed) {
-        await claimSessionProjectsForUser(requestSession.sessionId, user.id);
-      }
+    if (requestSession?.sessionId && !targetedClaimed) {
+      await claimSessionProjectsForUser(requestSession.sessionId, user.id);
     }
 
     const isSecure = request.nextUrl.protocol === "https:";
