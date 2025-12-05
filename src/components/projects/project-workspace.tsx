@@ -1921,9 +1921,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                     </div>
                     {artefact.type === "chat" && artefact.messages?.length ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {/* TODO: implement artefact chat restoration */}
                         <button
                           type="button"
-                          onClick={() => restoreArtefactChat(artefact)}
+                          disabled
                           className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
                         >
                           <RefreshCcw className="h-3.5 w-3.5" />
