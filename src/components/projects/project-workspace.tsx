@@ -1385,7 +1385,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex max-w-7xl min-h-screen flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-5 px-4 pb-6 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
@@ -1469,7 +1469,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid flex-1 min-h-0 gap-6 items-stretch xl:grid-cols-[300px_minmax(0,1fr)_360px]">
           <section className="flex h-full flex-col space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex items-center justify-between">
@@ -1767,7 +1767,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div
                 ref={chatScrollRef}
-                className="flex flex-1 flex-col space-y-4 overflow-y-auto pr-2"
+                className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"
                 aria-live="polite"
               >
               {messages.length === 0 ? (
