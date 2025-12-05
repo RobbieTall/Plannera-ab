@@ -1376,7 +1376,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-h-screen max-w-7xl flex-1 flex-col gap-5 overflow-hidden px-4 pb-6 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-5 overflow-y-auto px-4 pb-6 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 md:max-h-screen md:overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
@@ -1460,9 +1460,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
         <div className="grid flex-1 min-h-0 items-stretch gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
@@ -1575,7 +1575,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </section>
 
-        <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
@@ -1822,7 +1822,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </div>
         </section>
 
-        <section className="flex h-full min-h-0 flex-col">
+        <section className="flex flex-col md:h-full md:min-h-0">
           <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-3">
