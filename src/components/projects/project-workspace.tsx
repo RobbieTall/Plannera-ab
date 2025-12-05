@@ -851,15 +851,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     requireAuth(saveChatArtefact);
   }, [requireAuth, saveChatArtefact]);
 
-  const handleArtefactOpen = (artefact: WorkspaceArtefact) => {
-    if (artefact.type !== "chat" || !artefact.messages?.length) {
-      return;
-    }
-    setMessages(artefact.messages);
-    saveChatHistory(projectKey, artefact.messages);
-    showToast(`Restored ${artefact.messages.length} chat message${artefact.messages.length === 1 ? "" : "s"}`);
-  };
-
   const openManualSiteSelection = () => {
     void fetchSiteSearchAvailability();
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
@@ -1470,115 +1461,119 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="grid flex-1 min-h-0 gap-6 items-stretch xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <section className="flex h-full flex-col space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <header className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Sources</p>
-              <p className="text-sm text-slate-500 dark:text-slate-300">Emails, documents & references</p>
+        <div className="grid flex-1 min-h-0 items-stretch gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+          <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="shrink-0 space-y-4">
+              <header className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Sources</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Emails, documents & references</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Usage</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-300">
+                    {uploadUsage.limit === 0 ? "Sign up to upload" : `${uploadUsage.used} of ${uploadUsage.limit} documents used`}
+                  </p>
+                </div>
+              </header>
+              {limitMessage ? (
+                <p className="text-xs font-semibold text-rose-600">{limitMessage}</p>
+              ) : null}
+              <div className="flex flex-nowrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddSourceClick}
+                  disabled={uploadLimitReached}
+                  title={limitMessage ?? undefined}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </button>
+                <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                  <ListFilter className="h-3 w-3" aria-hidden />
+                  <label htmlFor="source-filter" className="sr-only">
+                    Filter sources
+                  </label>
+                  <select
+                    id="source-filter"
+                    value={sourceFilter}
+                    onChange={(event) => setSourceFilter(event.target.value as WorkspaceSourceType | "all")}
+                    className="bg-transparent pr-0 text-[11px] font-semibold focus:outline-none"
+                  >
+                    <option value="all">Show all</option>
+                    {Object.entries(sourceTypeLabels).map(([type, label]) => (
+                      <option key={type} value={type}>
+                        {label} first
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {sourceFilter !== "all" ? (
+                <p className="text-[11px] text-slate-500">Prioritising {activeSourceFilterLabel.toLowerCase()} uploads.</p>
+              ) : null}
             </div>
-            <div className="text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Usage</p>
-              <p className="text-xs text-slate-500 dark:text-slate-300">
-                {uploadUsage.limit === 0 ? "Sign up to upload" : `${uploadUsage.used} of ${uploadUsage.limit} documents used`}
-              </p>
-            </div>
-          </header>
-          {limitMessage ? (
-            <p className="text-xs font-semibold text-rose-600">{limitMessage}</p>
-          ) : null}
-          <div className="flex flex-nowrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddSourceClick}
-              disabled={uploadLimitReached}
-              title={limitMessage ?? undefined}
-              className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500"
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-              <ListFilter className="h-3 w-3" aria-hidden />
-              <label htmlFor="source-filter" className="sr-only">
-                Filter sources
-              </label>
-              <select
-                id="source-filter"
-                value={sourceFilter}
-                onChange={(event) => setSourceFilter(event.target.value as WorkspaceSourceType | "all")}
-                className="bg-transparent pr-0 text-[11px] font-semibold focus:outline-none"
-              >
-                <option value="all">Show all</option>
-                {Object.entries(sourceTypeLabels).map(([type, label]) => (
-                  <option key={type} value={type}>
-                    {label} first
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {sourceFilter !== "all" ? (
-            <p className="text-[11px] text-slate-500">Prioritising {activeSourceFilterLabel.toLowerCase()} uploads.</p>
-          ) : null}
-          <ul className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-            {displayedSources.map((source) => {
-              const Icon = sourceIcons[source.type] ?? FileText;
-              return (
-                <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
-                  {source.url ? (
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-start gap-3 no-underline hover:text-slate-900 dark:hover:text-white"
-                    >
-                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-300">
-                          {source.detail}
-                          {source.fileExtension ? (
-                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
-                              {source.fileExtension}
-                            </span>
+            <div className="mt-4 flex-1 min-h-0 overflow-y-auto pr-1">
+              <ul className="space-y-3">
+                {displayedSources.map((source) => {
+                  const Icon = sourceIcons[source.type] ?? FileText;
+                  return (
+                    <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
+                      {source.url ? (
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-start gap-3 no-underline hover:text-slate-900 dark:hover:text-white"
+                        >
+                          <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-300">
+                              {source.detail}
+                              {source.fileExtension ? (
+                                <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
+                                  {source.fileExtension}
+                                </span>
+                              ) : null}
+                            </p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
+                          </div>
+                          {source.status ? (
+                            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
                           ) : null}
-                        </p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
-                      </div>
-                      {source.status ? (
-                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
-                      ) : null}
-                    </a>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-300">
-                          {source.detail}
-                          {source.fileExtension ? (
-                            <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
-                              {source.fileExtension}
-                            </span>
+                        </a>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{source.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-300">
+                              {source.detail}
+                              {source.fileExtension ? (
+                                <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
+                                  {source.fileExtension}
+                                </span>
+                              ) : null}
+                            </p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
+                          </div>
+                          {source.status ? (
+                            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
                           ) : null}
-                        </p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{source.uploadedAt} · {source.sizeLabel}</p>
-                      </div>
-                      {source.status ? (
-                        <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">{source.status}</span>
-                      ) : null}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
 
         <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
@@ -1827,132 +1822,135 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </div>
         </section>
 
-        <section className="flex h-full min-h-0 flex-col gap-5">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Maps & External Tools</p>
-                <p className="text-sm text-slate-500 dark:text-slate-300">Keep overlays and exports aligned with the workspace.</p>
+        <section className="flex h-full min-h-0 flex-col">
+          <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Maps & External Tools</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Keep overlays and exports aligned with the workspace.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMapsToolsModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  <Globe2 className="h-4 w-4" />
+                  Maps & external tools
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsMapsToolsModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-              >
-                <Globe2 className="h-4 w-4" />
-                Maps & external tools
-              </button>
             </div>
-          </div>
-          {isNoteEditorOpen ? (
-            <NoteEditor
-              noteTitle={noteTitle}
-              onTitleChange={setNoteTitle}
-              noteType={noteType}
-              onTypeChange={setNoteType}
-              noteBody={noteBody}
-              onBodyChange={setNoteBody}
-              onSave={handleSaveNote}
-              onCancel={() => setIsNoteEditorOpen(false)}
-            />
-          ) : (
+            {isNoteEditorOpen ? (
+              <NoteEditor
+                noteTitle={noteTitle}
+                onTitleChange={setNoteTitle}
+                noteType={noteType}
+                onTypeChange={setNoteType}
+                noteBody={noteBody}
+                onBodyChange={setNoteBody}
+                onSave={handleSaveNote}
+                onCancel={() => setIsNoteEditorOpen(false)}
+              />
+            ) : (
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+                <header className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Tools & Agents</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Send context or open in split view.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    Pro access
+                  </span>
+                </header>
+                <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
+                  <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
+                  {tools.map((tool) => {
+                    const Icon = tool.icon;
+                    return (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => handleToolClick(tool)}
+                        className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-slate-600"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br", tool.accent)}>
+                            <Icon className="h-4 w-4 text-slate-900 dark:text-slate-100" />
+                          </span>
+                          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Pro</span>
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">{tool.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">{tool.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
               <header className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Tools & Agents</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Send context or open in split view.</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
                 </div>
-                <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-                  Pro access
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsNoteEditorOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add note
+                </button>
               </header>
-              <div className="mt-4 grid grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
-                {tools.map((tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <button
-                      key={tool.id}
-                      type="button"
-                      onClick={() => handleToolClick(tool)}
-                      className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-slate-600"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br", tool.accent)}>
-                          <Icon className="h-4 w-4 text-slate-900 dark:text-slate-100" />
-                        </span>
-                        <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Pro</span>
+              <ul className="mt-4 space-y-3 pr-1">
+                {artefacts.map((artefact) => (
+                  <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">
+                          {artefact.owner} · {artefact.updatedAt}
+                          {artefact.noteType ? ` · ${artefact.noteType}` : ""}
+                        </p>
+                        {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
                       </div>
-                      <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">{tool.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-300">{tool.description}</p>
-                    </button>
-                  );
-                })}
+                      <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
+                        {artefact.type}
+                      </span>
+                    </div>
+                    {artefact.type === "chat" && artefact.messages?.length ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {/* TODO: implement artefact chat restoration */}
+                        <button
+                          type="button"
+                          disabled
+                          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                        >
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Reopen in chat
+                        </button>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
+                        </p>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
+                Drop a chat summary or upload an attachment to pin it here.
               </div>
             </div>
-          )}
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-            <header className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
-                <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNoteEditorOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-              >
-                <Plus className="h-4 w-4" />
-                Add note
+            <div className="rounded-3xl border border-slate-200 bg-slate-900/90 p-5 text-white">
+              <p className="text-sm font-semibold">Need a new artefact?</p>
+              <p className="mt-1 text-xs text-slate-200">Send any conversation to a tool and it’ll appear here for future reference.</p>
+              <button className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
+                <Archive className="h-4 w-4" />
+                Manage library
               </button>
-            </header>
-            <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
-              {artefacts.map((artefact) => (
-                <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-300">
-                        {artefact.owner} · {artefact.updatedAt}
-                        {artefact.noteType ? ` · ${artefact.noteType}` : ""}
-                      </p>
-                      {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
-                    </div>
-                    <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
-                      {artefact.type}
-                    </span>
-                  </div>
-                  {artefact.type === "chat" && artefact.messages?.length ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleArtefactOpen(artefact)}
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
-                      >
-                        <RefreshCcw className="h-3.5 w-3.5" />
-                        Reopen in chat
-                      </button>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
-                      </p>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
-              Drop a chat summary or upload an attachment to pin it here.
             </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-slate-900/90 p-5 text-white">
-            <p className="text-sm font-semibold">Need a new artefact?</p>
-            <p className="mt-1 text-xs text-slate-200">Send any conversation to a tool and it’ll appear here for future reference.</p>
-            <button className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
-              <Archive className="h-4 w-4" />
-              Manage library
-            </button>
           </div>
         </section>
         </div>
