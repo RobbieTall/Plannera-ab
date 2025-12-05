@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
 
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="min-h-screen antialiased flex flex-col">
         <ThemeProvider>
           <AuthSessionProvider session={session}>
             <AuthGuardProvider>
