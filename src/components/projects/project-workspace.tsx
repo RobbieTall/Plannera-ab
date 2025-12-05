@@ -1385,7 +1385,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-5 px-4 pb-6 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
+    <div className="mx-auto flex min-h-screen max-h-screen max-w-7xl flex-1 flex-col gap-5 overflow-hidden px-4 pb-6 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
