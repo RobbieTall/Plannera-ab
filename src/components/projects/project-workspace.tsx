@@ -337,6 +337,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [isConfirmingSite, setIsConfirmingSite] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
@@ -519,6 +520,16 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     };
   }, [projectKey]);
 
+  const adjustChatInputHeight = useCallback(() => {
+    if (!chatInputRef.current) return;
+    const textarea = chatInputRef.current;
+    const maxHeight = 144; // roughly 6 lines at the text-sm line height
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
+
   useEffect(() => {
     if (!chatScrollRef.current) return;
     chatScrollRef.current.scrollTo({
@@ -529,6 +540,10 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
       chatEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [messages, isThinking]);
+
+  useEffect(() => {
+    adjustChatInputHeight();
+  }, [adjustChatInputHeight, input]);
 
   useEffect(() => {
     if (siteSelection?.source !== "manual") {
@@ -1370,7 +1385,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
+    <div className="mx-auto flex max-w-7xl min-h-screen flex-col gap-5 px-4 pb-10 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
@@ -1564,7 +1579,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
           </ul>
         </section>
 
-        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex min-h-[70vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
@@ -1596,7 +1611,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </button>
             </div>
           </header>
-          <div className="flex-1 space-y-4 overflow-hidden px-6 py-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6">
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                 <div className="flex items-start justify-between gap-3">
@@ -1748,11 +1763,12 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                 </div>
               </div>
             ) : null}
-            <div
-              ref={chatScrollRef}
-              className="flex max-h-[460px] flex-col space-y-4 overflow-y-auto pr-2"
-              aria-live="polite"
-            >
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <div
+                ref={chatScrollRef}
+                className="flex flex-1 flex-col space-y-4 overflow-y-auto pr-2"
+                aria-live="polite"
+              >
               {messages.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
               ) : (
@@ -1778,20 +1794,24 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               ) : null}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <form
+              onSubmit={handleSubmit}
+              className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
+            >
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
               </label>
               <textarea
                 id="chat-input"
+                ref={chatInputRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={3}
                 placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
-                className="w-full resize-none border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
                 <button
                   type="submit"
@@ -1803,6 +1823,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </div>
             </form>
           </div>
+        </div>
         </section>
 
         <section className="flex flex-col gap-5">
