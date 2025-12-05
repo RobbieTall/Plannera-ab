@@ -22,6 +22,10 @@ import {
   getLepContextForProject,
   type LepContext,
 } from "@/lib/lep/lep-context";
+import {
+  buildWorkspaceSourcePrompt,
+  findRelevantWorkspaceChunks,
+} from "@/lib/workspace-source-context";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -311,6 +315,26 @@ export async function POST(request: Request) {
       lepUsedFallback: usedLepFallback,
     });
 
+    let sourceContextPrompt: string | null = null;
+    const lgaCode = siteContextSummary?.lgaCode ?? null;
+    try {
+      const relevantChunks = await findRelevantWorkspaceChunks({
+        projectId: projectId ?? null,
+        lgaCode,
+        query: userMessage,
+      });
+
+      console.log("[workspace-chat] workspace source retrieval", {
+        projectId,
+        lgaCode,
+        chunkCount: relevantChunks.length,
+      });
+
+      sourceContextPrompt = buildWorkspaceSourcePrompt(relevantChunks);
+    } catch (sourceError) {
+      console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
+    }
+
     const siteContextMessage = buildSiteContextMessage(siteContextSummary, lepData);
     const lepContextMessage = buildLepPromptMessage(lepContext);
 
@@ -335,6 +359,10 @@ export async function POST(request: Request) {
 
     if (legislationContext) {
       messages.push({ role: "system", content: `Site context:\n${legislationContext}` });
+    }
+
+    if (sourceContextPrompt) {
+      messages.push({ role: "system", content: sourceContextPrompt });
     }
 
     messages.push(...historyMessages);
