@@ -851,15 +851,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     requireAuth(saveChatArtefact);
   }, [requireAuth, saveChatArtefact]);
 
-  const handleArtefactOpen = (artefact: WorkspaceArtefact) => {
-    if (artefact.type !== "chat" || !artefact.messages?.length) {
-      return;
-    }
-    setMessages(artefact.messages);
-    saveChatHistory(projectKey, artefact.messages);
-    showToast(`Restored ${artefact.messages.length} chat message${artefact.messages.length === 1 ? "" : "s"}`);
-  };
-
   const openManualSiteSelection = () => {
     void fetchSiteSearchAvailability();
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
