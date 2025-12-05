@@ -84,6 +84,12 @@ type SiteSelectionState = {
   pendingQuestion?: string;
 };
 
+type DcpLink = {
+  lgaCode: string;
+  name: string | null;
+  url: string | null;
+};
+
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
 const tools: ToolCard[] = [
@@ -335,6 +341,8 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [selectedSuggestion, setSelectedSuggestion] = useState<SiteCandidate | null>(null);
   const [isSiteSearchPending, setIsSiteSearchPending] = useState(false);
   const [isConfirmingSite, setIsConfirmingSite] = useState(false);
+  const [dcpLink, setDcpLink] = useState<DcpLink | null>(null);
+  const [isLoadingDcpLink, setIsLoadingDcpLink] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -354,6 +362,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ? "You’ve reached your 5-document limit. Upgrade to a paid plan to upload more."
         : "You've reached this workspace's document cap. Contact us to extend your plan."
     : null;
+  const isDcpLinkAvailable = Boolean(dcpLink?.url);
   const documentCta =
     state.userTier === "guest"
       ? { href: "/signin", label: "Create a free account" }
@@ -519,6 +528,53 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
       isMounted = false;
     };
   }, [projectKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDcpLink = async () => {
+      const lgaCode = siteContext?.lgaCode;
+
+      if (!lgaCode) {
+        setDcpLink(null);
+        setIsLoadingDcpLink(false);
+        return;
+      }
+
+      setIsLoadingDcpLink(true);
+
+      try {
+        const response = await fetch(`/api/dcp-link?lgaCode=${encodeURIComponent(lgaCode)}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to load DCP link");
+        }
+
+        const data: DcpLink = await response.json();
+        if (cancelled) return;
+
+        setDcpLink({
+          lgaCode: data?.lgaCode ?? lgaCode,
+          name: data?.name ?? null,
+          url: data?.url ?? null,
+        });
+      } catch (error) {
+        console.warn("Unable to load DCP link", error);
+        if (!cancelled) {
+          setDcpLink({ lgaCode: lgaCode.toUpperCase(), name: null, url: null });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDcpLink(false);
+        }
+      }
+    };
+
+    void fetchDcpLink();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [siteContext?.lgaCode]);
 
   const adjustChatInputHeight = useCallback(() => {
     if (!chatInputRef.current) return;
@@ -1457,6 +1513,26 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             <Link2 className="h-3.5 w-3.5" />
             Open council web map
           </a>
+        ) : null}
+        {siteContext ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (dcpLink?.url) {
+                window.open(dcpLink.url, "_blank", "noopener,noreferrer");
+              }
+            }}
+            disabled={!isDcpLinkAvailable || isLoadingDcpLink}
+            title={!isDcpLinkAvailable && !isLoadingDcpLink ? "No DCP link available yet" : undefined}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition",
+              "hover:border-slate-900 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400",
+              "dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500",
+            )}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            {isLoadingDcpLink ? "Loading DCP" : "Open DCP"}
+          </button>
         ) : null}
       </div>
 
