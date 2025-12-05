@@ -7,7 +7,7 @@ export type LgaMapInfo = {
   nswSpatialViewerUrl?: string; // optional fallback
 };
 
-export const NSW_SPATIAL_VIEWER_URL = "https://maps.six.nsw.gov.au/";
+export const NSW_SPATIAL_VIEWER_URL = "https://www.planningportal.nsw.gov.au/spatialviewer/#/";
 
 const LGA_MAPS: LgaMapInfo[] = [
   {
