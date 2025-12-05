@@ -1469,8 +1469,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="grid flex-1 min-h-0 gap-6 items-stretch xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+          <section className="flex h-full flex-col space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Sources</p>
@@ -1579,7 +1580,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
           </ul>
         </section>
 
-        <section className="flex min-h-[70vh] flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
@@ -1826,7 +1827,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </div>
         </section>
 
-        <section className="flex flex-col gap-5">
+        <section className="flex h-full min-h-0 flex-col gap-5">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1954,6 +1955,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </button>
           </div>
         </section>
+        </div>
       </div>
 
       <MapsToolsModal
