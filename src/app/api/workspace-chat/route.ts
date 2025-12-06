@@ -328,9 +328,9 @@ export async function POST(request: Request) {
       const {
         chunks: relevantChunks,
         hasCouncilDcp,
-        perSourceTotals,
-        totalChunks,
+        sourceTotalsByType,
         canonicalLgaCode: resolvedCanonicalLga,
+        sampleCouncilDcpHeadings,
       } = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
         lgaCode: canonicalLgaCode,
@@ -338,39 +338,62 @@ export async function POST(request: Request) {
         sourceTypes,
       });
 
-      const councilDcpCount =
-        perSourceTotals[WorkspaceSourceType.council_dcp] ?? 0;
-      const uploadCount = perSourceTotals[WorkspaceSourceType.upload] ?? 0;
       const effectiveCanonicalLga = canonicalLgaCode ?? resolvedCanonicalLga;
+      const councilDcpCount =
+        sourceTotalsByType[WorkspaceSourceType.council_dcp] ?? 0;
+      const uploadCount = sourceTotalsByType[WorkspaceSourceType.upload] ?? 0;
 
-      console.log("[workspace-chat] workspace source retrieval", {
-        projectId,
-        canonicalLgaCode: effectiveCanonicalLga,
-        totals: perSourceTotals,
-        totalChunks,
-        hasCouncilDcp,
-      });
+      const isProd =
+        process.env.VERCEL_ENV === "production" ||
+        process.env.NODE_ENV === "production";
 
-      let availabilityNote = "";
-      if (!hasCouncilDcp && effectiveCanonicalLga) {
-        availabilityNote =
-          "You do not currently have access to the council Development Control Plan (DCP) for this site, so answer using LEP and general NSW planning principles. It is okay to advise the user to check the DCP directly.\n\n";
+      if (!isProd) {
+        console.info("[workspace-chat] councilDcpContext", {
+          projectId,
+          canonicalLgaCode: effectiveCanonicalLga,
+          hasCouncilDcp,
+          sourceTotalsByType,
+          sampleCouncilDcpHeadings,
+        });
       }
 
-      let dcpContextNote = "";
-      if (hasCouncilDcp) {
-        const dcpName =
+      const councilDcpPromptSegment = hasCouncilDcp
+        ? `
+    You have access to ${
           effectiveCanonicalLga === "BYRON"
-            ? "Byron Shire Development Control Plan (DCP) 2014"
-            : "the council Development Control Plan (DCP) for this site's LGA";
-
-        dcpContextNote =
-          `You have access to ${dcpName} content (council_dcp chunks: ${councilDcpCount}, upload chunks: ${uploadCount}). When answering questions about detailed design controls such as setbacks, heights, parking, landscaping, and built form, treat the DCP as an authoritative source and reference it explicitly (e.g., "According to ${dcpName}, ..."). Do not tell the user you lack access to the DCP when these chunks are provided.\n\n`;
-      }
+            ? "the Byron Shire Development Control Plan (DCP) 2014"
+            : "the council Development Control Plan (DCP) for this site's LGA"
+        } for LGA code ${effectiveCanonicalLga ?? "(unknown)"}.
+    Council sources in context: ${councilDcpCount} council_dcp chunks and ${uploadCount} upload chunk${
+          uploadCount === 1 ? "" : "s"
+        } (if any).
+    Treat this DCP as the primary, authoritative source for local controls for this site.
+    When answering, prefer the ${
+          effectiveCanonicalLga === "BYRON"
+            ? "Byron Shire DCP"
+            : "council DCP"
+        } content over generic NSW guidance.
+    Where relevant, mention that your answer is based on the ${
+          effectiveCanonicalLga === "BYRON"
+            ? "Byron Shire DCP"
+            : "council DCP"
+        } and reference the part/chapter heading${
+          sampleCouncilDcpHeadings.length
+            ? ` (for example: "${sampleCouncilDcpHeadings.join("\", \"")}")`
+            : ""
+        } when applicable.
+    Do not say that you don't have access to the DCP when council_dcp chunks are available.
+  `
+        : `
+    No council DCP chunks were retrieved for this site.
+    You may only answer from LEP and general NSW planning principles; if the question depends on DCP specifics, say that council DCP details are not available in this workspace.
+  `;
 
       const chunkPrompt = buildWorkspaceSourcePrompt(relevantChunks);
-      const promptParts = [dcpContextNote, availabilityNote, chunkPrompt ?? ""].filter(Boolean);
-      sourceContextPrompt = promptParts.length ? promptParts.join("") : null;
+      const promptParts = [councilDcpPromptSegment.trim(), chunkPrompt ?? ""]
+        .filter(Boolean)
+        .join("\n\n");
+      sourceContextPrompt = promptParts.length ? promptParts : null;
     } catch (sourceError) {
       console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
     }

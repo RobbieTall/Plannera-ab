@@ -27,6 +27,19 @@ const formatChunkPreview = (content: string) => {
   return words.length > 320 ? `${words.slice(0, 320)}…` : words;
 };
 
+const extractHeading = (heading: string | null, metadata: unknown) => {
+  const metadataHeading =
+    typeof metadata === "object" && metadata !== null
+      ? (metadata as Record<string, unknown>).heading
+      : undefined;
+
+  const candidates = [metadataHeading, heading];
+
+  return candidates.find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+};
+
 export type RetrievedWorkspaceChunk = {
   id: string;
   content: string;
@@ -62,7 +75,8 @@ export const getWorkspaceSourceContext = async ({
   chunks: RetrievedWorkspaceChunk[];
   hasCouncilDcp: boolean;
   totalChunks: number;
-  perSourceTotals: Record<WorkspaceSourceType, number>;
+  sourceTotalsByType: Record<WorkspaceSourceType, number>;
+  sampleCouncilDcpHeadings: string[];
 }> => {
   const canonicalLgaCode = resolveCouncilLgaCode(lgaCode);
 
@@ -89,7 +103,7 @@ export const getWorkspaceSourceContext = async ({
     take: 100,
   });
 
-  const perSourceTotals = chunks.reduce(
+  const sourceTotalsByType = chunks.reduce(
     (acc, chunk) => {
       acc[chunk.sourceType] = (acc[chunk.sourceType] ?? 0) + 1;
       return acc;
@@ -101,7 +115,18 @@ export const getWorkspaceSourceContext = async ({
     } as Record<WorkspaceSourceType, number>,
   );
 
-  const hasCouncilDcp = perSourceTotals[WorkspaceSourceType.council_dcp] > 0;
+  const councilDcpChunks = chunks.filter(
+    (chunk) => chunk.sourceType === WorkspaceSourceType.council_dcp,
+  );
+  const hasCouncilDcp = councilDcpChunks.length > 0;
+
+  const sampleCouncilDcpHeadings = Array.from(
+    new Set(
+      councilDcpChunks
+        .map((chunk) => extractHeading(chunk.heading, chunk.metadata))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ).slice(0, 4);
 
   const isProd =
     process.env.VERCEL_ENV === "production" ||
@@ -111,8 +136,9 @@ export const getWorkspaceSourceContext = async ({
     console.log("[workspace-source-context]", {
       projectId,
       canonicalLgaCode,
-      totals: perSourceTotals,
+      totals: sourceTotalsByType,
       hasCouncilDcp,
+      sampleCouncilDcpHeadings,
     });
   }
 
@@ -122,7 +148,8 @@ export const getWorkspaceSourceContext = async ({
       chunks: [],
       hasCouncilDcp,
       totalChunks: 0,
-      perSourceTotals,
+      sourceTotalsByType,
+      sampleCouncilDcpHeadings,
     };
   }
 
@@ -147,7 +174,8 @@ export const getWorkspaceSourceContext = async ({
     chunks: scored,
     hasCouncilDcp,
     totalChunks: chunks.length,
-    perSourceTotals,
+    sourceTotalsByType,
+    sampleCouncilDcpHeadings,
   };
 };
 
