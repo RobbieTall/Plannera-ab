@@ -31,6 +31,7 @@ export type RetrievedWorkspaceChunk = {
   id: string;
   heading?: string | null;
   content: string;
+  lgaCode: string | null;
   sourceType: WorkspaceSourceChunk["sourceType"];
   score: number;
 };
@@ -106,6 +107,7 @@ export const getWorkspaceSourceContext = async ({
       id: chunk.id,
       heading: chunk.heading,
       content: formatChunkPreview(chunk.content),
+      lgaCode: chunk.lgaCode,
       sourceType: chunk.sourceType,
       score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
     }))

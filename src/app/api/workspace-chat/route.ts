@@ -27,6 +27,7 @@ import {
 import {
   buildWorkspaceSourcePrompt,
   getWorkspaceSourceContext,
+  type WorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
@@ -43,6 +44,8 @@ const requestSchema = z.object({
   message: z.string().min(1),
   projectId: z.string().optional(),
   projectName: z.string().optional(),
+  debugSources: z.boolean().optional(),
+  token: z.string().optional(),
 });
 
 type WorkspaceMemory = {
@@ -177,11 +180,23 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
 
 export async function POST(request: Request) {
   try {
+    const url = new URL(request.url);
     const body = await request.json();
-    const { message: userMessage, projectId, projectName } = requestSchema.parse(body);
+    const parsed = requestSchema.parse(body);
+    const { message: userMessage, projectId, projectName } = parsed;
+    const debugSources =
+      parsed.debugSources === true ||
+      ["1", "true"].includes(url.searchParams.get("debugSources") ?? "");
+
+    if (debugSources && process.env.ADMIN_ACCESS_TOKEN) {
+      const token = parsed.token ?? url.searchParams.get("token");
+      if (token !== process.env.ADMIN_ACCESS_TOKEN) {
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    if (!apiKey && !debugSources) {
       throw new Error("Missing OPENAI_API_KEY environment variable");
     }
 
@@ -319,9 +334,10 @@ export async function POST(request: Request) {
 
     let sourceContextPrompt: string | null = null;
     let councilDcpPrompt: string | null = null;
+    let sourceContext: WorkspaceSourceContext | null = null;
     const lgaCode = siteContextSummary?.lgaCode ?? null;
     try {
-      const sourceContext = await getWorkspaceSourceContext({
+      sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
         lgaCode,
         lgaName: siteContextSummary?.lgaName ?? null,
@@ -390,6 +406,39 @@ When the user asks about local controls, rely first on the council Development C
 
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
+
+    if (debugSources) {
+      const systemPrompt = messages
+        .filter((message) => message.role === "system")
+        .map((message) => (typeof message.content === "string" ? message.content : ""))
+        .join("\n\n");
+
+      return NextResponse.json({
+        debug: true,
+        workspaceId: projectId ?? null,
+        site: {
+          address: siteContextSummary?.formattedAddress ?? null,
+          canonicalLgaCode: sourceContext?.canonicalLgaCode ?? null,
+        },
+        dcp: {
+          hasCouncilDcp: sourceContext?.hasCouncilDcp ?? false,
+          perSourceTotals: sourceContext?.perSourceTotals ?? {},
+          sampleHeadings: sourceContext?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
+        },
+        usedChunks:
+          sourceContext?.chunks.map((chunk) => ({
+            id: chunk.id,
+            lgaCode: chunk.lgaCode,
+            sourceType: chunk.sourceType,
+            heading: chunk.heading,
+            contentPreview: chunk.content.slice(0, 200),
+          })) ?? [],
+        promptPreview: {
+          system: systemPrompt.slice(0, 2000),
+          messagesCount: messages.length,
+        },
+      });
+    }
 
     if (!apiKey) {
       throw new Error("Missing OPENAI_API_KEY environment variable");
