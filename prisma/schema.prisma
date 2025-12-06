@@ -322,6 +322,7 @@ model WorkspaceUpload {
 enum WorkspaceSourceType {
   upload
   council_dcp
+  dcp // legacy value retained for compatibility
 }
 
 model WorkspaceSourceChunk {
