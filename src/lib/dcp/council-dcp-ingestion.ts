@@ -3,6 +3,8 @@ import { basename } from "node:path";
 
 import pdfParse from "pdf-parse";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { indexWorkspaceSource, storeExternalFileAsUpload } from "@/lib/source-indexing";
 
@@ -119,7 +121,7 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     text: extractedText,
     lgaCode,
     councilDocumentId: councilDocument.id,
-    sourceType: "dcp",
+    sourceType: Prisma.WorkspaceSourceType.dcp,
     metadata: { heading: link.name, sourceUrl: link.url },
   });
 
