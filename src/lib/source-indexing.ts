@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { WorkspaceSourceChunk } from "@prisma/client";
+import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads } from "@/lib/storage";
@@ -90,7 +90,7 @@ export const indexWorkspaceSource = async ({
           content: chunk,
           embedding: embeddings[index],
           sourceType,
-          metadata: metadata ? metadata : undefined,
+          metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
         },
       }),
     ),
