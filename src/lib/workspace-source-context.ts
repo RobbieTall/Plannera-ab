@@ -29,9 +29,11 @@ const formatChunkPreview = (content: string) => {
 
 export type RetrievedWorkspaceChunk = {
   id: string;
-  heading?: string | null;
   content: string;
   sourceType: WorkspaceSourceType;
+  lgaCode: string | null;
+  heading: string | null;
+  metadata: unknown;
   score: number;
 };
 
@@ -43,7 +45,7 @@ const INCLUDED_SOURCE_TYPES: WorkspaceSourceType[] = [
   WorkspaceSourceType.dcp,
 ];
 
-export const findRelevantWorkspaceChunks = async ({
+export const getWorkspaceSourceContext = async ({
   projectId,
   lgaCode,
   query,
@@ -55,7 +57,11 @@ export const findRelevantWorkspaceChunks = async ({
   query: string;
   sourceTypes?: WorkspaceSourceType[];
   limit?: number;
-}): Promise<RetrievedWorkspaceChunk[]> => {
+}): Promise<{
+  chunks: RetrievedWorkspaceChunk[];
+  hasCouncilDcpChunks: boolean;
+  sourceTotals: { total: number; byType: Record<WorkspaceSourceType, number> };
+}> => {
   const canonicalLgaCode = resolveCouncilLgaCode(lgaCode);
 
   const desiredSourceTypes = sourceTypes?.length ? sourceTypes : INCLUDED_SOURCE_TYPES;
@@ -81,7 +87,22 @@ export const findRelevantWorkspaceChunks = async ({
     take: 100,
   });
 
-  if (!chunks.length) return [];
+  const hasCouncilDcpChunks = chunks.some(
+    (chunk) => chunk.sourceType === WorkspaceSourceType.council_dcp,
+  );
+
+  const sourceTotals = chunks.reduce(
+    (acc, chunk) => {
+      acc.total += 1;
+      acc.byType[chunk.sourceType] = (acc.byType[chunk.sourceType] ?? 0) + 1;
+      return acc;
+    },
+    { total: 0, byType: {} as Record<WorkspaceSourceType, number> },
+  );
+
+  if (!chunks.length) {
+    return { chunks: [], hasCouncilDcpChunks, sourceTotals };
+  }
 
   const queryEmbedding = await embedQuery(query);
 
@@ -89,6 +110,8 @@ export const findRelevantWorkspaceChunks = async ({
     .map((chunk) => ({
       id: chunk.id,
       heading: chunk.heading,
+      lgaCode: chunk.lgaCode,
+      metadata: chunk.metadata,
       content: formatChunkPreview(chunk.content),
       sourceType: chunk.sourceType,
       score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
@@ -97,7 +120,7 @@ export const findRelevantWorkspaceChunks = async ({
     .slice(0, limit)
     .filter((chunk) => chunk.score > 0);
 
-  return scored;
+  return { chunks: scored, hasCouncilDcpChunks, sourceTotals };
 };
 
 export const summarizeBySourceType = (chunks: RetrievedWorkspaceChunk[]) =>

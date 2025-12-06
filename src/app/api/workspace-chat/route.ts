@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
+import { WorkspaceSourceType } from "@prisma/client";
 
 import { searchClauses } from "@/lib/legislation";
 import {
@@ -24,8 +25,7 @@ import {
 } from "@/lib/lep/lep-context";
 import {
   buildWorkspaceSourcePrompt,
-  findRelevantWorkspaceChunks,
-  summarizeBySourceType,
+  getWorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 import { resolveCouncilLgaCode } from "@/lib/dcp/council-lga-codes";
 
@@ -318,25 +318,43 @@ export async function POST(request: Request) {
     });
 
     let sourceContextPrompt: string | null = null;
-    const lgaCode = resolveCouncilLgaCode(siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? null);
-    const sourceTypes = lgaCode ? (["upload", "council_dcp"] as const) : (["upload"] as const);
+    const canonicalLgaCode = resolveCouncilLgaCode(
+      siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? null,
+    );
+    const sourceTypes = canonicalLgaCode
+      ? [WorkspaceSourceType.upload, WorkspaceSourceType.council_dcp]
+      : [WorkspaceSourceType.upload];
     try {
-      const relevantChunks = await findRelevantWorkspaceChunks({
-        projectId: projectId ?? null,
-        lgaCode,
-        query: userMessage,
-        sourceTypes: [...sourceTypes],
-      });
+      const { chunks: relevantChunks, hasCouncilDcpChunks, sourceTotals } =
+        await getWorkspaceSourceContext({
+          projectId: projectId ?? null,
+          lgaCode: canonicalLgaCode,
+          query: userMessage,
+          sourceTypes,
+        });
 
       console.log("[workspace-chat] workspace source retrieval", {
         projectId,
-        lgaCode,
-        sourceTypes,
-        chunkCount: relevantChunks.length,
-        bySourceType: summarizeBySourceType(relevantChunks),
+        canonicalLgaCode,
+        totals: sourceTotals,
+        hasCouncilDcpChunks,
       });
 
-      sourceContextPrompt = buildWorkspaceSourcePrompt(relevantChunks);
+      let availabilityNote = "";
+      if (!hasCouncilDcpChunks && canonicalLgaCode) {
+        availabilityNote =
+          "You do not currently have access to the council Development Control Plan (DCP) for this site, so answer using LEP and general NSW planning principles. It is okay to advise the user to check the DCP directly.\n\n";
+      }
+
+      let dcpContextNote = "";
+      if (hasCouncilDcpChunks) {
+        dcpContextNote =
+          "You have access to council Development Control Plan (DCP) content for this site's LGA (e.g. Byron Shire DCP 2014). When answering questions about detailed design controls such as setbacks, heights, parking, landscaping, and built form, treat the DCP as an authoritative source. Do not tell the user you lack access to the DCP when these chunks are provided.\n\n";
+      }
+
+      const chunkPrompt = buildWorkspaceSourcePrompt(relevantChunks);
+      const promptParts = [dcpContextNote, availabilityNote, chunkPrompt ?? ""].filter(Boolean);
+      sourceContextPrompt = promptParts.length ? promptParts.join("") : null;
     } catch (sourceError) {
       console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
     }
