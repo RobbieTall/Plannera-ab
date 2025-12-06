@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-import type { Prisma } from "@prisma/client";
+import type { WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
@@ -30,7 +30,7 @@ export type RetrievedWorkspaceChunk = {
   id: string;
   heading?: string | null;
   content: string;
-  sourceType: Prisma.WorkspaceSourceType;
+  sourceType: WorkspaceSourceChunk["sourceType"];
   score: number;
 };
 

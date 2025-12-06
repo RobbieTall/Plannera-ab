@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Prisma } from "@prisma/client";
+import type { WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads } from "@/lib/storage";
@@ -65,7 +65,7 @@ export const indexWorkspaceSource = async ({
   uploadId?: string | null;
   councilDocumentId?: string | null;
   lgaCode?: string | null;
-  sourceType: Prisma.WorkspaceSourceType;
+  sourceType: WorkspaceSourceChunk["sourceType"];
 }) => {
   const chunks = chunkText(text);
   if (!chunks.length) return { created: 0 } as const;
