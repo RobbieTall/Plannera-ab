@@ -89,6 +89,7 @@ model Project {
   collaborators    ProjectMember[]
   artefacts        Artefact[]
   workspaceUploads WorkspaceUpload[]
+  workspaceSourceChunks WorkspaceSourceChunk[]
   siteContext      SiteContext?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -312,8 +313,58 @@ model WorkspaceUpload {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  sourceChunks WorkspaceSourceChunk[]
+
   @@index([projectId])
   @@index([userId])
+}
+
+enum WorkspaceSourceType {
+  upload
+  council_dcp
+  dcp // legacy value retained for compatibility
+}
+
+model WorkspaceSourceChunk {
+  id                 String               @id @default(cuid())
+  projectId          String?
+  uploadId           String?
+  councilDocumentId  String?
+  lgaCode            String?
+  heading            String?
+  content            String
+  embedding          Json?
+  sourceType         WorkspaceSourceType  @default(upload)
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  project            Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  upload             WorkspaceUpload?     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  councilDocument    CouncilDocument?     @relation(fields: [councilDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([lgaCode])
+}
+
+model CouncilDocument {
+  id            String                @id @default(cuid())
+  lgaCode       String
+  title         String
+  sourceUrl     String
+  fileName      String
+  fileExtension String?
+  mimeType      String?
+  fileSize      Int?
+  storagePath   String
+  publicUrl     String
+  extractedText String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  chunks        WorkspaceSourceChunk[]
+
+  @@index([lgaCode])
+  @@unique([lgaCode])
 }
 
 model DevelopmentControlPlanLink {
