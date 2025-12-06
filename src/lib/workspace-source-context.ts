@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
+import { Prisma, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
@@ -31,11 +31,17 @@ export type RetrievedWorkspaceChunk = {
   id: string;
   heading?: string | null;
   content: string;
-  sourceType: WorkspaceSourceChunk["sourceType"];
+  sourceType: WorkspaceSourceType;
   score: number;
 };
 
 type WorkspaceSourceChunkWhere = Prisma.WorkspaceSourceChunkWhereInput;
+
+const INCLUDED_SOURCE_TYPES: WorkspaceSourceType[] = [
+  WorkspaceSourceType.upload,
+  WorkspaceSourceType.council_dcp,
+  WorkspaceSourceType.dcp,
+];
 
 export const findRelevantWorkspaceChunks = async ({
   projectId,
@@ -47,16 +53,17 @@ export const findRelevantWorkspaceChunks = async ({
   projectId?: string | null;
   lgaCode?: string | null;
   query: string;
-  sourceTypes?: WorkspaceSourceChunk["sourceType"][];
+  sourceTypes?: WorkspaceSourceType[];
   limit?: number;
 }): Promise<RetrievedWorkspaceChunk[]> => {
-  const clauses: WorkspaceSourceChunkWhere[] = [];
-
   const canonicalLgaCode = resolveCouncilLgaCode(lgaCode);
 
-  const sourceTypeFilter = sourceTypes?.length
-    ? { sourceType: { in: sourceTypes } }
-    : { sourceType: { in: ["upload", "council_dcp"] } };
+  const desiredSourceTypes = sourceTypes?.length ? sourceTypes : INCLUDED_SOURCE_TYPES;
+  const sourceTypeFilter: WorkspaceSourceChunkWhere = {
+    sourceType: { in: desiredSourceTypes },
+  };
+
+  const clauses: WorkspaceSourceChunkWhere[] = [];
 
   if (projectId) {
     clauses.push({ AND: [{ projectId }, sourceTypeFilter] });
@@ -66,9 +73,8 @@ export const findRelevantWorkspaceChunks = async ({
     clauses.push({ AND: [{ lgaCode: canonicalLgaCode }, sourceTypeFilter] });
   }
 
-  if (!clauses.length) return [];
-
-  const where: WorkspaceSourceChunkWhere = clauses.length === 1 ? clauses[0] : { OR: clauses };
+  const where: WorkspaceSourceChunkWhere =
+    clauses.length === 0 ? sourceTypeFilter : { OR: clauses };
 
   const chunks = await prisma.workspaceSourceChunk.findMany({
     where,

@@ -3,8 +3,10 @@ import { basename } from "node:path";
 
 import pdfParse from "pdf-parse";
 
+import { WorkspaceSourceType } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
-import { indexWorkspaceSource, storeExternalFileAsUpload } from "@/lib/source-indexing";
+import { indexWorkspaceSourceChunks, storeExternalFileAsUpload } from "@/lib/source-indexing";
 
 import { resolveCouncilLgaCode } from "./council-lga-codes";
 
@@ -58,11 +60,11 @@ export const ingestCouncilDcp = async (rawLgaCode: string) => {
   }
 
   const existingChunkCount = await prisma.workspaceSourceChunk.count({
-    where: { lgaCode, sourceType: "council_dcp" },
+    where: { lgaCode, sourceType: WorkspaceSourceType.council_dcp },
   });
   console.log("[dcp-ingest] current council chunk count", {
     lgaCode,
-    sourceType: "council_dcp",
+    sourceType: WorkspaceSourceType.council_dcp,
     count: existingChunkCount,
   });
 
@@ -134,20 +136,20 @@ export const ingestCouncilDcp = async (rawLgaCode: string) => {
 
   await prisma.workspaceSourceChunk.deleteMany({ where: { councilDocumentId: councilDocument.id } });
 
-  const { created } = await indexWorkspaceSource({
+  const { created } = await indexWorkspaceSourceChunks({
     text: extractedText,
     lgaCode,
     councilDocumentId: councilDocument.id,
-    sourceType: "council_dcp",
+    sourceType: WorkspaceSourceType.council_dcp,
     metadata: { heading: link.name, sourceUrl: link.url },
   });
 
   const updatedChunkCount = await prisma.workspaceSourceChunk.count({
-    where: { lgaCode, sourceType: "council_dcp" },
+    where: { lgaCode, sourceType: WorkspaceSourceType.council_dcp },
   });
   console.log("[dcp-ingest] council DCP ingestion complete", {
     lgaCode,
-    sourceType: "council_dcp",
+    sourceType: WorkspaceSourceType.council_dcp,
     created,
     totalChunks: updatedChunkCount,
     councilDocumentId: councilDocument.id,

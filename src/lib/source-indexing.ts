@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
+import { Prisma, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads } from "@/lib/storage";
@@ -53,51 +53,45 @@ export const cosineSimilarity = (a: number[], b: number[]) => {
 type WorkspaceSourceMetadata = {
   heading?: string | null;
   sourceUrl?: string | null;
-  [key: string]: unknown;
 };
 
-export const indexWorkspaceSource = async ({
-  text,
-  metadata,
+export async function indexWorkspaceSourceChunks({
   projectId,
-  uploadId,
-  councilDocumentId,
   lgaCode,
+  councilDocumentId,
+  text,
   sourceType,
+  metadata,
 }: {
-  text: string;
-  metadata?: WorkspaceSourceMetadata;
-  projectId?: string | null;
-  uploadId?: string | null;
+  projectId?: string;
+  lgaCode?: string;
   councilDocumentId?: string | null;
-  lgaCode?: string | null;
-  sourceType: WorkspaceSourceChunk["sourceType"];
-}) => {
+  text: string;
+  sourceType: WorkspaceSourceType;
+  metadata?: WorkspaceSourceMetadata;
+}) {
   const chunks = chunkText(text);
   if (!chunks.length) return { created: 0 } as const;
 
   const embeddings = await embedChunks(chunks);
 
-  await prisma.$transaction(
-    chunks.map((chunk, index) =>
-      prisma.workspaceSourceChunk.create({
-        data: {
-          projectId: projectId ?? undefined,
-          uploadId: uploadId ?? undefined,
-          councilDocumentId: councilDocumentId ?? undefined,
-          lgaCode: lgaCode ?? undefined,
-          heading: metadata?.heading ?? null,
-          content: chunk,
-          embedding: embeddings[index],
-          sourceType,
-          metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
-        },
-      }),
-    ),
-  );
+  const created = await prisma.workspaceSourceChunk.createMany({
+    data: chunks.map((chunk, index) => ({
+      projectId: projectId ?? null,
+      lgaCode: lgaCode ?? null,
+      councilDocumentId: councilDocumentId ?? null,
+      content: chunk,
+      embedding: embeddings[index],
+      sourceType,
+      heading: metadata?.heading ?? null,
+      metadata: metadata
+        ? (metadata as unknown as Prisma.InputJsonValue)
+        : undefined,
+    })),
+  });
 
-  return { created: chunks.length } as const;
-};
+  return { created: created.count } as const;
+}
 
 export const storeExternalFileAsUpload = async ({
   file,
