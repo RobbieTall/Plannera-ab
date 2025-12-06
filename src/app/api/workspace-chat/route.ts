@@ -24,7 +24,7 @@ import {
 } from "@/lib/lep/lep-context";
 import {
   buildWorkspaceSourcePrompt,
-  findRelevantWorkspaceChunks,
+  getWorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
@@ -316,21 +316,32 @@ export async function POST(request: Request) {
     });
 
     let sourceContextPrompt: string | null = null;
+    let councilDcpPrompt: string | null = null;
     const lgaCode = siteContextSummary?.lgaCode ?? null;
     try {
-      const relevantChunks = await findRelevantWorkspaceChunks({
+      const sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
         lgaCode,
         query: userMessage,
       });
 
-      console.log("[workspace-chat] workspace source retrieval", {
-        projectId,
-        lgaCode,
-        chunkCount: relevantChunks.length,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.log(
+          "[workspace-chat]",
+          `canonicalLga=${sourceContext.canonicalLgaCode ?? "none"} councilDcpAvailable=${sourceContext.councilDcp.available} councilDcpChunks=${sourceContext.councilDcp.totalChunks}`,
+        );
+      }
 
-      sourceContextPrompt = buildWorkspaceSourcePrompt(relevantChunks);
+      const lgaLabel = siteContextSummary?.lgaName ?? sourceContext.canonicalLgaCode;
+      if (sourceContext.councilDcp.available && sourceContext.canonicalLgaCode) {
+        councilDcpPrompt =
+          `You have access to ${lgaLabel ?? "the relevant LGA"} Development Control Plan (DCP) content for LGA code ${sourceContext.canonicalLgaCode}. Use these DCP sections as the primary source when answering questions about detailed design controls (for example setbacks, parking, landscaping, and built form). Where relevant, note that the guidance comes from the council DCP.`;
+      } else if (lgaLabel) {
+        councilDcpPrompt =
+          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
+      }
+
+      sourceContextPrompt = buildWorkspaceSourcePrompt(sourceContext.chunks);
     } catch (sourceError) {
       console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
     }
@@ -359,6 +370,10 @@ export async function POST(request: Request) {
 
     if (legislationContext) {
       messages.push({ role: "system", content: `Site context:\n${legislationContext}` });
+    }
+
+    if (councilDcpPrompt) {
+      messages.push({ role: "system", content: councilDcpPrompt });
     }
 
     if (sourceContextPrompt) {
