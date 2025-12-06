@@ -9,6 +9,13 @@ import { prisma } from "@/lib/prisma";
 import { indexWorkspaceSource, storeExternalFileAsUpload } from "@/lib/source-indexing";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 
+const DEFAULT_DCP_LINKS: Record<string, { name: string; url: string }> = {
+  BYRON: {
+    name: "Byron Shire Development Control Plan 2014",
+    url: "/dcp/byron-shire-dcp-2014.html",
+  },
+};
+
 const toAbsoluteUrl = (url: string) => {
   if (url.startsWith("http")) return url;
   const baseUrl =
@@ -50,7 +57,9 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     throw new Error(`Invalid LGA code: ${lgaCode}`);
   }
 
-  const link = await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode: canonicalLgaCode } });
+  const link =
+    (await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode: canonicalLgaCode } })) ||
+    DEFAULT_DCP_LINKS[canonicalLgaCode];
   if (!link) {
     throw new Error(`No DCP link configured for LGA ${canonicalLgaCode}`);
   }

@@ -7,12 +7,12 @@ async function main() {
     where: { lgaCode: "BYRON" },
     update: {
       name: "Byron Shire Development Control Plan 2014",
-      url: "https://www.byron.nsw.gov.au/Services/Building-Development/Development-Control-Plans/Byron-Shire-Development-Control-Plan-2014",
+      url: "/dcp/byron-shire-dcp-2014.html",
     },
     create: {
       lgaCode: "BYRON",
       name: "Byron Shire Development Control Plan 2014",
-      url: "https://www.byron.nsw.gov.au/Services/Building-Development/Development-Control-Plans/Byron-Shire-Development-Control-Plan-2014",
+      url: "/dcp/byron-shire-dcp-2014.html",
     },
   });
 }
