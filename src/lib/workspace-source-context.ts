@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 
-import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
+import { type Prisma, WorkspaceSourceChunk, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
@@ -30,41 +31,74 @@ export type RetrievedWorkspaceChunk = {
   id: string;
   heading?: string | null;
   content: string;
+  lgaCode: string | null;
   sourceType: WorkspaceSourceChunk["sourceType"];
   score: number;
 };
 
 type WorkspaceSourceChunkWhere = Prisma.WorkspaceSourceChunkWhereInput;
 
-export const findRelevantWorkspaceChunks = async ({
+const COUNCIL_DCP_TYPES: WorkspaceSourceType[] = [WorkspaceSourceType.council_dcp, WorkspaceSourceType.dcp];
+
+export type WorkspaceSourceContext = {
+  canonicalLgaCode: string | null;
+  hasCouncilDcp: boolean;
+  councilDcpSampleHeadings: string[];
+  perSourceTotals: Record<string, number>;
+  chunks: RetrievedWorkspaceChunk[];
+};
+
+export const getWorkspaceSourceContext = async ({
   projectId,
   lgaCode,
+  lgaName,
   query,
   limit = 8,
 }: {
   projectId?: string | null;
   lgaCode?: string | null;
+  lgaName?: string | null;
   query: string;
   limit?: number;
-}): Promise<RetrievedWorkspaceChunk[]> => {
+}): Promise<WorkspaceSourceContext> => {
+  const canonicalLgaCode = normalizeCouncilLgaCode(lgaCode ?? lgaName);
   const filters: WorkspaceSourceChunkWhere[] = [];
+
   if (projectId) {
-    filters.push({ projectId });
+    filters.push({ projectId, sourceType: WorkspaceSourceType.upload });
   }
-  if (lgaCode) {
-    filters.push({ lgaCode });
+  if (canonicalLgaCode) {
+    filters.push({ lgaCode: canonicalLgaCode, sourceType: { in: COUNCIL_DCP_TYPES } });
   }
 
-  if (!filters.length) return [];
-
-  const where: WorkspaceSourceChunkWhere = { OR: filters };
+  if (!filters.length) {
+    return {
+      canonicalLgaCode,
+      hasCouncilDcp: false,
+      councilDcpSampleHeadings: [],
+      perSourceTotals: {},
+      chunks: [],
+    };
+  }
 
   const chunks = await prisma.workspaceSourceChunk.findMany({
-    where,
-    take: 100,
+    where: { OR: filters },
+    take: 200,
   });
 
-  if (!chunks.length) return [];
+  if (!chunks.length) {
+    return {
+      canonicalLgaCode,
+      hasCouncilDcp: false,
+      councilDcpSampleHeadings: [],
+      perSourceTotals: {},
+      chunks: [],
+    };
+  }
+
+  const councilChunks = chunks.filter(
+    (chunk) => canonicalLgaCode && chunk.lgaCode === canonicalLgaCode && COUNCIL_DCP_TYPES.includes(chunk.sourceType),
+  );
 
   const queryEmbedding = await embedQuery(query);
 
@@ -73,14 +107,53 @@ export const findRelevantWorkspaceChunks = async ({
       id: chunk.id,
       heading: chunk.heading,
       content: formatChunkPreview(chunk.content),
+      lgaCode: chunk.lgaCode,
       sourceType: chunk.sourceType,
       score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .filter((chunk) => chunk.score > 0);
+    .slice(0, limit);
 
-  return scored;
+  const perSourceTotals = chunks.reduce<Record<string, number>>((acc, chunk) => {
+    acc[chunk.sourceType] = (acc[chunk.sourceType] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const sampleHeadings = councilChunks
+    .map((chunk) => chunk.heading)
+    .filter((heading): heading is string => Boolean(heading))
+    .slice(0, 5);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      "[workspace-source-context]",
+      "DCP debug",
+      {
+        canonicalLgaCode,
+        hasCouncilDcp: councilChunks.length > 0,
+        perSourceTotals,
+        councilDcpSampleHeadings: sampleHeadings.slice(0, 5),
+      },
+    );
+  }
+
+  return {
+    canonicalLgaCode,
+    hasCouncilDcp: councilChunks.length > 0,
+    councilDcpSampleHeadings: sampleHeadings,
+    perSourceTotals,
+    chunks: scored,
+  };
+};
+
+export const findRelevantWorkspaceChunks = async (params: {
+  projectId?: string | null;
+  lgaCode?: string | null;
+  query: string;
+  limit?: number;
+}): Promise<RetrievedWorkspaceChunk[]> => {
+  const context = await getWorkspaceSourceContext(params);
+  return context.chunks;
 };
 
 export const buildWorkspaceSourcePrompt = (chunks: RetrievedWorkspaceChunk[]) => {

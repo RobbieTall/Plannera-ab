@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
+import { WorkspaceSourceType } from "@prisma/client";
+
 import { searchClauses } from "@/lib/legislation";
 import {
   getSiteContextForProject,
@@ -24,7 +26,8 @@ import {
 } from "@/lib/lep/lep-context";
 import {
   buildWorkspaceSourcePrompt,
-  findRelevantWorkspaceChunks,
+  getWorkspaceSourceContext,
+  type WorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
@@ -41,6 +44,8 @@ const requestSchema = z.object({
   message: z.string().min(1),
   projectId: z.string().optional(),
   projectName: z.string().optional(),
+  debugSources: z.boolean().optional(),
+  token: z.string().optional(),
 });
 
 type WorkspaceMemory = {
@@ -175,11 +180,23 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
 
 export async function POST(request: Request) {
   try {
+    const url = new URL(request.url);
     const body = await request.json();
-    const { message: userMessage, projectId, projectName } = requestSchema.parse(body);
+    const parsed = requestSchema.parse(body);
+    const { message: userMessage, projectId, projectName } = parsed;
+    const debugSources =
+      parsed.debugSources === true ||
+      ["1", "true"].includes(url.searchParams.get("debugSources") ?? "");
+
+    if (debugSources && process.env.ADMIN_ACCESS_TOKEN) {
+      const token = parsed.token ?? url.searchParams.get("token");
+      if (token !== process.env.ADMIN_ACCESS_TOKEN) {
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    if (!apiKey && !debugSources) {
       throw new Error("Missing OPENAI_API_KEY environment variable");
     }
 
@@ -316,21 +333,39 @@ export async function POST(request: Request) {
     });
 
     let sourceContextPrompt: string | null = null;
+    let councilDcpPrompt: string | null = null;
+    let sourceContext: WorkspaceSourceContext | null = null;
     const lgaCode = siteContextSummary?.lgaCode ?? null;
     try {
-      const relevantChunks = await findRelevantWorkspaceChunks({
+      sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
         lgaCode,
+        lgaName: siteContextSummary?.lgaName ?? null,
         query: userMessage,
       });
 
-      console.log("[workspace-chat] workspace source retrieval", {
-        projectId,
-        lgaCode,
-        chunkCount: relevantChunks.length,
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[workspace-chat] DCP prompt debug", {
+          canonicalLgaCode: sourceContext.canonicalLgaCode,
+          hasCouncilDcp: sourceContext.hasCouncilDcp,
+          councilDcpChunkCount: sourceContext.perSourceTotals[WorkspaceSourceType.council_dcp] ?? 0,
+          councilDcpSampleHeadings: sourceContext.councilDcpSampleHeadings.slice(0, 5),
+        });
+      }
 
-      sourceContextPrompt = buildWorkspaceSourcePrompt(relevantChunks);
+      const lgaLabel = siteContextSummary?.lgaName ?? sourceContext.canonicalLgaCode;
+      if (sourceContext.hasCouncilDcp && sourceContext.canonicalLgaCode) {
+        const headingLines = sourceContext.councilDcpSampleHeadings.map((heading) => `- ${heading}`).join("\n");
+        councilDcpPrompt = `You have access to ${lgaLabel ?? "the relevant LGA"} Development Control Plan (DCP) content for LGA code ${sourceContext.canonicalLgaCode}.
+Use these council DCP sections as the primary source when answering questions about detailed design controls (for example setbacks, parking, landscaping, and built form):
+${headingLines}
+When the user asks about local controls, rely first on the council Development Control Plan content provided and state that your answer is based on that DCP. You may add NSW guidance for additional context.`;
+      } else if (lgaLabel) {
+        councilDcpPrompt =
+          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
+      }
+
+      sourceContextPrompt = buildWorkspaceSourcePrompt(sourceContext.chunks);
     } catch (sourceError) {
       console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
     }
@@ -361,12 +396,49 @@ export async function POST(request: Request) {
       messages.push({ role: "system", content: `Site context:\n${legislationContext}` });
     }
 
+    if (councilDcpPrompt) {
+      messages.push({ role: "system", content: councilDcpPrompt });
+    }
+
     if (sourceContextPrompt) {
       messages.push({ role: "system", content: sourceContextPrompt });
     }
 
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
+
+    if (debugSources) {
+      const systemPrompt = messages
+        .filter((message) => message.role === "system")
+        .map((message) => (typeof message.content === "string" ? message.content : ""))
+        .join("\n\n");
+
+      return NextResponse.json({
+        debug: true,
+        workspaceId: projectId ?? null,
+        site: {
+          address: siteContextSummary?.formattedAddress ?? null,
+          canonicalLgaCode: sourceContext?.canonicalLgaCode ?? null,
+        },
+        dcp: {
+          hasCouncilDcp: sourceContext?.hasCouncilDcp ?? false,
+          perSourceTotals: sourceContext?.perSourceTotals ?? {},
+          sampleHeadings: sourceContext?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
+        },
+        usedChunks:
+          sourceContext?.chunks.map((chunk) => ({
+            id: chunk.id,
+            lgaCode: chunk.lgaCode,
+            sourceType: chunk.sourceType,
+            heading: chunk.heading,
+            contentPreview: chunk.content.slice(0, 200),
+          })) ?? [],
+        promptPreview: {
+          system: systemPrompt.slice(0, 2000),
+          messagesCount: messages.length,
+        },
+      });
+    }
 
     if (!apiKey) {
       throw new Error("Missing OPENAI_API_KEY environment variable");
