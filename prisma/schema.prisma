@@ -321,7 +321,7 @@ model WorkspaceUpload {
 
 enum WorkspaceSourceType {
   upload
-  dcp
+  council_dcp
 }
 
 model WorkspaceSourceChunk {

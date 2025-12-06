@@ -121,7 +121,7 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     text: extractedText,
     lgaCode,
     councilDocumentId: councilDocument.id,
-    sourceType: Prisma.WorkspaceSourceType.dcp,
+    sourceType: Prisma.WorkspaceSourceType.council_dcp,
     metadata: { heading: link.name, sourceUrl: link.url },
   });
 
