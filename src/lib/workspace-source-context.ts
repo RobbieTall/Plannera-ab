@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-import type { WorkspaceSourceChunk } from "@prisma/client";
+import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
@@ -34,6 +34,8 @@ export type RetrievedWorkspaceChunk = {
   score: number;
 };
 
+type WorkspaceSourceChunkWhere = Prisma.WorkspaceSourceChunkWhereInput;
+
 export const findRelevantWorkspaceChunks = async ({
   projectId,
   lgaCode,
@@ -45,7 +47,7 @@ export const findRelevantWorkspaceChunks = async ({
   query: string;
   limit?: number;
 }): Promise<RetrievedWorkspaceChunk[]> => {
-  const filters = [] as Parameters<typeof prisma.workspaceSourceChunk.findMany>[0]["where"][];
+  const filters: WorkspaceSourceChunkWhere[] = [];
   if (projectId) {
     filters.push({ projectId });
   }
@@ -55,8 +57,10 @@ export const findRelevantWorkspaceChunks = async ({
 
   if (!filters.length) return [];
 
+  const where: WorkspaceSourceChunkWhere = { OR: filters };
+
   const chunks = await prisma.workspaceSourceChunk.findMany({
-    where: { OR: filters },
+    where,
     take: 100,
   });
 
