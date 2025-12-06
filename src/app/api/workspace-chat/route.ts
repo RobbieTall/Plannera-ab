@@ -325,31 +325,47 @@ export async function POST(request: Request) {
       ? [WorkspaceSourceType.upload, WorkspaceSourceType.council_dcp]
       : [WorkspaceSourceType.upload];
     try {
-      const { chunks: relevantChunks, hasCouncilDcpChunks, sourceTotals } =
-        await getWorkspaceSourceContext({
-          projectId: projectId ?? null,
-          lgaCode: canonicalLgaCode,
-          query: userMessage,
-          sourceTypes,
-        });
+      const {
+        chunks: relevantChunks,
+        hasCouncilDcp,
+        perSourceTotals,
+        totalChunks,
+        canonicalLgaCode: resolvedCanonicalLga,
+      } = await getWorkspaceSourceContext({
+        projectId: projectId ?? null,
+        lgaCode: canonicalLgaCode,
+        query: userMessage,
+        sourceTypes,
+      });
+
+      const councilDcpCount =
+        perSourceTotals[WorkspaceSourceType.council_dcp] ?? 0;
+      const uploadCount = perSourceTotals[WorkspaceSourceType.upload] ?? 0;
+      const effectiveCanonicalLga = canonicalLgaCode ?? resolvedCanonicalLga;
 
       console.log("[workspace-chat] workspace source retrieval", {
         projectId,
-        canonicalLgaCode,
-        totals: sourceTotals,
-        hasCouncilDcpChunks,
+        canonicalLgaCode: effectiveCanonicalLga,
+        totals: perSourceTotals,
+        totalChunks,
+        hasCouncilDcp,
       });
 
       let availabilityNote = "";
-      if (!hasCouncilDcpChunks && canonicalLgaCode) {
+      if (!hasCouncilDcp && effectiveCanonicalLga) {
         availabilityNote =
           "You do not currently have access to the council Development Control Plan (DCP) for this site, so answer using LEP and general NSW planning principles. It is okay to advise the user to check the DCP directly.\n\n";
       }
 
       let dcpContextNote = "";
-      if (hasCouncilDcpChunks) {
+      if (hasCouncilDcp) {
+        const dcpName =
+          effectiveCanonicalLga === "BYRON"
+            ? "Byron Shire Development Control Plan (DCP) 2014"
+            : "the council Development Control Plan (DCP) for this site's LGA";
+
         dcpContextNote =
-          "You have access to council Development Control Plan (DCP) content for this site's LGA (e.g. Byron Shire DCP 2014). When answering questions about detailed design controls such as setbacks, heights, parking, landscaping, and built form, treat the DCP as an authoritative source. Do not tell the user you lack access to the DCP when these chunks are provided.\n\n";
+          `You have access to ${dcpName} content (council_dcp chunks: ${councilDcpCount}, upload chunks: ${uploadCount}). When answering questions about detailed design controls such as setbacks, heights, parking, landscaping, and built form, treat the DCP as an authoritative source and reference it explicitly (e.g., "According to ${dcpName}, ..."). Do not tell the user you lack access to the DCP when these chunks are provided.\n\n`;
       }
 
       const chunkPrompt = buildWorkspaceSourcePrompt(relevantChunks);

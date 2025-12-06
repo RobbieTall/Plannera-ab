@@ -58,9 +58,11 @@ export const getWorkspaceSourceContext = async ({
   sourceTypes?: WorkspaceSourceType[];
   limit?: number;
 }): Promise<{
+  canonicalLgaCode: string | null;
   chunks: RetrievedWorkspaceChunk[];
-  hasCouncilDcpChunks: boolean;
-  sourceTotals: { total: number; byType: Record<WorkspaceSourceType, number> };
+  hasCouncilDcp: boolean;
+  totalChunks: number;
+  perSourceTotals: Record<WorkspaceSourceType, number>;
 }> => {
   const canonicalLgaCode = resolveCouncilLgaCode(lgaCode);
 
@@ -87,21 +89,41 @@ export const getWorkspaceSourceContext = async ({
     take: 100,
   });
 
-  const hasCouncilDcpChunks = chunks.some(
-    (chunk) => chunk.sourceType === WorkspaceSourceType.council_dcp,
-  );
-
-  const sourceTotals = chunks.reduce(
+  const perSourceTotals = chunks.reduce(
     (acc, chunk) => {
-      acc.total += 1;
-      acc.byType[chunk.sourceType] = (acc.byType[chunk.sourceType] ?? 0) + 1;
+      acc[chunk.sourceType] = (acc[chunk.sourceType] ?? 0) + 1;
       return acc;
     },
-    { total: 0, byType: {} as Record<WorkspaceSourceType, number> },
+    {
+      [WorkspaceSourceType.upload]: 0,
+      [WorkspaceSourceType.council_dcp]: 0,
+      [WorkspaceSourceType.dcp]: 0,
+    } as Record<WorkspaceSourceType, number>,
   );
 
+  const hasCouncilDcp = perSourceTotals[WorkspaceSourceType.council_dcp] > 0;
+
+  const isProd =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production";
+
+  if (!isProd) {
+    console.log("[workspace-source-context]", {
+      projectId,
+      canonicalLgaCode,
+      totals: perSourceTotals,
+      hasCouncilDcp,
+    });
+  }
+
   if (!chunks.length) {
-    return { chunks: [], hasCouncilDcpChunks, sourceTotals };
+    return {
+      canonicalLgaCode,
+      chunks: [],
+      hasCouncilDcp,
+      totalChunks: 0,
+      perSourceTotals,
+    };
   }
 
   const queryEmbedding = await embedQuery(query);
@@ -120,7 +142,13 @@ export const getWorkspaceSourceContext = async ({
     .slice(0, limit)
     .filter((chunk) => chunk.score > 0);
 
-  return { chunks: scored, hasCouncilDcpChunks, sourceTotals };
+  return {
+    canonicalLgaCode,
+    chunks: scored,
+    hasCouncilDcp,
+    totalChunks: chunks.length,
+    perSourceTotals,
+  };
 };
 
 export const summarizeBySourceType = (chunks: RetrievedWorkspaceChunk[]) =>
