@@ -50,6 +50,12 @@ export const cosineSimilarity = (a: number[], b: number[]) => {
   return dot / (normA * normB);
 };
 
+type WorkspaceSourceMetadata = {
+  heading?: string | null;
+  sourceUrl?: string | null;
+  [key: string]: unknown;
+};
+
 export const indexWorkspaceSource = async ({
   text,
   metadata,
@@ -60,7 +66,7 @@ export const indexWorkspaceSource = async ({
   sourceType,
 }: {
   text: string;
-  metadata?: Record<string, unknown>;
+  metadata?: WorkspaceSourceMetadata;
   projectId?: string | null;
   uploadId?: string | null;
   councilDocumentId?: string | null;
@@ -80,7 +86,7 @@ export const indexWorkspaceSource = async ({
           uploadId: uploadId ?? undefined,
           councilDocumentId: councilDocumentId ?? undefined,
           lgaCode: lgaCode ?? undefined,
-          heading: metadata?.heading ?? undefined,
+          heading: metadata?.heading ?? null,
           content: chunk,
           embedding: embeddings[index],
           sourceType,
