@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
+import { WorkspaceSourceType } from "@prisma/client";
+
 import { searchClauses } from "@/lib/legislation";
 import {
   getSiteContextForProject,
@@ -322,20 +324,26 @@ export async function POST(request: Request) {
       const sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
         lgaCode,
+        lgaName: siteContextSummary?.lgaName ?? null,
         query: userMessage,
       });
 
       if (process.env.NODE_ENV !== "production") {
-        console.log(
-          "[workspace-chat]",
-          `canonicalLga=${sourceContext.canonicalLgaCode ?? "none"} councilDcpAvailable=${sourceContext.councilDcp.available} councilDcpChunks=${sourceContext.councilDcp.totalChunks}`,
-        );
+        console.log("[workspace-chat] DCP prompt debug", {
+          canonicalLgaCode: sourceContext.canonicalLgaCode,
+          hasCouncilDcp: sourceContext.hasCouncilDcp,
+          councilDcpChunkCount: sourceContext.perSourceTotals[WorkspaceSourceType.council_dcp] ?? 0,
+          councilDcpSampleHeadings: sourceContext.councilDcpSampleHeadings.slice(0, 5),
+        });
       }
 
       const lgaLabel = siteContextSummary?.lgaName ?? sourceContext.canonicalLgaCode;
-      if (sourceContext.councilDcp.available && sourceContext.canonicalLgaCode) {
-        councilDcpPrompt =
-          `You have access to ${lgaLabel ?? "the relevant LGA"} Development Control Plan (DCP) content for LGA code ${sourceContext.canonicalLgaCode}. Use these DCP sections as the primary source when answering questions about detailed design controls (for example setbacks, parking, landscaping, and built form). Where relevant, note that the guidance comes from the council DCP.`;
+      if (sourceContext.hasCouncilDcp && sourceContext.canonicalLgaCode) {
+        const headingLines = sourceContext.councilDcpSampleHeadings.map((heading) => `- ${heading}`).join("\n");
+        councilDcpPrompt = `You have access to ${lgaLabel ?? "the relevant LGA"} Development Control Plan (DCP) content for LGA code ${sourceContext.canonicalLgaCode}.
+Use these council DCP sections as the primary source when answering questions about detailed design controls (for example setbacks, parking, landscaping, and built form):
+${headingLines}
+When the user asks about local controls, rely first on the council Development Control Plan content provided and state that your answer is based on that DCP. You may add NSW guidance for additional context.`;
       } else if (lgaLabel) {
         councilDcpPrompt =
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;

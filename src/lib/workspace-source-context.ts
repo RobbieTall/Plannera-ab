@@ -41,26 +41,26 @@ const COUNCIL_DCP_TYPES: WorkspaceSourceType[] = [WorkspaceSourceType.council_dc
 
 export type WorkspaceSourceContext = {
   canonicalLgaCode: string | null;
-  councilDcp: {
-    available: boolean;
-    totalChunks: number;
-    sampleHeadings: string[];
-  };
+  hasCouncilDcp: boolean;
+  councilDcpSampleHeadings: string[];
+  perSourceTotals: Record<string, number>;
   chunks: RetrievedWorkspaceChunk[];
 };
 
 export const getWorkspaceSourceContext = async ({
   projectId,
   lgaCode,
+  lgaName,
   query,
   limit = 8,
 }: {
   projectId?: string | null;
   lgaCode?: string | null;
+  lgaName?: string | null;
   query: string;
   limit?: number;
 }): Promise<WorkspaceSourceContext> => {
-  const canonicalLgaCode = normalizeCouncilLgaCode(lgaCode);
+  const canonicalLgaCode = normalizeCouncilLgaCode(lgaCode ?? lgaName);
   const filters: WorkspaceSourceChunkWhere[] = [];
 
   if (projectId) {
@@ -73,7 +73,9 @@ export const getWorkspaceSourceContext = async ({
   if (!filters.length) {
     return {
       canonicalLgaCode,
-      councilDcp: { available: false, totalChunks: 0, sampleHeadings: [] },
+      hasCouncilDcp: false,
+      councilDcpSampleHeadings: [],
+      perSourceTotals: {},
       chunks: [],
     };
   }
@@ -86,7 +88,9 @@ export const getWorkspaceSourceContext = async ({
   if (!chunks.length) {
     return {
       canonicalLgaCode,
-      councilDcp: { available: false, totalChunks: 0, sampleHeadings: [] },
+      hasCouncilDcp: false,
+      councilDcpSampleHeadings: [],
+      perSourceTotals: {},
       chunks: [],
     };
   }
@@ -106,8 +110,12 @@ export const getWorkspaceSourceContext = async ({
       score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .filter((chunk) => chunk.score > 0);
+    .slice(0, limit);
+
+  const perSourceTotals = chunks.reduce<Record<string, number>>((acc, chunk) => {
+    acc[chunk.sourceType] = (acc[chunk.sourceType] ?? 0) + 1;
+    return acc;
+  }, {});
 
   const sampleHeadings = councilChunks
     .map((chunk) => chunk.heading)
@@ -117,17 +125,21 @@ export const getWorkspaceSourceContext = async ({
   if (process.env.NODE_ENV !== "production") {
     console.log(
       "[workspace-source-context]",
-      `canonicalLga=${canonicalLgaCode ?? "none"} councilDcpChunks=${councilChunks.length} sampleHeadings=${JSON.stringify(sampleHeadings)}`,
+      "DCP debug",
+      {
+        canonicalLgaCode,
+        hasCouncilDcp: councilChunks.length > 0,
+        perSourceTotals,
+        councilDcpSampleHeadings: sampleHeadings.slice(0, 5),
+      },
     );
   }
 
   return {
     canonicalLgaCode,
-    councilDcp: {
-      available: councilChunks.length > 0,
-      totalChunks: councilChunks.length,
-      sampleHeadings,
-    },
+    hasCouncilDcp: councilChunks.length > 0,
+    councilDcpSampleHeadings: sampleHeadings,
+    perSourceTotals,
     chunks: scored,
   };
 };
