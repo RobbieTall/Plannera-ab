@@ -6,6 +6,8 @@ import pdfParse from "pdf-parse";
 import { prisma } from "@/lib/prisma";
 import { indexWorkspaceSource, storeExternalFileAsUpload } from "@/lib/source-indexing";
 
+import { resolveCouncilLgaCode } from "./council-lga-codes";
+
 const toAbsoluteUrl = (url: string) => {
   if (url.startsWith("http")) return url;
   const baseUrl =
@@ -41,11 +43,28 @@ const extractFromHtml = (html: string) => {
   return text;
 };
 
-export const ingestCouncilDcp = async (lgaCode: string) => {
-  const link = await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode } });
+export const ingestCouncilDcp = async (rawLgaCode: string) => {
+  const lgaCode = resolveCouncilLgaCode(rawLgaCode);
+  if (!lgaCode) {
+    throw new Error(`Unable to resolve canonical LGA code for ${rawLgaCode}`);
+  }
+
+  const fallbackCode = (rawLgaCode ?? "").trim().toUpperCase();
+  const candidateCodes = Array.from(new Set([lgaCode, fallbackCode].filter(Boolean)));
+
+  const link = await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode: { in: candidateCodes } } });
   if (!link) {
     throw new Error(`No DCP link configured for LGA ${lgaCode}`);
   }
+
+  const existingChunkCount = await prisma.workspaceSourceChunk.count({
+    where: { lgaCode, sourceType: "council_dcp" },
+  });
+  console.log("[dcp-ingest] current council chunk count", {
+    lgaCode,
+    sourceType: "council_dcp",
+    count: existingChunkCount,
+  });
 
   const url = toAbsoluteUrl(link.url);
   const response = await fetch(url);
@@ -123,9 +142,22 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     metadata: { heading: link.name, sourceUrl: link.url },
   });
 
+  const updatedChunkCount = await prisma.workspaceSourceChunk.count({
+    where: { lgaCode, sourceType: "council_dcp" },
+  });
+  console.log("[dcp-ingest] council DCP ingestion complete", {
+    lgaCode,
+    sourceType: "council_dcp",
+    created,
+    totalChunks: updatedChunkCount,
+    councilDocumentId: councilDocument.id,
+  });
+
   return {
     chunksCreated: created,
     councilDocumentId: councilDocument.id,
     title: link.name,
+    lgaCode,
+    totalChunks: updatedChunkCount,
   };
 };

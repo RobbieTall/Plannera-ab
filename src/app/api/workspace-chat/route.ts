@@ -25,7 +25,9 @@ import {
 import {
   buildWorkspaceSourcePrompt,
   findRelevantWorkspaceChunks,
+  summarizeBySourceType,
 } from "@/lib/workspace-source-context";
+import { resolveCouncilLgaCode } from "@/lib/dcp/council-lga-codes";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -316,18 +318,22 @@ export async function POST(request: Request) {
     });
 
     let sourceContextPrompt: string | null = null;
-    const lgaCode = siteContextSummary?.lgaCode ?? null;
+    const lgaCode = resolveCouncilLgaCode(siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? null);
+    const sourceTypes = lgaCode ? (["upload", "council_dcp"] as const) : (["upload"] as const);
     try {
       const relevantChunks = await findRelevantWorkspaceChunks({
         projectId: projectId ?? null,
         lgaCode,
         query: userMessage,
+        sourceTypes: [...sourceTypes],
       });
 
       console.log("[workspace-chat] workspace source retrieval", {
         projectId,
         lgaCode,
+        sourceTypes,
         chunkCount: relevantChunks.length,
+        bySourceType: summarizeBySourceType(relevantChunks),
       });
 
       sourceContextPrompt = buildWorkspaceSourcePrompt(relevantChunks);

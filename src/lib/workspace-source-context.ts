@@ -4,6 +4,7 @@ import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
+import { resolveCouncilLgaCode } from "./dcp/council-lga-codes";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 
@@ -40,24 +41,34 @@ export const findRelevantWorkspaceChunks = async ({
   projectId,
   lgaCode,
   query,
+  sourceTypes,
   limit = 8,
 }: {
   projectId?: string | null;
   lgaCode?: string | null;
   query: string;
+  sourceTypes?: WorkspaceSourceChunk["sourceType"][];
   limit?: number;
 }): Promise<RetrievedWorkspaceChunk[]> => {
-  const filters: WorkspaceSourceChunkWhere[] = [];
+  const clauses: WorkspaceSourceChunkWhere[] = [];
+
+  const canonicalLgaCode = resolveCouncilLgaCode(lgaCode);
+
+  const sourceTypeFilter = sourceTypes?.length
+    ? { sourceType: { in: sourceTypes } }
+    : { sourceType: { in: ["upload", "council_dcp"] } };
+
   if (projectId) {
-    filters.push({ projectId });
-  }
-  if (lgaCode) {
-    filters.push({ lgaCode });
+    clauses.push({ AND: [{ projectId }, sourceTypeFilter] });
   }
 
-  if (!filters.length) return [];
+  if (canonicalLgaCode) {
+    clauses.push({ AND: [{ lgaCode: canonicalLgaCode }, sourceTypeFilter] });
+  }
 
-  const where: WorkspaceSourceChunkWhere = { OR: filters };
+  if (!clauses.length) return [];
+
+  const where: WorkspaceSourceChunkWhere = clauses.length === 1 ? clauses[0] : { OR: clauses };
 
   const chunks = await prisma.workspaceSourceChunk.findMany({
     where,
@@ -82,6 +93,13 @@ export const findRelevantWorkspaceChunks = async ({
 
   return scored;
 };
+
+export const summarizeBySourceType = (chunks: RetrievedWorkspaceChunk[]) =>
+  chunks.reduce<Record<string, number>>((acc, chunk) => {
+    const key = chunk.sourceType;
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
 
 export const buildWorkspaceSourcePrompt = (chunks: RetrievedWorkspaceChunk[]) => {
   if (!chunks.length) return null;
