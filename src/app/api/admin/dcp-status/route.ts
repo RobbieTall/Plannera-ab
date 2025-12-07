@@ -37,7 +37,8 @@ export async function GET(request: Request) {
       prisma.workspaceSourceChunk.findMany({
         where,
         select: { heading: true },
-        take: 10,
+        orderBy: { createdAt: "asc" },
+        take: 50,
       }),
       prisma.workspaceSourceChunk.count({ where }),
     ]);
@@ -46,10 +47,13 @@ export async function GET(request: Request) {
       canonicalLgaCode,
       councilDcp: {
         chunkCount,
-        sampleHeadings: councilChunks
-          .map((chunk) => chunk.heading)
-          .filter((heading): heading is string => Boolean(heading))
-          .slice(0, 5),
+        sampleHeadings: Array.from(
+          new Set(
+            councilChunks
+              .map((chunk) => chunk.heading)
+              .filter((heading): heading is string => Boolean(heading)),
+          ),
+        ).slice(0, 5),
       },
     });
   } catch (error) {
