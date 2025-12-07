@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, extname, join } from "node:path";
 
 import pdfParse from "pdf-parse";
 
@@ -64,38 +64,71 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     throw new Error(`No DCP link configured for LGA ${canonicalLgaCode}`);
   }
 
-  const url = toAbsoluteUrl(link.url);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch DCP for ${canonicalLgaCode} (status ${response.status})`);
-  }
-
-  const contentType = response.headers.get("content-type") || "";
+  const isRemote = link.url.startsWith("http://") || link.url.startsWith("https://");
+  const url = isRemote ? toAbsoluteUrl(link.url) : link.url;
+  let contentType = "";
   let extractedText: string | null = null;
-  const fileName = basename(new URL(url).pathname) || `${canonicalLgaCode}-dcp.pdf`;
+  let fileName = "";
   let mimeType = contentType;
   let storagePath = "";
   let publicUrl = "";
   let fileSize: number | undefined;
 
-  if (contentType.includes("pdf")) {
-    const arrayBuffer = await response.arrayBuffer();
-    const file = new File([arrayBuffer], fileName, { type: contentType || "application/pdf" });
-    const saved = await storeExternalFileAsUpload({ file, fileName });
-    storagePath = saved.path;
-    publicUrl = saved.url;
-    mimeType = saved.mimeType;
-    fileSize = saved.size;
-    extractedText = await extractTextFromPdf(saved.path);
+  if (isRemote) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch DCP for ${canonicalLgaCode} (status ${response.status})`);
+    }
+
+    contentType = response.headers.get("content-type") || "";
+    fileName = basename(new URL(url).pathname) || `${canonicalLgaCode}-dcp.pdf`;
+
+    if (contentType.includes("pdf")) {
+      const arrayBuffer = await response.arrayBuffer();
+      const file = new File([arrayBuffer], fileName, { type: contentType || "application/pdf" });
+      const saved = await storeExternalFileAsUpload({ file, fileName });
+      storagePath = saved.path;
+      publicUrl = saved.url;
+      mimeType = saved.mimeType;
+      fileSize = saved.size;
+      extractedText = await extractTextFromPdf(saved.path);
+    } else {
+      const html = await response.text();
+      extractedText = extractFromHtml(html);
+      const file = new File([html], `${fileName || canonicalLgaCode}.html`, { type: contentType || "text/html" });
+      const saved = await storeExternalFileAsUpload({ file, fileName: `${fileName || canonicalLgaCode}.html` });
+      storagePath = saved.path;
+      publicUrl = saved.url;
+      mimeType = saved.mimeType;
+      fileSize = saved.size;
+    }
   } else {
-    const html = await response.text();
-    extractedText = extractFromHtml(html);
-    const file = new File([html], `${fileName || canonicalLgaCode}.html`, { type: contentType || "text/html" });
-    const saved = await storeExternalFileAsUpload({ file, fileName: `${fileName || canonicalLgaCode}.html` });
-    storagePath = saved.path;
-    publicUrl = saved.url;
-    mimeType = saved.mimeType;
-    fileSize = saved.size;
+    const publicDir = join(process.cwd(), "public");
+    const filePath = join(publicDir, url.replace(/^\//, ""));
+    const buffer = await readFile(filePath);
+    const extension = extname(filePath).toLowerCase();
+    fileName = basename(filePath) || `${canonicalLgaCode}-dcp${extension || ".html"}`;
+
+    if (extension === ".pdf") {
+      const file = new File([buffer], fileName, { type: "application/pdf" });
+      const saved = await storeExternalFileAsUpload({ file, fileName });
+      storagePath = saved.path;
+      publicUrl = saved.url;
+      mimeType = saved.mimeType;
+      fileSize = saved.size;
+      extractedText = await extractTextFromPdf(saved.path);
+      contentType = "application/pdf";
+    } else {
+      const html = buffer.toString("utf-8");
+      extractedText = extractFromHtml(html);
+      const file = new File([html], `${fileName || canonicalLgaCode}.html`, { type: "text/html" });
+      const saved = await storeExternalFileAsUpload({ file, fileName: `${fileName || canonicalLgaCode}.html` });
+      storagePath = saved.path;
+      publicUrl = saved.url;
+      mimeType = saved.mimeType;
+      fileSize = saved.size;
+      contentType = "text/html";
+    }
   }
 
   if (!extractedText) {
