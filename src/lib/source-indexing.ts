@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Prisma, WorkspaceSourceChunk } from "@prisma/client";
+import type { Prisma, PrismaClient, WorkspaceSourceChunk } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { saveFileToUploads } from "@/lib/storage";
@@ -56,8 +56,12 @@ type WorkspaceSourceMetadata = {
   [key: string]: unknown;
 };
 
-export const indexWorkspaceSource = async ({
-  text,
+type PrismaClientOrTransaction = PrismaClient | Prisma.TransactionClient;
+
+const saveChunks = async ({
+  prismaClient,
+  chunks,
+  embeddings,
   metadata,
   projectId,
   uploadId,
@@ -65,7 +69,9 @@ export const indexWorkspaceSource = async ({
   lgaCode,
   sourceType,
 }: {
-  text: string;
+  prismaClient: PrismaClientOrTransaction;
+  chunks: string[];
+  embeddings: number[][];
   metadata?: WorkspaceSourceMetadata;
   projectId?: string | null;
   uploadId?: string | null;
@@ -73,14 +79,9 @@ export const indexWorkspaceSource = async ({
   lgaCode?: string | null;
   sourceType: WorkspaceSourceChunk["sourceType"];
 }) => {
-  const chunks = chunkText(text);
-  if (!chunks.length) return { created: 0 } as const;
-
-  const embeddings = await embedChunks(chunks);
-
-  await prisma.$transaction(
+  await prismaClient.$transaction(
     chunks.map((chunk, index) =>
-      prisma.workspaceSourceChunk.create({
+      prismaClient.workspaceSourceChunk.create({
         data: {
           projectId: projectId ?? undefined,
           uploadId: uploadId ?? undefined,
@@ -95,8 +96,109 @@ export const indexWorkspaceSource = async ({
       }),
     ),
   );
+};
+
+export const indexWorkspaceSource = async ({
+  text,
+  metadata,
+  projectId,
+  uploadId,
+  councilDocumentId,
+  lgaCode,
+  sourceType,
+  prismaClient = prisma,
+}: {
+  text: string;
+  metadata?: WorkspaceSourceMetadata;
+  projectId?: string | null;
+  uploadId?: string | null;
+  councilDocumentId?: string | null;
+  lgaCode?: string | null;
+  sourceType: WorkspaceSourceChunk["sourceType"];
+  prismaClient?: PrismaClientOrTransaction;
+}) => {
+  const chunks = chunkText(text);
+  if (!chunks.length) return { created: 0 } as const;
+
+  const embeddings = await embedChunks(chunks);
+
+  await saveChunks({
+    prismaClient,
+    chunks,
+    embeddings,
+    metadata,
+    projectId,
+    uploadId,
+    councilDocumentId,
+    lgaCode,
+    sourceType,
+  });
 
   return { created: chunks.length } as const;
+};
+
+type PreparedWorkspaceChunk = {
+  heading?: string | null;
+  content: string;
+  metadata?: WorkspaceSourceMetadata;
+};
+
+export const indexWorkspaceChunks = async ({
+  chunks,
+  metadata,
+  projectId,
+  uploadId,
+  councilDocumentId,
+  lgaCode,
+  sourceType,
+  prismaClient = prisma,
+}: {
+  chunks: PreparedWorkspaceChunk[];
+  metadata?: WorkspaceSourceMetadata;
+  projectId?: string | null;
+  uploadId?: string | null;
+  councilDocumentId?: string | null;
+  lgaCode?: string | null;
+  sourceType: WorkspaceSourceChunk["sourceType"];
+  prismaClient?: PrismaClientOrTransaction;
+}) => {
+  const normalizedChunks = chunks
+    .map((chunk) => ({ ...chunk, content: normalizeText(chunk.content) }))
+    .filter((chunk) => chunk.content.length > 0);
+
+  if (!normalizedChunks.length) return { created: 0 } as const;
+
+  const embeddings = await embedChunks(normalizedChunks.map((chunk) => chunk.content));
+
+  const combinedMetadata = normalizedChunks.map((chunk) => {
+    if (!metadata && !chunk.metadata) return undefined;
+    return {
+      ...(metadata ?? {}),
+      ...(chunk.metadata ?? {}),
+    } as WorkspaceSourceMetadata;
+  });
+
+  await prismaClient.$transaction(
+    normalizedChunks.map((chunk, index) =>
+      prismaClient.workspaceSourceChunk.create({
+        data: {
+          projectId: projectId ?? undefined,
+          uploadId: uploadId ?? undefined,
+          councilDocumentId: councilDocumentId ?? undefined,
+          lgaCode: lgaCode ?? undefined,
+          heading: chunk.heading ?? metadata?.heading ?? null,
+          content: chunk.content,
+          embedding: embeddings[index],
+          sourceType,
+          metadata: combinedMetadata[index]
+            ? (combinedMetadata[index] as Prisma.InputJsonValue)
+            : undefined,
+        },
+      }),
+    ),
+  );
+
+  return { created: normalizedChunks.length } as const;
 };
 
 export const storeExternalFileAsUpload = async ({
