@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ingestCouncilDcp } from "@/lib/dcp/council-dcp-ingestion";
+import { ingestByronDcp } from "@/lib/dcp/byron-ingestion";
 
 const accessToken = process.env.ADMIN_ACCESS_TOKEN;
 
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "lga_required" }, { status: 400 });
     }
 
-    const result = await ingestCouncilDcp(lgaCode);
+    const result = lgaCode === "BYRON" ? await ingestByronDcp() : await ingestCouncilDcp(lgaCode);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     console.error("[dcp-ingest-admin]", error);

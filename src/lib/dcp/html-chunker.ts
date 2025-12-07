@@ -147,6 +147,6 @@ export const parseCouncilDcpHtml = (html: string, documentTitle: string) => {
     .map((block) => block.text)
     .join("\n\n");
 
-  return { chunks, plainText };
+  return { chunks, plainText, sections };
 };
 
