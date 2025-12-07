@@ -79,23 +79,21 @@ const saveChunks = async ({
   lgaCode?: string | null;
   sourceType: WorkspaceSourceChunk["sourceType"];
 }) => {
-  await prismaClient.$transaction(
-    chunks.map((chunk, index) =>
-      prismaClient.workspaceSourceChunk.create({
-        data: {
-          projectId: projectId ?? undefined,
-          uploadId: uploadId ?? undefined,
-          councilDocumentId: councilDocumentId ?? undefined,
-          lgaCode: lgaCode ?? undefined,
-          heading: metadata?.heading ?? null,
-          content: chunk,
-          embedding: embeddings[index],
-          sourceType,
-          metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
-        },
-      }),
-    ),
-  );
+  for (const [index, chunk] of chunks.entries()) {
+    await prismaClient.workspaceSourceChunk.create({
+      data: {
+        projectId: projectId ?? undefined,
+        uploadId: uploadId ?? undefined,
+        councilDocumentId: councilDocumentId ?? undefined,
+        lgaCode: lgaCode ?? undefined,
+        heading: metadata?.heading ?? null,
+        content: chunk,
+        embedding: embeddings[index],
+        sourceType,
+        metadata: metadata ? (metadata as Prisma.InputJsonValue) : undefined,
+      },
+    });
+  }
 };
 
 export const indexWorkspaceSource = async ({
@@ -178,25 +176,23 @@ export const indexWorkspaceChunks = async ({
     } as WorkspaceSourceMetadata;
   });
 
-  await prismaClient.$transaction(
-    normalizedChunks.map((chunk, index) =>
-      prismaClient.workspaceSourceChunk.create({
-        data: {
-          projectId: projectId ?? undefined,
-          uploadId: uploadId ?? undefined,
-          councilDocumentId: councilDocumentId ?? undefined,
-          lgaCode: lgaCode ?? undefined,
-          heading: chunk.heading ?? metadata?.heading ?? null,
-          content: chunk.content,
-          embedding: embeddings[index],
-          sourceType,
-          metadata: combinedMetadata[index]
-            ? (combinedMetadata[index] as Prisma.InputJsonValue)
-            : undefined,
-        },
-      }),
-    ),
-  );
+  for (const [index, chunk] of normalizedChunks.entries()) {
+    await prismaClient.workspaceSourceChunk.create({
+      data: {
+        projectId: projectId ?? undefined,
+        uploadId: uploadId ?? undefined,
+        councilDocumentId: councilDocumentId ?? undefined,
+        lgaCode: lgaCode ?? undefined,
+        heading: chunk.heading ?? metadata?.heading ?? null,
+        content: chunk.content,
+        embedding: embeddings[index],
+        sourceType,
+        metadata: combinedMetadata[index]
+          ? (combinedMetadata[index] as Prisma.InputJsonValue)
+          : undefined,
+      },
+    });
+  }
 
   return { created: normalizedChunks.length } as const;
 };
