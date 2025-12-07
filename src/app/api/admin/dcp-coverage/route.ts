@@ -29,5 +29,5 @@ export async function GET(request: Request) {
 
   const coverage = await getByronDcpCoverage();
 
-  return NextResponse.json({ ok: true, lga, ...coverage });
+  return NextResponse.json({ ok: true, ...coverage });
 }
