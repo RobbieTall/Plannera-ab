@@ -34,11 +34,12 @@ export type RetrievedWorkspaceChunk = {
   lgaCode: string | null;
   sourceType: WorkspaceSourceChunk["sourceType"];
   score: number;
+  metadata?: WorkspaceSourceChunk["metadata"];
 };
 
 type WorkspaceSourceChunkWhere = Prisma.WorkspaceSourceChunkWhereInput;
 
-const COUNCIL_DCP_TYPES: WorkspaceSourceType[] = [WorkspaceSourceType.council_dcp, WorkspaceSourceType.dcp];
+export const COUNCIL_DCP_TYPES: WorkspaceSourceType[] = [WorkspaceSourceType.council_dcp, WorkspaceSourceType.dcp];
 
 export type WorkspaceSourceContext = {
   canonicalLgaCode: string | null;
@@ -54,21 +55,28 @@ export const getWorkspaceSourceContext = async ({
   lgaName,
   query,
   limit = 8,
+  allowedSourceTypes,
 }: {
   projectId?: string | null;
   lgaCode?: string | null;
   lgaName?: string | null;
   query: string;
   limit?: number;
+  allowedSourceTypes?: WorkspaceSourceType[];
 }): Promise<WorkspaceSourceContext> => {
   const canonicalLgaCode = normalizeCouncilLgaCode(lgaCode ?? lgaName);
   const filters: WorkspaceSourceChunkWhere[] = [];
 
-  if (projectId) {
+  const allowedTypes = allowedSourceTypes?.length ? new Set(allowedSourceTypes) : null;
+  const includeUploads = !allowedTypes || allowedTypes.has(WorkspaceSourceType.upload);
+  const allowedCouncilTypes = COUNCIL_DCP_TYPES.filter((type) => !allowedTypes || allowedTypes.has(type));
+  const includeCouncilDcp = allowedCouncilTypes.length > 0;
+
+  if (projectId && includeUploads) {
     filters.push({ projectId, sourceType: WorkspaceSourceType.upload });
   }
-  if (canonicalLgaCode) {
-    filters.push({ lgaCode: canonicalLgaCode, sourceType: { in: COUNCIL_DCP_TYPES } });
+  if (canonicalLgaCode && includeCouncilDcp) {
+    filters.push({ lgaCode: canonicalLgaCode, sourceType: { in: allowedCouncilTypes } });
   }
 
   if (!filters.length) {
@@ -109,6 +117,7 @@ export const getWorkspaceSourceContext = async ({
       content: formatChunkPreview(chunk.content),
       lgaCode: chunk.lgaCode,
       sourceType: chunk.sourceType,
+      metadata: chunk.metadata,
       score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
     }))
     .sort((a, b) => b.score - a.score)
@@ -158,9 +167,19 @@ export const findRelevantWorkspaceChunks = async (params: {
 
 export const buildWorkspaceSourcePrompt = (chunks: RetrievedWorkspaceChunk[]) => {
   if (!chunks.length) return null;
+  const parseMetadata = (metadata: RetrievedWorkspaceChunk["metadata"]) =>
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : null;
+
   const lines = chunks.map((chunk) => {
-    const heading = chunk.heading ? `${chunk.heading}: ` : "";
-    return `• [${chunk.sourceType}] ${heading}${chunk.content}`;
+    const metadata = parseMetadata(chunk.metadata);
+    const clauseKey = typeof metadata?.clauseKey === "string" ? metadata.clauseKey : null;
+    const instrumentSlug = typeof metadata?.instrumentSlug === "string" ? metadata.instrumentSlug : null;
+    const headingParts = [clauseKey, chunk.heading].filter(Boolean);
+    const headingLabel = headingParts.length ? `${headingParts.join(" – ")}: ` : "";
+    const sourceLabel = instrumentSlug ? `${instrumentSlug} · ` : "";
+    return `• [${chunk.sourceType}] ${sourceLabel}${headingLabel}${chunk.content}`;
   });
   return `Relevant workspace and council sources:\n${lines.join("\n")}`;
 };
