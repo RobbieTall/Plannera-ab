@@ -70,6 +70,13 @@ export type WorkspaceSourceContext = {
   chunks: RetrievedWorkspaceChunk[];
 };
 
+const DUAL_OCC_QUERY_REGEX = /(dual occ|dual occupancy|duplex)/i;
+
+const parseMetadata = (metadata: RetrievedWorkspaceChunk["metadata"]) =>
+  metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : null;
+
 export const getWorkspaceSourceContext = async ({
   projectId,
   lgaCode,
@@ -130,6 +137,7 @@ export const getWorkspaceSourceContext = async ({
   );
 
   const queryEmbedding = await embedQuery(query);
+  const isByronDualOccQuery = canonicalLgaCode === "BYRON" && DUAL_OCC_QUERY_REGEX.test(query);
 
   const scored = chunks
     .map((chunk) => ({
@@ -139,7 +147,31 @@ export const getWorkspaceSourceContext = async ({
       lgaCode: chunk.lgaCode,
       sourceType: chunk.sourceType,
       metadata: chunk.metadata,
-      score: cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding),
+      score: (() => {
+        const baseScore = cosineSimilarity((chunk.embedding as number[]) ?? [], queryEmbedding);
+        if (!isByronDualOccQuery || !COUNCIL_DCP_TYPES.includes(chunk.sourceType)) return baseScore;
+
+        const metadata = parseMetadata(chunk.metadata as RetrievedWorkspaceChunk["metadata"]);
+        const headingText = `${chunk.heading ?? ""}`.toLowerCase();
+        const contentText = formatChunkPreview(chunk.content).toLowerCase();
+        const clauseKey = typeof metadata?.clauseKey === "string" ? metadata.clauseKey.toLowerCase() : "";
+        const instrumentSlug = typeof metadata?.instrumentSlug === "string" ? metadata.instrumentSlug.toLowerCase() : "";
+        const hasDualOccHint =
+          DUAL_OCC_QUERY_REGEX.test(headingText) ||
+          DUAL_OCC_QUERY_REGEX.test(contentText) ||
+          DUAL_OCC_QUERY_REGEX.test(clauseKey);
+        const referencesChapters = /\bd1\b|chapter d1|\bb4\b|chapter b4/.test(
+          `${headingText} ${clauseKey} ${instrumentSlug}`,
+        );
+        let boostedScore = baseScore;
+        if (hasDualOccHint) {
+          boostedScore += 0.25;
+        }
+        if (referencesChapters) {
+          boostedScore += 0.15;
+        }
+        return boostedScore;
+      })(),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

@@ -66,6 +66,7 @@ const CONTROL_KEYWORDS = [
   "duplex",
 ];
 const BYRON_LGA_CODE = "BYRON";
+const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 
 const hasExplicitDcpIntent = (message: string) => DCP_INTENT_REGEX.test(message.toLowerCase());
 const isControlsQuestion = (message: string) => {
@@ -367,6 +368,11 @@ export async function POST(request: Request) {
 
     const userAskedForDcp = hasExplicitDcpIntent(userMessage);
     const controlsRelatedQuestion = isControlsQuestion(userMessage);
+    const dualOccQuestion = DUAL_OCC_REGEX.test(userMessage.toLowerCase());
+    const retrievalQuery =
+      canonicalLgaCode === BYRON_LGA_CODE && controlsRelatedQuestion && dualOccQuestion
+        ? `${userMessage} dual occupancy setbacks parking Chapter D1 Chapter B4 Byron DCP 2014`
+        : userMessage;
     let sourceContextPrompt: string | null = null;
     let councilDcpPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
@@ -384,7 +390,7 @@ export async function POST(request: Request) {
         projectId: projectId ?? null,
         lgaCode,
         lgaName,
-        query: userMessage,
+        query: retrievalQuery,
         limit: userAskedForDcp ? 20 : 8,
         allowedSourceTypes: userAskedForDcp ? COUNCIL_DCP_TYPES : undefined,
       });
@@ -399,7 +405,7 @@ export async function POST(request: Request) {
               projectId: projectId ?? null,
               lgaCode: BYRON_LGA_CODE,
               lgaName,
-              query: userMessage,
+              query: retrievalQuery,
               limit: 20,
               allowedSourceTypes: COUNCIL_DCP_TYPES,
             });
@@ -419,6 +425,34 @@ export async function POST(request: Request) {
       const dcpChunks = (dcpContext ?? sourceContext)?.chunks.filter((chunk) =>
         COUNCIL_DCP_TYPES.includes(chunk.sourceType),
       );
+
+      if (isByronLga && controlsRelatedQuestion && dualOccQuestion && dcpChunks?.length) {
+        dcpChunks.sort((a, b) => {
+          const boost = (chunk: (typeof dcpChunks)[number]) => {
+            const heading = (chunk.heading ?? "").toLowerCase();
+            const content = chunk.content.toLowerCase();
+            const metadata =
+              chunk.metadata && typeof chunk.metadata === "object" && !Array.isArray(chunk.metadata)
+                ? (chunk.metadata as Record<string, unknown>)
+                : null;
+            const clauseKey = typeof metadata?.clauseKey === "string" ? metadata.clauseKey.toLowerCase() : "";
+            const instrumentSlug =
+              typeof metadata?.instrumentSlug === "string" ? metadata.instrumentSlug.toLowerCase() : "";
+            let score = 0;
+            if (DUAL_OCC_REGEX.test(heading) || DUAL_OCC_REGEX.test(content) || DUAL_OCC_REGEX.test(clauseKey)) {
+              score += 2;
+            }
+            if (/\bd1\b|chapter d1/.test(`${heading} ${clauseKey} ${instrumentSlug}`)) {
+              score += 1;
+            }
+            if (/\bb4\b|chapter b4/.test(`${heading} ${clauseKey} ${instrumentSlug}`)) {
+              score += 1;
+            }
+            return score;
+          };
+          return boost(b) - boost(a);
+        });
+      }
 
       if (userAskedForDcp) {
         usedChunksForPrompt = dcpChunks ?? [];
@@ -453,6 +487,14 @@ When the user asks about local controls, rely first on the council Development C
         dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
         if (userAskedForDcp) {
           dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
+        }
+        if (isByronLga && controlsRelatedQuestion) {
+          dcpGroundingPrompt +=
+            " For Byron Shire questions, answer using the Byron DCP 2014 text provided and avoid generic NSW priors. Reference Chapter D1 for built form/setbacks and Chapter B4 for parking when relevant. Do not use phrases like 'typically' or 'generally' when quoting controls; if the excerpt is silent, say so explicitly instead of inventing a number.";
+          if (dualOccQuestion) {
+            dcpGroundingPrompt +=
+              " For dual occupancy queries, focus on DCP clauses labelled Dual Occupancy or Medium Density in Chapters D1 and B4, and quote their stated setback and parking controls directly. Do not substitute generic 6 m setbacks or blanket 2 spaces per dwelling if those numbers are not visible in the provided excerpts.";
+          }
         }
         if (!dcpHasSpecificFigures) {
           dcpGroundingPrompt +=
