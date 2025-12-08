@@ -422,6 +422,8 @@ export async function POST(request: Request) {
 
       if (userAskedForDcp) {
         usedChunksForPrompt = dcpChunks ?? [];
+      } else if (isByronLga && controlsRelatedQuestion && dcpChunks?.length) {
+        usedChunksForPrompt = dcpChunks;
       } else if (dcpChunks?.length) {
         const seen = new Set<string>();
         usedChunksForPrompt = [...dcpChunks];
@@ -447,9 +449,14 @@ Use these council DCP sections as the primary source when answering questions ab
 ${headingLines}
 When the user asks about local controls, rely first on the council Development Control Plan content provided and state that your answer is based on that DCP. You may add NSW guidance for additional context.`;
         const dcpNameLabel = isByronLga ? "Byron Shire DCP 2014" : "this council DCP";
-        dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
+        const dcpHasSpecificFigures = (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
+        dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
         if (userAskedForDcp) {
           dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
+        }
+        if (!dcpHasSpecificFigures) {
+          dcpGroundingPrompt +=
+            " If no numeric requirements appear in the supplied DCP excerpts, explicitly state that the excerpts do not give a specific figure rather than inferring typical controls.";
         }
       } else if (userAskedForDcp) {
         councilDcpPrompt =
