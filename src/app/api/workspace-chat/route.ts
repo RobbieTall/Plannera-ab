@@ -369,6 +369,10 @@ export async function POST(request: Request) {
     const userAskedForDcp = hasExplicitDcpIntent(userMessage);
     const controlsRelatedQuestion = isControlsQuestion(userMessage);
     const dualOccQuestion = DUAL_OCC_REGEX.test(userMessage.toLowerCase());
+    let canonicalLgaCode = normalizeCouncilLgaCode(
+      siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? fallbackLga,
+    );
+    let isByronLga = canonicalLgaCode === BYRON_LGA_CODE;
     const retrievalQuery =
       canonicalLgaCode === BYRON_LGA_CODE && controlsRelatedQuestion && dualOccQuestion
         ? `${userMessage} dual occupancy setbacks parking Chapter D1 Chapter B4 Byron DCP 2014`
@@ -378,10 +382,6 @@ export async function POST(request: Request) {
     let dcpGroundingPrompt: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
-    let canonicalLgaCode = normalizeCouncilLgaCode(
-      siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? fallbackLga,
-    );
-    let isByronLga = canonicalLgaCode === BYRON_LGA_CODE;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
     const lgaCode = siteContextSummary?.lgaCode ?? null;
     const lgaName = siteContextSummary?.lgaName ?? null;
