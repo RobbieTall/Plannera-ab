@@ -8,16 +8,37 @@ import { cosineSimilarity, chunkText } from "@/lib/source-indexing";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 
+const buildDummyEmbedding = (text: string) => {
+  const slots = 12;
+  const vector = Array<number>(slots).fill(0);
+  text
+    .toLowerCase()
+    .split(/\W+/)
+    .filter(Boolean)
+    .forEach((token, index) => {
+      const slot = index % slots;
+      vector[slot] += Math.min(token.length, 12);
+    });
+  return vector;
+};
+
 const ensureClient = () => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    if (process.env.SKIP_EMBEDDINGS === "1") return null;
     throw new Error("Missing OPENAI_API_KEY environment variable");
   }
   return new OpenAI({ apiKey });
 };
 
 const embedQuery = async (query: string) => {
+  if (process.env.SKIP_EMBEDDINGS === "1") {
+    return buildDummyEmbedding(query);
+  }
+
   const client = ensureClient();
+  if (!client) return buildDummyEmbedding(query);
+
   const result = await client.embeddings.create({ model: EMBEDDING_MODEL, input: query });
   return result.data?.[0]?.embedding ?? [];
 };
