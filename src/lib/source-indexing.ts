@@ -14,7 +14,7 @@ const openAiClient = () => {
   return new OpenAI({ apiKey });
 };
 
-const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
+export const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
 
 export const chunkText = (text: string, chunkSize = 800, overlap = 120) => {
   const normalized = normalizeText(text);
@@ -33,7 +33,7 @@ export const chunkText = (text: string, chunkSize = 800, overlap = 120) => {
   return chunks;
 };
 
-const embedChunks = async (chunks: string[]) => {
+export const embedChunks = async (chunks: string[]) => {
   const client = openAiClient();
   const embeddings = await Promise.all(
     chunks.map((chunk) => client.embeddings.create({ model: EMBEDDING_MODEL, input: chunk })),
@@ -176,25 +176,30 @@ export const indexWorkspaceChunks = async ({
     } as WorkspaceSourceMetadata;
   });
 
-  for (const [index, chunk] of normalizedChunks.entries()) {
-    await prismaClient.workspaceSourceChunk.create({
-      data: {
-        projectId: projectId ?? undefined,
-        uploadId: uploadId ?? undefined,
-        councilDocumentId: councilDocumentId ?? undefined,
-        lgaCode: lgaCode ?? undefined,
-        heading: chunk.heading ?? metadata?.heading ?? null,
-        content: chunk.content,
-        embedding: embeddings[index],
-        sourceType,
-        metadata: combinedMetadata[index]
-          ? (combinedMetadata[index] as Prisma.InputJsonValue)
-          : undefined,
-      },
-    });
+  const workspaceChunkRecords = normalizedChunks.map((chunk, index) => ({
+    projectId: projectId ?? undefined,
+    uploadId: uploadId ?? undefined,
+    councilDocumentId: councilDocumentId ?? undefined,
+    lgaCode: lgaCode ?? undefined,
+    heading: chunk.heading ?? metadata?.heading ?? null,
+    content: chunk.content,
+    embedding: embeddings[index],
+    sourceType,
+    metadata: combinedMetadata[index]
+      ? (combinedMetadata[index] as Prisma.InputJsonValue)
+      : undefined,
+  }));
+
+  const batchSize = 100;
+  let created = 0;
+
+  for (let start = 0; start < workspaceChunkRecords.length; start += batchSize) {
+    const batch = workspaceChunkRecords.slice(start, start + batchSize);
+    const result = await prismaClient.workspaceSourceChunk.createMany({ data: batch });
+    created += result.count;
   }
 
-  return { created: normalizedChunks.length } as const;
+  return { created } as const;
 };
 
 export const storeExternalFileAsUpload = async ({

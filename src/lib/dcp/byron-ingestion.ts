@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { InstrumentType, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { indexWorkspaceChunks } from "@/lib/source-indexing";
+import { indexWorkspaceChunks, normalizeText } from "@/lib/source-indexing";
 
 import { parseDcpDocument } from "./parser";
 import type { ParsedDcpClause } from "./parser";
@@ -64,7 +64,7 @@ export const ingestByronDcp = async () => {
     throw new Error("No clauses could be parsed from Byron DCP");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const stageAResult = await prisma.$transaction(async (tx) => {
     const instrument = await tx.instrument.upsert({
       where: { slug: DCP_SLUG },
       create: {
@@ -121,49 +121,53 @@ export const ingestByronDcp = async () => {
       })),
     });
 
-    await tx.workspaceSourceChunk.deleteMany({
-      where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp },
-    });
+    return { instrument };
+  });
 
-    const chunkResult = await indexWorkspaceChunks({
-      chunks: clauses.map((clause, index) => ({
-        heading: clause.title ?? `Clause ${index + 1}`,
-        content: clause.bodyText,
-        metadata: {
-          instrumentId: instrument.id,
-          instrumentSlug: instrument.slug,
-          clauseKey: clause.clauseKey,
-          lgaCode: DCP_LGA,
-          sourceUrl: DCP_SOURCE_PATH,
-          sourceType: "DCP",
-          ref: clause.ref,
-          topicTags: clause.topicTags,
-          numericMeta: clause.numericMeta,
-        },
-      })),
-      lgaCode: DCP_LGA,
-      sourceType: WorkspaceSourceType.council_dcp,
+  const { instrument } = stageAResult;
+
+  await prisma.workspaceSourceChunk.deleteMany({
+    where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp },
+  });
+
+  const normalizedClauseChunks = clauses
+    .map((clause) => ({
+      heading: clause.title,
+      content: normalizeText(clause.bodyText),
       metadata: {
         instrumentId: instrument.id,
         instrumentSlug: instrument.slug,
-        sourceUrl: DCP_SOURCE_PATH,
+        clauseKey: clause.clauseKey,
         lgaCode: DCP_LGA,
+        sourceUrl: DCP_SOURCE_PATH,
+        sourceType: "DCP",
+        ref: clause.ref,
+        topicTags: clause.topicTags,
+        numericMeta: clause.numericMeta,
       },
-      prismaClient: tx,
-    });
+    }))
+    .filter((clause) => clause.content.length > 0);
 
-    const clauseCount = await tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
-    const dcpClauseCount = await tx.dCPClause.count({ where: { lgaCode: DCP_LGA } });
-
-    return {
+  await indexWorkspaceChunks({
+    chunks: normalizedClauseChunks,
+    metadata: {
       instrumentId: instrument.id,
-      clauseCount,
-      dcpClauseCount,
-      chunkCount: chunkResult.created,
-    };
+      instrumentSlug: instrument.slug,
+      sourceUrl: DCP_SOURCE_PATH,
+      lgaCode: DCP_LGA,
+    },
+    lgaCode: DCP_LGA,
+    sourceType: WorkspaceSourceType.council_dcp,
+    prismaClient: prisma,
   });
 
-  return { ...result, lga: DCP_LGA, slug: DCP_SLUG };
+  const [clauseCount, dcpClauseCount, chunkCount] = await Promise.all([
+    prisma.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } }),
+    prisma.dCPClause.count({ where: { lgaCode: DCP_LGA } }),
+    prisma.workspaceSourceChunk.count({ where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp } }),
+  ]);
+
+  return { lga: DCP_LGA, slug: DCP_SLUG, instrumentId: instrument.id, clauseCount, dcpClauseCount, chunkCount };
 };
 
 export const getByronDcpCoverage = async () => {
