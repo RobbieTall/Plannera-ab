@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
@@ -31,6 +30,7 @@ import {
   type WorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
+import { callModel } from "@/lib/modelRouter";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -229,9 +229,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey && !debugSources) {
-      throw new Error("Missing OPENAI_API_KEY environment variable");
+    const hasPlanningProvider = process.env.CLUADE_API_KEY || process.env.OPENAI_API_KEY;
+    if (!hasPlanningProvider && !debugSources) {
+      throw new Error("Missing CLUADE_API_KEY or OPENAI_API_KEY environment variables");
     }
 
     const workspaceKey = projectId ?? "default";
@@ -587,26 +587,11 @@ When the user asks about local controls, rely first on the council Development C
       });
     }
 
-    if (!apiKey) {
-      throw new Error("Missing OPENAI_API_KEY environment variable");
-    }
-    const client = new OpenAI({ apiKey });
-
     const reply = await (async () => {
       try {
-        const completion = await client.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages,
-          max_tokens: 512,
-        });
-
-        const aiReply = completion.choices?.[0]?.message?.content;
-        if (!aiReply) {
-          throw new Error("Empty response from OpenAI");
-        }
-        return aiReply;
+        return await callModel("planning_chat", messages, { maxTokens: 512 });
       } catch (error) {
-        console.error("[openai-chat-error]", getErrorDetails(error));
+        console.error("[model-router-error]", getErrorDetails(error));
         throw error;
       }
     })();

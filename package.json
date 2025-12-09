@@ -27,7 +27,9 @@
     "nsw:lep:sources": "tsx scripts/list-nsw-lep-sources.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@auth/prisma-adapter": "^2.11.1",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.0",
     "@vercel/blob": "^2.0.0",
     "lucide-react": "^0.553.0",
