@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+"use server";
 
 export type ActionState = {
   status?: number;
@@ -8,11 +8,10 @@ export type ActionState = {
 
 export const initialState: ActionState = {};
 
-const resolveOrigin = () => {
-  const requestHeaders = headers();
-  const originHeader = requestHeaders.get("origin");
+const resolveOrigin = (formData: FormData) => {
+  const formOrigin = formData.get("origin");
 
-  if (originHeader) return originHeader;
+  if (typeof formOrigin === "string" && formOrigin.length > 0) return formOrigin;
 
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
 
@@ -21,9 +20,10 @@ const resolveOrigin = () => {
   return "http://localhost:3000";
 };
 
-export const triggerByronIngest = async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
-  "use server";
-
+export async function triggerByronIngest(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const adminToken = process.env.ADMIN_ACCESS_TOKEN;
   const submittedToken = formData.get("token");
 
@@ -35,7 +35,7 @@ export const triggerByronIngest = async (_prevState: ActionState, formData: Form
     return { status: 401, error: "Unauthorized" };
   }
 
-  const origin = resolveOrigin();
+  const origin = resolveOrigin(formData);
 
   const response = await fetch(`${origin}/api/admin/ingest-dcp?lga=BYRON`, {
     method: "POST",
@@ -53,12 +53,13 @@ export const triggerByronIngest = async (_prevState: ActionState, formData: Form
   }
 
   if (!response.ok) {
-    const errorMessage = typeof result === "object" && result && "error" in (result as Record<string, unknown>)
-      ? String((result as Record<string, unknown>).error)
-      : "dcp_ingest_failed";
+    const errorMessage =
+      typeof result === "object" && result && "error" in (result as Record<string, unknown>)
+        ? String((result as Record<string, unknown>).error)
+        : "dcp_ingest_failed";
 
     return { status: response.status, error: errorMessage, result };
   }
 
   return { status: response.status, result };
-};
+}
