@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI, { type ClientOptions } from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -30,20 +31,27 @@ const extractTextContent = (content: ChatCompletionMessageParam["content"]) => {
 };
 
 const toAnthropicMessages = (messages: ChatCompletionMessageParam[]) => {
-  const system = messages
-    .filter((message) => message.role === "system")
-    .map((message) => extractTextContent(message.content))
-    .filter(Boolean)
-    .join("\n\n");
+  let systemPrompt = "";
+  const chatMessages: MessageParam[] = [];
 
-  const chatMessages = messages
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .map((message) => ({
-      role: message.role === "assistant" ? "assistant" : "user",
-      content: extractTextContent(message.content),
-    }));
+  messages.forEach((message) => {
+    const content = extractTextContent(message.content);
+    if (message.role === "system") {
+      if (content) {
+        systemPrompt = systemPrompt ? `${systemPrompt}\n\n${content}` : content;
+      }
+      return;
+    }
 
-  return { system: system || undefined, messages: chatMessages };
+    if (message.role === "user" || message.role === "assistant") {
+      chatMessages.push({
+        role: message.role,
+        content,
+      });
+    }
+  });
+
+  return { system: systemPrompt || undefined, messages: chatMessages };
 };
 
 const buildOpenAIClient = (options?: ClientOptions) => new OpenAI(options);
