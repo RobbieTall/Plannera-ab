@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { Calendar, LayoutDashboard, Layers, ListChecks, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,12 +13,19 @@ export type NavigationItem = {
 };
 
 type MainNavigationProps = {
-  items: NavigationItem[];
+  items?: NavigationItem[];
   orientation?: "vertical" | "horizontal";
   className?: string;
 };
 
-export function MainNavigation({ items, orientation = "vertical", className }: MainNavigationProps) {
+const defaultNavigationItems: NavigationItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Projects", href: "/projects", icon: Layers },
+  { label: "Tasks", href: "/tasks", icon: ListChecks },
+  { label: "Calendar", href: "/calendar", icon: Calendar },
+];
+
+export function MainNavigation({ items = defaultNavigationItems, orientation = "vertical", className }: MainNavigationProps) {
   const pathname = usePathname();
 
   return (

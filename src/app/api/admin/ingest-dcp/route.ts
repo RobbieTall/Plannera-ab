@@ -30,3 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "dcp_ingest_failed" }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  return POST(request);
+}
