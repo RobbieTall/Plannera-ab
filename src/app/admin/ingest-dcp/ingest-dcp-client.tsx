@@ -2,7 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 
-import { initialState, triggerByronIngest, type ActionState } from "./actions";
+import { triggerByronIngest } from "./actions";
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
@@ -19,7 +19,7 @@ const SubmitButton = () => {
 };
 
 export function AdminByronIngestForm({ token }: { token: string }) {
-  const [state, formAction] = useFormState<ActionState, FormData>(triggerByronIngest, initialState);
+  const [state, formAction] = useFormState(triggerByronIngest, {});
 
   return (
     <form action={formAction} className="space-y-4">
