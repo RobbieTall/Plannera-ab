@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { InstrumentType, WorkspaceSourceType } from "@prisma/client";
+import { InstrumentType, Prisma, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { indexWorkspaceChunks } from "@/lib/source-indexing";
@@ -38,8 +38,13 @@ const buildClauseKey = (headingPath: string[], index: number, ref?: string | nul
 const loadByronDcpHtml = async () => {
   const publicDir = join(process.cwd(), "public");
   const htmlPath = join(publicDir, DCP_SOURCE_PATH.replace(/^\//, ""));
-  const html = await readFile(htmlPath, "utf-8");
-  return html;
+  try {
+    const html = await readFile(htmlPath, "utf-8");
+    return html;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown";
+    throw new Error(`Failed to load Byron DCP source from ${DCP_SOURCE_PATH}: ${reason}`);
+  }
 };
 
 const buildClauses = (html: string): ClauseInput[] => {
@@ -54,6 +59,46 @@ const buildClauses = (html: string): ClauseInput[] => {
       contentHash,
     };
   });
+};
+
+const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
+
+const fallbackIndexWorkspaceChunks = async (
+  tx: Prisma.TransactionClient,
+  clauses: ClauseInput[],
+  instrumentId: string,
+) => {
+  const normalizedChunks = clauses
+    .map((clause, index) => ({
+      heading: clause.title ?? `Clause ${index + 1}`,
+      content: normalizeText(clause.bodyText),
+      metadata: {
+        instrumentId,
+        instrumentSlug: DCP_SLUG,
+        clauseKey: clause.clauseKey,
+        lgaCode: DCP_LGA,
+        sourceUrl: DCP_SOURCE_PATH,
+        sourceType: "DCP",
+        ref: clause.ref,
+        topicTags: clause.topicTags,
+        numericMeta: clause.numericMeta,
+      },
+    }))
+    .filter((chunk) => chunk.content.length > 0);
+
+  if (!normalizedChunks.length) return { created: 0 } as const;
+
+  await tx.workspaceSourceChunk.createMany({
+    data: normalizedChunks.map((chunk) => ({
+      heading: chunk.heading,
+      content: chunk.content,
+      lgaCode: DCP_LGA,
+      sourceType: WorkspaceSourceType.council_dcp,
+      metadata: chunk.metadata as Prisma.InputJsonValue,
+    })),
+  });
+
+  return { created: normalizedChunks.length } as const;
 };
 
 export const ingestByronDcp = async () => {
@@ -150,6 +195,9 @@ export const ingestByronDcp = async () => {
         lgaCode: DCP_LGA,
       },
       prismaClient: tx,
+    }).catch(async (error) => {
+      console.warn("[byron-dcp] Falling back to non-embedded chunks", error);
+      return fallbackIndexWorkspaceChunks(tx, clauses, instrument.id);
     });
 
     const clauseCount = await tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
