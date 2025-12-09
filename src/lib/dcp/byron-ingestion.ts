@@ -7,14 +7,11 @@ import { InstrumentType, WorkspaceSourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { indexWorkspaceChunks } from "@/lib/source-indexing";
 
-import { parseCouncilDcpHtml } from "./html-chunker";
+import { parseDcpDocument } from "./parser";
+import type { ParsedDcpClause } from "./parser";
 
-type ClauseInput = {
+type ClauseInput = ParsedDcpClause & {
   clauseKey: string;
-  title: string | null;
-  bodyHtml: string;
-  bodyText: string;
-  hierarchyPath: string[];
   contentHash: string;
 };
 
@@ -26,7 +23,8 @@ const DCP_LGA = "BYRON";
 
 const hashContent = (content: string) => createHash("sha256").update(content).digest("hex");
 
-const buildClauseKey = (headingPath: string[], index: number) => {
+const buildClauseKey = (headingPath: string[], index: number, ref?: string | null) => {
+  if (ref) return ref.toLowerCase().replace(/\s+/g, "-");
   const slug = headingPath
     .join("-")
     .toLowerCase()
@@ -45,35 +43,15 @@ const loadByronDcpHtml = async () => {
 };
 
 const buildClauses = (html: string): ClauseInput[] => {
-  const parsed = parseCouncilDcpHtml(html, DCP_NAME);
-  const sections = parsed.sections ?? [];
+  const clauses = parseDcpDocument(html, { documentTitle: DCP_NAME });
 
-  if (!sections.length) {
-    return parsed.chunks.map((chunk, index) => {
-      const paragraphs = chunk.content.split(/\n\n+/).filter(Boolean);
-      const bodyText = paragraphs.join("\n\n");
-      return {
-        clauseKey: `clause-${index + 1}`,
-        title: chunk.heading || null,
-        bodyText,
-        bodyHtml: paragraphs.map((para) => `<p>${para}</p>`).join(""),
-        hierarchyPath: [chunk.heading || DCP_NAME],
-        contentHash: hashContent(bodyText),
-      };
-    });
-  }
-
-  return sections.map((section, index) => {
-    const bodyText = section.paragraphs.join("\n\n");
-    const title = section.headingPath.at(-1) ?? null;
-
+  return clauses.map((clause, index) => {
+    const clauseKey = buildClauseKey(clause.headingPath, index, clause.ref ?? clause.title ?? undefined);
+    const contentHash = hashContent(`${clause.bodyText}-${clause.ref ?? ""}`);
     return {
-      clauseKey: buildClauseKey(section.headingPath, index),
-      title,
-      bodyText,
-      bodyHtml: section.paragraphs.map((para) => `<p>${para}</p>`).join(""),
-      hierarchyPath: section.headingPath,
-      contentHash: hashContent(bodyText),
+      ...clause,
+      clauseKey,
+      contentHash,
     };
   });
 };
@@ -112,11 +90,34 @@ export const ingestByronDcp = async () => {
 
     await tx.clause.createMany({
       data: clauses.map((clause) => ({
-        ...clause,
+        clauseKey: clause.clauseKey,
+        title: clause.title,
+        bodyHtml: clause.bodyHtml,
+        bodyText: clause.bodyText,
+        hierarchyPath: clause.headingPath,
+        contentHash: clause.contentHash,
         instrumentId: instrument.id,
         effectiveFrom: null,
         effectiveTo: null,
         retrievedAt: new Date(),
+      })),
+    });
+
+    await tx.dCPClause.deleteMany({ where: { lgaCode: DCP_LGA } });
+
+    await tx.dCPClause.createMany({
+      data: clauses.map((clause) => ({
+        lgaCode: DCP_LGA,
+        instrumentSlug: DCP_SLUG,
+        ref: clause.ref,
+        title: clause.title,
+        headingPath: clause.headingPath,
+        parentRef: clause.parentRef,
+        depth: clause.depth,
+        bodyHtml: clause.bodyHtml,
+        bodyText: clause.bodyText,
+        topicTags: clause.topicTags,
+        numericMeta: clause.numericMeta,
       })),
     });
 
@@ -135,6 +136,9 @@ export const ingestByronDcp = async () => {
           lgaCode: DCP_LGA,
           sourceUrl: DCP_SOURCE_PATH,
           sourceType: "DCP",
+          ref: clause.ref,
+          topicTags: clause.topicTags,
+          numericMeta: clause.numericMeta,
         },
       })),
       lgaCode: DCP_LGA,
@@ -149,10 +153,12 @@ export const ingestByronDcp = async () => {
     });
 
     const clauseCount = await tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
+    const dcpClauseCount = await tx.dCPClause.count({ where: { lgaCode: DCP_LGA } });
 
     return {
       instrumentId: instrument.id,
       clauseCount,
+      dcpClauseCount,
       chunkCount: chunkResult.created,
     };
   });
@@ -164,15 +170,16 @@ export const getByronDcpCoverage = async () => {
   const instrument = await prisma.instrument.findUnique({ where: { slug: DCP_SLUG } });
 
   if (!instrument) {
-    return { lga: DCP_LGA, instrumentId: null, clauseCount: 0, chunkCount: 0 } as const;
+    return { lga: DCP_LGA, instrumentId: null, clauseCount: 0, dcpClauseCount: 0, chunkCount: 0 } as const;
   }
 
-  const [clauseCount, chunkCount] = await Promise.all([
+  const [clauseCount, chunkCount, dcpClauseCount] = await Promise.all([
     prisma.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } }),
     prisma.workspaceSourceChunk.count({ where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp } }),
+    prisma.dCPClause.count({ where: { lgaCode: DCP_LGA } }),
   ]);
 
-  return { lga: DCP_LGA, instrumentId: instrument.id, clauseCount, chunkCount } as const;
+  return { lga: DCP_LGA, instrumentId: instrument.id, clauseCount, dcpClauseCount, chunkCount } as const;
 };
 
 export const BYRON_DCP_CONSTANTS = {
