@@ -1,41 +1,29 @@
 "use server";
 
 type ActionState = {
-  status?: number;
+  ok?: boolean;
   error?: string;
   result?: unknown;
-};
-
-const resolveOrigin = () => {
-  if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
+  [key: string]: unknown;
 };
 
 export async function triggerByronIngest(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const adminToken = process.env.ADMIN_ACCESS_TOKEN;
-  const submitted = formData.get("token");
+  const submittedToken = formData.get("token");
 
-  if (!adminToken) {
-    return { status: 401, error: "ADMIN_ACCESS_TOKEN not configured" };
+  if (!adminToken || submittedToken !== adminToken) {
+    return { ok: false, error: "unauthorized" };
   }
 
-  if (submitted !== adminToken) {
-    return { status: 401, error: "Invalid token" };
-  }
+  const baseUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const url = `${baseUrl}/api/admin/ingest-dcp?lga=BYRON&token=${encodeURIComponent(adminToken)}`;
 
-  const response = await fetch(`${resolveOrigin()}/api/admin/ingest-dcp?lga=BYRON`, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lga: "BYRON", token: adminToken }),
+    body: JSON.stringify({ lga: "BYRON" }),
   });
 
-  try {
-    const result = await response.json();
-    return { status: response.status, result };
-  } catch (error) {
-    console.error("Failed to parse ingest response", error);
-    return { status: response.status, error: "Failed to parse ingest response" };
-  }
+  const data: ActionState = await res.json();
+  return data;
 }
