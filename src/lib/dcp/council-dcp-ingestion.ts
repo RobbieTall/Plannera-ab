@@ -178,23 +178,27 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
       where: { councilDocumentId: councilDocument.id, sourceType: WorkspaceSourceType.council_dcp },
     });
 
-    const createdChunks = structuredChunks && structuredChunks.length > 0
-      ? await indexWorkspaceChunks({
-          chunks: structuredChunks,
-          lgaCode: canonicalLgaCode,
-          councilDocumentId: councilDocument.id,
-          sourceType: WorkspaceSourceType.council_dcp,
-          metadata: { sourceUrl: link.url },
-          prismaClient: tx,
-        })
-      : await indexWorkspaceSource({
-          text: extractedText,
-          lgaCode: canonicalLgaCode,
-          councilDocumentId: councilDocument.id,
-          sourceType: WorkspaceSourceType.council_dcp,
-          metadata: { heading: link.name, sourceUrl: link.url },
-          prismaClient: tx,
-        });
+    const shouldSkipChunks = canonicalLgaCode === "BYRON";
+
+    const createdChunks = shouldSkipChunks
+      ? { created: 0 }
+      : structuredChunks && structuredChunks.length > 0
+        ? await indexWorkspaceChunks({
+            chunks: structuredChunks,
+            lgaCode: canonicalLgaCode,
+            councilDocumentId: councilDocument.id,
+            sourceType: WorkspaceSourceType.council_dcp,
+            metadata: { sourceUrl: link.url },
+            prismaClient: tx,
+          })
+        : await indexWorkspaceSource({
+            text: extractedText,
+            lgaCode: canonicalLgaCode,
+            councilDocumentId: councilDocument.id,
+            sourceType: WorkspaceSourceType.council_dcp,
+            metadata: { heading: link.name, sourceUrl: link.url },
+            prismaClient: tx,
+          });
 
     return { created: createdChunks.created, councilDocumentId: councilDocument.id, existingCouncilDcpChunks };
   });

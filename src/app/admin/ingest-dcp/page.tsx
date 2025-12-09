@@ -40,7 +40,10 @@ export default async function DcpIngestAdminPage({ searchParams }: PageProps) {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div>
           <p className="text-lg font-semibold text-slate-900">Byron DCP 2014</p>
-          <p className="text-sm text-slate-600">Re-run ingestion to refresh DCP clauses and workspace chunks.</p>
+          <p className="text-sm text-slate-600">
+            Re-run ingestion to refresh DCP clauses. Workspace chunking for Byron is temporarily disabled while we tune batch
+            sizes.
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -59,6 +62,11 @@ export default async function DcpIngestAdminPage({ searchParams }: PageProps) {
         </div>
 
         <AdminByronIngestForm token={token!} />
+
+        <p className="text-xs text-slate-600">
+          Byron workspace chunks will report 0 while disabled, but clauses and DCP clause rows should show non-zero counts and
+          remain searchable.
+        </p>
       </div>
     </div>
   );
