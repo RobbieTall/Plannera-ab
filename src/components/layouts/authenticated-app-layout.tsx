@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { Calendar, LayoutDashboard, Layers, ListChecks, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { getServerSession } from "next-auth";
 
 import { MainNavigation } from "@/components/navigation/main-navigation";
@@ -9,13 +9,6 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { authOptions } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-
-const navigationItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Projects", href: "/projects", icon: Layers },
-  { label: "Tasks", href: "/tasks", icon: ListChecks },
-  { label: "Calendar", href: "/calendar", icon: Calendar },
-];
 
 interface AuthenticatedAppLayoutProps {
   children: ReactNode;
@@ -50,7 +43,7 @@ export async function AuthenticatedAppLayout({ children, requireSession = true }
           Coordinate planning, feasibility, and delivery with clarity.
         </p>
         <div className="mt-8 flex flex-1 flex-col">
-          <MainNavigation items={navigationItems} />
+          <MainNavigation />
         </div>
         <div className="mt-8 rounded-3xl bg-slate-900/90 p-5 text-white">
           <p className="text-sm font-medium">Need something new?</p>
@@ -82,7 +75,7 @@ export async function AuthenticatedAppLayout({ children, requireSession = true }
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <MainNavigation items={navigationItems} orientation="horizontal" className="lg:hidden" />
+              <MainNavigation orientation="horizontal" className="lg:hidden" />
               {resolvedSession ? (
                 <SignOutButton className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20">
                   <LogOut className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
