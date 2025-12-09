@@ -297,3 +297,24 @@ model WorkspaceUpload {
   @@index([projectId])
   @@index([userId])
 }
+
+model DCPClause {
+  id             String   @id @default(cuid())
+  lgaCode        String
+  instrumentSlug String?
+  ref            String?
+  title          String?
+  headingPath    String[]
+  parentRef      String?
+  depth          Int?
+  bodyHtml       String
+  bodyText       String
+  topicTags      String[] @default([])
+  numericMeta    Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([lgaCode])
+  @@index([instrumentSlug])
+  @@index([ref])
+}

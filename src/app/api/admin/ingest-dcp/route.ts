@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
     const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
-    const lgaCode = (url.searchParams.get("lgaCode") || "").toUpperCase();
+    const lgaCode = (url.searchParams.get("lgaCode") || url.searchParams.get("lga") || "").toUpperCase();
 
     if (!accessToken) {
       return NextResponse.json({ ok: false, error: "admin_token_missing" }, { status: 401 });
