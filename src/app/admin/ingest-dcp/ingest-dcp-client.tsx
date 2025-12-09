@@ -26,12 +26,10 @@ export function AdminByronIngestForm({ token }: { token: string }) {
       <input type="hidden" name="token" value={token} />
       <SubmitButton />
 
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
-
-      {state.result ? (
+      {state ? (
         <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-900">
           <p className="mb-2 font-semibold">Ingest response</p>
-          <pre className="overflow-auto text-xs text-slate-800">{JSON.stringify(state.result, null, 2)}</pre>
+          <pre className="overflow-auto text-xs text-slate-800">{JSON.stringify(state, null, 2)}</pre>
         </div>
       ) : null}
     </form>
