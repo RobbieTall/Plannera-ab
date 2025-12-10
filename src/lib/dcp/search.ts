@@ -3,6 +3,8 @@ import { extractQueryNumbers, type NumericMeta } from "./extract-numeric";
 import { detectTopicTags } from "./topic-tags";
 import type { DCPClause } from "@prisma/client";
 
+export type ScoredDcpClause = DCPClause & { score: number };
+
 const DEFAULT_LGA = "BYRON";
 
 const tokenize = (text: string) =>
@@ -52,7 +54,7 @@ export const searchDcpClauses = async (params: {
   query: string;
   lgaCode?: string;
   limit?: number;
-}): Promise<DCPClause & { score: number }[]> => {
+}): Promise<ScoredDcpClause[]> => {
   const queryText = params.query.trim();
   if (!queryText) return [];
 
