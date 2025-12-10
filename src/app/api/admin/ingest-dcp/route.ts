@@ -24,7 +24,26 @@ export async function POST(request: Request) {
 
   try {
     const result = lgaCode === "BYRON" ? await ingestByronDcp() : await ingestCouncilDcp(lgaCode);
-    return NextResponse.json({ ok: true, ...result });
+
+    if ("lga" in result) {
+      return NextResponse.json({
+        ok: true,
+        lga: result.lga,
+        clauseCount: result.clauseCount,
+        dcpClauseCount: result.dcpClauseCount,
+        chunkCount: lgaCode === "BYRON" ? 0 : "chunkCount" in result ? result.chunkCount : 0,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        chunksCreated: result.chunksCreated,
+        councilDocumentId: result.councilDocumentId,
+        title: result.title,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("[dcp-ingest-admin]", error);
     const reason = error instanceof Error ? error.message : "unknown";
