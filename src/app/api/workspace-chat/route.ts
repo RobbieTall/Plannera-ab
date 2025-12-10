@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { WorkspaceSourceType } from "@prisma/client";
+import { WorkspaceSourceType, type DCPClause } from "@prisma/client";
 
 import { searchClauses } from "@/lib/legislation";
 import {
@@ -23,6 +23,7 @@ import {
   getLepContextForProject,
   type LepContext,
 } from "@/lib/lep/lep-context";
+import { getDCPContext } from "@/lib/dcp/get-dcp-context";
 import {
   buildWorkspaceSourcePrompt,
   COUNCIL_DCP_TYPES,
@@ -46,32 +47,59 @@ const DCP_INTENT_REGEX = /(\bdcp\b|development control plan)/i;
 const CONTROL_KEYWORDS = [
   "setback",
   "set back",
+  "setbacks",
   "height",
   "storey",
   "story",
   "parking",
+  "parking rate",
+  "parking rates",
+  "parking requirement",
   "car space",
   "carpark",
   "driveway",
   "garage",
   "landscaping",
   "landscape",
+  "landscape area",
   "private open space",
   "pos",
   "site coverage",
+  "site cover",
   "floor space ratio",
   "fsr",
+  "floor area",
+  "gross floor area",
   "building envelope",
   "dual occupancy",
   "duplex",
 ];
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
+const MAX_DCP_CLAUSE_TEXT = 420;
 
 const hasExplicitDcpIntent = (message: string) => DCP_INTENT_REGEX.test(message.toLowerCase());
 const isControlsQuestion = (message: string) => {
   const normalised = message.toLowerCase();
   return CONTROL_KEYWORDS.some((keyword) => normalised.includes(keyword));
+};
+const shouldSearchDcpClauses = (message: string) => {
+  const normalised = message.toLowerCase();
+  return hasExplicitDcpIntent(message) || isControlsQuestion(message) || DUAL_OCC_REGEX.test(normalised);
+};
+
+const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => {
+  if (!clauses.length) return null;
+  const lines = clauses.map((clause) => {
+    const heading = (clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title ?? clause.ref ?? "Clause").trim();
+    const refLabel = clause.ref ? ` (${clause.ref})` : "";
+    const snippet = clause.bodyText?.length
+      ? clause.bodyText.slice(0, MAX_DCP_CLAUSE_TEXT).trimEnd() + (clause.bodyText.length > MAX_DCP_CLAUSE_TEXT ? "…" : "")
+      : "";
+    return `• ${heading}${refLabel}: ${snippet}`;
+  });
+  const headingLabel = lgaLabel ? `${lgaLabel} Development Control Plan clauses` : "Development Control Plan clauses";
+  return `${headingLabel}: Use these council DCP controls as the primary source before LEP or SEPP guidance.\n${lines.join("\n")}`;
 };
 
 const requestSchema = z.object({
@@ -241,6 +269,7 @@ export async function POST(request: Request) {
     let lepData: LepParseResult | null = existingMemory?.lepData ?? null;
     let lepContext: LepContext | null = existingMemory?.lepContext ?? null;
     let usedLepFallback = existingMemory?.usedLepFallback ?? false;
+    let dcpClauses: Awaited<ReturnType<typeof getDCPContext>> = [];
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
@@ -380,6 +409,7 @@ export async function POST(request: Request) {
     let sourceContextPrompt: string | null = null;
     let councilDcpPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
+    let dcpClausePrompt: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
@@ -397,6 +427,14 @@ export async function POST(request: Request) {
 
       canonicalLgaCode = sourceContext.canonicalLgaCode ?? canonicalLgaCode;
       isByronLga = canonicalLgaCode === BYRON_LGA_CODE;
+
+      if (canonicalLgaCode && shouldSearchDcpClauses(userMessage)) {
+        try {
+          dcpClauses = await getDCPContext(canonicalLgaCode, retrievalQuery);
+        } catch (dcpError) {
+          console.warn("[workspace-chat-warning] Failed to search DCP clauses", getErrorDetails(dcpError));
+        }
+      }
 
       if ((isByronLga && controlsRelatedQuestion) || userAskedForDcp) {
         dcpContext = userAskedForDcp
@@ -425,6 +463,8 @@ export async function POST(request: Request) {
       const dcpChunks = (dcpContext ?? sourceContext)?.chunks.filter((chunk) =>
         COUNCIL_DCP_TYPES.includes(chunk.sourceType),
       );
+      const hasDcpClauses = dcpClauses.length > 0;
+      const hasDcpChunks = (dcpChunks?.length ?? 0) > 0;
 
       if (isByronLga && controlsRelatedQuestion && dualOccQuestion && dcpChunks?.length) {
         dcpChunks.sort((a, b) => {
@@ -474,8 +514,16 @@ export async function POST(request: Request) {
 
       const lgaLabel = lgaName ?? canonicalLgaCode;
       const activeDcpContext = dcpContext ?? sourceContext;
-      if ((dcpChunks?.length ?? 0) > 0 && canonicalLgaCode) {
-        const headingLines = (activeDcpContext?.councilDcpSampleHeadings ?? [])
+      dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
+      if ((hasDcpChunks || hasDcpClauses) && canonicalLgaCode) {
+        const clauseHeadingSamples = dcpClauses
+          .map((clause) => clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title)
+          .filter((heading): heading is string => Boolean(heading))
+          .slice(0, 5);
+        const headingLines = (activeDcpContext?.councilDcpSampleHeadings?.length
+          ? activeDcpContext?.councilDcpSampleHeadings
+          : clauseHeadingSamples
+        )
           .map((heading) => `- ${heading}`)
           .join("\n");
         councilDcpPrompt = `You have access to ${lgaLabel ?? "the relevant LGA"} Development Control Plan (DCP) content for LGA code ${canonicalLgaCode}.
@@ -483,7 +531,10 @@ Use these council DCP sections as the primary source when answering questions ab
 ${headingLines}
 When the user asks about local controls, rely first on the council Development Control Plan content provided and state that your answer is based on that DCP. You may add NSW guidance for additional context.`;
         const dcpNameLabel = isByronLga ? "Byron Shire DCP 2014" : "this council DCP";
-        const dcpHasSpecificFigures = (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
+        const dcpHasSpecificFigures =
+          hasDcpClauses && dcpClauses.some((clause) => /\d/.test(clause.bodyText ?? ""))
+            ? true
+            : (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
         dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
         if (userAskedForDcp) {
           dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
@@ -521,6 +572,10 @@ When the user asks about local controls, rely first on the council Development C
 
     if (siteContextMessage) {
       messages.push({ role: "system", content: siteContextMessage });
+    }
+
+    if (dcpClausePrompt) {
+      messages.push({ role: "system", content: dcpClausePrompt });
     }
 
     if (lepContextMessage) {
@@ -572,6 +627,12 @@ When the user asks about local controls, rely first on the council Development C
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
+        dcpClauses: dcpClauses.slice(0, 5).map((clause) => ({
+          ref: clause.ref,
+          title: clause.title,
+          heading: clause.headingPath?.[clause.headingPath.length - 1] ?? null,
+          preview: clause.bodyText?.slice(0, 180) ?? null,
+        })),
         usedChunks:
           usedChunksForPrompt.map((chunk) => ({
             id: chunk.id,
@@ -619,6 +680,7 @@ When the user asks about local controls, rely first on the council Development C
       projectName,
       instruments: instrumentSlugs,
       siteContext: siteContextSummary,
+      dcpContext: dcpClauses,
     });
   } catch (error) {
     console.error("[workspace-chat-error]", getErrorDetails(error));
