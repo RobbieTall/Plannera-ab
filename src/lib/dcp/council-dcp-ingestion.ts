@@ -13,7 +13,7 @@ import { parseCouncilDcpHtml } from "@/lib/dcp/html-chunker";
 const DEFAULT_DCP_LINKS: Record<string, { name: string; url: string }> = {
   BYRON: {
     name: "Byron Shire Development Control Plan 2014",
-    url: "/dcp/byron-shire-dcp-2014.html",
+    url: "/dcp/byron-dcp-2014-d1-b4.html",
   },
 };
 

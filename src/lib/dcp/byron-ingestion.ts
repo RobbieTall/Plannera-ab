@@ -13,13 +13,23 @@ import type { ParsedDcpClause } from "./parser";
 type ClauseInput = ParsedDcpClause & {
   clauseKey: string;
   contentHash: string;
+  sourcePath: string;
 };
 
-const DCP_SOURCE_PATH = "/dcp/byron-shire-dcp-2014.html";
+type ByronDcpSource = {
+  path: string;
+  chapter: string;
+};
+
+const DCP_SOURCES: ByronDcpSource[] = [
+  { path: "/dcp/byron-dcp-2014-chapter-d1.html", chapter: "Chapter D1 Residential Development" },
+  { path: "/dcp/byron-dcp-2014-chapter-b4.html", chapter: "Chapter B4 Traffic, Parking and Access" },
+];
 const DCP_SLUG = "byron-dcp-2014";
 const DCP_NAME = "Byron Shire Development Control Plan 2014";
 const DCP_SHORT_NAME = "Byron DCP 2014";
 const DCP_LGA = "BYRON";
+const PRIMARY_DCP_SOURCE_PATH = DCP_SOURCES[0]?.path ?? "";
 
 const hashContent = (content: string) => createHash("sha256").update(content).digest("hex");
 
@@ -35,30 +45,43 @@ const buildClauseKey = (headingPath: string[], index: number, ref?: string | nul
   return slug ? `${index + 1}-${slug}` : `clause-${index + 1}`;
 };
 
-const loadByronDcpHtml = async () => {
+const loadByronDcpSources = async () => {
   const publicDir = join(process.cwd(), "public");
-  const htmlPath = join(publicDir, DCP_SOURCE_PATH.replace(/^\//, ""));
-  try {
-    const html = await readFile(htmlPath, "utf-8");
-    return html;
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : "unknown";
-    throw new Error(`Failed to load Byron DCP source from ${DCP_SOURCE_PATH}: ${reason}`);
-  }
+  const sources = await Promise.all(
+    DCP_SOURCES.map(async (source) => {
+      const htmlPath = join(publicDir, source.path.replace(/^\//, ""));
+      try {
+        const html = await readFile(htmlPath, "utf-8");
+        return { ...source, html };
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "unknown";
+        throw new Error(`Failed to load Byron DCP source from ${source.path}: ${reason}`);
+      }
+    }),
+  );
+
+  return sources;
 };
 
-const buildClauses = (html: string): ClauseInput[] => {
-  const clauses = parseDcpDocument(html, { documentTitle: DCP_NAME });
+const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): ClauseInput[] => {
+  const clauses: ClauseInput[] = [];
 
-  return clauses.map((clause, index) => {
-    const clauseKey = buildClauseKey(clause.headingPath, index, clause.ref ?? clause.title ?? undefined);
-    const contentHash = hashContent(`${clause.bodyText}-${clause.ref ?? ""}`);
-    return {
-      ...clause,
-      clauseKey,
-      contentHash,
-    };
+  htmlSources.forEach((source) => {
+    const parsed = parseDcpDocument(source.html, { documentTitle: `${DCP_NAME} - ${source.chapter}` });
+
+    parsed.forEach((clause, index) => {
+      const clauseKey = buildClauseKey(clause.headingPath, clauses.length + index, clause.ref ?? clause.title ?? undefined);
+      const contentHash = hashContent(`${clause.bodyText}-${clause.ref ?? ""}`);
+      clauses.push({
+        ...clause,
+        clauseKey,
+        contentHash,
+        sourcePath: source.path,
+      });
+    });
   });
+
+  return clauses;
 };
 
 const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
@@ -77,7 +100,7 @@ const fallbackIndexWorkspaceChunks = async (
         instrumentSlug: DCP_SLUG,
         clauseKey: clause.clauseKey,
         lgaCode: DCP_LGA,
-        sourceUrl: DCP_SOURCE_PATH,
+        sourceUrl: clause.sourcePath,
         sourceType: "DCP",
         ref: clause.ref,
         topicTags: clause.topicTags,
@@ -102,8 +125,8 @@ const fallbackIndexWorkspaceChunks = async (
 };
 
 export const ingestByronDcp = async () => {
-  const html = await loadByronDcpHtml();
-  const clauses = buildClauses(html);
+  const sources = await loadByronDcpSources();
+  const clauses = buildClauses(sources);
 
   if (!clauses.length) {
     throw new Error("No clauses could be parsed from Byron DCP");
@@ -118,7 +141,7 @@ export const ingestByronDcp = async () => {
         shortName: DCP_SHORT_NAME,
         instrumentType: InstrumentType.DCP,
         jurisdiction: "NSW",
-        sourceUrl: DCP_SOURCE_PATH,
+        sourceUrl: PRIMARY_DCP_SOURCE_PATH,
         lastSyncedAt: new Date(),
       },
       update: {
@@ -126,7 +149,7 @@ export const ingestByronDcp = async () => {
         shortName: DCP_SHORT_NAME,
         instrumentType: InstrumentType.DCP,
         jurisdiction: "NSW",
-        sourceUrl: DCP_SOURCE_PATH,
+        sourceUrl: PRIMARY_DCP_SOURCE_PATH,
         lastSyncedAt: new Date(),
       },
     });
@@ -182,7 +205,7 @@ export const ingestByronDcp = async () => {
               instrumentSlug: instrument.slug,
               clauseKey: clause.clauseKey,
               lgaCode: DCP_LGA,
-              sourceUrl: DCP_SOURCE_PATH,
+              sourceUrl: clause.sourcePath,
               sourceType: "DCP",
               ref: clause.ref,
               topicTags: clause.topicTags,
@@ -194,7 +217,7 @@ export const ingestByronDcp = async () => {
           metadata: {
             instrumentId: instrument.id,
             instrumentSlug: instrument.slug,
-            sourceUrl: DCP_SOURCE_PATH,
+            sourceUrl: PRIMARY_DCP_SOURCE_PATH,
             lgaCode: DCP_LGA,
           },
           prismaClient: tx,
@@ -236,7 +259,8 @@ export const getByronDcpCoverage = async () => {
 export const BYRON_DCP_CONSTANTS = {
   slug: DCP_SLUG,
   lga: DCP_LGA,
-  sourcePath: DCP_SOURCE_PATH,
+  sourcePaths: DCP_SOURCES.map((source) => source.path),
+  primarySourcePath: PRIMARY_DCP_SOURCE_PATH,
   name: DCP_NAME,
   shortName: DCP_SHORT_NAME,
 };

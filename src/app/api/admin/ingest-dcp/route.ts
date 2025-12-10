@@ -24,6 +24,17 @@ export async function POST(request: Request) {
 
   try {
     const result = lgaCode === "BYRON" ? await ingestByronDcp() : await ingestCouncilDcp(lgaCode);
+
+    if (lgaCode === "BYRON") {
+      return NextResponse.json({
+        ok: true,
+        lga: result.lga,
+        clauseCount: result.clauseCount,
+        dcpClauseCount: result.dcpClauseCount,
+        chunkCount: 0,
+      });
+    }
+
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     console.error("[dcp-ingest-admin]", error);
