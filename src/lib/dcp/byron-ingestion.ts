@@ -65,12 +65,13 @@ const loadByronDcpSources = async () => {
 
 const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): ClauseInput[] => {
   const clauses: ClauseInput[] = [];
+  let globalIndex = 0;
 
-  htmlSources.forEach((source) => {
+  for (const source of htmlSources) {
     const parsed = parseDcpDocument(source.html, { documentTitle: `${DCP_NAME} - ${source.chapter}` });
 
-    parsed.forEach((clause, index) => {
-      const clauseKey = buildClauseKey(clause.headingPath, clauses.length + index, clause.ref ?? clause.title ?? undefined);
+    for (const clause of parsed) {
+      const clauseKey = buildClauseKey(clause.headingPath, globalIndex, clause.ref ?? clause.title ?? undefined);
       const contentHash = hashContent(`${clause.bodyText}-${clause.ref ?? ""}`);
       clauses.push({
         ...clause,
@@ -78,8 +79,9 @@ const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): Cl
         contentHash,
         sourcePath: source.path,
       });
-    });
-  });
+      globalIndex += 1;
+    }
+  }
 
   return clauses;
 };
@@ -132,6 +134,10 @@ export const ingestByronDcp = async () => {
     throw new Error("No clauses could be parsed from Byron DCP");
   }
 
+  if (clauses.length <= 5) {
+    throw new Error(`Unexpectedly low clause count parsed for Byron DCP: ${clauses.length}`);
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const instrument = await tx.instrument.upsert({
       where: { slug: DCP_SLUG },
@@ -156,7 +162,7 @@ export const ingestByronDcp = async () => {
 
     await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
 
-    await tx.clause.createMany({
+    const clauseInsert = await tx.clause.createMany({
       data: clauses.map((clause) => ({
         clauseKey: clause.clauseKey,
         title: clause.title,
@@ -173,7 +179,7 @@ export const ingestByronDcp = async () => {
 
     await tx.dCPClause.deleteMany({ where: { lgaCode: DCP_LGA } });
 
-    await tx.dCPClause.createMany({
+    const dcpInsert = await tx.dCPClause.createMany({
       data: clauses.map((clause) => ({
         lgaCode: DCP_LGA,
         instrumentSlug: DCP_SLUG,
@@ -228,6 +234,13 @@ export const ingestByronDcp = async () => {
 
     const clauseCount = await tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
     const dcpClauseCount = await tx.dCPClause.count({ where: { lgaCode: DCP_LGA } });
+
+    // Sanity check to ensure the parser output is fully persisted.
+    if (clauseInsert.count !== clauses.length || dcpInsert.count !== clauses.length) {
+      throw new Error(
+        `Mismatch inserting Byron DCP clauses (parsed ${clauses.length}, clauses stored ${clauseInsert.count}, dcp stored ${dcpInsert.count})`,
+      );
+    }
 
     return {
       instrumentId: instrument.id,
