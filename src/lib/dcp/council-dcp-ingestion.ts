@@ -58,6 +58,8 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     throw new Error(`Invalid LGA code: ${lgaCode}`);
   }
 
+  console.log("[DCP-DEBUG] ingestCouncilDcp start", { lga: canonicalLgaCode });
+
   const link =
     (await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode: canonicalLgaCode } })) ||
     DEFAULT_DCP_LINKS[canonicalLgaCode];
@@ -141,6 +143,12 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     throw new Error(`No text could be extracted for LGA ${canonicalLgaCode}`);
   }
 
+  console.log("[DCP-DEBUG] ingestCouncilDcp text ready", {
+    lga: canonicalLgaCode,
+    extractedTextLength: extractedText.length,
+    structuredChunks: structuredChunks?.length ?? 0,
+  });
+
   const result = await prisma.$transaction(async (tx) => {
     const councilDocument = await tx.councilDocument.upsert({
       where: { lgaCode: canonicalLgaCode },
@@ -205,6 +213,12 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
       `canonicalLga=${canonicalLgaCode} createdCouncilDcpChunks=${result.created} existingCouncilDcpChunks=${result.existingCouncilDcpChunks}`,
     );
   }
+
+  console.log("[DCP-DEBUG] ingestCouncilDcp done", {
+    lga: canonicalLgaCode,
+    chunksCreated: result.created,
+    councilDocumentId: result.councilDocumentId,
+  });
 
   return {
     chunksCreated: result.created,

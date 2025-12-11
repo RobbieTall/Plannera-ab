@@ -96,6 +96,11 @@ const fallbackIndexWorkspaceChunks = async (
   clauses: ClauseInput[],
   instrumentId: string,
 ) => {
+  console.log("[DCP-DEBUG] fallbackIndexWorkspaceChunks start", {
+    instrumentId,
+    clauseCount: clauses.length,
+  });
+
   const normalizedChunks = clauses
     .map((clause, index) => ({
       heading: clause.title ?? `Clause ${index + 1}`,
@@ -126,12 +131,22 @@ const fallbackIndexWorkspaceChunks = async (
     })),
   });
 
+  console.log("[DCP-DEBUG] fallbackIndexWorkspaceChunks done", {
+    instrumentId,
+    created: normalizedChunks.length,
+  });
+
   return { created: normalizedChunks.length } as const;
 };
 
 export const ingestByronDcp = async () => {
   const sources = await loadByronDcpSources();
   const { clauses, tableCount } = buildClauses(sources);
+
+  console.log("[DCP-DEBUG] ingestByronDcp start", {
+    clauseCount: clauses.length,
+    tableCount,
+  });
 
   if (!clauses.length) {
     throw new Error("No clauses could be parsed from Byron DCP");
@@ -161,6 +176,12 @@ export const ingestByronDcp = async () => {
         sourceUrl: PRIMARY_DCP_SOURCE_PATH,
         lastSyncedAt: new Date(),
       },
+    });
+
+    console.log("[DCP-DEBUG] ingestByronDcp instrument", {
+      instrumentId: instrument.id,
+      slug: instrument.slug,
+      clauseCount: clauses.length,
     });
 
     await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
@@ -204,7 +225,10 @@ export const ingestByronDcp = async () => {
 
     // TODO: Re-enable workspace chunking for Byron DCP once batching issues are resolved.
     const chunkResult = DCP_LGA === "BYRON"
-      ? { created: 0 as const }
+      ? (() => {
+          console.log("[DCP-DEBUG] chunking skipped because embeddings disabled", { instrumentId: instrument.id });
+          return { created: 0 as const };
+        })()
       : await indexWorkspaceChunks({
           chunks: clauses.map((clause, index) => ({
             heading: clause.title ?? `Clause ${index + 1}`,
@@ -245,6 +269,13 @@ export const ingestByronDcp = async () => {
       );
     }
 
+    console.log("[DCP-DEBUG] ingestByronDcp chunk summary", {
+      instrumentId: instrument.id,
+      createdChunks: chunkResult.created,
+      clauseCount,
+      dcpClauseCount,
+    });
+
     return {
       instrumentId: instrument.id,
       clauseCount,
@@ -252,6 +283,12 @@ export const ingestByronDcp = async () => {
       chunkCount: chunkResult.created,
       tableCount,
     };
+  });
+
+  console.log("[DCP-DEBUG] ingestByronDcp done", {
+    instrumentId: result.instrumentId,
+    clauseCount: result.clauseCount,
+    chunkCount: result.chunkCount,
   });
 
   return { ...result, lga: DCP_LGA, slug: DCP_SLUG };

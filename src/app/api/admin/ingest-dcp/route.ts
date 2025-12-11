@@ -10,6 +10,8 @@ export async function POST(request: Request) {
   const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
   const lgaCode = (url.searchParams.get("lgaCode") || url.searchParams.get("lga") || "").toUpperCase();
 
+  console.log("[DCP-DEBUG] ingest-dcp called", { lga: lgaCode, method: request.method });
+
   if (!accessToken) {
     return NextResponse.json({ ok: false, error: "admin_token_missing" }, { status: 401 });
   }
@@ -24,6 +26,12 @@ export async function POST(request: Request) {
 
   try {
     const result = lgaCode === "BYRON" ? await ingestByronDcp() : await ingestCouncilDcp(lgaCode);
+
+    console.log("[DCP-DEBUG] ingest-dcp completed", {
+      lga: lgaCode,
+      instrumentId: "instrumentId" in result ? result.instrumentId : undefined,
+      chunkCount: "chunkCount" in result ? result.chunkCount : "chunksCreated" in result ? result.chunksCreated : undefined,
+    });
 
     if ("lga" in result) {
       return NextResponse.json({
