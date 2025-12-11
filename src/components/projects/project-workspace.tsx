@@ -754,6 +754,14 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     [applySessionSignals, projectKey, saveChatHistory]
   );
 
+  const showToast = useCallback(
+    (message: string, variant: "success" | "error" = "success") => {
+      setToast({ message, variant });
+      window.setTimeout(() => setToast(null), 3500);
+    },
+    []
+  );
+
   const handleQuickSiteCheckArtefactSaved = useCallback(
     (title: string, summary: string) => {
       const preview = summary.replace(/\s+/g, " ").trim();
@@ -770,11 +778,6 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     },
     [addArtefact, projectKey, showToast],
   );
-
-  const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
-    setToast({ message, variant });
-    window.setTimeout(() => setToast(null), 3500);
-  }, []);
 
   const sendMessage = useCallback(
     async (options?: { message?: string; skipUserMessage?: boolean }) => {
