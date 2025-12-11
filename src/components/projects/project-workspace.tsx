@@ -1432,113 +1432,113 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 md:max-h-screen md:overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 text-inherit">
-            <Logo className="h-6 w-auto" />
-            <span className="sr-only">Home</span>
-          </Link>
-          {isAuthenticated ? (
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-            >
-              ← My Projects
-            </button>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100"
-            aria-label="Toggle light and dark mode"
-          >
-            {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {isDarkMode ? "Light mode" : "Dark mode"}
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
-            <Sparkles className="h-4 w-4" />
-            Get help
-          </button>
-          {isAuthenticated ? (
-            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </SignOutButton>
-          ) : (
-            <>
+    <div className="flex h-screen flex-col bg-slate-100 text-slate-900 transition-colors dark:text-slate-100">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="mx-auto flex h-full max-w-7xl flex-col gap-4 px-4 pb-10 pt-4 sm:px-6 lg:px-10">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
+            <div className="flex items-center gap-4">
+              <Link href="/" className="flex items-center gap-2 text-inherit">
+                <Logo className="h-6 w-auto" />
+                <span className="sr-only">Home</span>
+              </Link>
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+                >
+                  ← My Projects
+                </button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                onClick={toggleTheme}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100"
+                aria-label="Toggle light and dark mode"
               >
-                Sign in
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {isDarkMode ? "Light mode" : "Dark mode"}
               </button>
-            </>
-          )}
-        </div>
-      </div>
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+                <Sparkles className="h-4 w-4" />
+                Get help
+              </button>
+              {isAuthenticated ? (
+                <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </SignOutButton>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal()}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  Sign in
+                </button>
+              )}
+            </div>
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-[260px] flex-1 flex-col">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
-          <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
-        </div>
-        <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
-          <Notebook className="h-4 w-4" />
-          Share workspace
-        </button>
-      </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-[260px] flex-1 flex-col">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
+              <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
+            </div>
+            <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
+              <Notebook className="h-4 w-4" />
+              Share workspace
+            </button>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-          <MapPin className="h-4 w-4 text-slate-500" />
-          <span>{siteContext?.formattedAddress ?? "No site set"}</span>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
-          <Layers3 className="h-3.5 w-3.5" />
-          {zoningLabel ? <span>Zoning: {zoningLabel}</span> : <span>Zoning: Not available</span>}
-        </div>
-        {siteContext?.councilMap?.url ? (
-          <a
-            href={siteContext.councilMap.url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Open council web map
-          </a>
-        ) : null}
-        {siteContext ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (dcpLink?.url) {
-                window.open(dcpLink.url, "_blank", "noopener,noreferrer");
-              }
-            }}
-            disabled={!isDcpLinkAvailable || isLoadingDcpLink}
-            title={!isDcpLinkAvailable && !isLoadingDcpLink ? "No DCP link available yet" : undefined}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition",
-              "hover:border-slate-900 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400",
-              "dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500",
-            )}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            {isLoadingDcpLink ? "Loading DCP" : "Open DCP"}
-          </button>
-        ) : null}
-      </div>
+          <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              <MapPin className="h-4 w-4 text-slate-500" />
+              <span>{siteContext?.formattedAddress ?? "No site set"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <Layers3 className="h-3.5 w-3.5" />
+              {zoningLabel ? <span>Zoning: {zoningLabel}</span> : <span>Zoning: Not available</span>}
+            </div>
+            {siteContext?.councilMap?.url ? (
+              <a
+                href={siteContext.councilMap.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Open council web map
+              </a>
+            ) : null}
+            {siteContext ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (dcpLink?.url) {
+                    window.open(dcpLink.url, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                disabled={!isDcpLinkAvailable || isLoadingDcpLink}
+                title={!isDcpLinkAvailable && !isLoadingDcpLink ? "No DCP link available yet" : undefined}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition",
+                  "hover:border-slate-900 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400",
+                  "dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:disabled:border-slate-800 dark:disabled:text-slate-500",
+                )}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                {isLoadingDcpLink ? "Loading DCP" : "Open DCP"}
+              </button>
+            ) : null}
+          </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
-        <div className="grid flex-1 min-h-0 items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="grid flex-1 min-h-0 items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+              <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
@@ -1835,65 +1835,37 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                 </div>
               </div>
             ) : null}
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 pb-2">
               <div
                 ref={chatScrollRef}
                 className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"
                 aria-live="polite"
               >
-              {messages.length === 0 ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
-              ) : (
-                messages.map((message) => (
-                  <article
-                    key={message.id}
-                    className={cn(
-                      "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
-                      message.role === "assistant"
-                        ? "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100"
-                        : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
-                    )}
-                  >
-                    <p>{message.content}</p>
-                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
-                  </article>
-                ))
-              )}
-              {isThinking ? (
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
-                  <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
-                </div>
-              ) : null}
-              <div ref={chatEndRef} />
+                {messages.length === 0 ? (
+                  <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
+                ) : (
+                  messages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={cn(
+                        "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
+                        message.role === "assistant"
+                          ? "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100"
+                          : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
+                      )}
+                    >
+                      <p>{message.content}</p>
+                      <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
+                    </article>
+                  ))
+                )}
+                {isThinking ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
+                    <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
+                  </div>
+                ) : null}
+                <div ref={chatEndRef} />
             </div>
-            <form
-              onSubmit={handleSubmit}
-              className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
-            >
-              <label htmlFor="chat-input" className="sr-only">
-                Ask the workspace
-              </label>
-              <textarea
-                id="chat-input"
-                ref={chatInputRef}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={3}
-                placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
-                className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
-                >
-                  Send
-                  <Sparkles className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
           </div>
         </div>
         </section>
@@ -2028,9 +2000,46 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </button>
             </div>
           </div>
-        </section>
+          </section>
         </div>
       </div>
+    </div>
+  </div>
+
+  <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+      <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-4xl">
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-slate-200 bg-white/90 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900/90"
+          >
+            <label htmlFor="chat-input" className="sr-only">
+              Ask the workspace
+            </label>
+            <textarea
+              id="chat-input"
+              ref={chatInputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={3}
+              placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
+              className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
+            />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
+              >
+                Send
+                <Sparkles className="h-4 w-4" />
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </footer>
 
       <MapsToolsModal
         open={isMapsToolsModalOpen}
