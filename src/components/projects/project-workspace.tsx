@@ -1683,7 +1683,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </button>
             </div>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6 md:max-h-none max-h-[calc(100dvh-240px)]">
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                 <div className="flex items-start justify-between gap-3">
@@ -1868,7 +1868,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
             <form
               onSubmit={handleSubmit}
-              className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
+              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:static"
             >
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
