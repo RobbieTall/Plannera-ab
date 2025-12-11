@@ -754,6 +754,23 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     [applySessionSignals, projectKey, saveChatHistory]
   );
 
+  const handleQuickSiteCheckArtefactSaved = useCallback(
+    (title: string, summary: string) => {
+      const preview = summary.replace(/\s+/g, " ").trim();
+      const artefact: WorkspaceArtefact = {
+        id: `quick-site-check-${Date.now()}`,
+        title,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "report",
+        metadata: `${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}` || "LEP quick site check summary",
+      };
+      addArtefact(projectKey, artefact);
+      showToast("Saved Quick Site Check as artefact");
+    },
+    [addArtefact, projectKey, showToast],
+  );
+
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
     window.setTimeout(() => setToast(null), 3500);
@@ -2063,6 +2080,8 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         onClose={() => setIsQuickSiteCheckOpen(false)}
         projectId={projectKey}
         onInsertToChat={appendToolMessage}
+        onArtefactSaved={handleQuickSiteCheckArtefactSaved}
+        onToast={showToast}
       />
 
       <MapsToolsModal

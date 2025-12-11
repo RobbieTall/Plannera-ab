@@ -1,4 +1,4 @@
-import type { Clause, Prisma } from "@prisma/client";
+import type { Clause } from "@prisma/client";
 
 import type { QuickSiteCheckLepClause, QuickSiteCheckLepResponse } from "@/types/quick-site-check-lep";
 
@@ -10,33 +10,36 @@ import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
-const LIST_SEPARATOR = /[•·\-–]\s*|\d+\.\s*/;
+type ZoneSectionKey = "objectives" | "withoutConsent" | "withConsent" | "prohibited";
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
-  "4": [
-    "height",
-    "floor space",
-    "fsr",
-    "lot size",
-    "subdivision",
-    "envelope",
-    "setback",
-  ],
+  "4": ["height", "floor space", "fsr", "lot size", "subdivision", "envelope", "setback", "building"],
   "5": ["heritage", "archaeolog", "environmental heritage"],
   "6": [
     "acid sulfate",
     "acid sulphate",
     "flood",
+    "drinking water",
     "water",
     "coastal",
+    "erosion",
     "bush fire",
     "bushfire",
     "biodiversity",
     "riparian",
     "scenic",
+    "land slip",
+    "landslip",
     "airport",
   ],
 };
+
+const ZONE_SECTION_HEADERS: { key: ZoneSectionKey; regex: RegExp }[] = [
+  { key: "objectives", regex: /objectives of (the )?zone/i },
+  { key: "withoutConsent", regex: /permitted without consent/i },
+  { key: "withConsent", regex: /permitted with consent/i },
+  { key: "prohibited", regex: /prohibited/i },
+];
 
 const toZoneCode = (value: string | null | undefined) => {
   if (!value) return null;
@@ -44,48 +47,55 @@ const toZoneCode = (value: string | null | undefined) => {
   return match ? match[1]?.toUpperCase() ?? null : null;
 };
 
-const extractListFromSection = (text: string, headings: string[]): string[] => {
-  const lines = text.split(/\r?\n/).map((line) => line.trim());
-  let capture: string | null = null;
-  const results: string[] = [];
+const splitZoneSections = (text: string): Record<ZoneSectionKey, string> => {
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lower = normalized.toLowerCase();
 
-  for (const line of lines) {
-    const headingMatch = headings.find((heading) =>
-      new RegExp(`^${heading}`, "i").test(line.replace(/[:–-]+\s*$/, "")),
-    );
+  const matches = ZONE_SECTION_HEADERS.map((header) => {
+    const match = lower.match(header.regex);
+    if (!match || typeof match.index !== "number") return null;
+    return { key: header.key, start: match.index, end: match.index + match[0].length };
+  })
+    .filter(Boolean)
+    .sort((first, second) => (first!.start ?? 0) - (second!.start ?? 0)) as {
+    key: ZoneSectionKey;
+    start: number;
+    end: number;
+  }[];
 
-    if (headingMatch) {
-      capture = headingMatch;
-      continue;
-    }
+  const sections: Record<ZoneSectionKey, string> = {
+    objectives: "",
+    withoutConsent: "",
+    withConsent: "",
+    prohibited: "",
+  };
 
-    const isNewHeading = /^(zone objectives|development permitted|permitted|prohibited|not permitted)/i.test(line);
-    if (isNewHeading) {
-      capture = null;
-    }
+  matches.forEach((match, index) => {
+    const nextStart = matches[index + 1]?.start ?? normalized.length;
+    sections[match.key] = normalized.slice(match.end, nextStart).trim();
+  });
 
-    if (!capture) continue;
-
-    const cleaned = line.replace(LIST_SEPARATOR, "").trim();
-    if (cleaned) {
-      results.push(cleaned);
-    }
-  }
-
-  return Array.from(new Set(results));
+  return sections;
 };
 
-const extractZoneObjectives = (text: string) =>
-  extractListFromSection(text, ["zone objectives", "objectives of the zone", "zone objective"]);
+const cleanListItems = (section: string): string[] => {
+  if (!section) return [];
 
-const extractPermittedWithoutConsent = (text: string) =>
-  extractListFromSection(text, ["development permitted without consent", "permitted without consent"]);
+  const rawEntries = section
+    .split(/\r?\n|;/)
+    .flatMap((line) => line.split(/[•·\-–—]/))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
-const extractPermittedWithConsent = (text: string) =>
-  extractListFromSection(text, ["development permitted with consent", "permitted with consent"]);
+  const cleaned = rawEntries
+    .map((entry) => entry.replace(/^\d+[).]\s*/, "").replace(/^[-–—]\s*/, "").replace(/\s+[-–—]\s*$/, ""))
+    .map((entry) => entry.replace(/^\W+/, "").replace(/\s+$/, ""))
+    .map((entry) => entry.replace(/\s+\.$/, "."))
+    .filter((entry) => entry.length > 0)
+    .filter((entry) => !/^none\b/i.test(entry) && !/^nil\b/i.test(entry));
 
-const extractProhibited = (text: string) =>
-  extractListFromSection(text, ["development prohibited", "prohibited", "development not permitted"]);
+  return Array.from(new Set(cleaned));
+};
 
 const parseClauseNumber = (clause: ClauseSummary) => {
   if (clause.clauseKey?.trim()) return clause.clauseKey;
@@ -114,16 +124,19 @@ const buildSnippet = (text: string | null | undefined) => {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
-    .slice(0, 3)
+    .filter(Boolean)
+    .slice(0, 2)
     .join(" ");
-  const snippet = sentences || text.slice(0, 280);
-  return snippet.length > 320 ? `${snippet.slice(0, 320)}…` : snippet;
+  const snippet = sentences || text.slice(0, 250);
+  return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
 };
 
 const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary) => {
   const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`.toLowerCase();
   const keywords = KEYWORDS[part];
-  return keywords.reduce((score, keyword) => (haystack.includes(keyword) ? score + 2 : score), 0);
+  const scoreFromKeywords = keywords.reduce((score, keyword) => (haystack.includes(keyword) ? score + 2 : score), 0);
+  const partBonus = clause.clauseKey.startsWith(part) ? 1 : 0;
+  return scoreFromKeywords + partBonus;
 };
 
 const selectClauses = (
@@ -132,6 +145,7 @@ const selectClauses = (
 ): QuickSiteCheckLepClause[] => {
   const scored = clauses
     .map((clause) => ({ clause, score: scoreClause(part, clause), clauseNumber: parseClauseNumber(clause) }))
+    .filter(({ score }) => score > 0)
     .sort((first, second) => {
       if (first.score !== second.score) return second.score - first.score;
       return first.clauseNumber.localeCompare(second.clauseNumber, undefined, { numeric: true, sensitivity: "base" });
@@ -141,20 +155,31 @@ const selectClauses = (
     .slice(0, 8)
     .map(({ clause }) => ({
       part,
-      clauseNumber: parseClauseNumber(clause) || "", 
-      heading: clause.title?.trim() || "", 
+      clauseNumber: parseClauseNumber(clause) || "",
+      heading: clause.title?.trim() || "",
       textSnippet: buildSnippet(clause.bodyText),
     }));
 };
 
 const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
-  if (!zoneCode) return clauses.find((clause) => /zone/i.test(clause.title ?? "")) ?? null;
-  const zonePattern = new RegExp(`\b${zoneCode}\b`, "i");
-  return (
-    clauses.find((clause) => zonePattern.test(clause.title ?? "")) ??
-    clauses.find((clause) => zonePattern.test(clause.bodyText ?? "")) ??
-    null
-  );
+  if (!clauses.length) return null;
+
+  const zonePattern = zoneCode ? new RegExp(`\bzone\s+${zoneCode}\b`, "i") : null;
+
+  const scored = clauses
+    .map((clause) => {
+      let score = 0;
+      if (clause.clauseKey.startsWith("2")) score += 1;
+      if (clause.hierarchyPath?.some((entry) => /part\s*2/i.test(entry))) score += 1;
+      if (zonePattern?.test(clause.title ?? "")) score += 6;
+      if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 3;
+      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title ?? "")) score += 2;
+      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")) score += 1;
+      return { clause, score };
+    })
+    .sort((first, second) => second.score - first.score);
+
+  return scored[0]?.clause ?? null;
 };
 
 const buildZoneSummary = (clause: ClauseSummary | null) => {
@@ -163,12 +188,20 @@ const buildZoneSummary = (clause: ClauseSummary | null) => {
   }
 
   const text = clause.bodyText ?? "";
+  const sections = splitZoneSections(text);
+
+  const objectives = cleanListItems(sections.objectives);
+  const withoutConsent = cleanListItems(sections.withoutConsent);
+  const withConsent = cleanListItems(sections.withConsent);
+  const prohibited = cleanListItems(sections.prohibited);
+
+  const fallbackObjectives = objectives.length ? objectives : cleanListItems(text);
 
   return {
-    objectives: extractZoneObjectives(text),
-    withoutConsent: extractPermittedWithoutConsent(text),
-    withConsent: extractPermittedWithConsent(text),
-    prohibited: extractProhibited(text),
+    objectives: fallbackObjectives,
+    withoutConsent,
+    withConsent,
+    prohibited,
   };
 };
 
@@ -220,6 +253,14 @@ export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSi
       } satisfies QuickSiteCheckLepResponse;
     }
 
+    if (!zoneCode) {
+      return {
+        ok: false,
+        projectId: project.id,
+        message: "Zone not set for this project. Set the site and zoning first to run LEP Quick Site Check.",
+      } satisfies QuickSiteCheckLepResponse;
+    }
+
     const lepInstrument = await findLepInstrumentForLga(lga);
 
     if (!lepInstrument) {
@@ -230,30 +271,32 @@ export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSi
       } satisfies QuickSiteCheckLepResponse;
     }
 
+    const zonePattern = `Zone ${zoneCode}`;
+
     const zoneClauses = await prisma.clause.findMany({
       where: {
         instrumentId: lepInstrument.id,
         isCurrent: true,
         OR: [
           { clauseKey: { startsWith: "2" } },
-          zoneCode ? { title: { contains: zoneCode, mode: "insensitive" } } : undefined,
-          zoneCode ? { bodyText: { contains: zoneCode, mode: "insensitive" } } : undefined,
-        ].filter(Boolean) as Prisma.ClauseWhereInput[],
+          { hierarchyPath: { has: "Part 2" } },
+          { title: { contains: zonePattern, mode: "insensitive" } },
+          { bodyText: { contains: zonePattern, mode: "insensitive" } },
+          { title: { contains: zoneCode, mode: "insensitive" } },
+          { bodyText: { contains: zoneCode, mode: "insensitive" } },
+        ],
       },
       orderBy: { clauseKey: "asc" },
       select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
     });
 
     const chosenZoneClause = pickZoneClause(zoneClauses, zoneCode);
-    const zoneSummary = buildZoneSummary(chosenZoneClause);
 
-    if (!zoneCode) {
-      return {
-        ok: false,
-        projectId: project.id,
-        message: "Zone not set for this project. Set the site and zoning first to run LEP Quick Site Check.",
-      } satisfies QuickSiteCheckLepResponse;
+    if (!chosenZoneClause) {
+      console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
     }
+
+    const zoneSummary = buildZoneSummary(chosenZoneClause);
 
     const candidateClauses = await prisma.clause.findMany({
       where: {

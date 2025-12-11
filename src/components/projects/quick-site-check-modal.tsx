@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCcw, Sparkles } from "lucide-react";
+import { RefreshCcw, Save, Sparkles } from "lucide-react";
 
+import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { Modal } from "@/components/ui/modal";
 import type { QuickSiteCheckLepResponse, QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
+import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { WorkspaceSessionSignals } from "@/types/workspace";
 
 type QuickSiteCheckModalProps = {
@@ -12,6 +14,8 @@ type QuickSiteCheckModalProps = {
   onClose: () => void;
   projectId: string;
   onInsertToChat?: (message: string, signals?: WorkspaceSessionSignals) => void;
+  onArtefactSaved?: (title: string, summary: string) => void;
+  onToast?: (message: string, variant?: "success" | "error") => void;
 };
 
 const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
@@ -59,10 +63,71 @@ const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
   return sections.filter(Boolean).join("\n");
 };
 
-export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }: QuickSiteCheckModalProps) {
+const buildArtefactTitle = (payload: QuickSiteCheckLepSuccess) => {
+  if (payload.zone) {
+    return `Quick Site Check (LEP only) – ${payload.lepName} – Zone ${payload.zone}`;
+  }
+  return `Quick Site Check (LEP only) – ${payload.lepName}`;
+};
+
+const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSuccess): QuickSiteCheckReport => {
+  const placeholderControl = (label: string) => ({
+    label,
+    value: null,
+    present: false,
+    interpretation: "Not assessed in LEP-only quick site check.",
+  });
+
+  return {
+    projectId,
+    generatedAt: new Date().toISOString(),
+    site: {
+      lga: payload.lga,
+      zoneCode: payload.zone,
+      zoneLabel: payload.zone ? `Zone ${payload.zone}` : null,
+    },
+    lepInstrument: {
+      name: payload.lepName,
+      lga: payload.lga,
+      source: "ingestion",
+    },
+    permissibility: {
+      zoneLabel: payload.zone ? `Zone ${payload.zone}` : null,
+      permittedWithoutConsent: payload.permittedWithoutConsent,
+      permittedWithConsent: payload.permittedWithConsent,
+      prohibited: payload.prohibited,
+      interpretation: "Extracted from LEP zone table (permitted uses and prohibitions).",
+    },
+    controls: {
+      heightOfBuilding: placeholderControl("Height of buildings"),
+      floorSpaceRatio: placeholderControl("Floor space ratio"),
+      minimumLotSize: placeholderControl("Minimum lot size"),
+    },
+    notes: payload.zoneObjectives,
+    nextSteps: [
+      "Review highlighted LEP clauses (Parts 4–6).",
+      payload.zone
+        ? `Confirm mapping overlays and constraints for zone ${payload.zone}.`
+        : "Confirm zoning and rerun Quick Site Check.",
+    ],
+  };
+};
+
+export function QuickSiteCheckModal({
+  open,
+  onClose,
+  projectId,
+  onInsertToChat,
+  onArtefactSaved,
+  onToast,
+}: QuickSiteCheckModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QuickSiteCheckLepSuccess | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const { requireAuth } = useAuthGuard();
 
   const hasResult = Boolean(result);
 
@@ -76,6 +141,7 @@ export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }
     if (!projectId) return;
     setStatus("loading");
     setError(null);
+    setSaveError(null);
     try {
       const response = await fetch("/api/tools/quick-site-check-lep", {
         method: "POST",
@@ -89,9 +155,9 @@ export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }
         const message = payload.ok ? "Unable to run Quick Site Check" : payload.message;
         setError(message ?? "Unable to run Quick Site Check");
         setResult(null);
-      setStatus("error");
-      return;
-    }
+        setStatus("error");
+        return;
+      }
 
       setResult(payload);
       setStatus("idle");
@@ -113,6 +179,50 @@ export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }
     const message = buildChatMessage(result);
     onInsertToChat(message, { lga: result.lga, zone: result.zone ?? undefined });
   };
+
+  const handleSaveArtefact = useCallback(() => {
+    if (!result) return;
+
+    const save = async () => {
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+        const summary = buildChatMessage(result);
+        const title = buildArtefactTitle(result);
+        const report = buildReportFromResult(projectId, result);
+        const payload: QuickSiteCheckArtefactRequest = {
+          projectId,
+          title,
+          type: "quick_site_check",
+          report,
+        };
+
+        const response = await fetch(`/api/projects/${projectId}/artefacts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: "include",
+        });
+
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error ?? "Unable to save artefact");
+        }
+
+        onArtefactSaved?.(title, summary);
+        onToast?.("Saved Quick Site Check as artefact");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to save artefact";
+        setSaveError(message);
+        onToast?.(message, "error");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    requireAuth(save);
+  }, [onArtefactSaved, onToast, projectId, requireAuth, result]);
 
   return (
     <Modal
@@ -228,8 +338,18 @@ export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }
             ))}
           </div>
 
-          {onInsertToChat ? (
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveArtefact}
+              disabled={isSaving || status === "loading"}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
+            >
+              {isSaving ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSaving ? "Saving…" : "Save as artefact"}
+            </button>
+
+            {onInsertToChat ? (
               <button
                 type="button"
                 onClick={handleInsertToChat}
@@ -238,7 +358,10 @@ export function QuickSiteCheckModal({ open, onClose, projectId, onInsertToChat }
                 <Sparkles className="h-4 w-4" />
                 Insert summary into chat
               </button>
-            </div>
+            ) : null}
+          </div>
+          {saveError ? (
+            <p className="text-sm text-rose-600 dark:text-rose-300">{saveError}</p>
           ) : null}
         </div>
       ) : null}
