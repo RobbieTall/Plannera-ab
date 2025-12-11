@@ -14,14 +14,14 @@ const tokenize = (text: string) =>
     .split(/\s+/)
     .filter(Boolean);
 
-const keywordScore = (queryTokens: string[], content: string) => {
+const keywordScore = (queryTokens: string[], content: string, weight = 2) => {
   const contentTokens = tokenize(content);
   const tokenCounts = contentTokens.reduce<Record<string, number>>((acc, token) => {
     acc[token] = (acc[token] || 0) + 1;
     return acc;
   }, {});
 
-  return queryTokens.reduce((score, token) => score + (tokenCounts[token] ? Math.min(tokenCounts[token], 3) * 2 : 0), 0);
+  return queryTokens.reduce((score, token) => score + (tokenCounts[token] ? Math.min(tokenCounts[token], 3) * weight : 0), 0);
 };
 
 const numericOverlapScore = (queryNumbers: number[], clauseNumbers: number[]) => {
@@ -72,9 +72,11 @@ export const searchDcpClauses = async (params: {
 
   return clauses
     .map((clause) => {
-      const textForSearch = `${clause.headingPath.join(" ")} ${clause.bodyText}`;
-      const baseKeyword = keywordScore(queryTokens, textForSearch);
-      const topicMatch = clause.topicTags.some((tag) => queryTopics.includes(tag)) ? 20 : 0;
+      const headingText = clause.headingPath.join(" ");
+      const baseKeyword =
+        keywordScore(queryTokens, headingText, 3) + keywordScore(queryTokens, clause.bodyText, 2);
+      const matchingTopics = clause.topicTags.filter((tag) => queryTopics.includes(tag));
+      const topicMatch = matchingTopics.length ? 12 + matchingTopics.length * 4 : 0;
       const numericScore = numericOverlapScore(queryNumeric.numbers, toNumericMeta(clause.numericMeta)?.numbers || []);
       const depthScore = headingDepthScore(clause.depth);
       const score = baseKeyword + topicMatch + numericScore + depthScore;
