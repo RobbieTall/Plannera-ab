@@ -43,7 +43,7 @@ export default async function DcpIngestAdminPage({ searchParams }: PageProps) {
           <p className="text-sm text-slate-600">Re-run ingestion to refresh DCP clauses and workspace chunks.</p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <div className="rounded-2xl bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase text-slate-500">Clause rows</p>
             <p className="text-2xl font-semibold text-slate-900">{coverage.clauseCount}</p>
@@ -55,6 +55,10 @@ export default async function DcpIngestAdminPage({ searchParams }: PageProps) {
           <div className="rounded-2xl bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase text-slate-500">Workspace chunks</p>
             <p className="text-2xl font-semibold text-slate-900">{coverage.chunkCount}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase text-slate-500">Clauses with tables</p>
+            <p className="text-2xl font-semibold text-slate-900">{coverage.tableCount}</p>
           </div>
         </div>
 
