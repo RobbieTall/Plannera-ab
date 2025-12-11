@@ -8,7 +8,7 @@ import type { Project } from "@/lib/mock-data";
 
 interface WorkspacePageProps {
   params: { id: string };
-  searchParams?: { prompt?: string };
+  searchParams?: { prompt?: string; initialAddress?: string };
 }
 
 const buildWorkspaceProject = (project: PrismaProject): Project => {
@@ -100,5 +100,11 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Wor
 
   const workspaceProject = buildWorkspaceProject(project);
 
-  return <ProjectWorkspace project={workspaceProject} initialPrompt={searchParams?.prompt} />;
+  return (
+    <ProjectWorkspace
+      project={workspaceProject}
+      initialPrompt={searchParams?.prompt}
+      initialAddress={searchParams?.initialAddress}
+    />
+  );
 }

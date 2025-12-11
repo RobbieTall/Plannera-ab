@@ -1,14 +1,19 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 
 type SetSiteInputProps = {
   onSubmit: (value: string) => void;
+  initialValue?: string;
 };
 
-export function SetSiteInput({ onSubmit }: SetSiteInputProps) {
-  const [value, setValue] = useState("");
+export function SetSiteInput({ onSubmit, initialValue }: SetSiteInputProps) {
+  const [value, setValue] = useState(initialValue ?? "");
+
+  useEffect(() => {
+    setValue(initialValue ?? "");
+  }, [initialValue]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
