@@ -1432,7 +1432,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 md:max-h-screen md:overflow-hidden">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
@@ -1536,8 +1536,8 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
-        <div className="grid flex-1 min-h-0 items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+      <div className="flex flex-col">
+        <div className="grid items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
           <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
@@ -1651,252 +1651,254 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </section>
 
-        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
-              <p className="text-sm text-slate-500 dark:text-slate-300">
-                Set the site, ask follow-ups, send to agents, or refresh to start over.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={openManualSiteSelection}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-              >
-                <MapPin className="h-3.5 w-3.5" />
-                {siteContext ? "Change site" : "Set site"}
-              </button>
-              <button
-                onClick={handleSaveChat}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-              >
-                <Save className="h-4 w-4" />
-                Save Chat
-              </button>
-              <button
-                onClick={handleRefresh}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-              >
-                <RefreshCcw className="h-4 w-4" />
-                Refresh
-              </button>
-            </div>
-          </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6">
-            {siteSelection ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {siteSelection.source === "chat" ? "Confirm the site for this question" : "Search for a new NSW site"}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-200">
-                      {siteSelection.source === "chat"
-                        ? `Looking for: ${siteSelection.addressInput}`
-                        : siteSelection.addressInput
-                          ? `Search results for: ${siteSelection.addressInput}`
-                          : "Enter the address below to search the NSW property dataset."}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeSiteSelection}
-                    className="rounded-full p-1 text-slate-500 transition hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                {siteSelection.source === "manual" ? (
-                  <>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                      <div className="relative flex-1">
-                      <input
-                        type="text"
-                        ref={siteSearchInputRef}
-                        value={siteSearchQuery}
-                        onChange={(event) => {
-                          setSiteSearchQuery(event.target.value);
-                          setSelectedSuggestion(null);
-                          setSiteSelectionCandidateId(null);
-                          setHighlightedSuggestionIndex(null);
-                          setSuggestionsEnabled(true);
-                        }}
-                        onKeyDown={handleSuggestionKeyDown}
-                        placeholder="e.g. 6 Myola Road Newport NSW"
-                        className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500"
-                      />
-                      {isSuggesting ? (
-                        <span className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
-                      ) : null}
-                      {suggestions.length ? (
-                        <ul className="absolute z-20 mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                          {suggestions.map((candidate, index) => (
-                            <li key={candidate.id}>
-                              <button
-                                type="button"
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
-                                  applySuggestionSelection(candidate);
-                                }}
-                                onMouseEnter={() => setHighlightedSuggestionIndex(index)}
-                                className={cn(
-                                  "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition",
-                                  index === highlightedSuggestionIndex
-                                    ? "bg-slate-900/5 dark:bg-slate-700/60"
-                                    : "hover:bg-slate-900/5 dark:hover:bg-slate-800/60",
-                                )}
-                              >
-                                <span className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</span>
-                                <span className="text-xs text-slate-500 dark:text-slate-300">{candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                      <button
-                        type="button"
-                        onClick={handleSiteSearch}
-                        disabled={isSiteSearchPending || siteSearchAvailable !== "ok"}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
-                      >
-                        {isSiteSearchPending ? (
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        ) : (
-                          <Search className="h-3.5 w-3.5" />
-                        )}
-                        {isSiteSearchPending ? "Searching" : "Search"}
-                      </button>
-                    </div>
-                    {siteSearchAvailable === "missing_env" ? (
-                      <p className="text-xs text-slate-500">
-                        NSW property search isn’t configured in this environment, but you can still set the site manually.
-                      </p>
-                    ) : null}
-                  </>
-                ) : null}
-                {siteSelection.candidates.length ? (
-                  <ul className="mt-3 space-y-2">
-                    {siteSelection.candidates.map((candidate) => (
-                      <li key={candidate.id}>
-                        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
-                          <input
-                            type="radio"
-                            name="site-candidate"
-                            className="h-4 w-4 text-slate-900 dark:text-white"
-                            value={candidate.id}
-                            checked={siteSelectionCandidateId === candidate.id}
-                            onChange={() => {
-                              setSiteSelectionCandidateId(candidate.id);
-                              setSelectedSuggestion(candidate);
-                              setSiteSelectionError(null);
-                            }}
-                          />
-                          <div>
-                            <p className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-300">
-                              {candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}
-                            </p>
-                          </div>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                ) : siteSelection.source === "chat" ? (
-                  <p className="mt-3 text-xs text-slate-500">
-                    I couldn’t confidently match that address. Pick the right site or try searching again.
-                  </p>
-                ) : null}
-                {siteSelectionError ? (
-                  <p className="mt-2 text-xs font-semibold text-rose-600">{siteSelectionError}</p>
-                ) : null}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleSiteCandidateConfirm()}
-                    disabled={(!siteSelectionCandidateId && !selectedSuggestion) || isConfirmingSite}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
-                  >
-                    {isConfirmingSite ? (
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    ) : (
-                      <Check className="h-3.5 w-3.5" />
-                    )}
-                    {isConfirmingSite ? "Saving" : "Use this site"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeSiteSelection}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                </div>
+          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">
+                  Set the site, ask follow-ups, send to agents, or refresh to start over.
+                </p>
               </div>
-            ) : null}
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <div
-                ref={chatScrollRef}
-                className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"
-                aria-live="polite"
-              >
-              {messages.length === 0 ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
-              ) : (
-                messages.map((message) => (
-                  <article
-                    key={message.id}
-                    className={cn(
-                      "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
-                      message.role === "assistant"
-                        ? "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100"
-                        : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
-                    )}
-                  >
-                    <p>{message.content}</p>
-                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
-                  </article>
-                ))
-              )}
-              {isThinking ? (
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
-                  <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
-                </div>
-              ) : null}
-              <div ref={chatEndRef} />
-            </div>
-            <form
-              onSubmit={handleSubmit}
-              className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
-            >
-              <label htmlFor="chat-input" className="sr-only">
-                Ask the workspace
-              </label>
-              <textarea
-                id="chat-input"
-                ref={chatInputRef}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={3}
-                placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
-                className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
+              <div className="flex items-center gap-2">
                 <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
+                  onClick={openManualSiteSelection}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
                 >
-                  Send
-                  <Sparkles className="h-4 w-4" />
+                  <MapPin className="h-3.5 w-3.5" />
+                  {siteContext ? "Change site" : "Set site"}
+                </button>
+                <button
+                  onClick={handleSaveChat}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  <Save className="h-4 w-4" />
+                  Save Chat
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Refresh
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-        </section>
+            </header>
+            <div className="flex flex-1 flex-col gap-4 px-6 py-6">
+              {siteSelection ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {siteSelection.source === "chat" ? "Confirm the site for this question" : "Search for a new NSW site"}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-200">
+                        {siteSelection.source === "chat"
+                          ? `Looking for: ${siteSelection.addressInput}`
+                          : siteSelection.addressInput
+                            ? `Search results for: ${siteSelection.addressInput}`
+                            : "Enter the address below to search the NSW property dataset."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeSiteSelection}
+                      className="rounded-full p-1 text-slate-500 transition hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {siteSelection.source === "manual" ? (
+                    <>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            ref={siteSearchInputRef}
+                            value={siteSearchQuery}
+                            onChange={(event) => {
+                              setSiteSearchQuery(event.target.value);
+                              setSelectedSuggestion(null);
+                              setSiteSelectionCandidateId(null);
+                              setHighlightedSuggestionIndex(null);
+                              setSuggestionsEnabled(true);
+                            }}
+                            onKeyDown={handleSuggestionKeyDown}
+                            placeholder="e.g. 6 Myola Road Newport NSW"
+                            className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500"
+                          />
+                          {isSuggesting ? (
+                            <span className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-slate-300 border-t-slate-500" />
+                          ) : null}
+                          {suggestions.length ? (
+                            <ul className="absolute z-20 mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                              {suggestions.map((candidate, index) => (
+                                <li key={candidate.id}>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => {
+                                      event.preventDefault();
+                                      applySuggestionSelection(candidate);
+                                    }}
+                                    onMouseEnter={() => setHighlightedSuggestionIndex(index)}
+                                    className={cn(
+                                      "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition",
+                                      index === highlightedSuggestionIndex
+                                        ? "bg-slate-900/5 dark:bg-slate-700/60"
+                                        : "hover:bg-slate-900/5 dark:hover:bg-slate-800/60",
+                                    )}
+                                  >
+                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-300">{candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSiteSearch}
+                          disabled={isSiteSearchPending || siteSearchAvailable !== "ok"}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                        >
+                          {isSiteSearchPending ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          ) : (
+                            <Search className="h-3.5 w-3.5" />
+                          )}
+                          {isSiteSearchPending ? "Searching" : "Search"}
+                        </button>
+                      </div>
+                      {siteSearchAvailable === "missing_env" ? (
+                        <p className="text-xs text-slate-500">
+                          NSW property search isn’t configured in this environment, but you can still set the site manually.
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {siteSelection.candidates.length ? (
+                    <ul className="mt-3 space-y-2">
+                      {siteSelection.candidates.map((candidate) => (
+                        <li key={candidate.id}>
+                          <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
+                            <input
+                              type="radio"
+                              name="site-candidate"
+                              className="h-4 w-4 text-slate-900 dark:text-white"
+                              value={candidate.id}
+                              checked={siteSelectionCandidateId === candidate.id}
+                              onChange={() => {
+                                setSiteSelectionCandidateId(candidate.id);
+                                setSelectedSuggestion(candidate);
+                                setSiteSelectionError(null);
+                              }}
+                            />
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">{candidate.formattedAddress}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-300">
+                                {candidate.lgaName ? `${candidate.lgaName} LGA` : "LGA pending"}
+                              </p>
+                            </div>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : siteSelection.source === "chat" ? (
+                    <p className="mt-3 text-xs text-slate-500">
+                      I couldn’t confidently match that address. Pick the right site or try searching again.
+                    </p>
+                  ) : null}
+                  {siteSelectionError ? (
+                    <p className="mt-2 text-xs font-semibold text-rose-600">{siteSelectionError}</p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSiteCandidateConfirm()}
+                      disabled={(!siteSelectionCandidateId && !selectedSuggestion) || isConfirmingSite}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                    >
+                      {isConfirmingSite ? (
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      {isConfirmingSite ? "Saving" : "Use this site"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeSiteSelection}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              <div className="flex min-h-0 flex-1 flex-col gap-4">
+                <div
+                  ref={chatScrollRef}
+                  className="mt-2 flex flex-1 min-h-0 flex-col space-y-4 overflow-y-auto pr-2"
+                  aria-live="polite"
+                >
+                  {messages.length === 0 ? (
+                    <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
+                  ) : (
+                    messages.map((message) => (
+                      <article
+                        key={message.id}
+                        className={cn(
+                          "max-w-[85%] rounded-3xl border px-4 py-3 text-sm leading-relaxed",
+                          message.role === "assistant"
+                            ? "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-100"
+                            : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
+                        )}
+                      >
+                        <p>{message.content}</p>
+                        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
+                      </article>
+                    ))
+                  )}
+                  {isThinking ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300">
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Drafting response…
+                    </div>
+                  ) : null}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <form
+                    onSubmit={handleSubmit}
+                    className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <label htmlFor="chat-input" className="sr-only">
+                      Ask the workspace
+                    </label>
+                    <textarea
+                      id="chat-input"
+                      ref={chatInputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      rows={3}
+                      placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
+                      className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
+                      >
+                        Send
+                        <Sparkles className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
 
         <section className="flex flex-col md:h-full md:min-h-0">
           <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
