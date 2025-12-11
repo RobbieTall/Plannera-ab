@@ -730,6 +730,28 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     [projectKey, setSessionSignals]
   );
 
+  const appendToolMessage = useCallback(
+    (content: string, signals?: WorkspaceSessionSignals) => {
+      const toolMessage: WorkspaceMessage = {
+        id: `msg-${Date.now()}-tool`,
+        role: "assistant",
+        content,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      if (signals) {
+        applySessionSignals(signals);
+      }
+
+      setMessages((previous) => {
+        const updated = [...previous, toolMessage];
+        saveChatHistory(projectKey, updated);
+        return updated;
+      });
+    },
+    [applySessionSignals, projectKey, saveChatHistory]
+  );
+
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
     window.setTimeout(() => setToast(null), 3500);
@@ -1941,7 +1963,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                   </span>
                 </header>
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
-                  <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
+                  <QuickSiteCheckPanel
+                    projectId={projectKey}
+                    siteContext={siteContext}
+                    onAddMessage={appendToolMessage}
+                  />
                   {tools.map((tool) => {
                     const Icon = tool.icon;
                     return (
