@@ -114,3 +114,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "LEP ingestion failed", details }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  const adminToken = process.env.ADMIN_ACCESS_TOKEN ?? process.env.INGEST_ADMIN_SECRET;
+  const url = new URL(request.url);
+  const token =
+    url.searchParams.get("token") ??
+    url.searchParams.get("secret") ??
+    request.headers.get("x-admin-token") ??
+    request.headers.get("x-ingest-secret");
+
+  if (!adminToken || token !== adminToken) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const lgaParam = url.searchParams.get("lga")?.trim();
+  const normalizedLga = resolveCanonicalNswLga(lgaParam);
+  const lga = normalizedLga ?? lgaParam ?? null;
+
+  if (!lga) {
+    return NextResponse.json({ ok: false, error: "lga_required" }, { status: 400 });
+  }
+
+  const ingestionTargets = normalizedLga ? findLocalNswLepsByLga(normalizedLga) : [];
+
+  const instruments = await Promise.all(
+    ingestionTargets.map(async (target) => {
+      const instrument = await prisma.instrument.findUnique({ where: { slug: target.config.slug } });
+
+      if (!instrument) {
+        return { slug: target.config.slug, clauseCount: 0 } as const;
+      }
+
+      const clauseCount = await prisma.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
+
+      return { slug: target.config.slug, clauseCount } as const;
+    }),
+  );
+
+  const clauseCount = instruments.reduce((total, instrument) => total + instrument.clauseCount, 0);
+
+  return NextResponse.json({ ok: true, lga, clauseCount, instruments });
+}

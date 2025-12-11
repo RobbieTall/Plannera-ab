@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { InstrumentType, Prisma, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { indexWorkspaceChunks } from "@/lib/source-indexing";
+import { chunkText, indexWorkspaceChunks } from "@/lib/source-indexing";
 
 import { parseDcpDocument } from "./parser";
 import type { ParsedDcpClause } from "./parser";
@@ -91,15 +91,14 @@ const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): { 
 
 const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
 
-const fallbackIndexWorkspaceChunks = async (
-  tx: Prisma.TransactionClient,
-  clauses: ClauseInput[],
-  instrumentId: string,
-) => {
-  const normalizedChunks = clauses
-    .map((clause, index) => ({
+const buildWorkspaceChunks = (clauses: ClauseInput[], instrumentId: string) =>
+  clauses.flatMap((clause, index) => {
+    const chunks = chunkText(clause.bodyText);
+    if (!chunks.length) return [] as Array<{ heading?: string | null; content: string; metadata: Record<string, unknown> }>;
+
+    return chunks.map((content) => ({
       heading: clause.title ?? `Clause ${index + 1}`,
-      content: normalizeText(clause.bodyText),
+      content,
       metadata: {
         instrumentId,
         instrumentSlug: DCP_SLUG,
@@ -111,7 +110,15 @@ const fallbackIndexWorkspaceChunks = async (
         topicTags: clause.topicTags,
         numericMeta: clause.numericMeta,
       },
-    }))
+    }));
+  });
+
+const fallbackIndexWorkspaceChunks = async (
+  tx: Prisma.TransactionClient,
+  preparedChunks: Array<{ heading?: string | null; content: string; metadata?: Record<string, unknown> }>,
+) => {
+  const normalizedChunks = preparedChunks
+    .map((chunk) => ({ ...chunk, content: normalizeText(chunk.content) }))
     .filter((chunk) => chunk.content.length > 0);
 
   if (!normalizedChunks.length) return { created: 0 } as const;
@@ -122,7 +129,7 @@ const fallbackIndexWorkspaceChunks = async (
       content: chunk.content,
       lgaCode: DCP_LGA,
       sourceType: WorkspaceSourceType.council_dcp,
-      metadata: chunk.metadata as Prisma.InputJsonValue,
+      metadata: chunk.metadata ? (chunk.metadata as Prisma.InputJsonValue) : undefined,
     })),
   });
 
@@ -198,39 +205,33 @@ export const ingestByronDcp = async () => {
       })),
     });
 
+    const workspaceChunks = buildWorkspaceChunks(clauses, instrument.id);
+
     await tx.workspaceSourceChunk.deleteMany({
       where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp },
     });
 
-    await indexWorkspaceChunks({
-      chunks: clauses.map((clause, index) => ({
-        heading: clause.title ?? `Clause ${index + 1}`,
-        content: clause.bodyText,
+    const hasEmbeddingKey = Boolean(process.env.OPENAI_API_KEY);
+
+    if (hasEmbeddingKey) {
+      await indexWorkspaceChunks({
+        chunks: workspaceChunks,
+        lgaCode: DCP_LGA,
+        sourceType: WorkspaceSourceType.council_dcp,
         metadata: {
           instrumentId: instrument.id,
           instrumentSlug: instrument.slug,
-          clauseKey: clause.clauseKey,
+          sourceUrl: PRIMARY_DCP_SOURCE_PATH,
           lgaCode: DCP_LGA,
-          sourceUrl: clause.sourcePath,
-          sourceType: "DCP",
-          ref: clause.ref,
-          topicTags: clause.topicTags,
-          numericMeta: clause.numericMeta,
         },
-      })),
-      lgaCode: DCP_LGA,
-      sourceType: WorkspaceSourceType.council_dcp,
-      metadata: {
-        instrumentId: instrument.id,
-        instrumentSlug: instrument.slug,
-        sourceUrl: PRIMARY_DCP_SOURCE_PATH,
-        lgaCode: DCP_LGA,
-      },
-      prismaClient: tx,
-    }).catch(async (error) => {
-      console.warn("[byron-dcp] Falling back to non-embedded chunks", error);
-      return fallbackIndexWorkspaceChunks(tx, clauses, instrument.id);
-    });
+        prismaClient: tx,
+      }).catch(async (error) => {
+        console.warn("[byron-dcp] Falling back to non-embedded chunks", error);
+        return fallbackIndexWorkspaceChunks(tx, workspaceChunks);
+      });
+    } else {
+      await fallbackIndexWorkspaceChunks(tx, workspaceChunks);
+    }
 
     const [clauseCount, dcpClauseCount, chunkCount] = await Promise.all([
       tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } }),
