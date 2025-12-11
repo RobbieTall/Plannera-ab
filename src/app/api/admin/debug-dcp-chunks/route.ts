@@ -1,12 +1,12 @@
 import { InstrumentType, WorkspaceSourceType } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { BYRON_DCP_CONSTANTS } from "@/lib/dcp/byron-ingestion";
 import { prisma } from "@/lib/prisma";
 
 const accessToken = process.env.ADMIN_ACCESS_TOKEN;
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
   const lga = (url.searchParams.get("lga") || "").toUpperCase();
@@ -36,7 +36,17 @@ export async function GET(request: Request) {
     : null;
 
   if (!instrument) {
-    return NextResponse.json({ ok: false, lga, error: "Instrument not found" }, { status: 404 });
+    return NextResponse.json({
+      ok: false,
+      lga,
+      instrumentId: null,
+      instrumentSlug,
+      clauseCount: 0,
+      dcpClauseCount: 0,
+      chunkCount: 0,
+      sampleChunks: [],
+      error: "Instrument not found",
+    });
   }
 
   const [clauseCount, dcpClauseCount, chunkCount, sampleChunks] = await Promise.all([

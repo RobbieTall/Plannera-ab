@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import { InstrumentType } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { buildLepConfigFromFile } from "@/lib/lep/lep-ingest-files";
 import { findLocalNswLepBySlug, findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const adminSecret = process.env.INGEST_ADMIN_SECRET;
   const url = new URL(request.url);
   const providedSecret = url.searchParams.get("secret") ?? request.headers.get("x-ingest-secret");
@@ -144,13 +144,11 @@ export async function GET(request: Request) {
       })
     : [];
 
-  if (!instruments.length) {
-    return NextResponse.json({ ok: false, lga: normalizedLga ?? lgaParam, error: "No LEP instrument found" }, { status: 404 });
-  }
-
-  const clauseCount = await prisma.clause.count({
-    where: { instrumentId: { in: instruments.map((instrument) => instrument.id) }, isCurrent: true },
-  });
+  const clauseCount = instruments.length
+    ? await prisma.clause.count({
+        where: { instrumentId: { in: instruments.map((instrument) => instrument.id) }, isCurrent: true },
+      })
+    : 0;
 
   console.log("[LEP-DEBUG] GET /admin/ingest-lep instruments", {
     lga: normalizedLga ?? lgaParam,
@@ -159,9 +157,10 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json({
-    ok: true,
+    ok: !!instruments.length,
     lga: normalizedLga ?? lgaParam,
     clauseCount,
     instruments: instruments.map((instrument) => ({ id: instrument.id, name: instrument.name, slug: instrument.slug })),
+    error: instruments.length ? undefined : "No LEP instrument found",
   });
 }
