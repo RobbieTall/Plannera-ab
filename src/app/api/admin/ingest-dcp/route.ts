@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         lga: result.lga,
         clauseCount: result.clauseCount,
         dcpClauseCount: result.dcpClauseCount,
-        chunkCount: lgaCode === "BYRON" ? 0 : "chunkCount" in result ? result.chunkCount : 0,
+        chunkCount: "chunkCount" in result ? result.chunkCount : 0,
         tableCount: "tableCount" in result ? result.tableCount : 0,
       });
     }

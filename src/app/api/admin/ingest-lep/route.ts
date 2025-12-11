@@ -114,3 +114,58 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "LEP ingestion failed", details }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const token =
+    url.searchParams.get("token") ??
+    url.searchParams.get("secret") ??
+    request.headers.get("x-admin-token") ??
+    request.headers.get("x-ingest-secret");
+
+  const expectedToken = process.env.ADMIN_ACCESS_TOKEN ?? process.env.INGEST_ADMIN_SECRET;
+
+  if (!expectedToken) {
+    return NextResponse.json({ ok: false, error: "admin_token_missing" }, { status: 401 });
+  }
+
+  if (!token || token !== expectedToken) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const lgaParam = url.searchParams.get("lga")?.trim();
+  const normalizedLga = resolveCanonicalNswLga(lgaParam);
+  const lgaMatches = normalizedLga
+    ? findLocalNswLepsByLga(normalizedLga)
+    : lgaParam
+      ? findLocalNswLepsByLga(lgaParam)
+      : [];
+
+  if (!lgaMatches.length) {
+    return NextResponse.json({ ok: false, error: "lep_not_found", lga: lgaParam }, { status: 404 });
+  }
+
+  try {
+    const instrumentSlugs = lgaMatches.map((match) => match.config.slug);
+    const instruments = await prisma.instrument.findMany({
+      where: { slug: { in: instrumentSlugs } },
+      select: { id: true, slug: true, name: true },
+    });
+
+    const instrumentIds = instruments.map((instrument) => instrument.id);
+    const clauseCount = instrumentIds.length
+      ? await prisma.clause.count({ where: { instrumentId: { in: instrumentIds }, isCurrent: true } })
+      : 0;
+
+    return NextResponse.json({
+      ok: true,
+      lga: (normalizedLga ?? lgaParam ?? "").toUpperCase(),
+      clauseCount,
+      instruments,
+    });
+  } catch (error) {
+    console.error("[INGEST-LEP] GET failed", error);
+    const details = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: "lep_query_failed", details }, { status: 500 });
+  }
+}

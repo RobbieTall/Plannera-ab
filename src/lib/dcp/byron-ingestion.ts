@@ -202,41 +202,46 @@ export const ingestByronDcp = async () => {
       where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp },
     });
 
-    // TODO: Re-enable workspace chunking for Byron DCP once batching issues are resolved.
-    const chunkResult = DCP_LGA === "BYRON"
-      ? { created: 0 as const }
-      : await indexWorkspaceChunks({
-          chunks: clauses.map((clause, index) => ({
-            heading: clause.title ?? `Clause ${index + 1}`,
-            content: clause.bodyText,
-            metadata: {
-              instrumentId: instrument.id,
-              instrumentSlug: instrument.slug,
-              clauseKey: clause.clauseKey,
-              lgaCode: DCP_LGA,
-              sourceUrl: clause.sourcePath,
-              sourceType: "DCP",
-              ref: clause.ref,
-              topicTags: clause.topicTags,
-              numericMeta: clause.numericMeta,
-            },
-          })),
-          lgaCode: DCP_LGA,
-          sourceType: WorkspaceSourceType.council_dcp,
+    try {
+      await indexWorkspaceChunks({
+        chunks: clauses.map((clause, index) => ({
+          heading: clause.title ?? `Clause ${index + 1}`,
+          content: clause.bodyText,
           metadata: {
             instrumentId: instrument.id,
             instrumentSlug: instrument.slug,
-            sourceUrl: PRIMARY_DCP_SOURCE_PATH,
+            clauseKey: clause.clauseKey,
             lgaCode: DCP_LGA,
+            sourceUrl: clause.sourcePath,
+            sourceType: "DCP",
+            ref: clause.ref,
+            topicTags: clause.topicTags,
+            numericMeta: clause.numericMeta,
           },
-          prismaClient: tx,
-        }).catch(async (error) => {
-          console.warn("[byron-dcp] Falling back to non-embedded chunks", error);
-          return fallbackIndexWorkspaceChunks(tx, clauses, instrument.id);
-        });
+        })),
+        lgaCode: DCP_LGA,
+        sourceType: WorkspaceSourceType.council_dcp,
+        metadata: {
+          instrumentId: instrument.id,
+          instrumentSlug: instrument.slug,
+          sourceUrl: PRIMARY_DCP_SOURCE_PATH,
+          lgaCode: DCP_LGA,
+        },
+        prismaClient: tx,
+      }).catch(async (error) => {
+        console.warn("[byron-dcp] Falling back to non-embedded chunks", error);
+        return fallbackIndexWorkspaceChunks(tx, clauses, instrument.id);
+      });
+    } catch (error) {
+      console.error("[byron-dcp] Workspace chunking failed", error);
+      void error;
+    }
 
     const clauseCount = await tx.clause.count({ where: { instrumentId: instrument.id, isCurrent: true } });
     const dcpClauseCount = await tx.dCPClause.count({ where: { lgaCode: DCP_LGA } });
+    const chunkCount = await tx.workspaceSourceChunk.count({
+      where: { lgaCode: DCP_LGA, sourceType: WorkspaceSourceType.council_dcp },
+    });
 
     // Sanity check to ensure the parser output is fully persisted.
     if (clauseInsert.count !== clauses.length || dcpInsert.count !== clauses.length) {
@@ -249,7 +254,7 @@ export const ingestByronDcp = async () => {
       instrumentId: instrument.id,
       clauseCount,
       dcpClauseCount,
-      chunkCount: chunkResult.created,
+      chunkCount,
       tableCount,
     };
   });
