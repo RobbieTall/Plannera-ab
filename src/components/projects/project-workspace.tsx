@@ -1432,7 +1432,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 md:max-h-screen md:overflow-hidden">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
@@ -1536,7 +1536,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto xl:overflow-hidden">
         <div className="grid flex-1 min-h-0 items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
           <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
@@ -1651,7 +1651,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </section>
 
-        <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+        <section className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
@@ -1683,7 +1683,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </button>
             </div>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6">
+          <div
+            className="flex min-h-[70vh] h-[calc(100svh-160px)] max-h-[calc(100svh-140px)] flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 xl:min-h-0 xl:h-full xl:max-h-none xl:overflow-hidden"
+          >
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                 <div className="flex items-start justify-between gap-3">
@@ -1868,7 +1870,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
             <form
               onSubmit={handleSubmit}
-              className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
+              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 xl:static"
             >
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
