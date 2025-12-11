@@ -592,7 +592,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               projectId: projectKey,
               rawAddress: trimmedInitialAddress,
               lgaName: resolvedLgaName,
-              lgaCode: siteContext?.lgaCode ?? null,
+              lgaCode: null,
               resolverStatus: "manual_no_property_api",
             }),
           });
