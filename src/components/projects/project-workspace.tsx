@@ -1870,7 +1870,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
             <form
               onSubmit={handleSubmit}
-              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:static"
+              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 xl:static"
             >
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
