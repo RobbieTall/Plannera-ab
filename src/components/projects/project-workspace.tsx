@@ -1684,7 +1684,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </header>
           <div
-            className="flex min-h-[70vh] h-[calc(100svh-160px)] max-h-[calc(100svh-140px)] flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 md:min-h-0 md:h-full md:max-h-none md:overflow-hidden"
+            className="flex min-h-[70vh] h-[calc(100svh-160px)] max-h-[calc(100svh-140px)] flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 xl:min-h-0 xl:h-full xl:max-h-none xl:overflow-hidden"
           >
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
