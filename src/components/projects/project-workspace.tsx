@@ -42,6 +42,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
+import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
@@ -318,6 +319,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [isUploading, setIsUploading] = useState(false);
   const [serverLimitReached, setServerLimitReached] = useState(false);
   const [isMapsToolsModalOpen, setIsMapsToolsModalOpen] = useState(false);
+  const [isQuickSiteCheckOpen, setIsQuickSiteCheckOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -1963,11 +1965,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                   </span>
                 </header>
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
-                  <QuickSiteCheckPanel
-                    projectId={projectKey}
-                    siteContext={siteContext}
-                    onAddMessage={appendToolMessage}
-                  />
+                  <QuickSiteCheckPanel onClick={() => setIsQuickSiteCheckOpen(true)} />
                   {tools.map((tool) => {
                     const Icon = tool.icon;
                     return (
@@ -2059,6 +2057,13 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </section>
         </div>
       </div>
+
+      <QuickSiteCheckModal
+        open={isQuickSiteCheckOpen}
+        onClose={() => setIsQuickSiteCheckOpen(false)}
+        projectId={projectKey}
+        onInsertToChat={appendToolMessage}
+      />
 
       <MapsToolsModal
         open={isMapsToolsModalOpen}
