@@ -1683,7 +1683,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
               </button>
             </div>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-6 md:max-h-none max-h-[calc(100dvh-240px)]">
+          <div
+            className="flex min-h-0 h-[calc(100svh-220px)] max-h-[calc(100svh-220px)] flex-1 flex-col gap-4 overflow-hidden px-6 py-6 md:h-full md:max-h-none"
+          >
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                 <div className="flex items-start justify-between gap-3">
