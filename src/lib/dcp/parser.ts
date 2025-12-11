@@ -14,12 +14,19 @@ export type ParsedDcpClause = {
   depth: number;
   bodyHtml: string;
   bodyText: string;
+  hasTable: boolean;
   topicTags: string[];
   numericMeta: NumericMeta;
 };
 
 export type ParseDcpOptions = {
   documentTitle: string;
+  maxClauseLength?: number;
+};
+
+export type ParsedDcpDocument = {
+  clauses: ParsedDcpClause[];
+  tableCount: number;
 };
 
 const headingLevels: Record<string, number> = {
@@ -38,7 +45,9 @@ const deriveRefFromHeading = (heading: string) => {
   return match?.[1] ?? null;
 };
 
-const toSegment = (element: HTMLElement): { html: string; text: string } | null => {
+type Segment = { html: string; text: string; hasTable: boolean };
+
+const toSegment = (element: HTMLElement): Segment | null => {
   const tag = element.tagName.toLowerCase();
 
   if (headingLevels[tag]) return null;
@@ -46,7 +55,7 @@ const toSegment = (element: HTMLElement): { html: string; text: string } | null 
   if (tag === "table") {
     const markdown = tableToMarkdown(element);
     if (!markdown) return null;
-    return { html: `<pre>${markdown}</pre>`, text: markdown };
+    return { html: `<pre>${markdown}</pre>`, text: markdown, hasTable: true };
   }
 
   if (["ul", "ol"].includes(tag)) {
@@ -58,19 +67,20 @@ const toSegment = (element: HTMLElement): { html: string; text: string } | null 
     return {
       html: `<ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>`,
       text: items.map((item) => `• ${item}`).join("\n"),
+      hasTable: false,
     };
   }
 
   if (tag === "li") {
     const text = normalize(element.textContent || "");
     if (!text) return null;
-    return { html: `<p>${text}</p>`, text: `• ${text}` };
+    return { html: `<p>${text}</p>`, text: `• ${text}`, hasTable: false };
   }
 
   if (["p", "div", "section", "article", "span"].includes(tag)) {
     const text = normalize(element.textContent || "");
     if (!text) return null;
-    return { html: `<p>${text}</p>`, text };
+    return { html: `<p>${text}</p>`, text, hasTable: false };
   }
 
   return null;
@@ -79,7 +89,7 @@ const toSegment = (element: HTMLElement): { html: string; text: string } | null 
 const traverseNodes = (
   node: Node,
   onHeading: (el: HTMLElement, level: number) => void,
-  onContent: (segment: { html: string; text: string }) => void,
+  onContent: (segment: Segment) => void,
 ) => {
   if (node.nodeType !== 1) return;
   const element = node as HTMLElement;
@@ -99,40 +109,84 @@ const traverseNodes = (
   element.childNodes.forEach((child) => traverseNodes(child, onHeading, onContent));
 };
 
-export const parseDcpDocument = (html: string, options: ParseDcpOptions): ParsedDcpClause[] => {
+export const parseDcpDocument = (html: string, options: ParseDcpOptions): ParsedDcpDocument => {
   const root = parse(html);
   const body = (root.querySelector("body") as HTMLElement) || root;
 
   const clauses: ParsedDcpClause[] = [];
   const headingStack: HeadingStackItem[] = [];
-  let pendingSegments: { html: string; text: string }[] = [];
+  let pendingSegments: Segment[] = [];
+  let tableCount = 0;
 
-  const pushClause = () => {
-    if (!headingStack.length) return;
-    const headingPath = headingStack.map((item) => item.title);
-    const text = pendingSegments.map((seg) => seg.text).join("\n\n").trim();
-    const htmlContent = pendingSegments.map((seg) => seg.html).join("\n\n").trim();
+  const maxClauseLength = options.maxClauseLength ?? 5000;
 
-    if (!text) {
-      pendingSegments = [];
-      return;
-    }
+  const pushChunk = (
+    current: HeadingStackItem,
+    parent: HeadingStackItem | null,
+    headingPath: string[],
+    segments: Segment[],
+    chunkIndex: number,
+    totalChunks: number,
+  ) => {
+    const text = segments.map((seg) => seg.text).join("\n\n").trim();
+    const htmlContent = segments.map((seg) => seg.html).join("\n\n").trim();
 
-    const current = headingStack[headingStack.length - 1];
-    const parent = headingStack.length > 1 ? headingStack[headingStack.length - 2] : null;
+    if (!text) return;
+
     const topicTags = detectTopicTags(`${headingPath.join(" ")} ${text}`);
     const numericMeta = extractNumericMeta(text);
+    const hasTable = segments.some((seg) => seg.hasTable);
 
     clauses.push({
       ref: current.ref,
-      title: current.title,
+      title: totalChunks > 1 ? `${current.title} (Part ${chunkIndex + 1})` : current.title,
       headingPath,
       parentRef: parent?.ref ?? null,
       depth: current.level,
       bodyHtml: htmlContent,
       bodyText: text,
+      hasTable,
       topicTags,
       numericMeta,
+    });
+
+    if (hasTable) {
+      tableCount += 1;
+    }
+  };
+
+  const pushClause = () => {
+    if (!headingStack.length) return;
+    const headingPath = headingStack.map((item) => item.title);
+    const current = headingStack[headingStack.length - 1];
+    const parent = headingStack.length > 1 ? headingStack[headingStack.length - 2] : null;
+
+    const chunked: Segment[][] = [];
+    let accumulator: Segment[] = [];
+    let length = 0;
+    const flush = () => {
+      if (!accumulator.length) return;
+      chunked.push(accumulator);
+      accumulator = [];
+      length = 0;
+    };
+
+    pendingSegments.forEach((segment) => {
+      const nextLength = length + segment.text.length;
+      if (length > 0 && nextLength > maxClauseLength) {
+        flush();
+      }
+      accumulator.push(segment);
+      length += segment.text.length;
+    });
+    flush();
+
+    chunked.forEach((segments, idx) => {
+      const pathWithPart =
+        chunked.length > 1 && headingPath.length
+          ? [...headingPath.slice(0, -1), `${headingPath[headingPath.length - 1]} (Part ${idx + 1})`]
+          : headingPath;
+      pushChunk(current, parent, pathWithPart, segments, idx, chunked.length);
     });
 
     pendingSegments = [];
@@ -164,5 +218,5 @@ export const parseDcpDocument = (html: string, options: ParseDcpOptions): Parsed
 
   pushClause();
 
-  return clauses;
+  return { clauses, tableCount };
 };

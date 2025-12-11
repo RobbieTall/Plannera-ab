@@ -1,12 +1,13 @@
 const TOPIC_KEYWORDS: Record<string, string[]> = {
-  setbacks: ["setback", "street setback", "rear setback", "side setback", "boundary"],
-  parking: ["parking", "car park", "car space", "driveway", "garage", "visitor"],
-  height: ["height", "storey", "storeys", "plane"],
-  built_form: ["built form", "façade", "facade", "envelope", "mass", "bulk"],
-  character: ["character", "streetscape", "context"],
-  landscaping: ["landscap", "tree", "deep soil", "vegetation", "planting"],
-  private_open_space: ["private open space", "pos", "courtyard", "balcony", "open space"],
-  site_coverage: ["site coverage", "coverage", "site area", "floor area", "plot ratio"],
+  setbacks: ["setback", "street setback", "rear setback", "side setback", "boundary", "building line", "frontage"],
+  parking: ["parking", "car park", "car space", "driveway", "garage", "visitor", "bicycle", "bike"],
+  height: ["height", "storey", "storeys", "plane", "levels", "roof terrace"],
+  envelope: ["envelope", "building envelope", "height plane", "building plane"],
+  character: ["character", "streetscape", "context", "appearance"],
+  landscaping: ["landscap", "tree", "deep soil", "vegetation", "planting", "garden", "soft landscaping"],
+  private_open_space: ["private open space", "pos", "courtyard", "balcony", "open space", "ppos", "principal private"],
+  site_coverage: ["site coverage", "coverage", "site area", "floor area", "plot ratio", "site density"],
+  parking_related: ["driveway gradient", "access", "aisle width"],
   flooding: ["flood", "flooding", "floodplain"],
 };
 

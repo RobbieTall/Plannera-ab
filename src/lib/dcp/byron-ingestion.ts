@@ -63,14 +63,17 @@ const loadByronDcpSources = async () => {
   return sources;
 };
 
-const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): ClauseInput[] => {
+const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): { clauses: ClauseInput[]; tableCount: number } => {
   const clauses: ClauseInput[] = [];
   let globalIndex = 0;
+  let tableCount = 0;
 
   for (const source of htmlSources) {
     const parsed = parseDcpDocument(source.html, { documentTitle: `${DCP_NAME} - ${source.chapter}` });
 
-    for (const clause of parsed) {
+    tableCount += parsed.tableCount;
+
+    for (const clause of parsed.clauses) {
       const clauseKey = buildClauseKey(clause.headingPath, globalIndex, clause.ref ?? clause.title ?? undefined);
       const contentHash = hashContent(`${clause.bodyText}-${clause.ref ?? ""}`);
       clauses.push({
@@ -83,7 +86,7 @@ const buildClauses = (htmlSources: Array<ByronDcpSource & { html: string }>): Cl
     }
   }
 
-  return clauses;
+  return { clauses, tableCount };
 };
 
 const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
@@ -128,7 +131,7 @@ const fallbackIndexWorkspaceChunks = async (
 
 export const ingestByronDcp = async () => {
   const sources = await loadByronDcpSources();
-  const clauses = buildClauses(sources);
+  const { clauses, tableCount } = buildClauses(sources);
 
   if (!clauses.length) {
     throw new Error("No clauses could be parsed from Byron DCP");
@@ -247,6 +250,7 @@ export const ingestByronDcp = async () => {
       clauseCount,
       dcpClauseCount,
       chunkCount: chunkResult.created,
+      tableCount,
     };
   });
 
