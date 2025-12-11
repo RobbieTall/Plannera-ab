@@ -1536,9 +1536,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         ) : null}
       </div>
 
-      <div className="flex flex-col">
-        <div className="grid items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+      <div className="flex flex-1 min-h-0 flex-col gap-5">
+        <div className="flex flex-1 min-h-0 flex-col gap-5 lg:flex-row lg:items-stretch">
+          <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 lg:w-[300px] lg:flex-none">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
@@ -1651,7 +1651,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </section>
 
-          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <section className="flex h-full min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 lg:flex-1 lg:min-h-0">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
@@ -1900,7 +1900,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
             </div>
           </section>
 
-        <section className="flex flex-col md:h-full md:min-h-0">
+        <section className="flex h-full min-h-0 flex-col lg:w-[360px] lg:flex-none">
           <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-3">
