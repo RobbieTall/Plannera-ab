@@ -584,13 +584,14 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
         if (data?.error === "property_search_not_configured") {
           setSiteSearchAvailable("missing_env");
+          const resolvedLgaName = siteContext?.lgaName ?? sessionSignals.lga ?? null;
           const manualResponse = await fetch("/api/site-context", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               projectId: projectKey,
               rawAddress: trimmedInitialAddress,
-              lgaName: siteContext?.lgaName ?? sessionSignals.lga ?? null,
+              lgaName: resolvedLgaName,
               lgaCode: siteContext?.lgaCode ?? null,
               resolverStatus: "manual_no_property_api",
             }),
