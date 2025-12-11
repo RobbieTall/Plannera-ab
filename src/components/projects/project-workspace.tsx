@@ -42,6 +42,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
+import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
@@ -318,6 +319,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const [isUploading, setIsUploading] = useState(false);
   const [serverLimitReached, setServerLimitReached] = useState(false);
   const [isMapsToolsModalOpen, setIsMapsToolsModalOpen] = useState(false);
+  const [isQuickSiteCheckOpen, setIsQuickSiteCheckOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -730,10 +732,52 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     [projectKey, setSessionSignals]
   );
 
-  const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
-    setToast({ message, variant });
-    window.setTimeout(() => setToast(null), 3500);
-  }, []);
+  const appendToolMessage = useCallback(
+    (content: string, signals?: WorkspaceSessionSignals) => {
+      const toolMessage: WorkspaceMessage = {
+        id: `msg-${Date.now()}-tool`,
+        role: "assistant",
+        content,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      if (signals) {
+        applySessionSignals(signals);
+      }
+
+      setMessages((previous) => {
+        const updated = [...previous, toolMessage];
+        saveChatHistory(projectKey, updated);
+        return updated;
+      });
+    },
+    [applySessionSignals, projectKey, saveChatHistory]
+  );
+
+  const showToast = useCallback(
+    (message: string, variant: "success" | "error" = "success") => {
+      setToast({ message, variant });
+      window.setTimeout(() => setToast(null), 3500);
+    },
+    []
+  );
+
+  const handleQuickSiteCheckArtefactSaved = useCallback(
+    (title: string, summary: string) => {
+      const preview = summary.replace(/\s+/g, " ").trim();
+      const artefact: WorkspaceArtefact = {
+        id: `quick-site-check-${Date.now()}`,
+        title,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "report",
+        metadata: `${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}` || "LEP quick site check summary",
+      };
+      addArtefact(projectKey, artefact);
+      showToast("Saved Quick Site Check as artefact");
+    },
+    [addArtefact, projectKey, showToast],
+  );
 
   const sendMessage = useCallback(
     async (options?: { message?: string; skipUserMessage?: boolean }) => {
@@ -1941,7 +1985,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                   </span>
                 </header>
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
-                  <QuickSiteCheckPanel projectId={projectKey} siteContext={siteContext} />
+                  <QuickSiteCheckPanel onClick={() => setIsQuickSiteCheckOpen(true)} />
                   {tools.map((tool) => {
                     const Icon = tool.icon;
                     return (
@@ -2033,6 +2077,15 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
         </section>
         </div>
       </div>
+
+      <QuickSiteCheckModal
+        open={isQuickSiteCheckOpen}
+        onClose={() => setIsQuickSiteCheckOpen(false)}
+        projectId={projectKey}
+        onInsertToChat={appendToolMessage}
+        onArtefactSaved={handleQuickSiteCheckArtefactSaved}
+        onToast={showToast}
+      />
 
       <MapsToolsModal
         open={isMapsToolsModalOpen}
