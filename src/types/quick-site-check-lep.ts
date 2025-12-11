@@ -11,13 +11,15 @@ export type QuickSiteCheckLepSuccess = {
   lga: string;
   lepName: string;
   zone: string | null;
-  zoneObjectives: string[];
-  permittedWithoutConsent: string[];
-  permittedWithConsent: string[];
-  prohibited: string[];
-  part4Clauses: QuickSiteCheckLepClause[];
-  part5Clauses: QuickSiteCheckLepClause[];
-  part6Clauses: QuickSiteCheckLepClause[];
+  objectives: string[];
+  landUse: {
+    withoutConsent: string[];
+    withConsent: string[];
+    prohibited: string[];
+  };
+  part4: QuickSiteCheckLepClause[];
+  part5: QuickSiteCheckLepClause[];
+  part6: QuickSiteCheckLepClause[];
 };
 
 export type QuickSiteCheckLepError = {

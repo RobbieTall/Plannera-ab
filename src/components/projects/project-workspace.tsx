@@ -44,6 +44,7 @@ import { useRouter } from "next/navigation";
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
+import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
@@ -951,7 +952,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     requireAuth(saveChatArtefact);
   }, [requireAuth, saveChatArtefact]);
 
-  const openManualSiteSelection = () => {
+  const openManualSiteSelection = useCallback(() => {
     void fetchSiteSearchAvailability();
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
     setSiteSelectionCandidateId(null);
@@ -961,7 +962,18 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
     setSuggestionsEnabled(true);
-  };
+  }, [fetchSiteSearchAvailability]);
+
+  const handleInlineSiteSubmit = useCallback(
+    (address: string) => {
+      const trimmed = address.trim();
+      if (!trimmed) return;
+      openManualSiteSelection();
+      setSiteSelection((previous) => ({ ...(previous ?? { source: "manual", candidates: [] }), addressInput: trimmed }));
+      setSiteSearchQuery(trimmed);
+    },
+    [openManualSiteSelection],
+  );
 
   const closeSiteSelection = () => {
     setSiteSelection(null);
@@ -1881,6 +1893,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                 </div>
               </div>
             ) : null}
+            {!siteContext ? <SetSiteInput onSubmit={handleInlineSiteSubmit} /> : null}
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div
                 ref={chatScrollRef}

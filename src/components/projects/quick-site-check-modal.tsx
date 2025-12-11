@@ -28,15 +28,15 @@ const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
     `${heading}\nLGA: ${payload.lga} • LEP: ${payload.lepName}`,
     "",
     "Zone objectives:",
-    ...formatList(payload.zoneObjectives).map((item) => `- ${item}`),
+    ...formatList(payload.objectives).map((item) => `- ${item}`),
     "",
     "Land use table:",
     "Permitted without consent:",
-    ...formatList(payload.permittedWithoutConsent).map((item) => `- ${item}`),
+    ...formatList(payload.landUse.withoutConsent).map((item) => `- ${item}`),
     "Permitted with consent:",
-    ...formatList(payload.permittedWithConsent).map((item) => `- ${item}`),
+    ...formatList(payload.landUse.withConsent).map((item) => `- ${item}`),
     "Prohibited:",
-    ...formatList(payload.prohibited).map((item) => `- ${item}`),
+    ...formatList(payload.landUse.prohibited).map((item) => `- ${item}`),
   ];
 
   const partToLabel: Record<"4" | "5" | "6", string> = {
@@ -45,10 +45,10 @@ const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
     "6": "Part 6 – Local provisions",
   };
 
-  const clauseGroups: Record<"4" | "5" | "6", QuickSiteCheckLepSuccess["part4Clauses"]> = {
-    "4": payload.part4Clauses,
-    "5": payload.part5Clauses,
-    "6": payload.part6Clauses,
+  const clauseGroups: Record<"4" | "5" | "6", QuickSiteCheckLepSuccess["part4"]> = {
+    "4": payload.part4,
+    "5": payload.part5,
+    "6": payload.part6,
   };
 
   (['4', '5', '6'] as const).forEach((part) => {
@@ -93,9 +93,9 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
     },
     permissibility: {
       zoneLabel: payload.zone ? `Zone ${payload.zone}` : null,
-      permittedWithoutConsent: payload.permittedWithoutConsent,
-      permittedWithConsent: payload.permittedWithConsent,
-      prohibited: payload.prohibited,
+      permittedWithoutConsent: payload.landUse.withoutConsent,
+      permittedWithConsent: payload.landUse.withConsent,
+      prohibited: payload.landUse.prohibited,
       interpretation: "Extracted from LEP zone table (permitted uses and prohibitions).",
     },
     controls: {
@@ -103,7 +103,7 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
       floorSpaceRatio: placeholderControl("Floor space ratio"),
       minimumLotSize: placeholderControl("Minimum lot size"),
     },
-    notes: payload.zoneObjectives,
+    notes: payload.objectives,
     nextSteps: [
       "Review highlighted LEP clauses (Parts 4–6).",
       payload.zone
@@ -276,7 +276,7 @@ export function QuickSiteCheckModal({
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Zone objectives</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
-              {formatList(result.zoneObjectives).map((item) => (
+              {formatList(result.objectives).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
@@ -288,7 +288,7 @@ export function QuickSiteCheckModal({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Permitted without consent</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatList(result.permittedWithoutConsent).map((item) => (
+                  {formatList(result.landUse.withoutConsent).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -296,7 +296,7 @@ export function QuickSiteCheckModal({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">Permitted with consent</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatList(result.permittedWithConsent).map((item) => (
+                  {formatList(result.landUse.withConsent).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -304,7 +304,7 @@ export function QuickSiteCheckModal({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-300">Prohibited</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-slate-700 dark:text-slate-200">
-                  {formatList(result.prohibited).map((item) => (
+                  {formatList(result.landUse.prohibited).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -314,9 +314,9 @@ export function QuickSiteCheckModal({
 
           <div className="space-y-3">
             {([
-              { label: "Part 4 – Principal development standards", clauses: result.part4Clauses },
-              { label: "Part 5 – Miscellaneous provisions", clauses: result.part5Clauses },
-              { label: "Part 6 – Local provisions", clauses: result.part6Clauses },
+              { label: "Part 4 – Principal development standards", clauses: result.part4 },
+              { label: "Part 5 – Miscellaneous provisions", clauses: result.part5 },
+              { label: "Part 6 – Local provisions", clauses: result.part6 },
             ] as const).map(({ label, clauses }) => (
               <div
                 key={label}
