@@ -184,6 +184,8 @@ type ZoneSummary = {
     landUseExtractionMode: "string-search" | "xml-traverse" | "link-resolve" | null;
     landUseResolvedViaLink: boolean;
     landUseResolvedTargetIds: string[];
+    lepSource: "db" | "local-xml";
+    lepSourceError: string | null;
     zoneAnchorClauseKey: string | null;
     zoneAnchorTitle: string | null;
     zoneCandidateCount: number;
@@ -421,6 +423,8 @@ const buildZoneSummary = (
   const landUseExtractionMode = extras.landUseExtractionMode ?? null;
   const landUseResolvedViaLink = extras.landUseResolvedViaLink ?? false;
   const landUseResolvedTargetIds = extras.landUseResolvedTargetIds ?? [];
+  const lepSource = extras.lepSource ?? "db";
+  const lepSourceError = extras.lepSourceError ?? null;
 
   if (!selection) {
     const debug = {
@@ -447,6 +451,8 @@ const buildZoneSummary = (
       landUseExtractionMode,
       landUseResolvedViaLink,
       landUseResolvedTargetIds,
+      lepSource,
+      lepSourceError,
       usedFallback: extras.usedFallback ?? false,
       fallbackReason: extras.fallbackReason ?? null,
       notes: ["No clause matched zone heading"],
@@ -495,6 +501,8 @@ const buildZoneSummary = (
         landUseExtractionMode,
         landUseResolvedViaLink,
         landUseResolvedTargetIds,
+        lepSource,
+        lepSourceError,
         usedFallback: extras.usedFallback ?? false,
         fallbackReason: extras.fallbackReason ?? null,
         notes: ["Matched clause contained global zone list"],
@@ -527,6 +535,8 @@ const buildZoneSummary = (
       landUseExtractionMode,
       landUseResolvedViaLink,
       landUseResolvedTargetIds,
+      lepSource,
+      lepSourceError,
       usedFallback: extras.usedFallback ?? false,
       fallbackReason: extras.fallbackReason ?? null,
       notes: ["Zone code not found in selected clause body"],
@@ -594,6 +604,8 @@ const buildZoneSummary = (
       landUseExtractionMode,
       landUseResolvedViaLink,
       landUseResolvedTargetIds,
+      lepSource,
+      lepSourceError,
       usedFallback: extras.usedFallback ?? false,
       fallbackReason: extras.fallbackReason ?? null,
       notes: selection.source === "fallback" ? ["Zone heading not found; used nearest matching block"] : [],
@@ -656,6 +668,8 @@ const buildStoredZoneSummary = (
       landUseExtractionMode: null,
       landUseResolvedViaLink: false,
       landUseResolvedTargetIds: [],
+      lepSource: "db",
+      lepSourceError: null,
       usedFallback: false,
       fallbackReason: null,
       notes: [],
@@ -684,6 +698,11 @@ export const buildQuickSiteCheckLep = async (
   projectId: string,
   options: { debug?: boolean } = {},
 ): Promise<QuickSiteCheckLepResponse> => {
+  const errorContext: { projectId?: string; lepName?: string; lga?: string | null; zone?: string | null } = {
+    projectId,
+    lga: null,
+    zone: null,
+  };
   try {
     const normalizedId = normalizeProjectId(projectId);
     const project = await findProjectByExternalId(prisma, normalizedId);
@@ -696,6 +715,8 @@ export const buildQuickSiteCheckLep = async (
     const siteSummary = serializeSiteContext(siteContext, project);
 
     const lga = siteSummary?.lgaName ?? siteSummary?.lgaCode ?? null;
+    errorContext.projectId = project.id;
+    errorContext.lga = lga;
     const zone =
       project.zoningCode ??
       siteSummary?.zoningCode ??
@@ -705,6 +726,7 @@ export const buildQuickSiteCheckLep = async (
       null;
 
     const zoneCode = toZoneCode(zone);
+    errorContext.zone = zoneCode;
 
     if (!lga) {
       return {
@@ -723,6 +745,7 @@ export const buildQuickSiteCheckLep = async (
     }
 
     const lepInstrument = await findLepInstrumentForLga(lga);
+    errorContext.lepName = lepInstrument?.name;
 
     if (!lepInstrument) {
       return {
@@ -777,6 +800,8 @@ export const buildQuickSiteCheckLep = async (
         landUseExtractionMode: null,
         landUseResolvedViaLink: false,
         landUseResolvedTargetIds: [],
+        lepSource: "db",
+        lepSourceError: null,
         usedFallback: false,
         fallbackReason: null,
         notes: [],
@@ -792,11 +817,48 @@ export const buildQuickSiteCheckLep = async (
       const clauseTwoThree = allClauses.find(isClauseTwoThree) ?? null;
       const landUseTableClause = findLandUseTableClause(allClauses, zoneCode);
       const instrumentConfig = getInstrumentConfig(lepInstrument.slug);
-      const xmlDocument =
-        instrumentConfig?.xmlLocalPath && fs.existsSync(instrumentConfig.xmlLocalPath)
-          ? await fs.promises.readFile(instrumentConfig.xmlLocalPath, "utf-8")
-          : null;
-      const landUseTableXmlBlock = xmlDocument ? extractZoneBlockFromLandUseXml(xmlDocument, zoneCode) : null;
+      let lepSource: ZoneSummary["debug"]["lepSource"] = "db";
+      let lepSourceError: string | null = null;
+
+      let xmlDocument: string | null = null;
+      if (instrumentConfig?.xmlLocalPath) {
+        try {
+          if (fs.existsSync(instrumentConfig.xmlLocalPath)) {
+            xmlDocument = await fs.promises.readFile(instrumentConfig.xmlLocalPath, "utf-8");
+            lepSource = "local-xml";
+          } else {
+            lepSourceError = `Local XML not found at ${instrumentConfig.xmlLocalPath}`;
+          }
+        } catch (error) {
+          lepSourceError = error instanceof Error ? error.message : String(error);
+          console.error("[quick-site-check-lep] Failed to load local XML", {
+            lep: lepInstrument.slug,
+            path: instrumentConfig.xmlLocalPath,
+            error,
+          });
+        }
+      }
+
+      let landUseTableXmlBlock = null as ReturnType<typeof extractZoneBlockFromLandUseXml>;
+      if (xmlDocument) {
+        try {
+          landUseTableXmlBlock = extractZoneBlockFromLandUseXml(xmlDocument, zoneCode);
+        } catch (error) {
+          lepSourceError = error instanceof Error ? error.message : String(error);
+          lepSource = "db";
+          console.error("[quick-site-check-lep] Failed to parse local XML for land use table", {
+            lep: lepInstrument.slug,
+            path: instrumentConfig?.xmlLocalPath,
+            error,
+          });
+        }
+      }
+      if (xmlDocument && !landUseTableXmlBlock) {
+        lepSource = "db";
+        lepSourceError =
+          lepSourceError ??
+          (zoneCode ? `Zone block not found in local XML for ${zoneCode}` : "Zone block not found in local XML");
+      }
       const landUseTableText = landUseTableClause ? cleanXmlLikeString(landUseTableClause.bodyText) : "";
       const landUseTableBlock = landUseTableClause
         ? extractZoneBlockFromClause(landUseTableText, zoneCode)
@@ -807,6 +869,7 @@ export const buildQuickSiteCheckLep = async (
         : landUseTableClause?.title ?? null;
       const landUseZoneBlockFound = Boolean(landUseTableXmlBlock || landUseTableBlock);
       const landUseZoneBlockHeading = landUseTableXmlBlock?.heading ?? landUseTableBlock?.heading ?? null;
+      const lepSourceExtras: Partial<ZoneSummary["debug"]> = { lepSource, lepSourceError };
 
       if (landUseTableXmlBlock) {
         const clauseForXml: ClauseSummary = landUseTableClause
@@ -852,6 +915,7 @@ export const buildQuickSiteCheckLep = async (
           landUseExtractionMode: landUseTableXmlBlock.extractionMode,
           landUseResolvedViaLink: landUseTableXmlBlock.resolvedViaLink,
           landUseResolvedTargetIds: landUseTableXmlBlock.resolvedTargetIds,
+          ...lepSourceExtras,
         });
 
         const hasLandUseFromTable =
@@ -894,6 +958,7 @@ export const buildQuickSiteCheckLep = async (
             landUseZoneBlockHeading,
             landUseSource: "land-use-table-section",
             landUseExtractionMode: "string-search",
+            ...lepSourceExtras,
           });
 
           const hasLandUseFromTable =
@@ -925,6 +990,7 @@ export const buildQuickSiteCheckLep = async (
             : null,
         landUseResolvedViaLink: landUseTableXmlBlock?.resolvedViaLink ?? false,
         landUseResolvedTargetIds: landUseTableXmlBlock?.resolvedTargetIds ?? [],
+        ...lepSourceExtras,
       };
 
       if (
@@ -959,6 +1025,7 @@ export const buildQuickSiteCheckLep = async (
             zoneBlockFound: true,
             zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
             ...landUseTableExtras,
+            ...lepSourceExtras,
           });
 
           const hasParsedContent =
@@ -1086,6 +1153,8 @@ export const buildQuickSiteCheckLep = async (
           landUseExtractionMode: zoneSummary.debug.landUseExtractionMode,
           landUseResolvedViaLink: zoneSummary.debug.landUseResolvedViaLink,
           landUseResolvedTargetIds: zoneSummary.debug.landUseResolvedTargetIds,
+          lepSource: zoneSummary.debug.lepSource,
+          lepSourceError: zoneSummary.debug.lepSourceError,
           usedFallback: zoneSummary.debug.usedFallback,
           fallbackReason: zoneSummary.debug.fallbackReason,
           partCandidateCounts: {
@@ -1134,9 +1203,14 @@ export const buildQuickSiteCheckLep = async (
       debug: debugInfo,
     } satisfies QuickSiteCheckLepResponse;
   } catch (error) {
-    console.error("[quick-site-check-lep] failed", error);
+    console.error("[quick-site-check-lep] failed", { errorContext, error });
     return {
       ok: false,
+      projectId: errorContext.projectId,
+      lepName: errorContext.lepName,
+      lga: errorContext.lga ?? undefined,
+      zone: errorContext.zone ?? null,
+      error: error instanceof Error ? error.message : String(error),
       message: "Unable to run LEP Quick Site Check right now.",
     } satisfies QuickSiteCheckLepResponse;
   }

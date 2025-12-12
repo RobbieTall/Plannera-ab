@@ -12,8 +12,11 @@ type InstrumentConfigInput = InstrumentConfig & {
 };
 
 const normaliseInstrument = (config: InstrumentConfigInput): InstrumentConfig => {
-  const xmlLocalPath = config.xmlLocalPath ?? config.xml_local_path;
+  const rawXmlLocalPath = config.xmlLocalPath ?? config.xml_local_path;
   const xmlUrl = config.xmlUrl ?? config.xml_url;
+  const allowLocalFixtures = process.env.LEP_LOCAL_FIXTURES === "true";
+  const xmlLocalPath =
+    config.instrumentType === "LEP" && !allowLocalFixtures ? undefined : rawXmlLocalPath;
 
   return {
     ...config,

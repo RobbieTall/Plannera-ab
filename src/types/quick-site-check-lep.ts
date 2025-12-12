@@ -54,6 +54,8 @@ export type QuickSiteCheckLepSuccess = {
     landUseExtractionMode?: "string-search" | "xml-traverse" | "link-resolve" | null;
     landUseResolvedViaLink?: boolean;
     landUseResolvedTargetIds?: string[];
+    lepSource?: "db" | "local-xml";
+    lepSourceError?: string | null;
     usedFallback?: boolean;
     fallbackReason?: string | null;
     partCandidateCounts: { "4": number; "5": number; "6": number };
@@ -64,6 +66,10 @@ export type QuickSiteCheckLepSuccess = {
 export type QuickSiteCheckLepError = {
   ok: false;
   projectId?: string;
+  lepName?: string;
+  lga?: string;
+  zone?: string | null;
+  error?: string;
   message: string;
 };
 
