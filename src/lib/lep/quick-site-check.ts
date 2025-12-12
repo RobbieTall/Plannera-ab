@@ -1,4 +1,4 @@
-import type { Clause } from "@prisma/client";
+import type { Clause, LepZoneLandUse, LepZoneObjective } from "@prisma/client";
 
 import type {
   QuickSiteCheckLepClause,
@@ -11,16 +11,9 @@ import { findProjectByExternalId, normalizeProjectId } from "../project-identifi
 import { serializeSiteContext } from "../site-context";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
+import { GLOBAL_ZONE_PATTERNS, parseZoneContent, toZoneCode } from "./zone-utils";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
-
-type ZoneSectionKey = "objectives" | "withoutConsent" | "withConsent" | "prohibited";
-
-const GLOBAL_ZONE_PATTERNS = [
-  /the land use zones under this plan are as follows/i,
-  /zones under this plan are as follows/i,
-  /the land use zones under this plan/i,
-];
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
   "4": [
@@ -56,70 +49,6 @@ const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
     "contamination",
     "foreshore",
   ],
-};
-
-const ZONE_SECTION_HEADERS: { key: ZoneSectionKey; regex: RegExp }[] = [
-  { key: "objectives", regex: /objectives of (the )?zone/i },
-  { key: "withoutConsent", regex: /permitted without consent/i },
-  { key: "withConsent", regex: /permitted with consent/i },
-  { key: "prohibited", regex: /prohibited/i },
-];
-
-const toZoneCode = (value: string | null | undefined) => {
-  if (!value) return null;
-  const match = value.trim().match(/([A-Z]{1,3}\d?[A-Z]?)/i);
-  return match ? match[1]?.toUpperCase() ?? null : null;
-};
-
-const splitZoneSections = (text: string): Record<ZoneSectionKey, string> => {
-  const normalized = text.replace(/\r\n/g, "\n");
-  const lower = normalized.toLowerCase();
-
-  const matches = ZONE_SECTION_HEADERS.map((header) => {
-    const match = lower.match(header.regex);
-    if (!match || typeof match.index !== "number") return null;
-    return { key: header.key, start: match.index, end: match.index + match[0].length };
-  })
-    .filter(Boolean)
-    .sort((first, second) => (first!.start ?? 0) - (second!.start ?? 0)) as {
-    key: ZoneSectionKey;
-    start: number;
-    end: number;
-  }[];
-
-  const sections: Record<ZoneSectionKey, string> = {
-    objectives: "",
-    withoutConsent: "",
-    withConsent: "",
-    prohibited: "",
-  };
-
-  matches.forEach((match, index) => {
-    const nextStart = matches[index + 1]?.start ?? normalized.length;
-    sections[match.key] = normalized.slice(match.end, nextStart).trim();
-  });
-
-  return sections;
-};
-
-const cleanListItems = (section: string): string[] => {
-  if (!section) return [];
-
-  const rawEntries = section
-    .split(/\r?\n|;/)
-    .flatMap((line) => line.split(/[•·\-–—]/))
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  const cleaned = rawEntries
-    .map((entry) => entry.replace(/^\d+[).]\s*/, "").replace(/^[-–—]\s*/, "").replace(/\s+[-–—]\s*$/, ""))
-    .map((entry) => entry.replace(/^\W+/, "").replace(/\s+$/, ""))
-    .map((entry) => entry.replace(/\[[^\]]+\]/g, ""))
-    .map((entry) => entry.replace(/\s+\.$/, "."))
-    .filter((entry) => entry.length > 0)
-    .filter((entry) => !/^none\b/i.test(entry) && !/^nil\b/i.test(entry));
-
-  return Array.from(new Set(cleaned));
 };
 
 const parseClauseNumber = (clause: ClauseSummary) => {
@@ -228,8 +157,8 @@ type ZoneSummary = {
     headingMatch: string | null;
     zoneTableClauseKey: string | null;
     zoneTableClauseTitle: string | null;
-    zoneObjectiveSource: "table" | "text-block" | "fallback";
-    landUseSource: string | null;
+    zoneObjectiveSource: "table" | "text-block" | "fallback" | "ingested";
+    landUseSource: "ingested" | "table" | "text-block" | "clause-fallback" | null;
     zoneAnchorClauseKey: string | null;
     zoneAnchorTitle: string | null;
     zoneCandidateCount: number;
@@ -480,29 +409,22 @@ const buildZoneSummary = (
     };
   }
 
-  const text = selection.sectionText;
-  const sections = splitZoneSections(text);
+  const parsed = parseZoneContent(selection.sectionText);
 
-  const objectives = cleanListItems(sections.objectives);
-  const withoutConsent = cleanListItems(sections.withoutConsent);
-  const withConsent = cleanListItems(sections.withConsent);
-  const prohibited = cleanListItems(sections.prohibited);
-
-  const looksTabular = /<table/i.test(text) || /\|/.test(text) || /\t/.test(text);
-  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = objectives.length
-    ? looksTabular
+  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = parsed.objectives.length
+    ? parsed.looksTabular
       ? "table"
       : "text-block"
     : "fallback";
-  const fallbackObjectives = objectives.length ? objectives : [notFoundReason];
-  const hasLandUse = withoutConsent.length || withConsent.length || prohibited.length;
+  const fallbackObjectives = parsed.objectives.length ? parsed.objectives : [notFoundReason];
+  const hasLandUse = parsed.withoutConsent.length || parsed.withConsent.length || parsed.prohibited.length;
   const landUseSource: ZoneSummary["debug"]["landUseSource"] = hasLandUse
-    ? looksTabular
+    ? parsed.looksTabular
       ? "table"
       : "text-block"
     : "clause-fallback";
   const landUseFallback = hasLandUse
-    ? { withoutConsent, withConsent, prohibited }
+    ? { withoutConsent: parsed.withoutConsent, withConsent: parsed.withConsent, prohibited: parsed.prohibited }
     : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] };
 
   return {
@@ -520,6 +442,49 @@ const buildZoneSummary = (
       excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
       usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
       notes: selection.source === "fallback" ? ["Zone heading not found; used nearest matching block"] : [],
+    },
+  };
+};
+
+const buildStoredZoneSummary = (
+  zoneCode: string,
+  objectives: LepZoneObjective[],
+  landUses: LepZoneLandUse[],
+): ZoneSummary => {
+  const notFoundReason = `No zone-specific objectives found for zone ${zoneCode}.`;
+  const noLandUseReason = `No zone-specific land use table entries found for zone ${zoneCode}.`;
+
+  const objectiveTexts = objectives.map((entry) => entry.objective).filter(Boolean);
+  const landUseBuckets = landUses.reduce(
+    (acc, entry) => {
+      if (entry.permission === "WITHOUT_CONSENT") acc.withoutConsent.push(entry.description);
+      if (entry.permission === "WITH_CONSENT") acc.withConsent.push(entry.description);
+      if (entry.permission === "PROHIBITED") acc.prohibited.push(entry.description);
+      return acc;
+    },
+    { withoutConsent: [] as string[], withConsent: [] as string[], prohibited: [] as string[] },
+  );
+
+  const hasLandUse =
+    landUseBuckets.withoutConsent.length || landUseBuckets.withConsent.length || landUseBuckets.prohibited.length;
+
+  return {
+    objectives: objectiveTexts.length ? objectiveTexts : [notFoundReason],
+    landUse: hasLandUse
+      ? landUseBuckets
+      : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] },
+    debug: {
+      headingMatch: null,
+      zoneTableClauseKey: null,
+      zoneTableClauseTitle: null,
+      zoneObjectiveSource: "ingested",
+      landUseSource: hasLandUse ? "ingested" : "clause-fallback",
+      zoneAnchorClauseKey: null,
+      zoneAnchorTitle: null,
+      zoneCandidateCount: 0,
+      excludedGlobalZoneClauses: [],
+      usedGlobalZoneFallback: false,
+      notes: [],
     },
   };
 };
@@ -593,6 +558,13 @@ export const buildQuickSiteCheckLep = async (
       } satisfies QuickSiteCheckLepResponse;
     }
 
+    const [storedObjectives, storedLandUses] = await Promise.all([
+      prisma.lepZoneObjective.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
+      prisma.lepZoneLandUse.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
+    ]);
+
+    const hasStoredZoneData = storedObjectives.length > 0 || storedLandUses.length > 0;
+
     const zonePattern = `Zone ${zoneCode}`;
 
     const allClauses = await prisma.clause.findMany({
@@ -604,24 +576,31 @@ export const buildQuickSiteCheckLep = async (
       select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
     });
 
-    const zoneClauses = allClauses.filter(
-      (clause) =>
-        clause.clauseKey?.startsWith("2") ||
-        clause.hierarchyPath?.includes("Part 2") ||
-        (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
-        (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
-        (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
-        (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
-    );
+    let zoneSummary: ZoneSummary;
+    let zonePick: ZoneClausePick | null = null;
 
-    const zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
-    const chosenZoneClause = zonePick.selection;
+    if (hasStoredZoneData) {
+      zoneSummary = buildStoredZoneSummary(zoneCode, storedObjectives, storedLandUses);
+    } else {
+      const zoneClauses = allClauses.filter(
+        (clause) =>
+          clause.clauseKey?.startsWith("2") ||
+          clause.hierarchyPath?.includes("Part 2") ||
+          (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
+          (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
+          (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
+          (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+      );
 
-    if (!chosenZoneClause) {
-      console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+      zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
+      const chosenZoneClause = zonePick.selection;
+
+      if (!chosenZoneClause) {
+        console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+      }
+
+      zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
     }
-
-    const zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
 
     const partBuckets: Record<"4" | "5" | "6", ClauseSummary[]> = { "4": [], "5": [], "6": [] };
 

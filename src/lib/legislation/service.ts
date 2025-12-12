@@ -14,6 +14,7 @@ import type {
   SearchClausesParams,
   SiteResolutionResult,
 } from "./types";
+import { refreshLepZoneTables } from "../lep/zone-table-extractor";
 
 const DEFAULT_SEARCH_LIMIT = 25;
 let parserModulePromise: Promise<typeof import("./parser")> | null = null;
@@ -163,6 +164,10 @@ const ingestParsedClauses = async (
       data: { lastSyncedAt: retrievedAt },
     });
 
+    if (config.instrumentType === "LEP") {
+      await refreshLepZoneTables(prisma, updatedInstrument.id, uniqueClauses);
+    }
+
     return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: uniqueClauses.length };
   }
 
@@ -236,6 +241,10 @@ const ingestParsedClauses = async (
     where: { id: instrument.id },
     data: { lastSyncedAt: retrievedAt },
   });
+
+  if (config.instrumentType === "LEP") {
+    await refreshLepZoneTables(prisma, updatedInstrument.id, uniqueClauses);
+  }
 
   return { status: "ok", config, instrument: updatedInstrument, added, updated, parsedClauses: uniqueClauses.length };
 };

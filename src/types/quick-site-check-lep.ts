@@ -25,10 +25,10 @@ export type QuickSiteCheckLepSuccess = {
   part6Reason?: string;
   debug?: {
     zoneHeadingMatch: string | null;
-    landUseSource: string | null;
+    landUseSource: "ingested" | "table" | "text-block" | "clause-fallback" | null;
     zoneTableClauseKey?: string | null;
     zoneTableClauseTitle?: string | null;
-    zoneObjectiveSource?: "table" | "text-block" | "fallback";
+    zoneObjectiveSource?: "table" | "text-block" | "fallback" | "ingested";
     zoneAnchorClauseKey?: string | null;
     zoneAnchorTitle?: string | null;
     zoneCandidateCount?: number;
