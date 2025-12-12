@@ -221,7 +221,7 @@
     "clausePrefix": "BYRON_LEP_2014",
     "topics": ["coastal", "zoning", "environmental protection"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2014-355",
-    "xml_local_path": "data/nsw/xml/byron-lep-2014.xml"
+    "xml_local_path": "data/nsw/xml/Byron-lep-2014.xml"
   },
   {
     "slug": "kempsey-lep-2013",

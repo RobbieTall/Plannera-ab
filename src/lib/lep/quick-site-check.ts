@@ -802,22 +802,26 @@ export const buildQuickSiteCheckLep = async (
         ? extractZoneBlockFromClause(landUseTableText, zoneCode)
         : null;
       const landUseTableSectionFound = Boolean(landUseTableClause || landUseTableXmlBlock);
-      const landUseTableSectionHeading =
-        landUseTableClause?.title ?? (landUseTableXmlBlock ? "Land Use Table" : null);
+      const landUseTableSectionHeading = landUseTableXmlBlock
+        ? "Land Use Table"
+        : landUseTableClause?.title ?? null;
       const landUseZoneBlockFound = Boolean(landUseTableXmlBlock || landUseTableBlock);
       const landUseZoneBlockHeading = landUseTableXmlBlock?.heading ?? landUseTableBlock?.heading ?? null;
 
       if (landUseTableXmlBlock) {
         const clauseForXml: ClauseSummary = landUseTableClause
-          ? landUseTableClause
-          : clauseTwoThree
-            ? clauseTwoThree
-            : {
-                clauseKey: `land-use-table-${zoneCode}`,
-                title: "Land Use Table",
-                bodyText: landUseTableXmlBlock.block,
-                hierarchyPath: [],
-              };
+          ? {
+              clauseKey: landUseTableClause.clauseKey,
+              title: landUseTableClause.title ?? "Land Use Table",
+              bodyText: landUseTableXmlBlock.block,
+              hierarchyPath: landUseTableClause.hierarchyPath ?? [],
+            }
+          : {
+              clauseKey: `land-use-table-${zoneCode}`,
+              title: "Land Use Table",
+              bodyText: landUseTableXmlBlock.block,
+              hierarchyPath: [],
+            };
 
         const landUseSelection: ZoneClauseSelection = {
           clause: clauseForXml,
@@ -830,7 +834,7 @@ export const buildQuickSiteCheckLep = async (
           anchorClauseKey: clauseForXml.clauseKey ?? null,
           anchorTitle: clauseForXml.title ?? null,
           headingMatch: landUseTableXmlBlock.heading ?? null,
-          candidateCount: landUseTableClause || clauseTwoThree ? 1 : 0,
+          candidateCount: landUseTableClause ? 1 : 0,
           excludedGlobalClauses: [],
           usedGlobalFallback: false,
         } satisfies ZoneClausePick["debug"];
