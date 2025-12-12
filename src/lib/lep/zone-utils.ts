@@ -25,6 +25,14 @@ export type ZoneContent = {
 
 export type ClauseLike = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
+export type LandUseTableExtraction = {
+  heading: string | null;
+  block: string;
+  extractionMode: "xml-traverse" | "string-search" | "link-resolve";
+  resolvedViaLink: boolean;
+  resolvedTargetIds: string[];
+};
+
 export const cleanXmlLikeString = (text: string | null | undefined) => {
   if (!text) return "";
 
@@ -117,19 +125,37 @@ export const parseZoneContent = (text: string): ZoneContent => {
 };
 
 export const findLandUseTableClause = (clauses: ClauseLike[], zoneCode: string | null): ClauseLike | null => {
-  const scored = clauses
+  const filtered = clauses.filter((clause) => {
+    const hierarchy = clause.hierarchyPath?.join(" ") ?? "";
+    const title = clause.title ?? "";
+
+    const isWrongPart =
+      /^4/i.test(clause.clauseKey ?? "") ||
+      /^5/i.test(clause.clauseKey ?? "") ||
+      /^6/i.test(clause.clauseKey ?? "") ||
+      /part\s*4/i.test(hierarchy) ||
+      /part\s*5/i.test(hierarchy) ||
+      /part\s*6/i.test(hierarchy);
+
+    if (isWrongPart) return false;
+
+    const looksRelevant = /land use table/i.test(title) || /land use table/i.test(hierarchy);
+    const isClauseTwo = /^2/i.test(clause.clauseKey ?? "");
+
+    return looksRelevant || isClauseTwo;
+  });
+
+  const scored = filtered
     .map((clause) => {
-      const title = clause.title ?? "";
-      const hierarchy = clause.hierarchyPath?.join(" ") ?? "";
-      const body = clause.bodyText ?? "";
-      let score = 0;
+    const title = clause.title ?? "";
+    const hierarchy = clause.hierarchyPath?.join(" ") ?? "";
+    let score = 0;
 
       if (/land use table/i.test(title)) score += 10;
       if (/land use table/i.test(hierarchy)) score += 6;
       if (clause.hierarchyPath?.some((entry) => /part\s*2/i.test(entry))) score += 2;
       if (clause.clauseKey?.startsWith("2")) score += 1;
       if (zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(title)) score += 2;
-      if (zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(body)) score += 1;
 
       return { clause, score };
     })
@@ -138,4 +164,49 @@ export const findLandUseTableClause = (clauses: ClauseLike[], zoneCode: string |
   if (!scored.length) return null;
 
   return scored.sort((first, second) => second.score - first.score)[0]?.clause ?? null;
+};
+
+export const extractZoneBlockFromLandUseXml = (
+  xml: string | null | undefined,
+  zoneCode: string | null,
+): LandUseTableExtraction | null => {
+  if (!xml || !zoneCode) return null;
+
+  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[_\-.\s]*${zoneCode}[^\"]*"[^>]*>`, "i");
+  const startMatch = startRegex.exec(xml);
+  if (!startMatch || typeof startMatch.index !== "number") return null;
+
+  const tagRegex = /<level\b[^>]*>|<\/level>/gi;
+  tagRegex.lastIndex = startMatch.index;
+
+  let depth = 0;
+  let endIndex = xml.length;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagRegex.exec(xml)) !== null) {
+    if (/^<level\b/i.test(match[0])) {
+      depth += 1;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        endIndex = tagRegex.lastIndex;
+        break;
+      }
+    }
+  }
+
+  const rawBlock = xml.slice(startMatch.index, endIndex);
+  const headingMatch = rawBlock.match(/<heading[^>]*>([\s\S]*?)<\/heading>/i);
+  const heading = headingMatch ? cleanXmlLikeString(headingMatch[1]) || null : null;
+  const cleanedBlock = cleanXmlLikeString(rawBlock);
+
+  if (!cleanedBlock) return null;
+
+  return {
+    heading,
+    block: cleanedBlock,
+    extractionMode: "xml-traverse",
+    resolvedViaLink: false,
+    resolvedTargetIds: [],
+  } satisfies LandUseTableExtraction;
 };

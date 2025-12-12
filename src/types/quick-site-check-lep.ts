@@ -30,6 +30,7 @@ export type QuickSiteCheckLepSuccess = {
       | "table"
       | "text-block"
       | "clause-fallback"
+      | "land-use-table"
       | "land-use-table-section"
       | null;
     zoneTableClauseKey?: string | null;
@@ -50,6 +51,9 @@ export type QuickSiteCheckLepSuccess = {
     landUseZoneBlockHeading?: string | null;
     objectivesCount?: number;
     landUseCounts?: { withoutConsent: number; withConsent: number; prohibited: number };
+    landUseExtractionMode?: "string-search" | "xml-traverse" | "link-resolve" | null;
+    landUseResolvedViaLink?: boolean;
+    landUseResolvedTargetIds?: string[];
     usedFallback?: boolean;
     fallbackReason?: string | null;
     partCandidateCounts: { "4": number; "5": number; "6": number };
