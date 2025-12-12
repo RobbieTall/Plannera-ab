@@ -205,10 +205,12 @@ type ZoneClauseSelection = {
   matchedHeading: string | null;
   sectionText: string;
   source: "heading" | "regex-window" | "fallback";
-} | null;
+};
+
+type ZoneClauseSelectionResult = ZoneClauseSelection | null;
 
 type ZoneClausePick = {
-  selection: ZoneClauseSelection;
+  selection: ZoneClauseSelectionResult;
   debug: {
     anchorClauseKey: string | null;
     anchorTitle: string | null;
@@ -394,7 +396,7 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): Zone
 };
 
 const buildZoneSummary = (
-  selection: ZoneClauseSelection,
+  selection: ZoneClauseSelectionResult,
   zoneCode: string | null,
   pickDebug: ZoneClausePick["debug"],
 ): ZoneSummary => {
