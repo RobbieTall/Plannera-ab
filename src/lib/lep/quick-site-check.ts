@@ -668,7 +668,31 @@ export const buildQuickSiteCheckLep = async (
       select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
     });
 
-    let zoneSummary: ZoneSummary;
+    let zoneSummary: ZoneSummary = {
+      objectives: [],
+      landUse: { withoutConsent: [], withConsent: [], prohibited: [] },
+      debug: {
+        headingMatch: null,
+        zoneTableClauseKey: null,
+        zoneTableClauseTitle: null,
+        zoneObjectiveSource: "fallback",
+        landUseSource: null,
+        zoneAnchorClauseKey: null,
+        zoneAnchorTitle: null,
+        zoneCandidateCount: 0,
+        excludedGlobalZoneClauses: [],
+        usedGlobalZoneFallback: false,
+        zoneClauseKey: null,
+        zoneClauseTitle: null,
+        zoneBlockFound: false,
+        zoneBlockHeading: null,
+        objectivesCount: 0,
+        landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+        usedFallback: false,
+        fallbackReason: null,
+        notes: [],
+      },
+    };
     let zonePick: ZoneClausePick | null = null;
 
     if (hasStoredZoneData) {
