@@ -515,48 +515,49 @@ const buildZoneSummary = (
     };
   }
 
-  if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
-    const debug = {
-      headingMatch: selection.matchedHeading,
-      zoneTableClauseKey: selection.clause.clauseKey ?? null,
-      zoneTableClauseTitle: selection.clause.title ?? null,
-      zoneObjectiveSource: "fallback" as const,
-      landUseSource: extras.landUseSource ?? null,
-      zoneAnchorClauseKey: pickDebug.anchorClauseKey,
-      zoneAnchorTitle: pickDebug.anchorTitle,
-      zoneCandidateCount: pickDebug.candidateCount,
-      excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
-      usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
-      zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
-      zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
-      zoneBlockFound: extras.zoneBlockFound ?? true,
-      zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
-      landUseTableSectionFound,
-      landUseTableSectionHeading,
-      landUseZoneBlockFound,
-      landUseZoneBlockHeading,
-      objectivesCount: 0,
-      landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
-      landUseExtractionMode,
-      landUseResolvedViaLink,
-      landUseResolvedTargetIds,
-      lepSource,
-      lepSourceError,
-      usedFallback: extras.usedFallback ?? false,
-      fallbackReason: extras.fallbackReason ?? null,
-      notes: ["Zone code not found in selected clause body"],
-    } satisfies ZoneSummary["debug"];
+    if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
+      const debug = {
+        headingMatch: selection.matchedHeading,
+        zoneTableClauseKey: selection.clause.clauseKey ?? null,
+        zoneTableClauseTitle: selection.clause.title ?? null,
+        zoneObjectiveSource: "fallback" as const,
+        landUseSource: extras.landUseSource ?? null,
+        zoneAnchorClauseKey: pickDebug.anchorClauseKey,
+        zoneAnchorTitle: pickDebug.anchorTitle,
+        zoneCandidateCount: pickDebug.candidateCount,
+        excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
+        usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+        zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+        zoneBlockFound: extras.zoneBlockFound ?? true,
+        zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
+        landUseZoneClausegroupId,
+        objectivesCount: 0,
+        landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+        landUseExtractionMode,
+        landUseResolvedViaLink,
+        landUseResolvedTargetIds,
+        lepSource,
+        lepSourceError,
+        usedFallback: extras.usedFallback ?? false,
+        fallbackReason: extras.fallbackReason ?? null,
+        notes: ["Zone code not found in selected clause body"],
+      } satisfies ZoneSummary["debug"];
 
-    return {
-      objectives: [notFoundReason],
-      landUse: {
-        withoutConsent: [noLandUseReason],
-        withConsent: [],
-        prohibited: [],
-      },
-      debug,
-    };
-  }
+      return {
+        objectives: [notFoundReason],
+        landUse: {
+          withoutConsent: [noLandUseReason],
+          withConsent: [],
+          prohibited: [],
+        },
+        debug,
+      };
+    }
 
   const parsed = parseZoneContent(selection.sectionText);
 
@@ -665,6 +666,7 @@ const buildStoredZoneSummary = (
       landUseTableSectionHeading: null,
       landUseZoneBlockFound: false,
       landUseZoneBlockHeading: null,
+      landUseZoneClausegroupId: null,
       objectivesCount: objectiveTexts.length,
       landUseCounts: {
         withoutConsent: landUseBuckets.withoutConsent.length,
