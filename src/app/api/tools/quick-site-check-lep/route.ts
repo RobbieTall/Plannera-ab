@@ -17,7 +17,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await buildQuickSiteCheckLep(projectId);
+    const url = new URL(request.url);
+    const debug = url.searchParams.get("debug") === "true" || body.debug === true;
+
+    const result = await buildQuickSiteCheckLep(projectId, { debug });
     return NextResponse.json(result satisfies QuickSiteCheckLepResponse);
   } catch (error) {
     console.error("[quick-site-check-lep] unexpected error", error);

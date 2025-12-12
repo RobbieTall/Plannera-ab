@@ -20,6 +20,19 @@ export type QuickSiteCheckLepSuccess = {
   part4: QuickSiteCheckLepClause[];
   part5: QuickSiteCheckLepClause[];
   part6: QuickSiteCheckLepClause[];
+  part4Reason?: string;
+  part5Reason?: string;
+  part6Reason?: string;
+  debug?: {
+    zoneHeadingMatch: string | null;
+    landUseSource: string | null;
+    zoneAnchorClauseKey?: string | null;
+    zoneAnchorTitle?: string | null;
+    zoneCandidateCount?: number;
+    excludedGlobalZoneClauses?: string[];
+    usedGlobalZoneFallback?: boolean;
+    partCandidateCounts: { "4": number; "5": number; "6": number };
+  };
 };
 
 export type QuickSiteCheckLepError = {
