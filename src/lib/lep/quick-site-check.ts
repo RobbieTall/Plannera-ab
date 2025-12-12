@@ -213,8 +213,9 @@ const extractZoneSection = (clause: ClauseSummary, zoneCode: string | null): Zon
     }
   }
 
-  if (matchedHeading === null && clause.title && headingRegexes.some((regex) => regex.test(clause.title))) {
-    matchedHeading = clause.title;
+  const titleText = clause.title ?? "";
+  if (matchedHeading === null && titleText && headingRegexes.some((regex) => regex.test(titleText))) {
+    matchedHeading = clause.title ?? titleText;
     startIndex = 0;
   }
 
