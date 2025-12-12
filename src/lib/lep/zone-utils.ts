@@ -115,3 +115,27 @@ export const parseZoneContent = (text: string): ZoneContent => {
 
   return { objectives, withoutConsent, withConsent, prohibited, looksTabular };
 };
+
+export const findLandUseTableClause = (clauses: ClauseLike[], zoneCode: string | null): ClauseLike | null => {
+  const scored = clauses
+    .map((clause) => {
+      const title = clause.title ?? "";
+      const hierarchy = clause.hierarchyPath?.join(" ") ?? "";
+      const body = clause.bodyText ?? "";
+      let score = 0;
+
+      if (/land use table/i.test(title)) score += 10;
+      if (/land use table/i.test(hierarchy)) score += 6;
+      if (clause.hierarchyPath?.some((entry) => /part\s*2/i.test(entry))) score += 2;
+      if (clause.clauseKey?.startsWith("2")) score += 1;
+      if (zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(title)) score += 2;
+      if (zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(body)) score += 1;
+
+      return { clause, score };
+    })
+    .filter(({ score }) => score > 0);
+
+  if (!scored.length) return null;
+
+  return scored.sort((first, second) => second.score - first.score)[0]?.clause ?? null;
+};

@@ -11,7 +11,13 @@ import { findProjectByExternalId, normalizeProjectId } from "../project-identifi
 import { serializeSiteContext } from "../site-context";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
-import { cleanXmlLikeString, GLOBAL_ZONE_PATTERNS, parseZoneContent, toZoneCode } from "./zone-utils";
+import {
+  cleanXmlLikeString,
+  findLandUseTableClause,
+  GLOBAL_ZONE_PATTERNS,
+  parseZoneContent,
+  toZoneCode,
+} from "./zone-utils";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
@@ -164,7 +170,13 @@ type ZoneSummary = {
     zoneTableClauseKey: string | null;
     zoneTableClauseTitle: string | null;
     zoneObjectiveSource: "table" | "text-block" | "fallback" | "ingested";
-    landUseSource: "ingested" | "table" | "text-block" | "clause-fallback" | null;
+    landUseSource:
+      | "ingested"
+      | "table"
+      | "text-block"
+      | "clause-fallback"
+      | "land-use-table-section"
+      | null;
     zoneAnchorClauseKey: string | null;
     zoneAnchorTitle: string | null;
     zoneCandidateCount: number;
@@ -174,6 +186,10 @@ type ZoneSummary = {
     zoneClauseTitle: string | null;
     zoneBlockFound: boolean;
     zoneBlockHeading: string | null;
+    landUseTableSectionFound: boolean;
+    landUseTableSectionHeading: string | null;
+    landUseZoneBlockFound: boolean;
+    landUseZoneBlockHeading: string | null;
     objectivesCount: number;
     landUseCounts: { withoutConsent: number; withConsent: number; prohibited: number };
     usedFallback: boolean;
@@ -391,6 +407,11 @@ const buildZoneSummary = (
     ? `No zone-specific land use table entries found for zone ${zoneCode}.`
     : "No zone-specific land use entries found.";
 
+  const landUseTableSectionFound = extras.landUseTableSectionFound ?? false;
+  const landUseTableSectionHeading = extras.landUseTableSectionHeading ?? null;
+  const landUseZoneBlockFound = extras.landUseZoneBlockFound ?? false;
+  const landUseZoneBlockHeading = extras.landUseZoneBlockHeading ?? null;
+
   if (!selection) {
     const debug = {
       headingMatch: null,
@@ -407,6 +428,10 @@ const buildZoneSummary = (
       zoneClauseTitle: extras.zoneClauseTitle ?? null,
       zoneBlockFound: extras.zoneBlockFound ?? false,
       zoneBlockHeading: extras.zoneBlockHeading ?? null,
+      landUseTableSectionFound,
+      landUseTableSectionHeading,
+      landUseZoneBlockFound,
+      landUseZoneBlockHeading,
       objectivesCount: 0,
       landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
       usedFallback: extras.usedFallback ?? false,
@@ -438,7 +463,7 @@ const buildZoneSummary = (
         zoneTableClauseKey: selection.clause.clauseKey ?? null,
         zoneTableClauseTitle: selection.clause.title ?? null,
         zoneObjectiveSource: "fallback",
-        landUseSource: null,
+        landUseSource: extras.landUseSource ?? null,
         zoneAnchorClauseKey: pickDebug.anchorClauseKey,
         zoneAnchorTitle: pickDebug.anchorTitle,
         zoneCandidateCount: pickDebug.candidateCount,
@@ -448,6 +473,10 @@ const buildZoneSummary = (
         zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
         zoneBlockFound: extras.zoneBlockFound ?? true,
         zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
         objectivesCount: 0,
         landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
         usedFallback: extras.usedFallback ?? false,
@@ -463,7 +492,7 @@ const buildZoneSummary = (
       zoneTableClauseKey: selection.clause.clauseKey ?? null,
       zoneTableClauseTitle: selection.clause.title ?? null,
       zoneObjectiveSource: "fallback" as const,
-      landUseSource: null,
+      landUseSource: extras.landUseSource ?? null,
       zoneAnchorClauseKey: pickDebug.anchorClauseKey,
       zoneAnchorTitle: pickDebug.anchorTitle,
       zoneCandidateCount: pickDebug.candidateCount,
@@ -473,6 +502,10 @@ const buildZoneSummary = (
       zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
       zoneBlockFound: extras.zoneBlockFound ?? true,
       zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+      landUseTableSectionFound,
+      landUseTableSectionHeading,
+      landUseZoneBlockFound,
+      landUseZoneBlockHeading,
       objectivesCount: 0,
       landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
       usedFallback: extras.usedFallback ?? false,
@@ -523,7 +556,7 @@ const buildZoneSummary = (
       zoneTableClauseKey: selection.clause.clauseKey ?? null,
       zoneTableClauseTitle: selection.clause.title ?? null,
       zoneObjectiveSource: objectiveSource,
-      landUseSource,
+      landUseSource: extras.landUseSource ?? landUseSource,
       zoneAnchorClauseKey: pickDebug.anchorClauseKey,
       zoneAnchorTitle: pickDebug.anchorTitle,
       zoneCandidateCount: pickDebug.candidateCount,
@@ -533,6 +566,10 @@ const buildZoneSummary = (
       zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
       zoneBlockFound: extras.zoneBlockFound ?? true,
       zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+      landUseTableSectionFound,
+      landUseTableSectionHeading,
+      landUseZoneBlockFound,
+      landUseZoneBlockHeading,
       objectivesCount: parsed.objectives.length,
       landUseCounts,
       usedFallback: extras.usedFallback ?? false,
@@ -584,6 +621,10 @@ const buildStoredZoneSummary = (
       zoneClauseTitle: null,
       zoneBlockFound: false,
       zoneBlockHeading: null,
+      landUseTableSectionFound: false,
+      landUseTableSectionHeading: null,
+      landUseZoneBlockFound: false,
+      landUseZoneBlockHeading: null,
       objectivesCount: objectiveTexts.length,
       landUseCounts: {
         withoutConsent: landUseBuckets.withoutConsent.length,
@@ -702,6 +743,10 @@ export const buildQuickSiteCheckLep = async (
         zoneClauseTitle: null,
         zoneBlockFound: false,
         zoneBlockHeading: null,
+        landUseTableSectionFound: false,
+        landUseTableSectionHeading: null,
+        landUseZoneBlockFound: false,
+        landUseZoneBlockHeading: null,
         objectivesCount: 0,
         landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
         usedFallback: false,
@@ -710,91 +755,158 @@ export const buildQuickSiteCheckLep = async (
       },
     };
     let zonePick: ZoneClausePick | null = null;
+    let usedFallback = false;
+    let fallbackReason: string | null = null;
 
     if (hasStoredZoneData) {
       zoneSummary = buildStoredZoneSummary(zoneCode, storedObjectives, storedLandUses);
     } else {
-      const clauseTwoThree = allClauses.find(isClauseTwoThree) ?? null;
-      const cleanedClauseText = clauseTwoThree ? cleanXmlLikeString(clauseTwoThree.bodyText) : "";
-      const clauseTwoThreeBlock = extractZoneBlockFromClause(cleanedClauseText, zoneCode);
-
-      const clauseTwoThreeSelection: ZoneClauseSelectionResult = clauseTwoThreeBlock
-        ? {
-            clause: clauseTwoThree!,
-            matchedHeading: clauseTwoThreeBlock.heading,
-            sectionText: clauseTwoThreeBlock.block,
-            source: "heading",
-          }
+      const landUseTableClause = findLandUseTableClause(allClauses, zoneCode);
+      const landUseTableSectionFound = Boolean(landUseTableClause);
+      const landUseTableSectionHeading = landUseTableClause?.title ?? null;
+      const landUseTableText = landUseTableClause ? cleanXmlLikeString(landUseTableClause.bodyText) : "";
+      const landUseTableBlock = landUseTableClause
+        ? extractZoneBlockFromClause(landUseTableText, zoneCode)
         : null;
+      const landUseZoneBlockFound = Boolean(landUseTableBlock);
+      const landUseZoneBlockHeading = landUseTableBlock?.heading ?? null;
 
-      const clauseTwoThreeDebug: ZoneClausePick["debug"] = {
-        anchorClauseKey: clauseTwoThree?.clauseKey ?? null,
-        anchorTitle: clauseTwoThree?.title ?? null,
-        headingMatch: clauseTwoThreeBlock?.heading ?? null,
-        candidateCount: clauseTwoThree ? 1 : 0,
-        excludedGlobalClauses: [],
-        usedGlobalFallback: false,
-      } satisfies ZoneClausePick["debug"];
+      if (landUseTableClause) {
+        if (landUseTableBlock) {
+          const landUseSelection: ZoneClauseSelection = {
+            clause: landUseTableClause,
+            matchedHeading: landUseTableBlock.heading,
+            sectionText: landUseTableBlock.block,
+            source: "heading",
+          };
 
-      let usedFallback = false;
-      let fallbackReason: string | null = null;
+          const landUseDebug: ZoneClausePick["debug"] = {
+            anchorClauseKey: landUseTableClause.clauseKey ?? null,
+            anchorTitle: landUseTableClause.title ?? null,
+            headingMatch: landUseTableBlock.heading ?? null,
+            candidateCount: 1,
+            excludedGlobalClauses: [],
+            usedGlobalFallback: false,
+          } satisfies ZoneClausePick["debug"];
 
-      if (clauseTwoThreeSelection) {
-        const summaryFromTwoThree = buildZoneSummary(clauseTwoThreeSelection, zoneCode, clauseTwoThreeDebug, {
-          zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
-          zoneClauseTitle: clauseTwoThree?.title ?? null,
-          zoneBlockFound: true,
-          zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
-        });
+          const summaryFromLandUseTable = buildZoneSummary(landUseSelection, zoneCode, landUseDebug, {
+            zoneClauseKey: landUseTableClause.clauseKey ?? null,
+            zoneClauseTitle: landUseTableClause.title ?? null,
+            zoneBlockFound: true,
+            zoneBlockHeading: landUseTableBlock.heading ?? null,
+            landUseTableSectionFound,
+            landUseTableSectionHeading,
+            landUseZoneBlockFound,
+            landUseZoneBlockHeading,
+            landUseSource: "land-use-table-section",
+          });
 
-        const hasParsedContent =
-          summaryFromTwoThree.debug.objectivesCount > 0 ||
-          summaryFromTwoThree.debug.landUseCounts.withoutConsent > 0 ||
-          summaryFromTwoThree.debug.landUseCounts.withConsent > 0 ||
-          summaryFromTwoThree.debug.landUseCounts.prohibited > 0;
+          const hasLandUseFromTable =
+            summaryFromLandUseTable.debug.landUseCounts.withoutConsent > 0 ||
+            summaryFromLandUseTable.debug.landUseCounts.withConsent > 0 ||
+            summaryFromLandUseTable.debug.landUseCounts.prohibited > 0;
 
-        if (hasParsedContent) {
-          zoneSummary = summaryFromTwoThree;
+          if (hasLandUseFromTable) {
+            zoneSummary = summaryFromLandUseTable;
+          } else {
+            usedFallback = true;
+            fallbackReason =
+              fallbackReason ?? "No land use entries found in Land Use Table section for the requested zone";
+          }
         } else {
           usedFallback = true;
-          fallbackReason = "No objectives or land use entries found in Part 2.3 zone block";
-          zoneSummary = summaryFromTwoThree;
+          fallbackReason = fallbackReason ?? "Zone heading not found inside Land Use Table section";
         }
       }
+      const landUseTableExtras: Partial<ZoneSummary["debug"]> = {
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
+      };
 
-      if (!clauseTwoThreeSelection || usedFallback) {
-        if (!clauseTwoThreeSelection && clauseTwoThree) {
-          usedFallback = true;
-          fallbackReason = fallbackReason ?? "Zone heading not found inside Part 2.3 clause";
+      if (zoneSummary.debug.landUseSource !== "land-use-table-section") {
+        const clauseTwoThree = allClauses.find(isClauseTwoThree) ?? null;
+        const cleanedClauseText = clauseTwoThree ? cleanXmlLikeString(clauseTwoThree.bodyText) : "";
+        const clauseTwoThreeBlock = extractZoneBlockFromClause(cleanedClauseText, zoneCode);
+
+        const clauseTwoThreeSelection: ZoneClauseSelectionResult = clauseTwoThreeBlock
+          ? {
+              clause: clauseTwoThree!,
+              matchedHeading: clauseTwoThreeBlock.heading,
+              sectionText: clauseTwoThreeBlock.block,
+              source: "heading",
+            }
+          : null;
+
+        const clauseTwoThreeDebug: ZoneClausePick["debug"] = {
+          anchorClauseKey: clauseTwoThree?.clauseKey ?? null,
+          anchorTitle: clauseTwoThree?.title ?? null,
+          headingMatch: clauseTwoThreeBlock?.heading ?? null,
+          candidateCount: clauseTwoThree ? 1 : 0,
+          excludedGlobalClauses: [],
+          usedGlobalFallback: false,
+        } satisfies ZoneClausePick["debug"];
+
+        if (clauseTwoThreeSelection) {
+          const summaryFromTwoThree = buildZoneSummary(clauseTwoThreeSelection, zoneCode, clauseTwoThreeDebug, {
+            zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+            zoneClauseTitle: clauseTwoThree?.title ?? null,
+            zoneBlockFound: true,
+            zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+            ...landUseTableExtras,
+          });
+
+          const hasParsedContent =
+            summaryFromTwoThree.debug.objectivesCount > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.withoutConsent > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.withConsent > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.prohibited > 0;
+
+          if (hasParsedContent) {
+            zoneSummary = summaryFromTwoThree;
+          } else {
+            usedFallback = true;
+            fallbackReason = "No objectives or land use entries found in Part 2.3 zone block";
+            zoneSummary = summaryFromTwoThree;
+          }
         }
 
-        const zoneClauses = allClauses.filter(
-          (clause) =>
-            clause.clauseKey?.startsWith("2") ||
-            clause.hierarchyPath?.includes("Part 2") ||
-            (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
-            (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
-            (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
-            (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
-        );
+        if (!clauseTwoThreeSelection || usedFallback) {
+          if (!clauseTwoThreeSelection && clauseTwoThree) {
+            usedFallback = true;
+            fallbackReason = fallbackReason ?? "Zone heading not found inside Part 2.3 clause";
+          }
 
-        zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
-        const chosenZoneClause = zonePick.selection;
+          const zoneClauses = allClauses.filter(
+            (clause) =>
+              clause.clauseKey?.startsWith("2") ||
+              clause.hierarchyPath?.includes("Part 2") ||
+              (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
+              (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
+              (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
+              (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+          );
 
-        if (!chosenZoneClause) {
-          console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+          zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
+          const chosenZoneClause = zonePick.selection;
+
+          if (!chosenZoneClause) {
+            console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+          }
+
+          const fallbackExtras: Partial<ZoneSummary["debug"]> = {
+            usedFallback: usedFallback || !clauseTwoThreeSelection,
+            fallbackReason,
+            zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+            zoneClauseTitle: clauseTwoThree?.title ?? null,
+            zoneBlockFound: Boolean(clauseTwoThreeSelection),
+            zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+            ...landUseTableExtras,
+          };
+
+          zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug, fallbackExtras);
         }
-
-        const fallbackExtras: Partial<ZoneSummary["debug"]> = {
-          usedFallback: usedFallback || !clauseTwoThreeSelection,
-          fallbackReason,
-          zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
-          zoneClauseTitle: clauseTwoThree?.title ?? null,
-          zoneBlockFound: Boolean(clauseTwoThreeSelection),
-          zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
-        };
-
-        zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug, fallbackExtras);
       }
     }
 
@@ -861,6 +973,10 @@ export const buildQuickSiteCheckLep = async (
           zoneClauseTitle: zoneSummary.debug.zoneClauseTitle,
           zoneBlockFound: zoneSummary.debug.zoneBlockFound,
           zoneBlockHeading: zoneSummary.debug.zoneBlockHeading,
+          landUseTableSectionFound: zoneSummary.debug.landUseTableSectionFound,
+          landUseTableSectionHeading: zoneSummary.debug.landUseTableSectionHeading,
+          landUseZoneBlockFound: zoneSummary.debug.landUseZoneBlockFound,
+          landUseZoneBlockHeading: zoneSummary.debug.landUseZoneBlockHeading,
           objectivesCount: zoneSummary.debug.objectivesCount,
           landUseCounts: zoneSummary.debug.landUseCounts,
           usedFallback: zoneSummary.debug.usedFallback,

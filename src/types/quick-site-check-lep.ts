@@ -25,7 +25,13 @@ export type QuickSiteCheckLepSuccess = {
   part6Reason?: string;
   debug?: {
     zoneHeadingMatch: string | null;
-    landUseSource: "ingested" | "table" | "text-block" | "clause-fallback" | null;
+    landUseSource:
+      | "ingested"
+      | "table"
+      | "text-block"
+      | "clause-fallback"
+      | "land-use-table-section"
+      | null;
     zoneTableClauseKey?: string | null;
     zoneTableClauseTitle?: string | null;
     zoneObjectiveSource?: "table" | "text-block" | "fallback" | "ingested";
@@ -38,6 +44,10 @@ export type QuickSiteCheckLepSuccess = {
     zoneClauseTitle?: string | null;
     zoneBlockFound?: boolean;
     zoneBlockHeading?: string | null;
+    landUseTableSectionFound?: boolean;
+    landUseTableSectionHeading?: string | null;
+    landUseZoneBlockFound?: boolean;
+    landUseZoneBlockHeading?: string | null;
     objectivesCount?: number;
     landUseCounts?: { withoutConsent: number; withConsent: number; prohibited: number };
     usedFallback?: boolean;
