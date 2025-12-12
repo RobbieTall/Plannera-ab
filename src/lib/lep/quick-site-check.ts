@@ -141,6 +141,16 @@ const derivePart = (clause: ClauseSummary): "4" | "5" | "6" | null => {
   if (clause.hierarchyPath?.some((entry) => /part\s*4/i.test(entry))) return "4";
   if (clause.hierarchyPath?.some((entry) => /part\s*5/i.test(entry))) return "5";
   if (clause.hierarchyPath?.some((entry) => /part\s*6/i.test(entry))) return "6";
+  if (clause.title) {
+    const match = clause.title.match(/\bpart\s*(4|5|6)\b/i);
+    if (match) return match[1] as "4" | "5" | "6";
+  }
+  if (clause.hierarchyPath) {
+    for (const entry of clause.hierarchyPath) {
+      const match = entry.match(/^(4|5|6)(?:\.|\s)/);
+      if (match) return match[1] as "4" | "5" | "6";
+    }
+  }
   return null;
 };
 
@@ -190,10 +200,17 @@ const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[], zoneCode
   }));
 };
 
-type ZoneClauseSelection = { clause: ClauseSummary; matchedHeading: string | null; sectionText: string } | null;
+type ZoneClauseSelection = {
+  clause: ClauseSummary;
+  matchedHeading: string | null;
+  sectionText: string;
+  source: "heading" | "regex-window" | "fallback";
+};
+
+type ZoneClauseSelectionResult = ZoneClauseSelection | null;
 
 type ZoneClausePick = {
-  selection: ZoneClauseSelection;
+  selection: ZoneClauseSelectionResult;
   debug: {
     anchorClauseKey: string | null;
     anchorTitle: string | null;
@@ -209,12 +226,16 @@ type ZoneSummary = {
   landUse: { withoutConsent: string[]; withConsent: string[]; prohibited: string[] };
   debug: {
     headingMatch: string | null;
+    zoneTableClauseKey: string | null;
+    zoneTableClauseTitle: string | null;
+    zoneObjectiveSource: "table" | "text-block" | "fallback";
     landUseSource: string | null;
     zoneAnchorClauseKey: string | null;
     zoneAnchorTitle: string | null;
     zoneCandidateCount: number;
     excludedGlobalZoneClauses: string[];
     usedGlobalZoneFallback: boolean;
+    notes: string[];
   };
 };
 
@@ -225,6 +246,53 @@ const findZoneHeading = (lines: string[], headingRegexes: RegExp[]): { heading: 
       return { heading: line, index };
     }
   }
+  return null;
+};
+
+const sliceZoneBlock = (
+  text: string,
+  zoneCode: string | null,
+  headingHint: string | null = null,
+): { heading: string | null; block: string; source: ZoneClauseSelection["source"] } | null => {
+  if (!zoneCode) return null;
+
+  const normalized = text.replace(/\r\n/g, "\n");
+  const anyZoneHeadingRegex = /(^|\n)\s*zone\s+[A-Z]{1,3}\d?[A-Z]?\b[^\n]*/gi;
+  const headingMatches = Array.from(normalized.matchAll(anyZoneHeadingRegex));
+
+  const hintedHeading = headingHint
+    ? headingMatches.find((match) => match[0] && match[0].toLowerCase().includes(headingHint.toLowerCase()))
+    : null;
+  const targetHeading =
+    headingMatches.find((match) => new RegExp(`\b${zoneCode}\b`, "i").test(match[0])) ?? hintedHeading ?? null;
+
+  if (targetHeading) {
+    const headingText = targetHeading[0].trim();
+    const start = (targetHeading.index ?? 0) + targetHeading[0].length;
+    const nextHeading = headingMatches.find((match) => (match.index ?? 0) > (targetHeading.index ?? 0));
+    const end = nextHeading?.index ?? normalized.length;
+    const block = normalized.slice(start, end).trim();
+    return { heading: headingText, block, source: "heading" };
+  }
+
+  const regexWindow = normalized.match(
+    new RegExp(`zone\s+${zoneCode}\b[\s\S]*?(?=zone\s+[A-Z]{1,3}\d?[A-Z]?\b|$)`, "i"),
+  );
+  if (regexWindow && typeof regexWindow.index === "number") {
+    const headingLineMatch = regexWindow[0].match(/^(.*)$/m);
+    const heading = headingLineMatch ? headingLineMatch[0].trim() : null;
+    const block = regexWindow[0].replace(headingLineMatch?.[0] ?? "", "").trim();
+    return { heading, block, source: "regex-window" };
+  }
+
+  const lineWithZone = normalized.match(new RegExp(`(^|\n)[^\n]*\b${zoneCode}\b[^\n]*`, "i"));
+  if (lineWithZone && typeof lineWithZone.index === "number") {
+    const start = normalized.lastIndexOf("\n\n", lineWithZone.index);
+    const end = normalized.indexOf("\n\n", lineWithZone.index + lineWithZone[0].length);
+    const block = normalized.slice(start >= 0 ? start : 0, end >= 0 ? end : normalized.length).trim();
+    return { heading: headingHint, block, source: "fallback" };
+  }
+
   return null;
 };
 
@@ -241,41 +309,24 @@ const extractZoneSection = (
     zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
   ].filter(Boolean) as RegExp[];
 
-  let matchedHeading: string | null = null;
-  let startIndex = 0;
-
   const hintedHeading = headingHint
     ? findZoneHeading(lines, [new RegExp(headingHint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")])
     : null;
   const detectedHeading = findZoneHeading(lines, headingRegexes);
+  const headingCandidate = hintedHeading?.heading ?? detectedHeading?.heading ?? null;
+  const blockFromRegex = sliceZoneBlock(text, zoneCode, headingCandidate);
 
-  if (hintedHeading) {
-    matchedHeading = hintedHeading.heading;
-    startIndex = hintedHeading.index + 1;
-  } else if (detectedHeading) {
-    matchedHeading = detectedHeading.heading;
-    startIndex = detectedHeading.index + 1;
+  if (blockFromRegex) {
+    return {
+      clause,
+      matchedHeading: blockFromRegex.heading,
+      sectionText: blockFromRegex.block,
+      source: blockFromRegex.source,
+    } satisfies ZoneClauseSelection;
   }
 
-  const titleText = clause.title ?? "";
-  if (matchedHeading === null && titleText && headingRegexes.some((regex) => regex.test(titleText))) {
-    matchedHeading = clause.title ?? titleText;
-    startIndex = 0;
-  }
-
-  let endIndex = lines.length;
-  if (matchedHeading) {
-    for (let index = startIndex; index < lines.length; index += 1) {
-      const line = lines[index].trim();
-      if (/^\s*zone\s+[A-Z]{1,3}\d?[A-Z]?\b/i.test(line)) {
-        endIndex = index;
-        break;
-      }
-    }
-  }
-
-  const sectionText = lines.slice(startIndex, endIndex).join("\n").trim() || normalized.trim();
-  return { clause, matchedHeading, sectionText };
+  const fallbackSection = normalized.trim();
+  return { clause, matchedHeading: headingCandidate, sectionText: fallbackSection, source: "fallback" };
 };
 
 const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClausePick => {
@@ -310,7 +361,9 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): Zone
     if (clause.hierarchyPath?.some((entry) => /schedule\s*1/i.test(entry))) score += 2;
     if (clause.hierarchyPath?.some((entry) => /land use table/i.test(entry))) score += 5;
     if (/land use table/i.test(titleText)) score += 4;
+    if (/zone objectives and land use table/i.test(titleText)) score += 6;
     if (/objectives of/i.test(titleText)) score += 2;
+    if (/zone objectives/i.test(clause.bodyText ?? "")) score += 2;
     if (headingMatch) score += 12;
     if (zonePattern?.test(titleText)) score += 8;
     if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 4;
@@ -343,7 +396,7 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): Zone
 };
 
 const buildZoneSummary = (
-  selection: ZoneClauseSelection,
+  selection: ZoneClauseSelectionResult,
   zoneCode: string | null,
   pickDebug: ZoneClausePick["debug"],
 ): ZoneSummary => {
@@ -365,12 +418,16 @@ const buildZoneSummary = (
       },
       debug: {
         headingMatch: null,
+        zoneTableClauseKey: null,
+        zoneTableClauseTitle: null,
+        zoneObjectiveSource: "fallback",
         landUseSource: null,
         zoneAnchorClauseKey: pickDebug.anchorClauseKey,
         zoneAnchorTitle: pickDebug.anchorTitle,
         zoneCandidateCount: pickDebug.candidateCount,
         excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
         usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        notes: ["No clause matched zone heading"],
       },
     };
   }
@@ -385,12 +442,40 @@ const buildZoneSummary = (
       },
       debug: {
         headingMatch: selection.matchedHeading,
+        zoneTableClauseKey: selection.clause.clauseKey ?? null,
+        zoneTableClauseTitle: selection.clause.title ?? null,
+        zoneObjectiveSource: "fallback",
         landUseSource: null,
         zoneAnchorClauseKey: pickDebug.anchorClauseKey,
         zoneAnchorTitle: pickDebug.anchorTitle,
         zoneCandidateCount: pickDebug.candidateCount,
         excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
         usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        notes: ["Matched clause contained global zone list"],
+      },
+    };
+  }
+
+  if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
+    return {
+      objectives: [notFoundReason],
+      landUse: {
+        withoutConsent: [noLandUseReason],
+        withConsent: [],
+        prohibited: [],
+      },
+      debug: {
+        headingMatch: selection.matchedHeading,
+        zoneTableClauseKey: selection.clause.clauseKey ?? null,
+        zoneTableClauseTitle: selection.clause.title ?? null,
+        zoneObjectiveSource: "fallback",
+        landUseSource: null,
+        zoneAnchorClauseKey: pickDebug.anchorClauseKey,
+        zoneAnchorTitle: pickDebug.anchorTitle,
+        zoneCandidateCount: pickDebug.candidateCount,
+        excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
+        usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        notes: ["Zone code not found in selected clause body"],
       },
     };
   }
@@ -403,9 +488,19 @@ const buildZoneSummary = (
   const withConsent = cleanListItems(sections.withConsent);
   const prohibited = cleanListItems(sections.prohibited);
 
+  const looksTabular = /<table/i.test(text) || /\|/.test(text) || /\t/.test(text);
+  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = objectives.length
+    ? looksTabular
+      ? "table"
+      : "text-block"
+    : "fallback";
   const fallbackObjectives = objectives.length ? objectives : [notFoundReason];
   const hasLandUse = withoutConsent.length || withConsent.length || prohibited.length;
-  const landUseSource = hasLandUse ? "zone-section" : "clause-fallback";
+  const landUseSource: ZoneSummary["debug"]["landUseSource"] = hasLandUse
+    ? looksTabular
+      ? "table"
+      : "text-block"
+    : "clause-fallback";
   const landUseFallback = hasLandUse
     ? { withoutConsent, withConsent, prohibited }
     : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] };
@@ -415,12 +510,16 @@ const buildZoneSummary = (
     landUse: landUseFallback,
     debug: {
       headingMatch: selection.matchedHeading,
+      zoneTableClauseKey: selection.clause.clauseKey ?? null,
+      zoneTableClauseTitle: selection.clause.title ?? null,
+      zoneObjectiveSource: objectiveSource,
       landUseSource,
       zoneAnchorClauseKey: pickDebug.anchorClauseKey,
       zoneAnchorTitle: pickDebug.anchorTitle,
       zoneCandidateCount: pickDebug.candidateCount,
       excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
       usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      notes: selection.source === "fallback" ? ["Zone heading not found; used nearest matching block"] : [],
     },
   };
 };
@@ -496,24 +595,26 @@ export const buildQuickSiteCheckLep = async (
 
     const zonePattern = `Zone ${zoneCode}`;
 
-    const zoneClauses = await prisma.clause.findMany({
+    const allClauses = await prisma.clause.findMany({
       where: {
         instrumentId: lepInstrument.id,
         isCurrent: true,
-        OR: [
-          { clauseKey: { startsWith: "2" } },
-          { hierarchyPath: { has: "Part 2" } },
-          { title: { contains: zonePattern, mode: "insensitive" } },
-          { bodyText: { contains: zonePattern, mode: "insensitive" } },
-          { title: { contains: zoneCode, mode: "insensitive" } },
-          { bodyText: { contains: zoneCode, mode: "insensitive" } },
-        ],
       },
       orderBy: { clauseKey: "asc" },
       select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
     });
 
-    const zonePick = pickZoneClause(zoneClauses, zoneCode);
+    const zoneClauses = allClauses.filter(
+      (clause) =>
+        clause.clauseKey?.startsWith("2") ||
+        clause.hierarchyPath?.includes("Part 2") ||
+        (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
+        (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
+        (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
+        (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+    );
+
+    const zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
     const chosenZoneClause = zonePick.selection;
 
     if (!chosenZoneClause) {
@@ -522,24 +623,9 @@ export const buildQuickSiteCheckLep = async (
 
     const zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
 
-    const candidateClauses = await prisma.clause.findMany({
-      where: {
-        instrumentId: lepInstrument.id,
-        isCurrent: true,
-        OR: [
-          { clauseKey: { startsWith: "4" } },
-          { clauseKey: { startsWith: "5" } },
-          { clauseKey: { startsWith: "6" } },
-          { hierarchyPath: { hasSome: ["Part 4", "Part 5", "Part 6"] } },
-        ],
-      },
-      orderBy: { clauseKey: "asc" },
-      select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
-    });
-
     const partBuckets: Record<"4" | "5" | "6", ClauseSummary[]> = { "4": [], "5": [], "6": [] };
 
-    for (const clause of candidateClauses) {
+    for (const clause of allClauses) {
       const part = derivePart(clause);
       if (part) {
         partBuckets[part].push(clause);
@@ -555,8 +641,8 @@ export const buildQuickSiteCheckLep = async (
     );
 
     let totalClauses = part4.length + part5.length + part6.length;
-    if (totalClauses < 3 && candidateClauses.length) {
-      const additional = candidateClauses
+    if (totalClauses < 3 && allClauses.length) {
+      const additional = allClauses
         .filter((clause) => {
           const key = `${derivePart(clause) ?? "?"}-${parseClauseNumber(clause)}-${clause.title ?? ""}`;
           return !usedKeys.has(key);
@@ -587,6 +673,9 @@ export const buildQuickSiteCheckLep = async (
     const debugInfo: QuickSiteCheckLepSuccess["debug"] | undefined = options.debug
       ? {
           zoneHeadingMatch: zoneSummary.debug.headingMatch,
+          zoneTableClauseKey: zoneSummary.debug.zoneTableClauseKey,
+          zoneTableClauseTitle: zoneSummary.debug.zoneTableClauseTitle,
+          zoneObjectiveSource: zoneSummary.debug.zoneObjectiveSource,
           landUseSource: zoneSummary.debug.landUseSource,
           zoneAnchorClauseKey: zoneSummary.debug.zoneAnchorClauseKey,
           zoneAnchorTitle: zoneSummary.debug.zoneAnchorTitle,
@@ -598,6 +687,7 @@ export const buildQuickSiteCheckLep = async (
             "5": partBuckets["5"].length,
             "6": partBuckets["6"].length,
           },
+          notes: zoneSummary.debug.notes,
         }
       : undefined;
 
