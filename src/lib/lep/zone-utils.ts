@@ -9,7 +9,7 @@ export const GLOBAL_ZONE_PATTERNS = [
 ];
 
 const ZONE_SECTION_HEADERS: { key: ZoneSectionKey; regex: RegExp }[] = [
-  { key: "objectives", regex: /objectives of (the )?zone/i },
+  { key: "objectives", regex: /(?:objectives of (the )?zone|zone objectives)/i },
   { key: "withoutConsent", regex: /permitted without consent/i },
   { key: "withConsent", regex: /permitted with consent/i },
   { key: "prohibited", regex: /prohibited/i },

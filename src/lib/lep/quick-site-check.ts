@@ -83,15 +83,21 @@ const derivePart = (clause: ClauseSummary): "4" | "5" | "6" | null => {
   return null;
 };
 
-const buildSnippet = (text: string | null | undefined) => {
+const normalizeLepTextForDisplay = (text: string | null | undefined) => {
   if (!text) return "";
-  const sentences = text
-    .replace(/\s+/g, " ")
+  const cleaned = cleanXmlLikeString(text);
+  return cleaned.replace(/\s+/g, " ").trim();
+};
+
+const buildSnippet = (text: string | null | undefined) => {
+  const normalized = normalizeLepTextForDisplay(text);
+  if (!normalized) return "";
+  const sentences = normalized
     .split(/(?<=[.!?])\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .join(" ");
-  const snippet = sentences || text.slice(0, 250);
+  const snippet = sentences || normalized.slice(0, 250);
   return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
 };
 
@@ -186,7 +192,8 @@ const extractZoneBlockFromClause = (text: string, zoneCode: string | null) => {
   if (!zoneCode) return null;
 
   const normalized = text.replace(/\r\n/g, "\n");
-  const headingRegex = /^\s*zone\s+([A-Z]{1,3}\d?[A-Z]?)\b[^\n]*$/gim;
+  const headingRegex =
+    /^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+([A-Z]{1,3}\d?[A-Z]?)\b[^\n]*$/gim;
   const matches: { heading: string; code: string; index: number }[] = [];
 
   let match: RegExpExecArray | null;
@@ -223,7 +230,8 @@ const sliceZoneBlock = (
   if (!zoneCode) return null;
 
   const normalized = text.replace(/\r\n/g, "\n");
-  const anyZoneHeadingRegex = /(^|\n)\s*zone\s+[A-Z]{1,3}\d?[A-Z]?\b[^\n]*/gi;
+  const anyZoneHeadingRegex =
+    /(^|\n)\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+[A-Z]{1,3}\d?[A-Z]?\b[^\n]*/gi;
   const headingMatches = Array.from(normalized.matchAll(anyZoneHeadingRegex));
 
   const hintedHeading = headingHint
@@ -271,8 +279,12 @@ const extractZoneSection = (
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headingRegexes = [
-    zoneCode ? new RegExp(`^\s*zone\s+${zoneCode}\b.*`, "i") : null,
-    zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      : null,
   ].filter(Boolean) as RegExp[];
 
   const hintedHeading = headingHint
@@ -295,7 +307,7 @@ const extractZoneSection = (
   return { clause, matchedHeading: headingCandidate, sectionText: fallbackSection, source: "fallback" };
 };
 
-const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClausePick => {
+  const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClausePick => {
   if (!clauses.length)
     return {
       selection: null,
@@ -311,8 +323,12 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): Zone
 
   const zonePattern = zoneCode ? new RegExp(`\bzone\s+${zoneCode}\b`, "i") : null;
   const headingRegexes = [
-    zoneCode ? new RegExp(`^\s*zone\s+${zoneCode}\b.*`, "i") : null,
-    zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      : null,
   ].filter(Boolean) as RegExp[];
 
   const scored = clauses.map((clause) => {
