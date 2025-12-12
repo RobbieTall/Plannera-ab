@@ -1,6 +1,10 @@
 import type { Clause } from "@prisma/client";
 
-import type { QuickSiteCheckLepClause, QuickSiteCheckLepResponse } from "@/types/quick-site-check-lep";
+import type {
+  QuickSiteCheckLepClause,
+  QuickSiteCheckLepResponse,
+  QuickSiteCheckLepSuccess,
+} from "@/types/quick-site-check-lep";
 
 import { prisma } from "../prisma";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
@@ -13,8 +17,20 @@ type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarch
 type ZoneSectionKey = "objectives" | "withoutConsent" | "withConsent" | "prohibited";
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
-  "4": ["height", "floor space", "fsr", "lot size", "subdivision", "envelope", "setback", "building"],
-  "5": ["heritage", "archaeolog", "environmental heritage"],
+  "4": [
+    "height",
+    "floor space",
+    "fsr",
+    "lot size",
+    "subdivision",
+    "envelope",
+    "setback",
+    "building",
+    "storey",
+    "car parking",
+    "earthworks",
+  ],
+  "5": ["heritage", "archaeolog", "environmental heritage", "biodiversity", "conservation", "vegetation"],
   "6": [
     "acid sulfate",
     "acid sulphate",
@@ -31,6 +47,8 @@ const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
     "land slip",
     "landslip",
     "airport",
+    "contamination",
+    "foreshore",
   ],
 };
 
@@ -90,6 +108,7 @@ const cleanListItems = (section: string): string[] => {
   const cleaned = rawEntries
     .map((entry) => entry.replace(/^\d+[).]\s*/, "").replace(/^[-–—]\s*/, "").replace(/\s+[-–—]\s*$/, ""))
     .map((entry) => entry.replace(/^\W+/, "").replace(/\s+$/, ""))
+    .map((entry) => entry.replace(/\[[^\]]+\]/g, ""))
     .map((entry) => entry.replace(/\s+\.$/, "."))
     .filter((entry) => entry.length > 0)
     .filter((entry) => !/^none\b/i.test(entry) && !/^nil\b/i.test(entry));
@@ -131,18 +150,20 @@ const buildSnippet = (text: string | null | undefined) => {
   return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
 };
 
-const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary) => {
+const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary, zoneCode: string | null) => {
   const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`.toLowerCase();
   const keywords = KEYWORDS[part];
-  const scoreFromKeywords = keywords.reduce((score, keyword) => (haystack.includes(keyword) ? score + 2 : score), 0);
+  const scoreFromKeywords = keywords.reduce((score, keyword) => (haystack.includes(keyword) ? score + 1 : score), 0);
   const partBonus = clause.clauseKey.startsWith(part) ? 1 : 0;
-  return scoreFromKeywords + partBonus;
+  const zoneBonus = zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(haystack) ? 2 : 0;
+  const zoneWordBonus = /\bzone\b/.test(haystack) ? 1 : 0;
+  return scoreFromKeywords + partBonus + zoneBonus + zoneWordBonus;
 };
 
-const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[]): QuickSiteCheckLepClause[] => {
+const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[], zoneCode: string | null): QuickSiteCheckLepClause[] => {
   const scored = clauses.map((clause) => ({
     clause,
-    score: scoreClause(part, clause),
+    score: scoreClause(part, clause, zoneCode),
     clauseNumber: parseClauseNumber(clause),
   }));
 
@@ -163,7 +184,56 @@ const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[]): QuickSi
   }));
 };
 
-const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
+type ZoneClauseSelection = { clause: ClauseSummary; matchedHeading: string | null; sectionText: string } | null;
+
+type ZoneSummary = {
+  objectives: string[];
+  landUse: { withoutConsent: string[]; withConsent: string[]; prohibited: string[] };
+  debug: { headingMatch: string | null; landUseSource: string | null };
+};
+
+const extractZoneSection = (clause: ClauseSummary, zoneCode: string | null): ZoneClauseSelection => {
+  const text = clause.bodyText ?? "";
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  const headingRegexes = [
+    zoneCode ? new RegExp(`^\s*zone\s+${zoneCode}\b.*`, "i") : null,
+    zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
+  ].filter(Boolean) as RegExp[];
+
+  let matchedHeading: string | null = null;
+  let startIndex = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (headingRegexes.some((regex) => regex.test(line))) {
+      matchedHeading = line;
+      startIndex = index + 1;
+      break;
+    }
+  }
+
+  if (matchedHeading === null && clause.title && headingRegexes.some((regex) => regex.test(clause.title))) {
+    matchedHeading = clause.title;
+    startIndex = 0;
+  }
+
+  let endIndex = lines.length;
+  if (matchedHeading) {
+    for (let index = startIndex; index < lines.length; index += 1) {
+      const line = lines[index].trim();
+      if (/^\s*zone\s+[A-Z]{1,3}\d?[A-Z]?\b/i.test(line)) {
+        endIndex = index;
+        break;
+      }
+    }
+  }
+
+  const sectionText = lines.slice(startIndex, endIndex).join("\n").trim() || normalized.trim();
+  return { clause, matchedHeading, sectionText };
+};
+
+const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClauseSelection => {
   if (!clauses.length) return null;
 
   const zonePattern = zoneCode ? new RegExp(`\bzone\s+${zoneCode}\b`, "i") : null;
@@ -173,29 +243,33 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
       let score = 0;
       if (clause.clauseKey.startsWith("2")) score += 1;
       if (clause.hierarchyPath?.some((entry) => /part\s*2/i.test(entry))) score += 1;
-      if (clause.hierarchyPath?.some((entry) => /land use table/i.test(entry))) score += 4;
-      if (/land use table/i.test(clause.title ?? "")) score += 3;
+      if (clause.hierarchyPath?.some((entry) => /land use table/i.test(entry))) score += 5;
+      if (/land use table/i.test(clause.title ?? "")) score += 4;
       if (/objectives of/i.test(clause.title ?? "")) score += 2;
-      if (zonePattern?.test(clause.title ?? "")) score += 6;
-      if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 3;
-      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title ?? "")) score += 2;
-      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")) score += 1;
+      if (zonePattern?.test(clause.title ?? "")) score += 8;
+      if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 4;
+      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title ?? "")) score += 3;
+      if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")) score += 2;
       return { clause, score };
     })
     .sort((first, second) => second.score - first.score);
 
-  return scored[0]?.clause ?? null;
+  const winner = scored[0]?.clause ?? null;
+  if (!winner) return null;
+
+  return extractZoneSection(winner, zoneCode);
 };
 
-const buildZoneSummary = (clause: ClauseSummary | null) => {
-  if (!clause) {
+const buildZoneSummary = (selection: ZoneClauseSelection): ZoneSummary => {
+  if (!selection) {
     return {
       objectives: [] as string[],
       landUse: { withoutConsent: [] as string[], withConsent: [] as string[], prohibited: [] as string[] },
+      debug: { headingMatch: null, landUseSource: null },
     };
   }
 
-  const text = clause.bodyText ?? "";
+  const text = selection.sectionText;
   const sections = splitZoneSections(text);
 
   const objectives = cleanListItems(sections.objectives);
@@ -204,6 +278,7 @@ const buildZoneSummary = (clause: ClauseSummary | null) => {
   const prohibited = cleanListItems(sections.prohibited);
 
   const fallbackObjectives = objectives.length ? objectives : cleanListItems(text);
+  const landUseSource = withoutConsent.length || withConsent.length || prohibited.length ? "zone-section" : "clause-fallback";
 
   return {
     objectives: fallbackObjectives,
@@ -212,6 +287,7 @@ const buildZoneSummary = (clause: ClauseSummary | null) => {
       withConsent,
       prohibited,
     },
+    debug: { headingMatch: selection.matchedHeading, landUseSource },
   };
 };
 
@@ -232,7 +308,10 @@ const findLepInstrumentForLga = async (lga: string) => {
   return instrument;
 };
 
-export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSiteCheckLepResponse> => {
+export const buildQuickSiteCheckLep = async (
+  projectId: string,
+  options: { debug?: boolean } = {},
+): Promise<QuickSiteCheckLepResponse> => {
   try {
     const normalizedId = normalizeProjectId(projectId);
     const project = await findProjectByExternalId(prisma, normalizedId);
@@ -332,6 +411,72 @@ export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSi
       }
     }
 
+    const part4 = selectClauses("4", partBuckets["4"], zoneCode);
+    const part5 = selectClauses("5", partBuckets["5"], zoneCode);
+    const part6 = selectClauses("6", partBuckets["6"], zoneCode);
+
+    const usedKeys = new Set(
+      [...part4, ...part5, ...part6].map((clause) => `${clause.part}-${clause.clauseNumber}-${clause.heading}`),
+    );
+
+    let totalClauses = part4.length + part5.length + part6.length;
+    if (totalClauses < 3 && candidateClauses.length) {
+      const additional = candidateClauses
+        .filter((clause) => {
+          const key = `${derivePart(clause) ?? "?"}-${parseClauseNumber(clause)}-${clause.title ?? ""}`;
+          return !usedKeys.has(key);
+        })
+        .map((clause) => {
+          const part = derivePart(clause) ?? "4";
+          return { clause, part, score: scoreClause(part, clause, zoneCode) };
+        })
+        .sort((first, second) => second.score - first.score)
+        .slice(0, 3 - totalClauses);
+
+      for (const extra of additional) {
+        const targetPart = extra.part as "4" | "5" | "6";
+        const snippet = {
+          part: targetPart,
+          clauseNumber: parseClauseNumber(extra.clause),
+          heading: extra.clause.title ?? "",
+          textSnippet: buildSnippet(extra.clause.bodyText),
+        } satisfies QuickSiteCheckLepClause;
+        if (targetPart === "4") part4.push(snippet);
+        if (targetPart === "5") part5.push(snippet);
+        if (targetPart === "6") part6.push(snippet);
+        usedKeys.add(`${snippet.part}-${snippet.clauseNumber}-${snippet.heading}`);
+        totalClauses += 1;
+      }
+    }
+
+    const debugInfo: QuickSiteCheckLepSuccess["debug"] | undefined = options.debug
+      ? {
+          zoneHeadingMatch: zoneSummary.debug.headingMatch,
+          landUseSource: zoneSummary.debug.landUseSource,
+          partCandidateCounts: {
+            "4": partBuckets["4"].length,
+            "5": partBuckets["5"].length,
+            "6": partBuckets["6"].length,
+          },
+        }
+      : undefined;
+
+    const part4Reason = part4.length
+      ? undefined
+      : partBuckets["4"].length
+        ? "No relevant Part 4 clauses matched the heuristics."
+        : "No Part 4 clauses found in LEP extract.";
+    const part5Reason = part5.length
+      ? undefined
+      : partBuckets["5"].length
+        ? "No relevant Part 5 clauses matched the heuristics."
+        : "No Part 5 clauses found in LEP extract.";
+    const part6Reason = part6.length
+      ? undefined
+      : partBuckets["6"].length
+        ? "No relevant Part 6 clauses matched the heuristics."
+        : "No Part 6 clauses found in LEP extract.";
+
     return {
       ok: true,
       projectId: project.id,
@@ -344,9 +489,13 @@ export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSi
         withConsent: zoneSummary.landUse.withConsent,
         prohibited: zoneSummary.landUse.prohibited,
       },
-      part4: selectClauses("4", partBuckets["4"]),
-      part5: selectClauses("5", partBuckets["5"]),
-      part6: selectClauses("6", partBuckets["6"]),
+      part4,
+      part5,
+      part6,
+      part4Reason,
+      part5Reason,
+      part6Reason,
+      debug: debugInfo,
     } satisfies QuickSiteCheckLepResponse;
   } catch (error) {
     console.error("[quick-site-check-lep] failed", error);
