@@ -26,6 +26,11 @@ export type QuickSiteCheckLepSuccess = {
   debug?: {
     zoneHeadingMatch: string | null;
     landUseSource: string | null;
+    zoneAnchorClauseKey?: string | null;
+    zoneAnchorTitle?: string | null;
+    zoneCandidateCount?: number;
+    excludedGlobalZoneClauses?: string[];
+    usedGlobalZoneFallback?: boolean;
     partCandidateCounts: { "4": number; "5": number; "6": number };
   };
 };

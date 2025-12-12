@@ -21,7 +21,7 @@ export function Modal({ open, onClose, title, description, size = "md", children
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className={`w-full ${widthClass} rounded-3xl bg-white p-6 shadow-2xl`}>
+      <div className={`w-full ${widthClass} max-h-[90vh] rounded-3xl bg-white p-6 shadow-2xl overflow-hidden flex flex-col`}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Plannera.ai</p>
@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, description, size = "md", children
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-6 space-y-4">{children}</div>
+        <div className="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
   );
