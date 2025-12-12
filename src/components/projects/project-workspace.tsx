@@ -44,6 +44,7 @@ import { useRouter } from "next/navigation";
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
+import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
@@ -68,6 +69,7 @@ import type {
 interface ProjectWorkspaceProps {
   project: Project;
   initialPrompt?: string | null;
+  initialAddress?: string | null;
 }
 
 interface ToolCard {
@@ -284,7 +286,7 @@ function deriveSignalsFromAssistantPayload({
   };
 }
 
-export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ project, initialPrompt, initialAddress }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { requireAuth, openAuthModal, isAuthenticated } = useAuthGuard();
@@ -330,6 +332,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     getSessionSignals(projectKey)
   );
   const [siteContext, setSiteContext] = useState<SiteContextSummary | null>(null);
+  const [siteContextLoaded, setSiteContextLoaded] = useState(false);
   const zoningLabel = useMemo(() => buildZoningLabel(siteContext), [siteContext]);
   const [siteSelection, setSiteSelection] = useState<SiteSelectionState | null>(null);
   const [siteSelectionCandidateId, setSiteSelectionCandidateId] = useState<string | null>(null);
@@ -352,8 +355,13 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
   const initialPromptAppliedRef = useRef(false);
+  const autoSiteAttemptedRef = useRef(false);
   const siteContextMutationsDisabled =
     process.env.NEXT_PUBLIC_DISABLE_SITE_CONTEXT === "true";
+  const initialInlineAddress = useMemo(
+    () => initialAddress?.trim() || undefined,
+    [initialAddress],
+  );
 
   const uploadUsage = getUploadUsage(projectKey);
   const uploadLimitReached = serverLimitReached || (uploadUsage.limit > 0 && uploadUsage.used >= uploadUsage.limit);
@@ -522,7 +530,11 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
           setSiteContext(data.siteContext ?? null);
         }
       } catch (error) {
-        console.warn("Workspace site context load failed", error);
+      console.warn("Workspace site context load failed", error);
+      } finally {
+        if (isMounted) {
+          setSiteContextLoaded(true);
+        }
       }
     };
     void loadSiteContext();
@@ -530,6 +542,89 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
       isMounted = false;
     };
   }, [projectKey]);
+
+  useEffect(() => {
+    const trimmedInitialAddress = initialInlineAddress;
+
+    if (!siteContextLoaded || siteContext || !trimmedInitialAddress || autoSiteAttemptedRef.current) {
+      return;
+    }
+
+    autoSiteAttemptedRef.current = true;
+
+    if (siteContextMutationsDisabled) {
+      setSiteSelectionError(null);
+      setSiteSearchQuery(trimmedInitialAddress);
+      return;
+    }
+
+    const attemptAutoSiteSelection = async () => {
+      try {
+        const response = await fetch("/api/site-context/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: trimmedInitialAddress }),
+        });
+
+        const data: { candidates?: SiteCandidate[]; error?: string; message?: string } = await response.json();
+
+        if (response.ok && data.candidates?.length) {
+          const normalizedCandidates = data.candidates.map((candidate) => normaliseCandidateForRequest(candidate));
+          const primaryCandidate = normalizedCandidates[0];
+          const siteContextPayload = await setSiteFromCandidate({
+            projectId: projectKey,
+            candidate: primaryCandidate,
+            addressInput: trimmedInitialAddress,
+          });
+          setSiteContext(siteContextPayload ?? null);
+          setSiteSelection(null);
+          setSiteSelectionError(null);
+          return;
+        }
+
+        if (data?.error === "property_search_not_configured") {
+          setSiteSearchAvailable("missing_env");
+          const resolvedLgaName = sessionSignals?.lga ?? null;
+          const manualResponse = await fetch("/api/site-context", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId: projectKey,
+              rawAddress: trimmedInitialAddress,
+              lgaName: resolvedLgaName,
+              lgaCode: null,
+              resolverStatus: "manual_no_property_api",
+            }),
+          });
+          const manualData: { siteContext?: SiteContextSummary | null; message?: string } = await manualResponse.json();
+          if (manualResponse.ok) {
+            setSiteContext(manualData.siteContext ?? null);
+            setSiteSelection(null);
+            setSiteSelectionError(null);
+            return;
+          }
+        }
+
+        setSiteSelection({ source: "manual", addressInput: trimmedInitialAddress, candidates: [] });
+        setSiteSearchQuery(trimmedInitialAddress);
+        setSiteSelectionError("I couldn’t find that address. Please confirm or adjust it below.");
+      } catch (error) {
+        console.warn("Auto site set failed", error);
+        setSiteSelection({ source: "manual", addressInput: trimmedInitialAddress, candidates: [] });
+        setSiteSearchQuery(trimmedInitialAddress);
+      }
+    };
+
+    void attemptAutoSiteSelection();
+  }, [
+    initialInlineAddress,
+    projectKey,
+    sessionSignals.lga,
+    siteContext,
+    siteContextLoaded,
+    siteContextMutationsDisabled,
+    siteContext?.lgaCode,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -903,13 +998,14 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
 
   useEffect(() => {
     const trimmedPrompt = initialPrompt?.trim();
-    if (!trimmedPrompt || initialPromptAppliedRef.current || messages.length > 0) {
+    const hasInitialAddress = Boolean(initialAddress?.trim());
+    if (!trimmedPrompt || initialPromptAppliedRef.current || messages.length > 0 || hasInitialAddress) {
       return;
     }
     initialPromptAppliedRef.current = true;
     setInput(trimmedPrompt);
     void sendMessage({ message: trimmedPrompt });
-  }, [initialPrompt, messages.length, sendMessage]);
+  }, [initialAddress, initialPrompt, messages.length, sendMessage]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -951,7 +1047,7 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     requireAuth(saveChatArtefact);
   }, [requireAuth, saveChatArtefact]);
 
-  const openManualSiteSelection = () => {
+  const openManualSiteSelection = useCallback(() => {
     void fetchSiteSearchAvailability();
     setSiteSelection({ source: "manual", addressInput: "", candidates: [] });
     setSiteSelectionCandidateId(null);
@@ -961,7 +1057,18 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
     setSelectedSuggestion(null);
     setHighlightedSuggestionIndex(null);
     setSuggestionsEnabled(true);
-  };
+  }, [fetchSiteSearchAvailability]);
+
+  const handleInlineSiteSubmit = useCallback(
+    (address: string) => {
+      const trimmed = address.trim();
+      if (!trimmed) return;
+      openManualSiteSelection();
+      setSiteSelection((previous) => ({ ...(previous ?? { source: "manual", candidates: [] }), addressInput: trimmed }));
+      setSiteSearchQuery(trimmed);
+    },
+    [openManualSiteSelection],
+  );
 
   const closeSiteSelection = () => {
     setSiteSelection(null);
@@ -1880,6 +1987,9 @@ export function ProjectWorkspace({ project, initialPrompt }: ProjectWorkspacePro
                   </button>
                 </div>
               </div>
+            ) : null}
+            {!siteContext ? (
+              <SetSiteInput onSubmit={handleInlineSiteSubmit} initialValue={initialInlineAddress} />
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div

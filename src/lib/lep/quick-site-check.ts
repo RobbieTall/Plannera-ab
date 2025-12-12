@@ -139,26 +139,28 @@ const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary) => {
   return scoreFromKeywords + partBonus;
 };
 
-const selectClauses = (
-  part: "4" | "5" | "6",
-  clauses: ClauseSummary[],
-): QuickSiteCheckLepClause[] => {
-  const scored = clauses
-    .map((clause) => ({ clause, score: scoreClause(part, clause), clauseNumber: parseClauseNumber(clause) }))
-    .filter(({ score }) => score > 0)
-    .sort((first, second) => {
-      if (first.score !== second.score) return second.score - first.score;
-      return first.clauseNumber.localeCompare(second.clauseNumber, undefined, { numeric: true, sensitivity: "base" });
-    });
+const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[]): QuickSiteCheckLepClause[] => {
+  const scored = clauses.map((clause) => ({
+    clause,
+    score: scoreClause(part, clause),
+    clauseNumber: parseClauseNumber(clause),
+  }));
 
-  return scored
-    .slice(0, 8)
-    .map(({ clause }) => ({
-      part,
-      clauseNumber: parseClauseNumber(clause) || "",
-      heading: clause.title?.trim() || "",
-      textSnippet: buildSnippet(clause.bodyText),
-    }));
+  const prioritized = scored.some(({ score }) => score > 0)
+    ? scored.filter(({ score }) => score > 0)
+    : scored;
+
+  const sorted = prioritized.sort((first, second) => {
+    if (first.score !== second.score) return second.score - first.score;
+    return first.clauseNumber.localeCompare(second.clauseNumber, undefined, { numeric: true, sensitivity: "base" });
+  });
+
+  return sorted.slice(0, 8).map(({ clause }) => ({
+    part,
+    clauseNumber: parseClauseNumber(clause) || "",
+    heading: clause.title?.trim() || "",
+    textSnippet: buildSnippet(clause.bodyText),
+  }));
 };
 
 const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
@@ -171,6 +173,9 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
       let score = 0;
       if (clause.clauseKey.startsWith("2")) score += 1;
       if (clause.hierarchyPath?.some((entry) => /part\s*2/i.test(entry))) score += 1;
+      if (clause.hierarchyPath?.some((entry) => /land use table/i.test(entry))) score += 4;
+      if (/land use table/i.test(clause.title ?? "")) score += 3;
+      if (/objectives of/i.test(clause.title ?? "")) score += 2;
       if (zonePattern?.test(clause.title ?? "")) score += 6;
       if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 3;
       if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title ?? "")) score += 2;
@@ -184,7 +189,10 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null) => {
 
 const buildZoneSummary = (clause: ClauseSummary | null) => {
   if (!clause) {
-    return { objectives: [] as string[], withoutConsent: [] as string[], withConsent: [] as string[], prohibited: [] as string[] };
+    return {
+      objectives: [] as string[],
+      landUse: { withoutConsent: [] as string[], withConsent: [] as string[], prohibited: [] as string[] },
+    };
   }
 
   const text = clause.bodyText ?? "";
@@ -199,9 +207,11 @@ const buildZoneSummary = (clause: ClauseSummary | null) => {
 
   return {
     objectives: fallbackObjectives,
-    withoutConsent,
-    withConsent,
-    prohibited,
+    landUse: {
+      withoutConsent,
+      withConsent,
+      prohibited,
+    },
   };
 };
 
@@ -328,13 +338,15 @@ export const buildQuickSiteCheckLep = async (projectId: string): Promise<QuickSi
       lga: resolveCanonicalNswLga(lga) ?? lga,
       lepName: lepInstrument.name,
       zone: zoneCode,
-      zoneObjectives: zoneSummary.objectives,
-      permittedWithoutConsent: zoneSummary.withoutConsent,
-      permittedWithConsent: zoneSummary.withConsent,
-      prohibited: zoneSummary.prohibited,
-      part4Clauses: selectClauses("4", partBuckets["4"]),
-      part5Clauses: selectClauses("5", partBuckets["5"]),
-      part6Clauses: selectClauses("6", partBuckets["6"]),
+      objectives: zoneSummary.objectives,
+      landUse: {
+        withoutConsent: zoneSummary.landUse.withoutConsent,
+        withConsent: zoneSummary.landUse.withConsent,
+        prohibited: zoneSummary.landUse.prohibited,
+      },
+      part4: selectClauses("4", partBuckets["4"]),
+      part5: selectClauses("5", partBuckets["5"]),
+      part6: selectClauses("6", partBuckets["6"]),
     } satisfies QuickSiteCheckLepResponse;
   } catch (error) {
     console.error("[quick-site-check-lep] failed", error);

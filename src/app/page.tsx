@@ -86,7 +86,7 @@ async function startProjectFromPrompt(
     const projectId = data?.project?.id as string | undefined;
     if (!projectId || !router) return;
 
-    const seedQuery = new URLSearchParams({ prompt: trimmed }).toString();
+    const seedQuery = new URLSearchParams({ prompt: trimmed, initialAddress: trimmed }).toString();
     router.push(`/projects/${projectId}/workspace?${seedQuery}`);
   } catch (error) {
     console.error("startProjectFromPrompt error", error);
