@@ -34,6 +34,14 @@ export type QuickSiteCheckLepSuccess = {
     zoneCandidateCount?: number;
     excludedGlobalZoneClauses?: string[];
     usedGlobalZoneFallback?: boolean;
+    zoneClauseKey?: string | null;
+    zoneClauseTitle?: string | null;
+    zoneBlockFound?: boolean;
+    zoneBlockHeading?: string | null;
+    objectivesCount?: number;
+    landUseCounts?: { withoutConsent: number; withConsent: number; prohibited: number };
+    usedFallback?: boolean;
+    fallbackReason?: string | null;
     partCandidateCounts: { "4": number; "5": number; "6": number };
     notes?: string[];
   };

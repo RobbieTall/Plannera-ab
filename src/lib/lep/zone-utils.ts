@@ -25,6 +25,28 @@ export type ZoneContent = {
 
 export type ClauseLike = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
+export const cleanXmlLikeString = (text: string | null | undefined) => {
+  if (!text) return "";
+
+  const normalized = text.replace(/\r\n/g, "\n");
+  const withBreaks = normalized
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/(p|div|li|tr|td|tier|attrib)[^>]*>/gi, "\n")
+    .replace(/<\s*(p|div|li|tr|td|tier|attrib)[^>]*>/gi, "\n");
+
+  const stripped = withBreaks.replace(/<[^>]+>/g, " ");
+
+  return stripped
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
 export const toZoneCode = (value: string | null | undefined) => {
   if (!value) return null;
   const match = value.trim().match(/([A-Z]{1,3}\d?[A-Z]?)/i);

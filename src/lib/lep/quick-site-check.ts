@@ -11,7 +11,7 @@ import { findProjectByExternalId, normalizeProjectId } from "../project-identifi
 import { serializeSiteContext } from "../site-context";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
-import { GLOBAL_ZONE_PATTERNS, parseZoneContent, toZoneCode } from "./zone-utils";
+import { cleanXmlLikeString, GLOBAL_ZONE_PATTERNS, parseZoneContent, toZoneCode } from "./zone-utils";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
@@ -164,8 +164,45 @@ type ZoneSummary = {
     zoneCandidateCount: number;
     excludedGlobalZoneClauses: string[];
     usedGlobalZoneFallback: boolean;
+    zoneClauseKey: string | null;
+    zoneClauseTitle: string | null;
+    zoneBlockFound: boolean;
+    zoneBlockHeading: string | null;
+    objectivesCount: number;
+    landUseCounts: { withoutConsent: number; withConsent: number; prohibited: number };
+    usedFallback: boolean;
+    fallbackReason: string | null;
     notes: string[];
   };
+};
+
+const isClauseTwoThree = (clause: ClauseSummary) => {
+  const clauseKey = clause.clauseKey ?? "";
+  const title = clause.title ?? "";
+  return /_2_3\b/i.test(clauseKey) || /\b2\.3\b/.test(clauseKey) || /zone objectives and land use table/i.test(title);
+};
+
+const extractZoneBlockFromClause = (text: string, zoneCode: string | null) => {
+  if (!zoneCode) return null;
+
+  const normalized = text.replace(/\r\n/g, "\n");
+  const headingRegex = /^\s*zone\s+([A-Z]{1,3}\d?[A-Z]?)\b[^\n]*$/gim;
+  const matches: { heading: string; code: string; index: number }[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = headingRegex.exec(normalized)) !== null) {
+    matches.push({ heading: match[0].trim(), code: match[1].toUpperCase(), index: match.index });
+  }
+
+  const target = matches.find((entry) => entry.code === zoneCode.toUpperCase());
+  if (!target) return null;
+
+  const start = target.index + target.heading.length;
+  const next = matches.find((entry) => entry.index > target.index);
+  const end = next?.index ?? normalized.length;
+  const block = normalized.slice(start, end).trim();
+
+  return { heading: target.heading, block };
 };
 
 const findZoneHeading = (lines: string[], headingRegexes: RegExp[]): { heading: string; index: number } | null => {
@@ -230,7 +267,7 @@ const extractZoneSection = (
   zoneCode: string | null,
   headingHint: string | null = null,
 ): ZoneClauseSelection => {
-  const text = clause.bodyText ?? "";
+  const text = cleanXmlLikeString(clause.bodyText);
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headingRegexes = [
@@ -328,6 +365,7 @@ const buildZoneSummary = (
   selection: ZoneClauseSelectionResult,
   zoneCode: string | null,
   pickDebug: ZoneClausePick["debug"],
+  extras: Partial<ZoneSummary["debug"]> = {},
 ): ZoneSummary => {
   const notFoundReason = zoneCode
     ? `No zone-specific objectives found for zone ${zoneCode}.`
@@ -338,6 +376,28 @@ const buildZoneSummary = (
     : "No zone-specific land use entries found.";
 
   if (!selection) {
+    const debug = {
+      headingMatch: null,
+      zoneTableClauseKey: null,
+      zoneTableClauseTitle: null,
+      zoneObjectiveSource: "fallback" as const,
+      landUseSource: null,
+      zoneAnchorClauseKey: pickDebug.anchorClauseKey,
+      zoneAnchorTitle: pickDebug.anchorTitle,
+      zoneCandidateCount: pickDebug.candidateCount,
+      excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
+      usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      zoneClauseKey: extras.zoneClauseKey ?? null,
+      zoneClauseTitle: extras.zoneClauseTitle ?? null,
+      zoneBlockFound: extras.zoneBlockFound ?? false,
+      zoneBlockHeading: extras.zoneBlockHeading ?? null,
+      objectivesCount: 0,
+      landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+      usedFallback: extras.usedFallback ?? false,
+      fallbackReason: extras.fallbackReason ?? null,
+      notes: ["No clause matched zone heading"],
+    } satisfies ZoneSummary["debug"];
+
     return {
       objectives: [notFoundReason],
       landUse: {
@@ -345,19 +405,7 @@ const buildZoneSummary = (
         withConsent: [],
         prohibited: [],
       },
-      debug: {
-        headingMatch: null,
-        zoneTableClauseKey: null,
-        zoneTableClauseTitle: null,
-        zoneObjectiveSource: "fallback",
-        landUseSource: null,
-        zoneAnchorClauseKey: pickDebug.anchorClauseKey,
-        zoneAnchorTitle: pickDebug.anchorTitle,
-        zoneCandidateCount: pickDebug.candidateCount,
-        excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
-        usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
-        notes: ["No clause matched zone heading"],
-      },
+      debug,
     };
   }
 
@@ -386,6 +434,28 @@ const buildZoneSummary = (
   }
 
   if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
+    const debug = {
+      headingMatch: selection.matchedHeading,
+      zoneTableClauseKey: selection.clause.clauseKey ?? null,
+      zoneTableClauseTitle: selection.clause.title ?? null,
+      zoneObjectiveSource: "fallback" as const,
+      landUseSource: null,
+      zoneAnchorClauseKey: pickDebug.anchorClauseKey,
+      zoneAnchorTitle: pickDebug.anchorTitle,
+      zoneCandidateCount: pickDebug.candidateCount,
+      excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
+      usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+      zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+      zoneBlockFound: extras.zoneBlockFound ?? true,
+      zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+      objectivesCount: 0,
+      landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+      usedFallback: extras.usedFallback ?? false,
+      fallbackReason: extras.fallbackReason ?? null,
+      notes: ["Zone code not found in selected clause body"],
+    } satisfies ZoneSummary["debug"];
+
     return {
       objectives: [notFoundReason],
       landUse: {
@@ -393,19 +463,7 @@ const buildZoneSummary = (
         withConsent: [],
         prohibited: [],
       },
-      debug: {
-        headingMatch: selection.matchedHeading,
-        zoneTableClauseKey: selection.clause.clauseKey ?? null,
-        zoneTableClauseTitle: selection.clause.title ?? null,
-        zoneObjectiveSource: "fallback",
-        landUseSource: null,
-        zoneAnchorClauseKey: pickDebug.anchorClauseKey,
-        zoneAnchorTitle: pickDebug.anchorTitle,
-        zoneCandidateCount: pickDebug.candidateCount,
-        excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
-        usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
-        notes: ["Zone code not found in selected clause body"],
-      },
+      debug,
     };
   }
 
@@ -427,6 +485,12 @@ const buildZoneSummary = (
     ? { withoutConsent: parsed.withoutConsent, withConsent: parsed.withConsent, prohibited: parsed.prohibited }
     : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] };
 
+  const landUseCounts = {
+    withoutConsent: parsed.withoutConsent.length,
+    withConsent: parsed.withConsent.length,
+    prohibited: parsed.prohibited.length,
+  };
+
   return {
     objectives: fallbackObjectives,
     landUse: landUseFallback,
@@ -441,6 +505,14 @@ const buildZoneSummary = (
       zoneCandidateCount: pickDebug.candidateCount,
       excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
       usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+      zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+      zoneBlockFound: extras.zoneBlockFound ?? true,
+      zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+      objectivesCount: parsed.objectives.length,
+      landUseCounts,
+      usedFallback: extras.usedFallback ?? false,
+      fallbackReason: extras.fallbackReason ?? null,
       notes: selection.source === "fallback" ? ["Zone heading not found; used nearest matching block"] : [],
     },
   };
@@ -484,6 +556,18 @@ const buildStoredZoneSummary = (
       zoneCandidateCount: 0,
       excludedGlobalZoneClauses: [],
       usedGlobalZoneFallback: false,
+      zoneClauseKey: null,
+      zoneClauseTitle: null,
+      zoneBlockFound: false,
+      zoneBlockHeading: null,
+      objectivesCount: objectiveTexts.length,
+      landUseCounts: {
+        withoutConsent: landUseBuckets.withoutConsent.length,
+        withConsent: landUseBuckets.withConsent.length,
+        prohibited: landUseBuckets.prohibited.length,
+      },
+      usedFallback: false,
+      fallbackReason: null,
       notes: [],
     },
   };
@@ -582,24 +666,88 @@ export const buildQuickSiteCheckLep = async (
     if (hasStoredZoneData) {
       zoneSummary = buildStoredZoneSummary(zoneCode, storedObjectives, storedLandUses);
     } else {
-      const zoneClauses = allClauses.filter(
-        (clause) =>
-          clause.clauseKey?.startsWith("2") ||
-          clause.hierarchyPath?.includes("Part 2") ||
-          (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
-          (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
-          (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
-          (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
-      );
+      const clauseTwoThree = allClauses.find(isClauseTwoThree) ?? null;
+      const cleanedClauseText = clauseTwoThree ? cleanXmlLikeString(clauseTwoThree.bodyText) : "";
+      const clauseTwoThreeBlock = extractZoneBlockFromClause(cleanedClauseText, zoneCode);
 
-      zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
-      const chosenZoneClause = zonePick.selection;
+      const clauseTwoThreeSelection: ZoneClauseSelectionResult = clauseTwoThreeBlock
+        ? {
+            clause: clauseTwoThree!,
+            matchedHeading: clauseTwoThreeBlock.heading,
+            sectionText: clauseTwoThreeBlock.block,
+            source: "heading",
+          }
+        : null;
 
-      if (!chosenZoneClause) {
-        console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+      const clauseTwoThreeDebug: ZoneClausePick["debug"] = {
+        anchorClauseKey: clauseTwoThree?.clauseKey ?? null,
+        anchorTitle: clauseTwoThree?.title ?? null,
+        headingMatch: clauseTwoThreeBlock?.heading ?? null,
+        candidateCount: clauseTwoThree ? 1 : 0,
+        excludedGlobalClauses: [],
+        usedGlobalFallback: false,
+      } satisfies ZoneClausePick["debug"];
+
+      let usedFallback = false;
+      let fallbackReason: string | null = null;
+
+      if (clauseTwoThreeSelection) {
+        const summaryFromTwoThree = buildZoneSummary(clauseTwoThreeSelection, zoneCode, clauseTwoThreeDebug, {
+          zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+          zoneClauseTitle: clauseTwoThree?.title ?? null,
+          zoneBlockFound: true,
+          zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+        });
+
+        const hasParsedContent =
+          summaryFromTwoThree.debug.objectivesCount > 0 ||
+          summaryFromTwoThree.debug.landUseCounts.withoutConsent > 0 ||
+          summaryFromTwoThree.debug.landUseCounts.withConsent > 0 ||
+          summaryFromTwoThree.debug.landUseCounts.prohibited > 0;
+
+        if (hasParsedContent) {
+          zoneSummary = summaryFromTwoThree;
+        } else {
+          usedFallback = true;
+          fallbackReason = "No objectives or land use entries found in Part 2.3 zone block";
+          zoneSummary = summaryFromTwoThree;
+        }
       }
 
-      zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
+      if (!clauseTwoThreeSelection || usedFallback) {
+        if (!clauseTwoThreeSelection && clauseTwoThree) {
+          usedFallback = true;
+          fallbackReason = fallbackReason ?? "Zone heading not found inside Part 2.3 clause";
+        }
+
+        const zoneClauses = allClauses.filter(
+          (clause) =>
+            clause.clauseKey?.startsWith("2") ||
+            clause.hierarchyPath?.includes("Part 2") ||
+            (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
+            (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
+            (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
+            (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+        );
+
+        zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
+        const chosenZoneClause = zonePick.selection;
+
+        if (!chosenZoneClause) {
+          console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+        }
+
+        const fallbackExtras: Partial<ZoneSummary["debug"]> = {
+          usedFallback: usedFallback || !clauseTwoThreeSelection,
+          fallbackReason,
+          zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+          zoneClauseTitle: clauseTwoThree?.title ?? null,
+          zoneBlockFound: Boolean(clauseTwoThreeSelection),
+          zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+        };
+
+        zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug, fallbackExtras);
+      }
     }
 
     const partBuckets: Record<"4" | "5" | "6", ClauseSummary[]> = { "4": [], "5": [], "6": [] };
@@ -661,6 +809,14 @@ export const buildQuickSiteCheckLep = async (
           zoneCandidateCount: zoneSummary.debug.zoneCandidateCount,
           excludedGlobalZoneClauses: zoneSummary.debug.excludedGlobalZoneClauses,
           usedGlobalZoneFallback: zoneSummary.debug.usedGlobalZoneFallback,
+          zoneClauseKey: zoneSummary.debug.zoneClauseKey,
+          zoneClauseTitle: zoneSummary.debug.zoneClauseTitle,
+          zoneBlockFound: zoneSummary.debug.zoneBlockFound,
+          zoneBlockHeading: zoneSummary.debug.zoneBlockHeading,
+          objectivesCount: zoneSummary.debug.objectivesCount,
+          landUseCounts: zoneSummary.debug.landUseCounts,
+          usedFallback: zoneSummary.debug.usedFallback,
+          fallbackReason: zoneSummary.debug.fallbackReason,
           partCandidateCounts: {
             "4": partBuckets["4"].length,
             "5": partBuckets["5"].length,
