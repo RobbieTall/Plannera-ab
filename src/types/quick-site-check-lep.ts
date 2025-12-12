@@ -51,9 +51,10 @@ export type QuickSiteCheckLepSuccess = {
     landUseZoneBlockHeading?: string | null;
     objectivesCount?: number;
     landUseCounts?: { withoutConsent: number; withConsent: number; prohibited: number };
-    landUseExtractionMode?: "string-search" | "xml-traverse" | "link-resolve" | null;
+    landUseExtractionMode?: "string-search" | "xml-traverse" | "link-resolve" | "xml-clausegroup" | null;
     landUseResolvedViaLink?: boolean;
     landUseResolvedTargetIds?: string[];
+    landUseZoneClausegroupId?: string | null;
     lepSource?: "db" | "local-xml";
     lepSourceError?: string | null;
     usedFallback?: boolean;

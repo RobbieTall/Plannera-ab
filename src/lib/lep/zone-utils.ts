@@ -1,4 +1,5 @@
 import type { Clause } from "@prisma/client";
+import { HTMLElement, parse } from "node-html-parser";
 
 export type ZoneSectionKey = "objectives" | "withoutConsent" | "withConsent" | "prohibited";
 
@@ -33,6 +34,16 @@ export type LandUseTableExtraction = {
   resolvedTargetIds: string[];
 };
 
+export type LandUseClausegroupExtraction = {
+  heading: string | null;
+  clausegroupId: string | null;
+  objectives: string[];
+  withoutConsent: string[];
+  withConsent: string[];
+  prohibited: string[];
+  extractionMode: "xml-clausegroup";
+};
+
 export const cleanXmlLikeString = (text: string | null | undefined) => {
   if (!text) return "";
 
@@ -49,6 +60,16 @@ export const cleanXmlLikeString = (text: string | null | undefined) => {
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code: string) => {
+      const parsed = Number.parseInt(code, 10);
+      if (Number.isNaN(parsed)) return "";
+      try {
+        return String.fromCodePoint(parsed);
+      } catch (error) {
+        console.warn("[cleanXmlLikeString] Failed to decode entity", { code, error });
+        return "";
+      }
+    })
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -209,4 +230,107 @@ export const extractZoneBlockFromLandUseXml = (
     resolvedViaLink: false,
     resolvedTargetIds: [],
   } satisfies LandUseTableExtraction;
+};
+
+const normaliseHeadingText = (input: string | null | undefined) => {
+  const cleaned = cleanXmlLikeString(input);
+  return cleaned ? cleaned.replace(/\s+/g, " ").trim() : "";
+};
+
+const clauseHeadingMatches = (heading: string | null | undefined, regex: RegExp) => {
+  if (!heading) return false;
+  return regex.test(heading);
+};
+
+const extractClauseItems = (clause: HTMLElement | null) => {
+  if (!clause) return [] as string[];
+
+  const listItems = clause.querySelectorAll("li");
+  if (listItems.length) {
+    const joined = listItems.map((item) => cleanXmlLikeString(item.innerHTML)).join("\n");
+    return cleanListItems(joined);
+  }
+
+  const blocks = clause
+    .querySelectorAll("block")
+    .map((block) => cleanXmlLikeString(block.innerHTML))
+    .filter(Boolean);
+
+  const fallbackText = blocks.length ? blocks.join("\n") : cleanXmlLikeString(clause.innerHTML);
+  return cleanListItems(fallbackText);
+};
+
+export const extractZoneFromXmlClausegroup = (
+  xml: string | null | undefined,
+  zoneCode: string | null,
+): LandUseClausegroupExtraction | null => {
+  if (!xml || !zoneCode) return null;
+
+  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[_\\-\\.\\s\u2013]*${zoneCode}[^\"]*"[^>]*>`, "i");
+  const startMatch = startRegex.exec(xml);
+  if (!startMatch || typeof startMatch.index !== "number") return null;
+
+  const tagRegex = /<level\b[^>]*>|<\/level>/gi;
+  tagRegex.lastIndex = startMatch.index;
+
+  let depth = 0;
+  let endIndex = xml.length;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagRegex.exec(xml)) !== null) {
+    if (/^<level\b/i.test(match[0])) {
+      depth += 1;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        endIndex = tagRegex.lastIndex;
+        break;
+      }
+    }
+  }
+
+  const rawBlock = xml.slice(startMatch.index, endIndex);
+  const clausegroupId = startMatch[0].match(/id="([^"]+)"/i)?.[1] ?? null;
+
+  const target = parse(rawBlock);
+  const clausegroupNode = target.querySelector("level");
+
+  if (!clausegroupNode) return null;
+
+  const zoneHeadingText = normaliseHeadingText(
+    `${clausegroupNode.querySelector("no")?.innerHTML ?? ""} ${clausegroupNode.querySelector("heading")?.innerHTML ?? ""}`,
+  );
+
+  const clauses = clausegroupNode
+    .querySelectorAll("level")
+    .filter((level) => (level.getAttribute("type") ?? "").toLowerCase() === "clause");
+
+  const findClauseByHeading = (regex: RegExp) =>
+    clauses.find((clause) => clauseHeadingMatches(normaliseHeadingText(clause.querySelector("heading")?.innerHTML), regex)) ?? null;
+
+  const objectivesClause = findClauseByHeading(/objectives of zone/i);
+  const withoutConsentClause = findClauseByHeading(/permitted without consent/i);
+  const withConsentClause = findClauseByHeading(/permitted with consent/i);
+  const prohibitedClause = findClauseByHeading(/prohibited/i);
+
+  const objectives = extractClauseItems(objectivesClause);
+  const withoutConsent = extractClauseItems(withoutConsentClause);
+  const withConsent = extractClauseItems(withConsentClause);
+  const prohibited = extractClauseItems(prohibitedClause);
+
+  const heading = zoneHeadingText || clausegroupId || null;
+
+  if (!objectives.length && !withoutConsent.length && !withConsent.length && !prohibited.length) {
+    return null;
+  }
+
+  return {
+    heading,
+    clausegroupId,
+    objectives,
+    withoutConsent,
+    withConsent,
+    prohibited,
+    extractionMode: "xml-clausegroup",
+  } satisfies LandUseClausegroupExtraction;
 };

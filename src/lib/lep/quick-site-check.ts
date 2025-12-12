@@ -18,6 +18,7 @@ import {
   findLandUseTableClause,
   GLOBAL_ZONE_PATTERNS,
   extractZoneBlockFromLandUseXml,
+  extractZoneFromXmlClausegroup,
   parseZoneContent,
   toZoneCode,
 } from "./zone-utils";
@@ -181,7 +182,7 @@ type ZoneSummary = {
       | "land-use-table"
       | "land-use-table-section"
       | null;
-    landUseExtractionMode: "string-search" | "xml-traverse" | "link-resolve" | null;
+    landUseExtractionMode: "string-search" | "xml-traverse" | "link-resolve" | "xml-clausegroup" | null;
     landUseResolvedViaLink: boolean;
     landUseResolvedTargetIds: string[];
     lepSource: "db" | "local-xml";
@@ -199,6 +200,7 @@ type ZoneSummary = {
     landUseTableSectionHeading: string | null;
     landUseZoneBlockFound: boolean;
     landUseZoneBlockHeading: string | null;
+    landUseZoneClausegroupId: string | null;
     objectivesCount: number;
     landUseCounts: { withoutConsent: number; withConsent: number; prohibited: number };
     usedFallback: boolean;
@@ -423,6 +425,7 @@ const buildZoneSummary = (
   const landUseExtractionMode = extras.landUseExtractionMode ?? null;
   const landUseResolvedViaLink = extras.landUseResolvedViaLink ?? false;
   const landUseResolvedTargetIds = extras.landUseResolvedTargetIds ?? [];
+  const landUseZoneClausegroupId = extras.landUseZoneClausegroupId ?? null;
   const lepSource = extras.lepSource ?? "db";
   const lepSourceError = extras.lepSourceError ?? null;
 
@@ -446,6 +449,7 @@ const buildZoneSummary = (
       landUseTableSectionHeading,
       landUseZoneBlockFound,
       landUseZoneBlockHeading,
+      landUseZoneClausegroupId,
       objectivesCount: 0,
       landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
       landUseExtractionMode,
@@ -496,6 +500,7 @@ const buildZoneSummary = (
         landUseTableSectionHeading,
         landUseZoneBlockFound,
         landUseZoneBlockHeading,
+        landUseZoneClausegroupId,
         objectivesCount: 0,
         landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
         landUseExtractionMode,
@@ -599,6 +604,7 @@ const buildZoneSummary = (
       landUseTableSectionHeading,
       landUseZoneBlockFound,
       landUseZoneBlockHeading,
+      landUseZoneClausegroupId,
       objectivesCount: parsed.objectives.length,
       landUseCounts,
       landUseExtractionMode,
@@ -795,6 +801,7 @@ export const buildQuickSiteCheckLep = async (
         landUseTableSectionHeading: null,
         landUseZoneBlockFound: false,
         landUseZoneBlockHeading: null,
+        landUseZoneClausegroupId: null,
         objectivesCount: 0,
         landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
         landUseExtractionMode: null,
@@ -840,9 +847,11 @@ export const buildQuickSiteCheckLep = async (
       }
 
       let landUseTableXmlBlock = null as ReturnType<typeof extractZoneBlockFromLandUseXml>;
+      let landUseClausegroupExtraction = null as ReturnType<typeof extractZoneFromXmlClausegroup>;
       if (xmlDocument) {
         try {
           landUseTableXmlBlock = extractZoneBlockFromLandUseXml(xmlDocument, zoneCode);
+          landUseClausegroupExtraction = extractZoneFromXmlClausegroup(xmlDocument, zoneCode);
         } catch (error) {
           lepSourceError = error instanceof Error ? error.message : String(error);
           lepSource = "db";
@@ -853,7 +862,7 @@ export const buildQuickSiteCheckLep = async (
           });
         }
       }
-      if (xmlDocument && !landUseTableXmlBlock) {
+      if (xmlDocument && !landUseTableXmlBlock && !landUseClausegroupExtraction) {
         lepSource = "db";
         lepSourceError =
           lepSourceError ??
@@ -863,15 +872,94 @@ export const buildQuickSiteCheckLep = async (
       const landUseTableBlock = landUseTableClause
         ? extractZoneBlockFromClause(landUseTableText, zoneCode)
         : null;
-      const landUseTableSectionFound = Boolean(landUseTableClause || landUseTableXmlBlock);
-      const landUseTableSectionHeading = landUseTableXmlBlock
+      const landUseTableSectionFound = Boolean(landUseTableClause || landUseTableXmlBlock || landUseClausegroupExtraction);
+      const landUseTableSectionHeading = landUseClausegroupExtraction
         ? "Land Use Table"
-        : landUseTableClause?.title ?? null;
-      const landUseZoneBlockFound = Boolean(landUseTableXmlBlock || landUseTableBlock);
-      const landUseZoneBlockHeading = landUseTableXmlBlock?.heading ?? landUseTableBlock?.heading ?? null;
+        : landUseTableXmlBlock
+          ? "Land Use Table"
+          : landUseTableClause?.title ?? null;
+      const landUseZoneBlockFound = Boolean(
+        landUseClausegroupExtraction || landUseTableXmlBlock || landUseTableBlock,
+      );
+      const landUseZoneBlockHeading =
+        landUseClausegroupExtraction?.heading ?? landUseTableXmlBlock?.heading ?? landUseTableBlock?.heading ?? null;
+      const landUseZoneClausegroupId = landUseClausegroupExtraction?.clausegroupId ?? null;
       const lepSourceExtras: Partial<ZoneSummary["debug"]> = { lepSource, lepSourceError };
 
-      if (landUseTableXmlBlock) {
+      if (landUseClausegroupExtraction) {
+        const syntheticBlockSections: string[] = [];
+        syntheticBlockSections.push("Objectives of zone");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.objectives);
+        syntheticBlockSections.push("Permitted without consent");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.withoutConsent);
+        syntheticBlockSections.push("Permitted with consent");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.withConsent);
+        syntheticBlockSections.push("Prohibited");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.prohibited);
+
+        const syntheticBlock = syntheticBlockSections.join("\n");
+
+        const clauseForXml: ClauseSummary = landUseTableClause
+          ? {
+              clauseKey: landUseTableClause.clauseKey,
+              title: landUseTableClause.title ?? "Land Use Table",
+              bodyText: syntheticBlock,
+              hierarchyPath: landUseTableClause.hierarchyPath ?? [],
+            }
+          : {
+              clauseKey: landUseClausegroupExtraction.clausegroupId ?? `land-use-table-${zoneCode}`,
+              title: landUseClausegroupExtraction.heading ?? "Land Use Table",
+              bodyText: syntheticBlock,
+              hierarchyPath: [],
+            };
+
+        const landUseSelection: ZoneClauseSelection = {
+          clause: clauseForXml,
+          matchedHeading: landUseClausegroupExtraction.heading,
+          sectionText: syntheticBlock,
+          source: "heading",
+        };
+
+        const landUseDebug: ZoneClausePick["debug"] = {
+          anchorClauseKey: clauseForXml.clauseKey ?? null,
+          anchorTitle: clauseForXml.title ?? null,
+          headingMatch: landUseClausegroupExtraction.heading ?? null,
+          candidateCount: landUseTableClause ? 1 : 0,
+          excludedGlobalClauses: [],
+          usedGlobalFallback: false,
+        } satisfies ZoneClausePick["debug"];
+
+        const summaryFromLandUseTable = buildZoneSummary(landUseSelection, zoneCode, landUseDebug, {
+          zoneClauseKey: clauseForXml.clauseKey ?? null,
+          zoneClauseTitle: clauseForXml.title ?? null,
+          zoneBlockFound: true,
+          zoneBlockHeading: landUseClausegroupExtraction.heading ?? null,
+          landUseTableSectionFound,
+          landUseTableSectionHeading,
+          landUseZoneBlockFound,
+          landUseZoneBlockHeading,
+          landUseZoneClausegroupId,
+          landUseSource: "land-use-table",
+          landUseExtractionMode: landUseClausegroupExtraction.extractionMode,
+          landUseResolvedViaLink: false,
+          landUseResolvedTargetIds: [],
+          ...lepSourceExtras,
+        });
+
+        const hasLandUseFromTable =
+          summaryFromLandUseTable.debug.landUseCounts.withoutConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.withConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.prohibited > 0;
+
+        const hasObjectives = summaryFromLandUseTable.debug.objectivesCount > 0;
+
+        if (hasLandUseFromTable || hasObjectives) {
+          zoneSummary = summaryFromLandUseTable;
+        } else {
+          usedFallback = true;
+          fallbackReason = fallbackReason ?? "No land use entries found in Land Use Table section for the requested zone";
+        }
+      } else if (landUseTableXmlBlock) {
         const clauseForXml: ClauseSummary = landUseTableClause
           ? {
               clauseKey: landUseTableClause.clauseKey,
@@ -911,6 +999,7 @@ export const buildQuickSiteCheckLep = async (
           landUseTableSectionHeading,
           landUseZoneBlockFound,
           landUseZoneBlockHeading,
+          landUseZoneClausegroupId,
           landUseSource: "land-use-table",
           landUseExtractionMode: landUseTableXmlBlock.extractionMode,
           landUseResolvedViaLink: landUseTableXmlBlock.resolvedViaLink,
@@ -956,6 +1045,7 @@ export const buildQuickSiteCheckLep = async (
             landUseTableSectionHeading,
             landUseZoneBlockFound,
             landUseZoneBlockHeading,
+            landUseZoneClausegroupId,
             landUseSource: "land-use-table-section",
             landUseExtractionMode: "string-search",
             ...lepSourceExtras,
@@ -983,11 +1073,14 @@ export const buildQuickSiteCheckLep = async (
         landUseTableSectionHeading,
         landUseZoneBlockFound,
         landUseZoneBlockHeading,
-        landUseExtractionMode: landUseTableXmlBlock
-          ? landUseTableXmlBlock.extractionMode
-          : landUseTableBlock
-            ? "string-search"
-            : null,
+        landUseZoneClausegroupId,
+        landUseExtractionMode: landUseClausegroupExtraction
+          ? landUseClausegroupExtraction.extractionMode
+          : landUseTableXmlBlock
+            ? landUseTableXmlBlock.extractionMode
+            : landUseTableBlock
+              ? "string-search"
+              : null,
         landUseResolvedViaLink: landUseTableXmlBlock?.resolvedViaLink ?? false,
         landUseResolvedTargetIds: landUseTableXmlBlock?.resolvedTargetIds ?? [],
         ...lepSourceExtras,
@@ -1148,6 +1241,7 @@ export const buildQuickSiteCheckLep = async (
           landUseTableSectionHeading: zoneSummary.debug.landUseTableSectionHeading,
           landUseZoneBlockFound: zoneSummary.debug.landUseZoneBlockFound,
           landUseZoneBlockHeading: zoneSummary.debug.landUseZoneBlockHeading,
+          landUseZoneClausegroupId: zoneSummary.debug.landUseZoneClausegroupId,
           objectivesCount: zoneSummary.debug.objectivesCount,
           landUseCounts: zoneSummary.debug.landUseCounts,
           landUseExtractionMode: zoneSummary.debug.landUseExtractionMode,
