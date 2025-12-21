@@ -36,6 +36,10 @@ export type QuickSiteCheckLepSuccess = {
     usedGlobalZoneFallback?: boolean;
     partCandidateCounts: { "4": number; "5": number; "6": number };
     notes?: string[];
+    lepSource?: "db" | "local-xml";
+    lepSourceError?: string;
+    landUseExtractionMode?: "db-clause" | "xml-clausegroup";
+    landUseZoneClausegroupId?: string | null;
   };
 };
 

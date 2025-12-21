@@ -5,12 +5,15 @@ import type {
   QuickSiteCheckLepResponse,
   QuickSiteCheckLepSuccess,
 } from "@/types/quick-site-check-lep";
+import { getInstrumentConfig } from "../legislation/config";
+import { LEP_XML_FIXTURES } from "../legislation/fixtures";
 
 import { prisma } from "../prisma";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
 import { serializeSiteContext } from "../site-context";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
+import { parse } from "node-html-parser";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
@@ -524,6 +527,92 @@ const buildZoneSummary = (
   };
 };
 
+const normalizeWhitespace = (value: string | null | undefined) =>
+  value?.replace(/\s+/g, " ").trim() ?? "";
+
+export const extractZoneSummaryFromXmlFixture = (
+  xml: string,
+  zoneCode: string,
+): { summary: ZoneSummary; clausegroupId: string } | null => {
+  if (!xml || !zoneCode) return null;
+
+  const clausegroupId = `pt-cg1.Zone_${zoneCode}`;
+  const root = parse(xml);
+  const clausegroup = root.querySelector(`level[id="${clausegroupId}"]`);
+  if (!clausegroup) return null;
+
+  const clauseLevels = clausegroup
+    .querySelectorAll("level")
+    .filter((level) => level.getAttribute("type") === "clause");
+
+  if (!clauseLevels.length) return null;
+
+  const groupNumber = normalizeWhitespace(clausegroup.querySelector("no")?.textContent);
+  const groupTitle = normalizeWhitespace(clausegroup.querySelector("heading")?.textContent);
+  const groupHeading = [groupNumber, groupTitle].filter(Boolean).join(" ") || `Zone ${zoneCode}`;
+
+  const clauseTextParts = clauseLevels
+    .map((clause) => {
+      const heading = normalizeWhitespace(clause.querySelector("heading")?.textContent);
+      const bodyParts = clause
+        .querySelectorAll("txt")
+        .map((node) => normalizeWhitespace(node.textContent))
+        .filter(Boolean);
+      const body = bodyParts.join("\n");
+      return [heading, body].filter(Boolean).join("\n");
+    })
+    .filter(Boolean);
+
+  const combinedText = [groupHeading, ...clauseTextParts].filter(Boolean).join("\n\n");
+  const sections = splitZoneSections(combinedText);
+
+  const objectives = cleanListItems(sections.objectives);
+  const withoutConsent = cleanListItems(sections.withoutConsent);
+  const withConsent = cleanListItems(sections.withConsent);
+  const prohibited = cleanListItems(sections.prohibited);
+
+  const looksTabular = /<table/i.test(combinedText) || /\|/.test(combinedText) || /\t/.test(combinedText);
+  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = objectives.length
+    ? looksTabular
+      ? "table"
+      : "text-block"
+    : "fallback";
+  const fallbackObjectives = objectives.length ? objectives : [`No zone-specific objectives found for zone ${zoneCode}.`];
+  const hasLandUse = withoutConsent.length || withConsent.length || prohibited.length;
+  const landUseSource: ZoneSummary["debug"]["landUseSource"] = hasLandUse
+    ? looksTabular
+      ? "table"
+      : "text-block"
+    : "clause-fallback";
+  const landUseFallback = hasLandUse
+    ? { withoutConsent, withConsent, prohibited }
+    : {
+        withoutConsent: [`No zone-specific land use table entries found for zone ${zoneCode}.`],
+        withConsent: [],
+        prohibited: [],
+      };
+
+  const summary: ZoneSummary = {
+    objectives: fallbackObjectives,
+    landUse: landUseFallback,
+    debug: {
+      headingMatch: groupHeading,
+      zoneTableClauseKey: clausegroupId,
+      zoneTableClauseTitle: groupHeading,
+      zoneObjectiveSource: objectiveSource,
+      landUseSource,
+      zoneAnchorClauseKey: clausegroupId,
+      zoneAnchorTitle: groupHeading,
+      zoneCandidateCount: clauseLevels.length,
+      excludedGlobalZoneClauses: [],
+      usedGlobalZoneFallback: false,
+      notes: [],
+    },
+  };
+
+  return { summary, clausegroupId };
+};
+
 const findLepInstrumentForLga = async (lga: string) => {
   const filter = buildLepInstrumentFilter(lga);
 
@@ -593,6 +682,34 @@ export const buildQuickSiteCheckLep = async (
       } satisfies QuickSiteCheckLepResponse;
     }
 
+    const useLocalFixtures = process.env.LEP_LOCAL_FIXTURES === "true";
+    const instrumentConfig = getInstrumentConfig(lepInstrument.slug);
+    const xmlFixtureKey = instrumentConfig?.xmlFixtureKey;
+    const xmlFixtureDocument =
+      useLocalFixtures && xmlFixtureKey ? LEP_XML_FIXTURES[xmlFixtureKey] : undefined;
+
+    let lepSource: "db" | "local-xml" = "db";
+    let lepSourceError: string | undefined;
+    let landUseExtractionMode: "db-clause" | "xml-clausegroup" = "db-clause";
+    let landUseZoneClausegroupId: string | null = null;
+    let xmlZoneSummary: ZoneSummary | null = null;
+
+    if (useLocalFixtures && xmlFixtureKey) {
+      if (xmlFixtureDocument) {
+        lepSource = "local-xml";
+        const extracted = extractZoneSummaryFromXmlFixture(xmlFixtureDocument, zoneCode);
+        if (extracted) {
+          xmlZoneSummary = extracted.summary;
+          landUseExtractionMode = "xml-clausegroup";
+          landUseZoneClausegroupId = extracted.clausegroupId;
+        } else {
+          lepSourceError = `Zone clausegroup pt-cg1.Zone_${zoneCode} not found in XML fixture.`;
+        }
+      } else {
+        lepSourceError = `Missing XML fixture for key ${xmlFixtureKey}`;
+      }
+    }
+
     const zonePattern = `Zone ${zoneCode}`;
 
     const allClauses = await prisma.clause.findMany({
@@ -621,7 +738,10 @@ export const buildQuickSiteCheckLep = async (
       console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
     }
 
-    const zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
+    let zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
+    if (xmlZoneSummary) {
+      zoneSummary = xmlZoneSummary;
+    }
 
     const partBuckets: Record<"4" | "5" | "6", ClauseSummary[]> = { "4": [], "5": [], "6": [] };
 
@@ -688,6 +808,10 @@ export const buildQuickSiteCheckLep = async (
             "6": partBuckets["6"].length,
           },
           notes: zoneSummary.debug.notes,
+          lepSource,
+          lepSourceError,
+          landUseExtractionMode,
+          landUseZoneClausegroupId,
         }
       : undefined;
 
