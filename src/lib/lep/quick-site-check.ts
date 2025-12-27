@@ -7,7 +7,6 @@ import type {
   QuickSiteCheckLepSuccess,
 } from "@/types/quick-site-check-lep";
 import { getInstrumentConfig } from "../legislation/config";
-import { LEP_XML_FIXTURES } from "../legislation/fixtures";
 
 import { prisma } from "../prisma";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
