@@ -249,6 +249,8 @@ model Instrument {
   sourceUrl      String
   lastSyncedAt   DateTime?
   clauses        Clause[]
+  lepZoneObjectives LepZoneObjective[]
+  lepZoneLandUses   LepZoneLandUse[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -288,6 +290,35 @@ model ClauseSearchIndex {
   updatedAt DateTime @updatedAt
 }
 
+model LepZoneObjective {
+  id           String     @id @default(cuid())
+  instrumentId String
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  zoneCode     String
+  objective    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([instrumentId, zoneCode, objective])
+  @@index([instrumentId])
+  @@index([zoneCode])
+}
+
+model LepZoneLandUse {
+  id           String            @id @default(cuid())
+  instrumentId String
+  instrument   Instrument        @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  zoneCode     String
+  permission   LepZonePermission
+  description  String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([instrumentId, zoneCode, permission, description])
+  @@index([instrumentId])
+  @@index([zoneCode])
+}
+
 enum InstrumentType {
   SEPP
   LEP
@@ -295,6 +326,12 @@ enum InstrumentType {
   ACT
   REGULATION
   OTHER
+}
+
+enum LepZonePermission {
+  WITHOUT_CONSENT
+  WITH_CONSENT
+  PROHIBITED
 }
 
 model WorkspaceUpload {

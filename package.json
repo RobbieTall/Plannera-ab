@@ -13,6 +13,7 @@
     "test": "tsx --test tests/*.test.ts",
     "test:site-resolver": "vitest run --config vitest.config.ts src/lib/site-resolver.test.ts",
     "test:site-resolver:google": "vitest run --config vitest.config.ts src/lib/site-resolver.google.test.ts src/app/api/site-context/site-context.test.ts",
+    "test:byron-fixture": "tsx scripts/test-byron-landuse-fixture.ts",
     "fetch:nsw-xml": "tsx scripts/fetch-nsw-xml.ts",
     "ingest:legislation": "tsx scripts/legislation-ingest.ts",
     "ingest:all-nsw": "tsx scripts/ingest-all-nsw.ts",
