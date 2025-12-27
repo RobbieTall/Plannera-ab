@@ -1,36 +1,46 @@
-import { LEP_XML_FIXTURES } from "@/lib/legislation/fixtures";
-import { extractZoneSummaryFromXmlFixture } from "@/lib/lep/quick-site-check";
+import fs from "fs";
+import path from "path";
 
-const xml = LEP_XML_FIXTURES.BYRON_2014;
+import { extractZoneFromXmlClausegroup } from "../src/lib/lep/zone-utils";
 
-if (!xml) {
-  console.error("Byron LEP XML fixture not found.");
+const fixturePath = path.resolve(process.cwd(), "data/nsw/xml/Byron-lep-2014.xml");
+
+if (!fs.existsSync(fixturePath)) {
+  console.error("Byron LEP fixture missing", { fixturePath });
   process.exit(1);
 }
 
-const zones = ["R2", "R3"];
+const xml = fs.readFileSync(fixturePath, "utf-8");
+const zones = ["R2", "R3"] as const;
+
+let failed = false;
 
 for (const zone of zones) {
-  const result = extractZoneSummaryFromXmlFixture(xml, zone);
-  if (!result) {
-    console.error(`Zone ${zone} could not be extracted from the fixture.`);
-    process.exit(1);
+  const extraction = extractZoneFromXmlClausegroup(xml, zone);
+  if (!extraction) {
+    console.error(`No extraction returned for zone ${zone}`);
+    failed = true;
+    continue;
   }
 
-  const objectiveCount = result.summary.objectives.length;
-  const landUseCount =
-    result.summary.landUse.withoutConsent.length +
-    result.summary.landUse.withConsent.length +
-    result.summary.landUse.prohibited.length;
+  const landUseTotal =
+    extraction.withoutConsent.length + extraction.withConsent.length + extraction.prohibited.length;
 
-  if (!objectiveCount || !landUseCount) {
-    console.error(
-      `Zone ${zone} extraction failed: objectives=${objectiveCount}, landUseTotal=${landUseCount}.`,
-    );
-    process.exit(1);
+  if (!extraction.objectives.length) {
+    console.error(`No objectives extracted for zone ${zone}`);
+    failed = true;
+  }
+
+  if (!landUseTotal) {
+    console.error(`No land-use entries extracted for zone ${zone}`);
+    failed = true;
   }
 
   console.log(
-    `Zone ${zone} extracted from ${result.clausegroupId} with ${objectiveCount} objectives and ${landUseCount} land-use entries.`,
+    `Zone ${zone}: objectives=${extraction.objectives.length}, landUse without=${extraction.withoutConsent.length}, with=${extraction.withConsent.length}, prohibited=${extraction.prohibited.length}`,
   );
+}
+
+if (failed) {
+  process.exit(1);
 }

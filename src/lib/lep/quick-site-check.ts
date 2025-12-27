@@ -1,4 +1,5 @@
-import type { Clause } from "@prisma/client";
+import fs from "fs";
+import type { Clause, LepZoneLandUse, LepZoneObjective } from "@prisma/client";
 
 import type {
   QuickSiteCheckLepClause,
@@ -11,19 +12,20 @@ import { LEP_XML_FIXTURES } from "../legislation/fixtures";
 import { prisma } from "../prisma";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
 import { serializeSiteContext } from "../site-context";
+import { getInstrumentConfig } from "../legislation/config";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
-import { parse } from "node-html-parser";
+import {
+  cleanXmlLikeString,
+  findLandUseTableClause,
+  GLOBAL_ZONE_PATTERNS,
+  extractZoneBlockFromLandUseXml,
+  extractZoneFromXmlClausegroup,
+  parseZoneContent,
+  toZoneCode,
+} from "./zone-utils";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
-
-type ZoneSectionKey = "objectives" | "withoutConsent" | "withConsent" | "prohibited";
-
-const GLOBAL_ZONE_PATTERNS = [
-  /the land use zones under this plan are as follows/i,
-  /zones under this plan are as follows/i,
-  /the land use zones under this plan/i,
-];
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
   "4": [
@@ -61,70 +63,6 @@ const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
   ],
 };
 
-const ZONE_SECTION_HEADERS: { key: ZoneSectionKey; regex: RegExp }[] = [
-  { key: "objectives", regex: /objectives of (the )?zone/i },
-  { key: "withoutConsent", regex: /permitted without consent/i },
-  { key: "withConsent", regex: /permitted with consent/i },
-  { key: "prohibited", regex: /prohibited/i },
-];
-
-const toZoneCode = (value: string | null | undefined) => {
-  if (!value) return null;
-  const match = value.trim().match(/([A-Z]{1,3}\d?[A-Z]?)/i);
-  return match ? match[1]?.toUpperCase() ?? null : null;
-};
-
-const splitZoneSections = (text: string): Record<ZoneSectionKey, string> => {
-  const normalized = text.replace(/\r\n/g, "\n");
-  const lower = normalized.toLowerCase();
-
-  const matches = ZONE_SECTION_HEADERS.map((header) => {
-    const match = lower.match(header.regex);
-    if (!match || typeof match.index !== "number") return null;
-    return { key: header.key, start: match.index, end: match.index + match[0].length };
-  })
-    .filter(Boolean)
-    .sort((first, second) => (first!.start ?? 0) - (second!.start ?? 0)) as {
-    key: ZoneSectionKey;
-    start: number;
-    end: number;
-  }[];
-
-  const sections: Record<ZoneSectionKey, string> = {
-    objectives: "",
-    withoutConsent: "",
-    withConsent: "",
-    prohibited: "",
-  };
-
-  matches.forEach((match, index) => {
-    const nextStart = matches[index + 1]?.start ?? normalized.length;
-    sections[match.key] = normalized.slice(match.end, nextStart).trim();
-  });
-
-  return sections;
-};
-
-const cleanListItems = (section: string): string[] => {
-  if (!section) return [];
-
-  const rawEntries = section
-    .split(/\r?\n|;/)
-    .flatMap((line) => line.split(/[•·\-–—]/))
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  const cleaned = rawEntries
-    .map((entry) => entry.replace(/^\d+[).]\s*/, "").replace(/^[-–—]\s*/, "").replace(/\s+[-–—]\s*$/, ""))
-    .map((entry) => entry.replace(/^\W+/, "").replace(/\s+$/, ""))
-    .map((entry) => entry.replace(/\[[^\]]+\]/g, ""))
-    .map((entry) => entry.replace(/\s+\.$/, "."))
-    .filter((entry) => entry.length > 0)
-    .filter((entry) => !/^none\b/i.test(entry) && !/^nil\b/i.test(entry));
-
-  return Array.from(new Set(cleaned));
-};
-
 const parseClauseNumber = (clause: ClauseSummary) => {
   if (clause.clauseKey?.trim()) return clause.clauseKey;
   const titleMatch = clause.title?.match(/(\d+(?:\.\d+)?)/);
@@ -157,15 +95,21 @@ const derivePart = (clause: ClauseSummary): "4" | "5" | "6" | null => {
   return null;
 };
 
-const buildSnippet = (text: string | null | undefined) => {
+const normalizeLepTextForDisplay = (text: string | null | undefined) => {
   if (!text) return "";
-  const sentences = text
-    .replace(/\s+/g, " ")
+  const cleaned = cleanXmlLikeString(text);
+  return cleaned.replace(/\s+/g, " ").trim();
+};
+
+const buildSnippet = (text: string | null | undefined) => {
+  const normalized = normalizeLepTextForDisplay(text);
+  if (!normalized) return "";
+  const sentences = normalized
     .split(/(?<=[.!?])\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .join(" ");
-  const snippet = sentences || text.slice(0, 250);
+  const snippet = sentences || normalized.slice(0, 250);
   return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
 };
 
@@ -231,15 +175,70 @@ type ZoneSummary = {
     headingMatch: string | null;
     zoneTableClauseKey: string | null;
     zoneTableClauseTitle: string | null;
-    zoneObjectiveSource: "table" | "text-block" | "fallback";
-    landUseSource: string | null;
+    zoneObjectiveSource: "table" | "text-block" | "fallback" | "ingested";
+    landUseSource:
+      | "ingested"
+      | "table"
+      | "text-block"
+      | "clause-fallback"
+      | "land-use-table"
+      | "land-use-table-section"
+      | null;
+    landUseExtractionMode: "string-search" | "xml-traverse" | "link-resolve" | "xml-clausegroup" | null;
+    landUseResolvedViaLink: boolean;
+    landUseResolvedTargetIds: string[];
+    lepSource: "db" | "local-xml";
+    lepSourceError: string | null;
     zoneAnchorClauseKey: string | null;
     zoneAnchorTitle: string | null;
     zoneCandidateCount: number;
     excludedGlobalZoneClauses: string[];
     usedGlobalZoneFallback: boolean;
+    zoneClauseKey: string | null;
+    zoneClauseTitle: string | null;
+    zoneBlockFound: boolean;
+    zoneBlockHeading: string | null;
+    landUseTableSectionFound: boolean;
+    landUseTableSectionHeading: string | null;
+    landUseZoneBlockFound: boolean;
+    landUseZoneBlockHeading: string | null;
+    landUseZoneClausegroupId: string | null;
+    objectivesCount: number;
+    landUseCounts: { withoutConsent: number; withConsent: number; prohibited: number };
+    usedFallback: boolean;
+    fallbackReason: string | null;
     notes: string[];
   };
+};
+
+const isClauseTwoThree = (clause: ClauseSummary) => {
+  const clauseKey = clause.clauseKey ?? "";
+  const title = clause.title ?? "";
+  return /_2_3\b/i.test(clauseKey) || /\b2\.3\b/.test(clauseKey) || /zone objectives and land use table/i.test(title);
+};
+
+const extractZoneBlockFromClause = (text: string, zoneCode: string | null) => {
+  if (!zoneCode) return null;
+
+  const normalized = text.replace(/\r\n/g, "\n");
+  const headingRegex =
+    /^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+([A-Z]{1,3}\d?[A-Z]?)\b[^\n]*$/gim;
+  const matches: { heading: string; code: string; index: number }[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = headingRegex.exec(normalized)) !== null) {
+    matches.push({ heading: match[0].trim(), code: match[1].toUpperCase(), index: match.index });
+  }
+
+  const target = matches.find((entry) => entry.code === zoneCode.toUpperCase());
+  if (!target) return null;
+
+  const start = target.index + target.heading.length;
+  const next = matches.find((entry) => entry.index > target.index);
+  const end = next?.index ?? normalized.length;
+  const block = normalized.slice(start, end).trim();
+
+  return { heading: target.heading, block };
 };
 
 const findZoneHeading = (lines: string[], headingRegexes: RegExp[]): { heading: string; index: number } | null => {
@@ -260,7 +259,8 @@ const sliceZoneBlock = (
   if (!zoneCode) return null;
 
   const normalized = text.replace(/\r\n/g, "\n");
-  const anyZoneHeadingRegex = /(^|\n)\s*zone\s+[A-Z]{1,3}\d?[A-Z]?\b[^\n]*/gi;
+  const anyZoneHeadingRegex =
+    /(^|\n)\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+[A-Z]{1,3}\d?[A-Z]?\b[^\n]*/gi;
   const headingMatches = Array.from(normalized.matchAll(anyZoneHeadingRegex));
 
   const hintedHeading = headingHint
@@ -304,12 +304,16 @@ const extractZoneSection = (
   zoneCode: string | null,
   headingHint: string | null = null,
 ): ZoneClauseSelection => {
-  const text = clause.bodyText ?? "";
+  const text = cleanXmlLikeString(clause.bodyText);
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headingRegexes = [
-    zoneCode ? new RegExp(`^\s*zone\s+${zoneCode}\b.*`, "i") : null,
-    zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      : null,
   ].filter(Boolean) as RegExp[];
 
   const hintedHeading = headingHint
@@ -332,7 +336,7 @@ const extractZoneSection = (
   return { clause, matchedHeading: headingCandidate, sectionText: fallbackSection, source: "fallback" };
 };
 
-const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClausePick => {
+  const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): ZoneClausePick => {
   if (!clauses.length)
     return {
       selection: null,
@@ -348,8 +352,12 @@ const pickZoneClause = (clauses: ClauseSummary[], zoneCode: string | null): Zone
 
   const zonePattern = zoneCode ? new RegExp(`\bzone\s+${zoneCode}\b`, "i") : null;
   const headingRegexes = [
-    zoneCode ? new RegExp(`^\s*zone\s+${zoneCode}\b.*`, "i") : null,
-    zoneCode ? new RegExp(`^\s*${zoneCode}\b.*`, "i") : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      : null,
+    zoneCode
+      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      : null,
   ].filter(Boolean) as RegExp[];
 
   const scored = clauses.map((clause) => {
@@ -402,6 +410,7 @@ const buildZoneSummary = (
   selection: ZoneClauseSelectionResult,
   zoneCode: string | null,
   pickDebug: ZoneClausePick["debug"],
+  extras: Partial<ZoneSummary["debug"]> = {},
 ): ZoneSummary => {
   const notFoundReason = zoneCode
     ? `No zone-specific objectives found for zone ${zoneCode}.`
@@ -411,7 +420,50 @@ const buildZoneSummary = (
     ? `No zone-specific land use table entries found for zone ${zoneCode}.`
     : "No zone-specific land use entries found.";
 
+  const landUseTableSectionFound = extras.landUseTableSectionFound ?? false;
+  const landUseTableSectionHeading = extras.landUseTableSectionHeading ?? null;
+  const landUseZoneBlockFound = extras.landUseZoneBlockFound ?? false;
+  const landUseZoneBlockHeading = extras.landUseZoneBlockHeading ?? null;
+  const landUseExtractionMode = extras.landUseExtractionMode ?? null;
+  const landUseResolvedViaLink = extras.landUseResolvedViaLink ?? false;
+  const landUseResolvedTargetIds = extras.landUseResolvedTargetIds ?? [];
+  const landUseZoneClausegroupId = extras.landUseZoneClausegroupId ?? null;
+  const lepSource = extras.lepSource ?? "db";
+  const lepSourceError = extras.lepSourceError ?? null;
+
   if (!selection) {
+    const debug = {
+      headingMatch: null,
+      zoneTableClauseKey: null,
+      zoneTableClauseTitle: null,
+      zoneObjectiveSource: "fallback" as const,
+      landUseSource: null,
+      zoneAnchorClauseKey: pickDebug.anchorClauseKey,
+      zoneAnchorTitle: pickDebug.anchorTitle,
+      zoneCandidateCount: pickDebug.candidateCount,
+      excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
+      usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      zoneClauseKey: extras.zoneClauseKey ?? null,
+      zoneClauseTitle: extras.zoneClauseTitle ?? null,
+      zoneBlockFound: extras.zoneBlockFound ?? false,
+      zoneBlockHeading: extras.zoneBlockHeading ?? null,
+      landUseTableSectionFound,
+      landUseTableSectionHeading,
+      landUseZoneBlockFound,
+      landUseZoneBlockHeading,
+      landUseZoneClausegroupId,
+      objectivesCount: 0,
+      landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+      landUseExtractionMode,
+      landUseResolvedViaLink,
+      landUseResolvedTargetIds,
+      lepSource,
+      lepSourceError,
+      usedFallback: extras.usedFallback ?? false,
+      fallbackReason: extras.fallbackReason ?? null,
+      notes: ["No clause matched zone heading"],
+    } satisfies ZoneSummary["debug"];
+
     return {
       objectives: [notFoundReason],
       landUse: {
@@ -419,19 +471,7 @@ const buildZoneSummary = (
         withConsent: [],
         prohibited: [],
       },
-      debug: {
-        headingMatch: null,
-        zoneTableClauseKey: null,
-        zoneTableClauseTitle: null,
-        zoneObjectiveSource: "fallback",
-        landUseSource: null,
-        zoneAnchorClauseKey: pickDebug.anchorClauseKey,
-        zoneAnchorTitle: pickDebug.anchorTitle,
-        zoneCandidateCount: pickDebug.candidateCount,
-        excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
-        usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
-        notes: ["No clause matched zone heading"],
-      },
+      debug,
     };
   }
 
@@ -448,65 +488,102 @@ const buildZoneSummary = (
         zoneTableClauseKey: selection.clause.clauseKey ?? null,
         zoneTableClauseTitle: selection.clause.title ?? null,
         zoneObjectiveSource: "fallback",
-        landUseSource: null,
+        landUseSource: extras.landUseSource ?? null,
         zoneAnchorClauseKey: pickDebug.anchorClauseKey,
         zoneAnchorTitle: pickDebug.anchorTitle,
         zoneCandidateCount: pickDebug.candidateCount,
         excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
         usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+        zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+        zoneBlockFound: extras.zoneBlockFound ?? true,
+        zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
+        landUseZoneClausegroupId,
+        objectivesCount: 0,
+        landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+        landUseExtractionMode,
+        landUseResolvedViaLink,
+        landUseResolvedTargetIds,
+        lepSource,
+        lepSourceError,
+        usedFallback: extras.usedFallback ?? false,
+        fallbackReason: extras.fallbackReason ?? null,
         notes: ["Matched clause contained global zone list"],
       },
     };
   }
 
-  if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
-    return {
-      objectives: [notFoundReason],
-      landUse: {
-        withoutConsent: [noLandUseReason],
-        withConsent: [],
-        prohibited: [],
-      },
-      debug: {
+    if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
+      const debug = {
         headingMatch: selection.matchedHeading,
         zoneTableClauseKey: selection.clause.clauseKey ?? null,
         zoneTableClauseTitle: selection.clause.title ?? null,
-        zoneObjectiveSource: "fallback",
-        landUseSource: null,
+        zoneObjectiveSource: "fallback" as const,
+        landUseSource: extras.landUseSource ?? null,
         zoneAnchorClauseKey: pickDebug.anchorClauseKey,
         zoneAnchorTitle: pickDebug.anchorTitle,
         zoneCandidateCount: pickDebug.candidateCount,
         excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
         usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+        zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+        zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+        zoneBlockFound: extras.zoneBlockFound ?? true,
+        zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
+        landUseZoneClausegroupId,
+        objectivesCount: 0,
+        landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+        landUseExtractionMode,
+        landUseResolvedViaLink,
+        landUseResolvedTargetIds,
+        lepSource,
+        lepSourceError,
+        usedFallback: extras.usedFallback ?? false,
+        fallbackReason: extras.fallbackReason ?? null,
         notes: ["Zone code not found in selected clause body"],
-      },
-    };
-  }
+      } satisfies ZoneSummary["debug"];
 
-  const text = selection.sectionText;
-  const sections = splitZoneSections(text);
+      return {
+        objectives: [notFoundReason],
+        landUse: {
+          withoutConsent: [noLandUseReason],
+          withConsent: [],
+          prohibited: [],
+        },
+        debug,
+      };
+    }
 
-  const objectives = cleanListItems(sections.objectives);
-  const withoutConsent = cleanListItems(sections.withoutConsent);
-  const withConsent = cleanListItems(sections.withConsent);
-  const prohibited = cleanListItems(sections.prohibited);
+  const parsed = parseZoneContent(selection.sectionText);
 
-  const looksTabular = /<table/i.test(text) || /\|/.test(text) || /\t/.test(text);
-  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = objectives.length
-    ? looksTabular
+  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = parsed.objectives.length
+    ? parsed.looksTabular
       ? "table"
       : "text-block"
     : "fallback";
-  const fallbackObjectives = objectives.length ? objectives : [notFoundReason];
-  const hasLandUse = withoutConsent.length || withConsent.length || prohibited.length;
+  const fallbackObjectives = parsed.objectives.length ? parsed.objectives : [notFoundReason];
+  const hasLandUse = parsed.withoutConsent.length || parsed.withConsent.length || parsed.prohibited.length;
   const landUseSource: ZoneSummary["debug"]["landUseSource"] = hasLandUse
-    ? looksTabular
+    ? parsed.looksTabular
       ? "table"
       : "text-block"
     : "clause-fallback";
   const landUseFallback = hasLandUse
-    ? { withoutConsent, withConsent, prohibited }
+    ? { withoutConsent: parsed.withoutConsent, withConsent: parsed.withConsent, prohibited: parsed.prohibited }
     : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] };
+
+  const landUseCounts = {
+    withoutConsent: parsed.withoutConsent.length,
+    withConsent: parsed.withConsent.length,
+    prohibited: parsed.prohibited.length,
+  };
 
   return {
     objectives: fallbackObjectives,
@@ -516,101 +593,98 @@ const buildZoneSummary = (
       zoneTableClauseKey: selection.clause.clauseKey ?? null,
       zoneTableClauseTitle: selection.clause.title ?? null,
       zoneObjectiveSource: objectiveSource,
-      landUseSource,
+      landUseSource: extras.landUseSource ?? landUseSource,
       zoneAnchorClauseKey: pickDebug.anchorClauseKey,
       zoneAnchorTitle: pickDebug.anchorTitle,
       zoneCandidateCount: pickDebug.candidateCount,
       excludedGlobalZoneClauses: pickDebug.excludedGlobalClauses,
       usedGlobalZoneFallback: pickDebug.usedGlobalFallback,
+      zoneClauseKey: extras.zoneClauseKey ?? selection.clause.clauseKey ?? null,
+      zoneClauseTitle: extras.zoneClauseTitle ?? selection.clause.title ?? null,
+      zoneBlockFound: extras.zoneBlockFound ?? true,
+      zoneBlockHeading: extras.zoneBlockHeading ?? selection.matchedHeading ?? null,
+      landUseTableSectionFound,
+      landUseTableSectionHeading,
+      landUseZoneBlockFound,
+      landUseZoneBlockHeading,
+      landUseZoneClausegroupId,
+      objectivesCount: parsed.objectives.length,
+      landUseCounts,
+      landUseExtractionMode,
+      landUseResolvedViaLink,
+      landUseResolvedTargetIds,
+      lepSource,
+      lepSourceError,
+      usedFallback: extras.usedFallback ?? false,
+      fallbackReason: extras.fallbackReason ?? null,
       notes: selection.source === "fallback" ? ["Zone heading not found; used nearest matching block"] : [],
     },
   };
 };
 
-const normalizeWhitespace = (value: string | null | undefined) =>
-  value?.replace(/\s+/g, " ").trim() ?? "";
-
-export const extractZoneSummaryFromXmlFixture = (
-  xml: string,
+const buildStoredZoneSummary = (
   zoneCode: string,
-): { summary: ZoneSummary; clausegroupId: string } | null => {
-  if (!xml || !zoneCode) return null;
+  objectives: LepZoneObjective[],
+  landUses: LepZoneLandUse[],
+): ZoneSummary => {
+  const notFoundReason = `No zone-specific objectives found for zone ${zoneCode}.`;
+  const noLandUseReason = `No zone-specific land use table entries found for zone ${zoneCode}.`;
 
-  const clausegroupId = `pt-cg1.Zone_${zoneCode}`;
-  const root = parse(xml);
-  const clausegroup = root.querySelector(`level[id="${clausegroupId}"]`);
-  if (!clausegroup) return null;
+  const objectiveTexts = objectives.map((entry) => entry.objective).filter(Boolean);
+  const landUseBuckets = landUses.reduce(
+    (acc, entry) => {
+      if (entry.permission === "WITHOUT_CONSENT") acc.withoutConsent.push(entry.description);
+      if (entry.permission === "WITH_CONSENT") acc.withConsent.push(entry.description);
+      if (entry.permission === "PROHIBITED") acc.prohibited.push(entry.description);
+      return acc;
+    },
+    { withoutConsent: [] as string[], withConsent: [] as string[], prohibited: [] as string[] },
+  );
 
-  const clauseLevels = clausegroup
-    .querySelectorAll("level")
-    .filter((level) => level.getAttribute("type") === "clause");
+  const hasLandUse =
+    landUseBuckets.withoutConsent.length || landUseBuckets.withConsent.length || landUseBuckets.prohibited.length;
 
-  if (!clauseLevels.length) return null;
-
-  const groupNumber = normalizeWhitespace(clausegroup.querySelector("no")?.textContent);
-  const groupTitle = normalizeWhitespace(clausegroup.querySelector("heading")?.textContent);
-  const groupHeading = [groupNumber, groupTitle].filter(Boolean).join(" ") || `Zone ${zoneCode}`;
-
-  const clauseTextParts = clauseLevels
-    .map((clause) => {
-      const heading = normalizeWhitespace(clause.querySelector("heading")?.textContent);
-      const bodyParts = clause
-        .querySelectorAll("txt")
-        .map((node) => normalizeWhitespace(node.textContent))
-        .filter(Boolean);
-      const body = bodyParts.join("\n");
-      return [heading, body].filter(Boolean).join("\n");
-    })
-    .filter(Boolean);
-
-  const combinedText = [groupHeading, ...clauseTextParts].filter(Boolean).join("\n\n");
-  const sections = splitZoneSections(combinedText);
-
-  const objectives = cleanListItems(sections.objectives);
-  const withoutConsent = cleanListItems(sections.withoutConsent);
-  const withConsent = cleanListItems(sections.withConsent);
-  const prohibited = cleanListItems(sections.prohibited);
-
-  const looksTabular = /<table/i.test(combinedText) || /\|/.test(combinedText) || /\t/.test(combinedText);
-  const objectiveSource: ZoneSummary["debug"]["zoneObjectiveSource"] = objectives.length
-    ? looksTabular
-      ? "table"
-      : "text-block"
-    : "fallback";
-  const fallbackObjectives = objectives.length ? objectives : [`No zone-specific objectives found for zone ${zoneCode}.`];
-  const hasLandUse = withoutConsent.length || withConsent.length || prohibited.length;
-  const landUseSource: ZoneSummary["debug"]["landUseSource"] = hasLandUse
-    ? looksTabular
-      ? "table"
-      : "text-block"
-    : "clause-fallback";
-  const landUseFallback = hasLandUse
-    ? { withoutConsent, withConsent, prohibited }
-    : {
-        withoutConsent: [`No zone-specific land use table entries found for zone ${zoneCode}.`],
-        withConsent: [],
-        prohibited: [],
-      };
-
-  const summary: ZoneSummary = {
-    objectives: fallbackObjectives,
-    landUse: landUseFallback,
+  return {
+    objectives: objectiveTexts.length ? objectiveTexts : [notFoundReason],
+    landUse: hasLandUse
+      ? landUseBuckets
+      : { withoutConsent: [noLandUseReason], withConsent: [], prohibited: [] },
     debug: {
-      headingMatch: groupHeading,
-      zoneTableClauseKey: clausegroupId,
-      zoneTableClauseTitle: groupHeading,
-      zoneObjectiveSource: objectiveSource,
-      landUseSource,
-      zoneAnchorClauseKey: clausegroupId,
-      zoneAnchorTitle: groupHeading,
-      zoneCandidateCount: clauseLevels.length,
+      headingMatch: null,
+      zoneTableClauseKey: null,
+      zoneTableClauseTitle: null,
+      zoneObjectiveSource: "ingested",
+      landUseSource: hasLandUse ? "ingested" : "clause-fallback",
+      zoneAnchorClauseKey: null,
+      zoneAnchorTitle: null,
+      zoneCandidateCount: 0,
       excludedGlobalZoneClauses: [],
       usedGlobalZoneFallback: false,
+      zoneClauseKey: null,
+      zoneClauseTitle: null,
+      zoneBlockFound: false,
+      zoneBlockHeading: null,
+      landUseTableSectionFound: false,
+      landUseTableSectionHeading: null,
+      landUseZoneBlockFound: false,
+      landUseZoneBlockHeading: null,
+      landUseZoneClausegroupId: null,
+      objectivesCount: objectiveTexts.length,
+      landUseCounts: {
+        withoutConsent: landUseBuckets.withoutConsent.length,
+        withConsent: landUseBuckets.withConsent.length,
+        prohibited: landUseBuckets.prohibited.length,
+      },
+      landUseExtractionMode: null,
+      landUseResolvedViaLink: false,
+      landUseResolvedTargetIds: [],
+      lepSource: "db",
+      lepSourceError: null,
+      usedFallback: false,
+      fallbackReason: null,
       notes: [],
     },
   };
-
-  return { summary, clausegroupId };
 };
 
 const findLepInstrumentForLga = async (lga: string) => {
@@ -634,6 +708,11 @@ export const buildQuickSiteCheckLep = async (
   projectId: string,
   options: { debug?: boolean } = {},
 ): Promise<QuickSiteCheckLepResponse> => {
+  const errorContext: { projectId?: string; lepName?: string; lga?: string | null; zone?: string | null } = {
+    projectId,
+    lga: null,
+    zone: null,
+  };
   try {
     const normalizedId = normalizeProjectId(projectId);
     const project = await findProjectByExternalId(prisma, normalizedId);
@@ -646,6 +725,8 @@ export const buildQuickSiteCheckLep = async (
     const siteSummary = serializeSiteContext(siteContext, project);
 
     const lga = siteSummary?.lgaName ?? siteSummary?.lgaCode ?? null;
+    errorContext.projectId = project.id;
+    errorContext.lga = lga;
     const zone =
       project.zoningCode ??
       siteSummary?.zoningCode ??
@@ -655,6 +736,7 @@ export const buildQuickSiteCheckLep = async (
       null;
 
     const zoneCode = toZoneCode(zone);
+    errorContext.zone = zoneCode;
 
     if (!lga) {
       return {
@@ -673,6 +755,7 @@ export const buildQuickSiteCheckLep = async (
     }
 
     const lepInstrument = await findLepInstrumentForLga(lga);
+    errorContext.lepName = lepInstrument?.name;
 
     if (!lepInstrument) {
       return {
@@ -682,34 +765,12 @@ export const buildQuickSiteCheckLep = async (
       } satisfies QuickSiteCheckLepResponse;
     }
 
-    const useLocalFixtures = process.env.LEP_LOCAL_FIXTURES === "true";
-    const instrumentConfig = getInstrumentConfig(lepInstrument.slug);
-    const xmlFixtureKey = instrumentConfig?.xmlFixtureKey;
-    const xmlFixtureDocument =
-      useLocalFixtures && xmlFixtureKey ? LEP_XML_FIXTURES[xmlFixtureKey] : undefined;
+    const [storedObjectives, storedLandUses] = await Promise.all([
+      prisma.lepZoneObjective.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
+      prisma.lepZoneLandUse.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
+    ]);
 
-    let lepSource: "db" | "local-xml" = "db";
-    let lepSourceError: string | undefined;
-    let landUseExtractionMode: "db-clause" | "xml-clausegroup" = "db-clause";
-    let landUseZoneClausegroupId: string | null = null;
-    let xmlZoneSummary: ZoneSummary | null = null;
-
-    if (useLocalFixtures && xmlFixtureKey) {
-      if (xmlFixtureDocument) {
-        lepSource = "local-xml";
-        const extracted = extractZoneSummaryFromXmlFixture(xmlFixtureDocument, zoneCode);
-        if (extracted) {
-          xmlZoneSummary = extracted.summary;
-          landUseExtractionMode = "xml-clausegroup";
-          landUseZoneClausegroupId = extracted.clausegroupId;
-        } else {
-          lepSourceError = `Zone clausegroup pt-cg1.Zone_${zoneCode} not found in XML fixture.`;
-        }
-      } else {
-        const availableFixtureKeys = Object.keys(LEP_XML_FIXTURES).slice(0, 10);
-        lepSourceError = `Missing XML fixture for key ${xmlFixtureKey}. Available fixture keys: ${availableFixtureKeys.join(", ")}`;
-      }
-    }
+    const hasStoredZoneData = storedObjectives.length > 0 || storedLandUses.length > 0;
 
     const zonePattern = `Zone ${zoneCode}`;
 
@@ -722,26 +783,399 @@ export const buildQuickSiteCheckLep = async (
       select: { clauseKey: true, title: true, bodyText: true, hierarchyPath: true },
     });
 
-    const zoneClauses = allClauses.filter(
-      (clause) =>
-        clause.clauseKey?.startsWith("2") ||
-        clause.hierarchyPath?.includes("Part 2") ||
-        (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
-        (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
-        (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
-        (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
-    );
+    let zoneSummary: ZoneSummary = {
+      objectives: [],
+      landUse: { withoutConsent: [], withConsent: [], prohibited: [] },
+      debug: {
+        headingMatch: null,
+        zoneTableClauseKey: null,
+        zoneTableClauseTitle: null,
+        zoneObjectiveSource: "fallback",
+        landUseSource: null,
+        zoneAnchorClauseKey: null,
+        zoneAnchorTitle: null,
+        zoneCandidateCount: 0,
+        excludedGlobalZoneClauses: [],
+        usedGlobalZoneFallback: false,
+        zoneClauseKey: null,
+        zoneClauseTitle: null,
+        zoneBlockFound: false,
+        zoneBlockHeading: null,
+        landUseTableSectionFound: false,
+        landUseTableSectionHeading: null,
+        landUseZoneBlockFound: false,
+        landUseZoneBlockHeading: null,
+        landUseZoneClausegroupId: null,
+        objectivesCount: 0,
+        landUseCounts: { withoutConsent: 0, withConsent: 0, prohibited: 0 },
+        landUseExtractionMode: null,
+        landUseResolvedViaLink: false,
+        landUseResolvedTargetIds: [],
+        lepSource: "db",
+        lepSourceError: null,
+        usedFallback: false,
+        fallbackReason: null,
+        notes: [],
+      },
+    };
+    let zonePick: ZoneClausePick | null = null;
+    let usedFallback = false;
+    let fallbackReason: string | null = null;
 
-    const zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
-    const chosenZoneClause = zonePick.selection;
+    if (hasStoredZoneData) {
+      zoneSummary = buildStoredZoneSummary(zoneCode, storedObjectives, storedLandUses);
+    } else {
+      const clauseTwoThree = allClauses.find(isClauseTwoThree) ?? null;
+      const landUseTableClause = findLandUseTableClause(allClauses, zoneCode);
+      const instrumentConfig = getInstrumentConfig(lepInstrument.slug);
+      let lepSource: ZoneSummary["debug"]["lepSource"] = "db";
+      let lepSourceError: string | null = null;
 
-    if (!chosenZoneClause) {
-      console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
-    }
+      let xmlDocument: string | null = null;
+      if (instrumentConfig?.xmlLocalPath) {
+        try {
+          if (fs.existsSync(instrumentConfig.xmlLocalPath)) {
+            xmlDocument = await fs.promises.readFile(instrumentConfig.xmlLocalPath, "utf-8");
+            lepSource = "local-xml";
+          } else {
+            lepSourceError = `Local XML not found at ${instrumentConfig.xmlLocalPath}`;
+          }
+        } catch (error) {
+          lepSourceError = error instanceof Error ? error.message : String(error);
+          console.error("[quick-site-check-lep] Failed to load local XML", {
+            lep: lepInstrument.slug,
+            path: instrumentConfig.xmlLocalPath,
+            error,
+          });
+        }
+      }
 
-    let zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug);
-    if (xmlZoneSummary) {
-      zoneSummary = xmlZoneSummary;
+      let landUseTableXmlBlock = null as ReturnType<typeof extractZoneBlockFromLandUseXml>;
+      let landUseClausegroupExtraction = null as ReturnType<typeof extractZoneFromXmlClausegroup>;
+      if (xmlDocument) {
+        try {
+          landUseTableXmlBlock = extractZoneBlockFromLandUseXml(xmlDocument, zoneCode);
+          landUseClausegroupExtraction = extractZoneFromXmlClausegroup(xmlDocument, zoneCode);
+        } catch (error) {
+          lepSourceError = error instanceof Error ? error.message : String(error);
+          lepSource = "db";
+          console.error("[quick-site-check-lep] Failed to parse local XML for land use table", {
+            lep: lepInstrument.slug,
+            path: instrumentConfig?.xmlLocalPath,
+            error,
+          });
+        }
+      }
+      if (xmlDocument && !landUseTableXmlBlock && !landUseClausegroupExtraction) {
+        lepSource = "db";
+        lepSourceError =
+          lepSourceError ??
+          (zoneCode ? `Zone block not found in local XML for ${zoneCode}` : "Zone block not found in local XML");
+      }
+      const landUseTableText = landUseTableClause ? cleanXmlLikeString(landUseTableClause.bodyText) : "";
+      const landUseTableBlock = landUseTableClause
+        ? extractZoneBlockFromClause(landUseTableText, zoneCode)
+        : null;
+      const landUseTableSectionFound = Boolean(landUseTableClause || landUseTableXmlBlock || landUseClausegroupExtraction);
+      const landUseTableSectionHeading = landUseClausegroupExtraction
+        ? "Land Use Table"
+        : landUseTableXmlBlock
+          ? "Land Use Table"
+          : landUseTableClause?.title ?? null;
+      const landUseZoneBlockFound = Boolean(
+        landUseClausegroupExtraction || landUseTableXmlBlock || landUseTableBlock,
+      );
+      const landUseZoneBlockHeading =
+        landUseClausegroupExtraction?.heading ?? landUseTableXmlBlock?.heading ?? landUseTableBlock?.heading ?? null;
+      const landUseZoneClausegroupId = landUseClausegroupExtraction?.clausegroupId ?? null;
+      const lepSourceExtras: Partial<ZoneSummary["debug"]> = { lepSource, lepSourceError };
+
+      if (landUseClausegroupExtraction) {
+        const syntheticBlockSections: string[] = [];
+        syntheticBlockSections.push("Objectives of zone");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.objectives);
+        syntheticBlockSections.push("Permitted without consent");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.withoutConsent);
+        syntheticBlockSections.push("Permitted with consent");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.withConsent);
+        syntheticBlockSections.push("Prohibited");
+        syntheticBlockSections.push(...landUseClausegroupExtraction.prohibited);
+
+        const syntheticBlock = syntheticBlockSections.join("\n");
+
+        const clauseForXml: ClauseSummary = landUseTableClause
+          ? {
+              clauseKey: landUseTableClause.clauseKey,
+              title: landUseTableClause.title ?? "Land Use Table",
+              bodyText: syntheticBlock,
+              hierarchyPath: landUseTableClause.hierarchyPath ?? [],
+            }
+          : {
+              clauseKey: landUseClausegroupExtraction.clausegroupId ?? `land-use-table-${zoneCode}`,
+              title: landUseClausegroupExtraction.heading ?? "Land Use Table",
+              bodyText: syntheticBlock,
+              hierarchyPath: [],
+            };
+
+        const landUseSelection: ZoneClauseSelection = {
+          clause: clauseForXml,
+          matchedHeading: landUseClausegroupExtraction.heading,
+          sectionText: syntheticBlock,
+          source: "heading",
+        };
+
+        const landUseDebug: ZoneClausePick["debug"] = {
+          anchorClauseKey: clauseForXml.clauseKey ?? null,
+          anchorTitle: clauseForXml.title ?? null,
+          headingMatch: landUseClausegroupExtraction.heading ?? null,
+          candidateCount: landUseTableClause ? 1 : 0,
+          excludedGlobalClauses: [],
+          usedGlobalFallback: false,
+        } satisfies ZoneClausePick["debug"];
+
+        const summaryFromLandUseTable = buildZoneSummary(landUseSelection, zoneCode, landUseDebug, {
+          zoneClauseKey: clauseForXml.clauseKey ?? null,
+          zoneClauseTitle: clauseForXml.title ?? null,
+          zoneBlockFound: true,
+          zoneBlockHeading: landUseClausegroupExtraction.heading ?? null,
+          landUseTableSectionFound,
+          landUseTableSectionHeading,
+          landUseZoneBlockFound,
+          landUseZoneBlockHeading,
+          landUseZoneClausegroupId,
+          landUseSource: "land-use-table",
+          landUseExtractionMode: landUseClausegroupExtraction.extractionMode,
+          landUseResolvedViaLink: false,
+          landUseResolvedTargetIds: [],
+          ...lepSourceExtras,
+        });
+
+        const hasLandUseFromTable =
+          summaryFromLandUseTable.debug.landUseCounts.withoutConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.withConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.prohibited > 0;
+
+        const hasObjectives = summaryFromLandUseTable.debug.objectivesCount > 0;
+
+        if (hasLandUseFromTable || hasObjectives) {
+          zoneSummary = summaryFromLandUseTable;
+        } else {
+          usedFallback = true;
+          fallbackReason = fallbackReason ?? "No land use entries found in Land Use Table section for the requested zone";
+        }
+      } else if (landUseTableXmlBlock) {
+        const clauseForXml: ClauseSummary = landUseTableClause
+          ? {
+              clauseKey: landUseTableClause.clauseKey,
+              title: landUseTableClause.title ?? "Land Use Table",
+              bodyText: landUseTableXmlBlock.block,
+              hierarchyPath: landUseTableClause.hierarchyPath ?? [],
+            }
+          : {
+              clauseKey: `land-use-table-${zoneCode}`,
+              title: "Land Use Table",
+              bodyText: landUseTableXmlBlock.block,
+              hierarchyPath: [],
+            };
+
+        const landUseSelection: ZoneClauseSelection = {
+          clause: clauseForXml,
+          matchedHeading: landUseTableXmlBlock.heading,
+          sectionText: landUseTableXmlBlock.block,
+          source: "heading",
+        };
+
+        const landUseDebug: ZoneClausePick["debug"] = {
+          anchorClauseKey: clauseForXml.clauseKey ?? null,
+          anchorTitle: clauseForXml.title ?? null,
+          headingMatch: landUseTableXmlBlock.heading ?? null,
+          candidateCount: landUseTableClause ? 1 : 0,
+          excludedGlobalClauses: [],
+          usedGlobalFallback: false,
+        } satisfies ZoneClausePick["debug"];
+
+        const summaryFromLandUseTable = buildZoneSummary(landUseSelection, zoneCode, landUseDebug, {
+          zoneClauseKey: clauseForXml.clauseKey ?? null,
+          zoneClauseTitle: clauseForXml.title ?? null,
+          zoneBlockFound: true,
+          zoneBlockHeading: landUseTableXmlBlock.heading ?? null,
+          landUseTableSectionFound,
+          landUseTableSectionHeading,
+          landUseZoneBlockFound,
+          landUseZoneBlockHeading,
+          landUseZoneClausegroupId,
+          landUseSource: "land-use-table",
+          landUseExtractionMode: landUseTableXmlBlock.extractionMode,
+          landUseResolvedViaLink: landUseTableXmlBlock.resolvedViaLink,
+          landUseResolvedTargetIds: landUseTableXmlBlock.resolvedTargetIds,
+          ...lepSourceExtras,
+        });
+
+        const hasLandUseFromTable =
+          summaryFromLandUseTable.debug.landUseCounts.withoutConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.withConsent > 0 ||
+          summaryFromLandUseTable.debug.landUseCounts.prohibited > 0;
+
+        if (hasLandUseFromTable) {
+          zoneSummary = summaryFromLandUseTable;
+        } else {
+          usedFallback = true;
+          fallbackReason = fallbackReason ?? "No land use entries found in Land Use Table section for the requested zone";
+        }
+      } else if (landUseTableClause) {
+        if (landUseTableBlock) {
+          const landUseSelection: ZoneClauseSelection = {
+            clause: landUseTableClause,
+            matchedHeading: landUseTableBlock.heading,
+            sectionText: landUseTableBlock.block,
+            source: "heading",
+          };
+
+          const landUseDebug: ZoneClausePick["debug"] = {
+            anchorClauseKey: landUseTableClause.clauseKey ?? null,
+            anchorTitle: landUseTableClause.title ?? null,
+            headingMatch: landUseTableBlock.heading ?? null,
+            candidateCount: 1,
+            excludedGlobalClauses: [],
+            usedGlobalFallback: false,
+          } satisfies ZoneClausePick["debug"];
+
+          const summaryFromLandUseTable = buildZoneSummary(landUseSelection, zoneCode, landUseDebug, {
+            zoneClauseKey: landUseTableClause.clauseKey ?? null,
+            zoneClauseTitle: landUseTableClause.title ?? null,
+            zoneBlockFound: true,
+            zoneBlockHeading: landUseTableBlock.heading ?? null,
+            landUseTableSectionFound,
+            landUseTableSectionHeading,
+            landUseZoneBlockFound,
+            landUseZoneBlockHeading,
+            landUseZoneClausegroupId,
+            landUseSource: "land-use-table-section",
+            landUseExtractionMode: "string-search",
+            ...lepSourceExtras,
+          });
+
+          const hasLandUseFromTable =
+            summaryFromLandUseTable.debug.landUseCounts.withoutConsent > 0 ||
+            summaryFromLandUseTable.debug.landUseCounts.withConsent > 0 ||
+            summaryFromLandUseTable.debug.landUseCounts.prohibited > 0;
+
+          if (hasLandUseFromTable) {
+            zoneSummary = summaryFromLandUseTable;
+          } else {
+            usedFallback = true;
+            fallbackReason =
+              fallbackReason ?? "No land use entries found in Land Use Table section for the requested zone";
+          }
+        } else {
+          usedFallback = true;
+          fallbackReason = fallbackReason ?? "Zone heading not found inside Land Use Table section";
+        }
+      }
+      const landUseTableExtras: Partial<ZoneSummary["debug"]> = {
+        landUseTableSectionFound,
+        landUseTableSectionHeading,
+        landUseZoneBlockFound,
+        landUseZoneBlockHeading,
+        landUseZoneClausegroupId,
+        landUseExtractionMode: landUseClausegroupExtraction
+          ? landUseClausegroupExtraction.extractionMode
+          : landUseTableXmlBlock
+            ? landUseTableXmlBlock.extractionMode
+            : landUseTableBlock
+              ? "string-search"
+              : null,
+        landUseResolvedViaLink: landUseTableXmlBlock?.resolvedViaLink ?? false,
+        landUseResolvedTargetIds: landUseTableXmlBlock?.resolvedTargetIds ?? [],
+        ...lepSourceExtras,
+      };
+
+      if (
+        zoneSummary.debug.landUseSource !== "land-use-table-section" &&
+        zoneSummary.debug.landUseSource !== "land-use-table"
+      ) {
+        const cleanedClauseText = clauseTwoThree ? cleanXmlLikeString(clauseTwoThree.bodyText) : "";
+        const clauseTwoThreeBlock = extractZoneBlockFromClause(cleanedClauseText, zoneCode);
+
+        const clauseTwoThreeSelection: ZoneClauseSelectionResult = clauseTwoThreeBlock
+          ? {
+              clause: clauseTwoThree!,
+              matchedHeading: clauseTwoThreeBlock.heading,
+              sectionText: clauseTwoThreeBlock.block,
+              source: "heading",
+            }
+          : null;
+
+        const clauseTwoThreeDebug: ZoneClausePick["debug"] = {
+          anchorClauseKey: clauseTwoThree?.clauseKey ?? null,
+          anchorTitle: clauseTwoThree?.title ?? null,
+          headingMatch: clauseTwoThreeBlock?.heading ?? null,
+          candidateCount: clauseTwoThree ? 1 : 0,
+          excludedGlobalClauses: [],
+          usedGlobalFallback: false,
+        } satisfies ZoneClausePick["debug"];
+
+        if (clauseTwoThreeSelection) {
+          const summaryFromTwoThree = buildZoneSummary(clauseTwoThreeSelection, zoneCode, clauseTwoThreeDebug, {
+            zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+            zoneClauseTitle: clauseTwoThree?.title ?? null,
+            zoneBlockFound: true,
+            zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+            ...landUseTableExtras,
+            ...lepSourceExtras,
+          });
+
+          const hasParsedContent =
+            summaryFromTwoThree.debug.objectivesCount > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.withoutConsent > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.withConsent > 0 ||
+            summaryFromTwoThree.debug.landUseCounts.prohibited > 0;
+
+          if (hasParsedContent) {
+            zoneSummary = summaryFromTwoThree;
+          } else {
+            usedFallback = true;
+            fallbackReason = "No objectives or land use entries found in Part 2.3 zone block";
+            zoneSummary = summaryFromTwoThree;
+          }
+        }
+
+        if (!clauseTwoThreeSelection || usedFallback) {
+          if (!clauseTwoThreeSelection && clauseTwoThree) {
+            usedFallback = true;
+            fallbackReason = fallbackReason ?? "Zone heading not found inside Part 2.3 clause";
+          }
+
+          const zoneClauses = allClauses.filter(
+            (clause) =>
+              clause.clauseKey?.startsWith("2") ||
+              clause.hierarchyPath?.includes("Part 2") ||
+              (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
+              (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
+              (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
+              (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+          );
+
+          zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);
+          const chosenZoneClause = zonePick.selection;
+
+          if (!chosenZoneClause) {
+            console.warn("[quick-site-check-lep] No zone clause found", { lep: lepInstrument.name, zone: zoneCode });
+          }
+
+          const fallbackExtras: Partial<ZoneSummary["debug"]> = {
+            usedFallback: usedFallback || !clauseTwoThreeSelection,
+            fallbackReason,
+            zoneClauseKey: clauseTwoThree?.clauseKey ?? null,
+            zoneClauseTitle: clauseTwoThree?.title ?? null,
+            zoneBlockFound: Boolean(clauseTwoThreeSelection),
+            zoneBlockHeading: clauseTwoThreeBlock?.heading ?? null,
+            ...landUseTableExtras,
+          };
+
+          zoneSummary = buildZoneSummary(chosenZoneClause, zoneCode, zonePick.debug, fallbackExtras);
+        }
+      }
     }
 
     const partBuckets: Record<"4" | "5" | "6", ClauseSummary[]> = { "4": [], "5": [], "6": [] };
@@ -803,6 +1237,24 @@ export const buildQuickSiteCheckLep = async (
           zoneCandidateCount: zoneSummary.debug.zoneCandidateCount,
           excludedGlobalZoneClauses: zoneSummary.debug.excludedGlobalZoneClauses,
           usedGlobalZoneFallback: zoneSummary.debug.usedGlobalZoneFallback,
+          zoneClauseKey: zoneSummary.debug.zoneClauseKey,
+          zoneClauseTitle: zoneSummary.debug.zoneClauseTitle,
+          zoneBlockFound: zoneSummary.debug.zoneBlockFound,
+          zoneBlockHeading: zoneSummary.debug.zoneBlockHeading,
+          landUseTableSectionFound: zoneSummary.debug.landUseTableSectionFound,
+          landUseTableSectionHeading: zoneSummary.debug.landUseTableSectionHeading,
+          landUseZoneBlockFound: zoneSummary.debug.landUseZoneBlockFound,
+          landUseZoneBlockHeading: zoneSummary.debug.landUseZoneBlockHeading,
+          landUseZoneClausegroupId: zoneSummary.debug.landUseZoneClausegroupId,
+          objectivesCount: zoneSummary.debug.objectivesCount,
+          landUseCounts: zoneSummary.debug.landUseCounts,
+          landUseExtractionMode: zoneSummary.debug.landUseExtractionMode,
+          landUseResolvedViaLink: zoneSummary.debug.landUseResolvedViaLink,
+          landUseResolvedTargetIds: zoneSummary.debug.landUseResolvedTargetIds,
+          lepSource: zoneSummary.debug.lepSource,
+          lepSourceError: zoneSummary.debug.lepSourceError,
+          usedFallback: zoneSummary.debug.usedFallback,
+          fallbackReason: zoneSummary.debug.fallbackReason,
           partCandidateCounts: {
             "4": partBuckets["4"].length,
             "5": partBuckets["5"].length,
@@ -853,9 +1305,14 @@ export const buildQuickSiteCheckLep = async (
       debug: debugInfo,
     } satisfies QuickSiteCheckLepResponse;
   } catch (error) {
-    console.error("[quick-site-check-lep] failed", error);
+    console.error("[quick-site-check-lep] failed", { errorContext, error });
     return {
       ok: false,
+      projectId: errorContext.projectId,
+      lepName: errorContext.lepName,
+      lga: errorContext.lga ?? undefined,
+      zone: errorContext.zone ?? null,
+      error: error instanceof Error ? error.message : String(error),
       message: "Unable to run LEP Quick Site Check right now.",
     } satisfies QuickSiteCheckLepResponse;
   }
