@@ -25,15 +25,40 @@ export type QuickSiteCheckLepSuccess = {
   part6Reason?: string;
   debug?: {
     zoneHeadingMatch: string | null;
-    landUseSource: string | null;
+    landUseSource:
+      | "ingested"
+      | "table"
+      | "text-block"
+      | "clause-fallback"
+      | "land-use-table"
+      | "land-use-table-section"
+      | null;
     zoneTableClauseKey?: string | null;
     zoneTableClauseTitle?: string | null;
-    zoneObjectiveSource?: "table" | "text-block" | "fallback";
+    zoneObjectiveSource?: "table" | "text-block" | "fallback" | "ingested";
     zoneAnchorClauseKey?: string | null;
     zoneAnchorTitle?: string | null;
     zoneCandidateCount?: number;
     excludedGlobalZoneClauses?: string[];
     usedGlobalZoneFallback?: boolean;
+    zoneClauseKey?: string | null;
+    zoneClauseTitle?: string | null;
+    zoneBlockFound?: boolean;
+    zoneBlockHeading?: string | null;
+    landUseTableSectionFound?: boolean;
+    landUseTableSectionHeading?: string | null;
+    landUseZoneBlockFound?: boolean;
+    landUseZoneBlockHeading?: string | null;
+    objectivesCount?: number;
+    landUseCounts?: { withoutConsent: number; withConsent: number; prohibited: number };
+    landUseExtractionMode?: "string-search" | "xml-traverse" | "link-resolve" | "xml-clausegroup" | null;
+    landUseResolvedViaLink?: boolean;
+    landUseResolvedTargetIds?: string[];
+    landUseZoneClausegroupId?: string | null;
+    lepSource?: "db" | "local-xml";
+    lepSourceError?: string | null;
+    usedFallback?: boolean;
+    fallbackReason?: string | null;
     partCandidateCounts: { "4": number; "5": number; "6": number };
     notes?: string[];
   };
@@ -42,6 +67,10 @@ export type QuickSiteCheckLepSuccess = {
 export type QuickSiteCheckLepError = {
   ok: false;
   projectId?: string;
+  lepName?: string;
+  lga?: string;
+  zone?: string | null;
+  error?: string;
   message: string;
 };
 
