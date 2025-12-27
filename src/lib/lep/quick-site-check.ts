@@ -12,11 +12,9 @@ import { LEP_XML_FIXTURES } from "../legislation/fixtures";
 import { prisma } from "../prisma";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
 import { serializeSiteContext } from "../site-context";
-import { getInstrumentConfig } from "../legislation/config";
 import { buildLepInstrumentFilter } from "./lep-search";
 import { resolveCanonicalNswLga } from "./nsw-lga-normaliser";
 import {
-  cleanXmlLikeString,
   findLandUseTableClause,
   GLOBAL_ZONE_PATTERNS,
   extractZoneBlockFromLandUseXml,
