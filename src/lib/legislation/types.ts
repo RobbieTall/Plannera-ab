@@ -10,6 +10,7 @@ export interface InstrumentConfig {
   sourceUrl: string;
   xmlUrl?: string;
   xmlLocalPath?: string;
+  xmlFixtureKey?: string;
   jurisdiction?: string;
   xmlSourceUrl?: string;
   exportDate?: string;
