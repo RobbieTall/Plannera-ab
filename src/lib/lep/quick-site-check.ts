@@ -706,7 +706,8 @@ export const buildQuickSiteCheckLep = async (
           lepSourceError = `Zone clausegroup pt-cg1.Zone_${zoneCode} not found in XML fixture.`;
         }
       } else {
-        lepSourceError = `Missing XML fixture for key ${xmlFixtureKey}`;
+        const availableFixtureKeys = Object.keys(LEP_XML_FIXTURES).slice(0, 10);
+        lepSourceError = `Missing XML fixture for key ${xmlFixtureKey}. Available fixture keys: ${availableFixtureKeys.join(", ")}`;
       }
     }
 
