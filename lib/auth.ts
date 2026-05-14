@@ -13,11 +13,19 @@ export interface AuthenticatedUser {
 // Firebase tokens are valid for 1 hour; a 5-minute TTL is safe and eliminates
 // the DB round-trip on every request within a warm instance.
 const AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
+const AUTH_CACHE_PRUNE_INTERVAL = 200;
 interface CacheEntry {
   user: AuthenticatedUser;
   expiresAt: number;
 }
 const authCache = new Map<string, CacheEntry>();
+let authPruneCounter = 0;
+
+function pruneAuthCache(now: number): void {
+  for (const [uid, entry] of authCache) {
+    if (now > entry.expiresAt) authCache.delete(uid);
+  }
+}
 
 export async function authenticateRequest(
   req: NextRequest
@@ -59,6 +67,10 @@ export async function authenticateRequest(
     dbUserId: users[0].id,
   };
 
+  if (++authPruneCounter >= AUTH_CACHE_PRUNE_INTERVAL) {
+    authPruneCounter = 0;
+    pruneAuthCache(now);
+  }
   authCache.set(decoded.uid, { user, expiresAt: now + AUTH_CACHE_TTL_MS });
   return user;
 }

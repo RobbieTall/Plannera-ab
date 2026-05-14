@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
       const { entryId } = body;
 
       if (!entryId) throw new ValidationError("entryId is required");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entryId)) {
+        throw new ValidationError("entryId must be a valid UUID");
+      }
 
       // Fetch entry, user profile, recent patterns, and any existing insight in parallel.
       const [[entry], [dbUser], patterns, [existingInsight]] = await Promise.all([

@@ -19,6 +19,15 @@ export async function GET(req: NextRequest) {
       const to = searchParams.get("to");
       const rawLimit = parseInt(searchParams.get("limit") ?? "20", 10);
       const limit = Number.isNaN(rawLimit) ? 20 : Math.min(rawLimit, 100);
+      const rawOffset = parseInt(searchParams.get("offset") ?? "0", 10);
+      const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
+
+      if (from && !DATE_RE.test(from)) {
+        throw new ValidationError("from must be in YYYY-MM-DD format");
+      }
+      if (to && !DATE_RE.test(to)) {
+        throw new ValidationError("to must be in YYYY-MM-DD format");
+      }
 
       const conditions = [eq(journalEntries.userId, user.dbUserId)];
       if (from) conditions.push(gte(journalEntries.entryDate, from));
@@ -36,10 +45,11 @@ export async function GET(req: NextRequest) {
           .from(journalEntries)
           .where(whereClause)
           .orderBy(desc(journalEntries.entryDate))
-          .limit(limit),
+          .limit(limit)
+          .offset(offset),
       ]);
 
-      return NextResponse.json({ entries, total });
+      return NextResponse.json({ entries, total, limit, offset });
     } catch (err) {
       return handleApiError(err);
     }

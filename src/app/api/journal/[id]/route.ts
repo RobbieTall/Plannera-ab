@@ -5,6 +5,8 @@ import { handleApiError, NotFoundError, ValidationError } from "../../../../../l
 import { withSecurity } from "../../../../../lib/middleware/security";
 import { eq, and } from "drizzle-orm";
 
+const MAX_CONTENT_LENGTH = 50_000;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -41,8 +43,20 @@ export async function PATCH(
       const body = await req.json();
       const { title, content, mood, energy, tags } = body;
 
-      if (content !== undefined && !content.trim()) {
-        throw new ValidationError("Content cannot be empty");
+      if (content !== undefined) {
+        if (!content.trim()) throw new ValidationError("Content cannot be empty");
+        if (content.length > MAX_CONTENT_LENGTH) {
+          throw new ValidationError(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
+        }
+      }
+      if (mood !== undefined && mood !== null && (typeof mood !== "number" || mood < 1 || mood > 10)) {
+        throw new ValidationError("mood must be a number between 1 and 10");
+      }
+      if (energy !== undefined && energy !== null && (typeof energy !== "number" || energy < 1 || energy > 10)) {
+        throw new ValidationError("energy must be a number between 1 and 10");
+      }
+      if (tags !== undefined && !Array.isArray(tags)) {
+        throw new ValidationError("tags must be an array");
       }
 
       const [updated] = await journalDb

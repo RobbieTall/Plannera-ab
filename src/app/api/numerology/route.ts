@@ -56,19 +56,24 @@ export async function POST(req: NextRequest) {
       const lifePath = calculateLifePath(birthDate);
       const personalDay = calculatePersonalDay(birthDate);
 
+      const nameNumbers = fullName
+        ? {
+            soulUrge: calculateSoulUrge(fullName),
+            expression: calculateExpression(fullName),
+          }
+        : null;
+
       return NextResponse.json({
         lifePath,
         lifePathMeaning: getNumerologyMeaning(lifePath),
         personalDay,
         personalDayMeaning: getNumerologyMeaning(personalDay),
-        ...(fullName
-          ? {
-              soulUrge: calculateSoulUrge(fullName),
-              expression: calculateExpression(fullName),
-              soulUrgeMeaning: getNumerologyMeaning(calculateSoulUrge(fullName)),
-              expressionMeaning: getNumerologyMeaning(calculateExpression(fullName)),
-            }
-          : {}),
+        ...(nameNumbers && {
+          soulUrge: nameNumbers.soulUrge,
+          soulUrgeMeaning: getNumerologyMeaning(nameNumbers.soulUrge),
+          expression: nameNumbers.expression,
+          expressionMeaning: getNumerologyMeaning(nameNumbers.expression),
+        }),
       });
     } catch (err) {
       return handleApiError(err);
