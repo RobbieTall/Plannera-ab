@@ -1,4 +1,5 @@
 import 'dart:convert' show jsonDecode;
+import 'package:dio/dio.dart' show DioException;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -49,8 +50,16 @@ class SyncService {
           'tags': tags,
         });
         await _db.markSynced(entry.id);
+      } on DioException catch (e) {
+        final status = e.response?.statusCode;
+        if (status != null && status >= 400 && status < 500) {
+          // 4xx = bad data for this entry; skip it, continue with others.
+          continue;
+        }
+        // 5xx or network error — server is down, abort the batch.
+        return;
       } catch (_) {
-        // Will retry on next sync
+        return;
       }
     }
   }

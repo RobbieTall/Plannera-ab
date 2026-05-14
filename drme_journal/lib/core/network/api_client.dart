@@ -24,6 +24,7 @@ abstract class ApiClient {
     @Query('from') String? from,
     @Query('to') String? to,
     @Query('limit') int? limit,
+    @Query('offset') int? offset,
   });
 
   @POST('/api/journal')
@@ -51,6 +52,7 @@ abstract class ApiClient {
   @GET('/api/insights')
   Future<Map<String, dynamic>> getInsights({
     @Query('limit') int? limit,
+    @Query('offset') int? offset,
     @Query('unread') bool? unreadOnly,
   });
 

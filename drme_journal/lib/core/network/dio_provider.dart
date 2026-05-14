@@ -24,13 +24,17 @@ final dioProvider = Provider<Dio>((ref) {
     },
     onError: (DioException err, handler) async {
       if (err.response?.statusCode == 401) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          final token = await user.getIdToken(true);
-          final opts = err.requestOptions;
-          opts.headers['Authorization'] = 'Bearer $token';
-          final response = await Dio().fetch(opts);
-          return handler.resolve(response);
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            final token = await user.getIdToken(true);
+            final opts = err.requestOptions;
+            opts.headers['Authorization'] = 'Bearer $token';
+            final response = await Dio().fetch(opts);
+            return handler.resolve(response);
+          }
+        } catch (_) {
+          // Token refresh failed — fall through and surface the original 401.
         }
       }
       handler.next(err);
