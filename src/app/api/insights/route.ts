@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
     try {
       const user = await authenticateRequest(req);
       const { searchParams } = new URL(req.url);
-      const limit = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
+      const rawLimit = parseInt(searchParams.get("limit") ?? "20", 10);
+      const limit = Number.isNaN(rawLimit) ? 20 : Math.min(rawLimit, 50);
+      const rawOffset = parseInt(searchParams.get("offset") ?? "0", 10);
+      const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
       const unreadOnly = searchParams.get("unread") === "true";
 
       const conditions = [eq(journalInsights.userId, user.dbUserId)];
@@ -21,33 +24,10 @@ export async function GET(req: NextRequest) {
         .from(journalInsights)
         .where(and(...conditions))
         .orderBy(desc(journalInsights.createdAt))
-        .limit(limit);
+        .limit(limit)
+        .offset(offset);
 
-      return NextResponse.json({ insights });
-    } catch (err) {
-      return handleApiError(err);
-    }
-  });
-}
-
-export async function PATCH(req: NextRequest) {
-  return withSecurity(req, async () => {
-    try {
-      const user = await authenticateRequest(req);
-      const body = await req.json();
-      const { id } = body;
-
-      await journalDb
-        .update(journalInsights)
-        .set({ isRead: true })
-        .where(
-          and(
-            eq(journalInsights.id, id),
-            eq(journalInsights.userId, user.dbUserId)
-          )
-        );
-
-      return NextResponse.json({ updated: true });
+      return NextResponse.json({ insights, limit, offset });
     } catch (err) {
       return handleApiError(err);
     }

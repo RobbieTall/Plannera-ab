@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { journalDb, journalEntries } from "../../../../db";
+import { journalDb, journalEntries, journalUsers } from "../../../../db";
 import { authenticateRequest } from "../../../../lib/auth";
 import { handleApiError, ValidationError } from "../../../../lib/errors/error-handler";
 import { withSecurity } from "../../../../lib/middleware/security";
 import { getMoonPhase } from "../../../../lib/astrology";
+import { calculatePersonalDay } from "../../../../lib/numerology";
 import { eq, desc, and, gte, lte, count } from "drizzle-orm";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -72,7 +73,19 @@ export async function POST(req: NextRequest) {
       }
 
       const date = entryDate ?? new Date().toISOString().slice(0, 10);
-      const moonPhase = getMoonPhase(date).phase;
+
+      const [moonPhaseResult, [dbUser]] = await Promise.all([
+        Promise.resolve(getMoonPhase(date)),
+        journalDb
+          .select({ birthDate: journalUsers.birthDate })
+          .from(journalUsers)
+          .where(eq(journalUsers.id, user.dbUserId))
+          .limit(1),
+      ]);
+
+      const numerologyDay = dbUser?.birthDate
+        ? calculatePersonalDay(dbUser.birthDate, date)
+        : null;
 
       const [entry] = await journalDb
         .insert(journalEntries)
@@ -84,7 +97,8 @@ export async function POST(req: NextRequest) {
           energy,
           tags: tags ?? [],
           entryDate: date,
-          moonPhase,
+          moonPhase: moonPhaseResult.phase,
+          numerologyDay,
           syncedAt: new Date(),
         })
         .returning();

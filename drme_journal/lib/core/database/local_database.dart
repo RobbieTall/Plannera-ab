@@ -51,9 +51,10 @@ class LocalDatabase extends _$LocalDatabase {
             ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
           .get();
 
-  Future<List<LocalJournalEntry>> getUnsyncedEntries() =>
+  Future<List<LocalJournalEntry>> getUnsyncedEntries({int batchSize = 50}) =>
       (select(localJournalEntries)
-            ..where((t) => t.isSynced.equals(false)))
+            ..where((t) => t.isSynced.equals(false))
+            ..limit(batchSize))
           .get();
 
   Future<void> upsertEntry(LocalJournalEntriesCompanion entry) async {

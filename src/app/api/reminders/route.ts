@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { journalDb, journalReminders } from "../../../../db";
 import { authenticateRequest } from "../../../../lib/auth";
-import { handleApiError, NotFoundError, ValidationError } from "../../../../lib/errors/error-handler";
+import { handleApiError, ValidationError } from "../../../../lib/errors/error-handler";
 import { withSecurity } from "../../../../lib/middleware/security";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   return withSecurity(req, async () => {
@@ -49,63 +49,3 @@ export async function POST(req: NextRequest) {
   });
 }
 
-export async function PATCH(req: NextRequest) {
-  return withSecurity(req, async () => {
-    try {
-      const user = await authenticateRequest(req);
-      const body = await req.json();
-      const { id, isActive, fcmToken, title, message } = body;
-
-      if (!id) throw new ValidationError("Reminder id is required");
-
-      const [updated] = await journalDb
-        .update(journalReminders)
-        .set({
-          ...(isActive !== undefined && { isActive }),
-          ...(fcmToken !== undefined && { fcmToken }),
-          ...(title !== undefined && { title }),
-          ...(message !== undefined && { message }),
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(journalReminders.id, id),
-            eq(journalReminders.userId, user.dbUserId)
-          )
-        )
-        .returning();
-
-      if (!updated) throw new NotFoundError("Reminder");
-      return NextResponse.json(updated);
-    } catch (err) {
-      return handleApiError(err);
-    }
-  });
-}
-
-export async function DELETE(req: NextRequest) {
-  return withSecurity(req, async () => {
-    try {
-      const user = await authenticateRequest(req);
-      const { searchParams } = new URL(req.url);
-      const id = searchParams.get("id");
-
-      if (!id) throw new ValidationError("Reminder id is required");
-
-      const deleted = await journalDb
-        .delete(journalReminders)
-        .where(
-          and(
-            eq(journalReminders.id, id),
-            eq(journalReminders.userId, user.dbUserId)
-          )
-        )
-        .returning();
-
-      if (deleted.length === 0) throw new NotFoundError("Reminder");
-      return NextResponse.json({ deleted: true });
-    } catch (err) {
-      return handleApiError(err);
-    }
-  });
-}
