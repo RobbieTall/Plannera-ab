@@ -22,22 +22,32 @@ const ZODIAC_SIGNS: ZodiacSign[] = [
   { sign: "Pisces", symbol: "♓", element: "Water", modality: "Mutable", ruling_planet: "Neptune", traits: ["empathetic", "imaginative", "spiritual"] },
 ];
 
-const SIGN_BOUNDARIES = [
-  [3, 21, "Aries"], [4, 20, "Taurus"], [5, 21, "Gemini"], [6, 21, "Cancer"],
-  [7, 23, "Leo"], [8, 23, "Virgo"], [9, 23, "Libra"], [10, 23, "Scorpio"],
-  [11, 22, "Sagittarius"], [12, 22, "Capricorn"], [1, 20, "Aquarius"], [2, 19, "Pisces"],
-] as const;
+// Ordered Jan→Dec by start date. Capricorn wraps year-end so it is the default.
+const SIGN_STARTS: ReadonlyArray<readonly [number, number, string]> = [
+  [1, 20, "Aquarius"],
+  [2, 19, "Pisces"],
+  [3, 21, "Aries"],
+  [4, 20, "Taurus"],
+  [5, 21, "Gemini"],
+  [6, 21, "Cancer"],
+  [7, 23, "Leo"],
+  [8, 23, "Virgo"],
+  [9, 23, "Libra"],
+  [10, 23, "Scorpio"],
+  [11, 22, "Sagittarius"],
+  [12, 22, "Capricorn"],
+];
 
 export function getSunSign(birthDate: string): string {
   const date = new Date(birthDate);
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-
-  for (const [m, d, sign] of SIGN_BOUNDARIES) {
-    if (month === m && day >= d) return sign;
-    if (month === (m % 12) + 1 && day < d) return sign;
+  const mmdd = (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
+  // Walk forward through starts; the last one where start ≤ mmdd wins.
+  // Capricorn is the default for Jan 1–19 (no start is ≤ them except Dec 22 from prev year).
+  let result = "Capricorn";
+  for (const [m, d, sign] of SIGN_STARTS) {
+    if (m * 100 + d <= mmdd) result = sign;
   }
-  return "Capricorn";
+  return result;
 }
 
 export function getZodiacInfo(sign: string): ZodiacSign | undefined {

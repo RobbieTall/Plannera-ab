@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -54,7 +55,7 @@ class JournalRepository {
     );
 
     await _db.upsertEntry(companion);
-    _sync.syncPendingEntries();
+    unawaited(_sync.syncPendingEntries());
 
     return (await _db.getEntriesForDate(date))
         .firstWhere((e) => e.id == id);

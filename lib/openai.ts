@@ -29,10 +29,13 @@ export interface InsightGenerationInput {
   recentPatterns?: string[];
 }
 
+const OPENAI_TIMEOUT_MS = 25_000;
+
 export async function generateJournalInsight(
   input: InsightGenerationInput
 ): Promise<{ title: string; content: string; type: string }> {
   const client = getClient();
+  const signal = AbortSignal.timeout(OPENAI_TIMEOUT_MS);
 
   const systemPrompt = `You are a compassionate spiritual advisor and journaling coach who specializes in
 numerology and astrology. Provide thoughtful, personalized insights based on journal entries and cosmic context.
@@ -65,16 +68,19 @@ ${input.recentPatterns?.length ? `Recent Patterns: ${input.recentPatterns.join("
 
 Respond with JSON: { "title": "...", "content": "...", "type": "reflection|pattern|cosmic|action" }`;
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 600,
-    temperature: 0.7,
-  });
+  const response = await client.chat.completions.create(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 600,
+      temperature: 0.7,
+    },
+    { signal }
+  );
 
   const raw = response.choices[0]?.message?.content ?? "{}";
   const parsed = JSON.parse(raw);

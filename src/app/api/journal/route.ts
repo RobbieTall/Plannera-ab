@@ -4,7 +4,10 @@ import { authenticateRequest } from "../../../../lib/auth";
 import { handleApiError, ValidationError } from "../../../../lib/errors/error-handler";
 import { withSecurity } from "../../../../lib/middleware/security";
 import { getMoonPhase } from "../../../../lib/astrology";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, count } from "drizzle-orm";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_CONTENT_LENGTH = 50_000;
 
 export async function GET(req: NextRequest) {
   return withSecurity(req, async () => {
@@ -13,11 +16,17 @@ export async function GET(req: NextRequest) {
       const { searchParams } = new URL(req.url);
       const from = searchParams.get("from");
       const to = searchParams.get("to");
-      const limit = Math.min(parseInt(searchParams.get("limit") ?? "20"), 100);
+      const rawLimit = parseInt(searchParams.get("limit") ?? "20", 10);
+      const limit = Number.isNaN(rawLimit) ? 20 : Math.min(rawLimit, 100);
 
       const conditions = [eq(journalEntries.userId, user.dbUserId)];
       if (from) conditions.push(gte(journalEntries.entryDate, from));
       if (to) conditions.push(lte(journalEntries.entryDate, to));
+
+      const [{ total }] = await journalDb
+        .select({ total: count() })
+        .from(journalEntries)
+        .where(and(...conditions));
 
       const entries = await journalDb
         .select()
@@ -26,7 +35,7 @@ export async function GET(req: NextRequest) {
         .orderBy(desc(journalEntries.entryDate))
         .limit(limit);
 
-      return NextResponse.json({ entries, total: entries.length });
+      return NextResponse.json({ entries, total });
     } catch (err) {
       return handleApiError(err);
     }
@@ -42,6 +51,21 @@ export async function POST(req: NextRequest) {
 
       if (!content?.trim()) {
         throw new ValidationError("Journal entry content is required");
+      }
+      if (content.length > MAX_CONTENT_LENGTH) {
+        throw new ValidationError(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
+      }
+      if (mood !== undefined && (typeof mood !== "number" || mood < 1 || mood > 10)) {
+        throw new ValidationError("mood must be a number between 1 and 10");
+      }
+      if (energy !== undefined && (typeof energy !== "number" || energy < 1 || energy > 10)) {
+        throw new ValidationError("energy must be a number between 1 and 10");
+      }
+      if (entryDate && !DATE_RE.test(entryDate)) {
+        throw new ValidationError("entryDate must be in YYYY-MM-DD format");
+      }
+      if (tags !== undefined && !Array.isArray(tags)) {
+        throw new ValidationError("tags must be an array");
       }
 
       const date = entryDate ?? new Date().toISOString().slice(0, 10);

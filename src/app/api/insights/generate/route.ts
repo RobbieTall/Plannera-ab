@@ -17,28 +17,29 @@ export async function POST(req: NextRequest) {
 
       if (!entryId) throw new ValidationError("entryId is required");
 
-      const [entry] = await journalDb
-        .select()
-        .from(journalEntries)
-        .where(eq(journalEntries.id, entryId))
-        .limit(1);
+      // Fetch entry, user profile, and recent patterns in parallel.
+      const [[entry], [dbUser], patterns] = await Promise.all([
+        journalDb
+          .select()
+          .from(journalEntries)
+          .where(eq(journalEntries.id, entryId))
+          .limit(1),
+        journalDb
+          .select()
+          .from(journalUsers)
+          .where(eq(journalUsers.id, user.dbUserId))
+          .limit(1),
+        journalDb
+          .select({ description: journalPatterns.description })
+          .from(journalPatterns)
+          .where(eq(journalPatterns.userId, user.dbUserId))
+          .orderBy(desc(journalPatterns.updatedAt))
+          .limit(5),
+      ]);
 
       if (!entry || entry.userId !== user.dbUserId) {
         throw new ValidationError("Entry not found or access denied");
       }
-
-      const [dbUser] = await journalDb
-        .select()
-        .from(journalUsers)
-        .where(eq(journalUsers.id, user.dbUserId))
-        .limit(1);
-
-      const patterns = await journalDb
-        .select({ description: journalPatterns.description })
-        .from(journalPatterns)
-        .where(eq(journalPatterns.userId, user.dbUserId))
-        .orderBy(desc(journalPatterns.updatedAt))
-        .limit(5);
 
       const numerologyContext = dbUser?.birthDate
         ? getNumerologyProfile(dbUser.birthDate)
