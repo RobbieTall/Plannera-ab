@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:convert' show jsonEncode;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -47,7 +48,7 @@ class JournalRepository {
       content: content,
       mood: Value(mood),
       energy: Value(energy),
-      tags: Value(tags.toString()),
+      tags: Value(jsonEncode(tags)),
       entryDate: date,
       isSynced: const Value(false),
       createdAt: now,

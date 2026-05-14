@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode;
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -24,13 +25,20 @@ class SyncService {
 
   SyncService(this._db, this._api);
 
+  // connectivity_plus v5+ returns List<ConnectivityResult>.
+  // The device is offline only when every result is none.
+  Future<bool> _isOffline() async {
+    final results = await Connectivity().checkConnectivity();
+    return results.every((r) => r == ConnectivityResult.none);
+  }
+
   Future<void> syncPendingEntries() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) return;
+    if (await _isOffline()) return;
 
     final unsynced = await _db.getUnsyncedEntries();
     for (final entry in unsynced) {
       try {
+        final tags = (jsonDecode(entry.tags) as List).cast<String>();
         await _api.createJournalEntry({
           'id': entry.id,
           'title': entry.title,
@@ -38,6 +46,7 @@ class SyncService {
           'mood': entry.mood,
           'energy': entry.energy,
           'entryDate': entry.entryDate,
+          'tags': tags,
         });
         await _db.markSynced(entry.id);
       } catch (_) {
@@ -47,8 +56,7 @@ class SyncService {
   }
 
   Future<void> pullRemoteEntries() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) return;
+    if (await _isOffline()) return;
 
     try {
       final response = await _api.getJournalEntries(limit: 50);

@@ -59,11 +59,16 @@ export function securityHeaders(): Record<string, string> {
   };
 }
 
-export function withSecurity(
+export async function withSecurity(
   req: NextRequest,
   handler: () => Promise<NextResponse>
 ): Promise<NextResponse> {
   const rateLimitResponse = rateLimit(req);
-  if (rateLimitResponse) return Promise.resolve(rateLimitResponse);
-  return handler();
+  if (rateLimitResponse) return rateLimitResponse;
+  const response = await handler();
+  const headers = securityHeaders();
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+  return response;
 }

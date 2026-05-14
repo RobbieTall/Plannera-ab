@@ -6,7 +6,7 @@ import { withSecurity } from "../../../../../lib/middleware/security";
 import { generateJournalInsight } from "../../../../../lib/openai";
 import { getNumerologyProfile } from "../../../../../lib/numerology";
 import { getDailyAstrology } from "../../../../../lib/astrology";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
   return withSecurity(req, async () => {
@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
 
       if (!entryId) throw new ValidationError("entryId is required");
 
-      // Fetch entry, user profile, and recent patterns in parallel.
-      const [[entry], [dbUser], patterns] = await Promise.all([
+      // Fetch entry, user profile, recent patterns, and any existing insight in parallel.
+      const [[entry], [dbUser], patterns, [existingInsight]] = await Promise.all([
         journalDb
           .select()
           .from(journalEntries)
@@ -35,10 +35,25 @@ export async function POST(req: NextRequest) {
           .where(eq(journalPatterns.userId, user.dbUserId))
           .orderBy(desc(journalPatterns.updatedAt))
           .limit(5),
+        journalDb
+          .select()
+          .from(journalInsights)
+          .where(
+            and(
+              eq(journalInsights.entryId, entryId),
+              eq(journalInsights.userId, user.dbUserId)
+            )
+          )
+          .limit(1),
       ]);
 
       if (!entry || entry.userId !== user.dbUserId) {
         throw new ValidationError("Entry not found or access denied");
+      }
+
+      // Return the cached insight rather than burning another OpenAI call.
+      if (existingInsight) {
+        return NextResponse.json(existingInsight, { status: 200 });
       }
 
       const numerologyContext = dbUser?.birthDate
