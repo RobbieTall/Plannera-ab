@@ -9,6 +9,16 @@ export interface AuthenticatedUser {
   dbUserId: string;
 }
 
+// Cache Firebase UID → DB user ID in the serverless function's process memory.
+// Firebase tokens are valid for 1 hour; a 5-minute TTL is safe and eliminates
+// the DB round-trip on every request within a warm instance.
+const AUTH_CACHE_TTL_MS = 5 * 60 * 1000;
+interface CacheEntry {
+  user: AuthenticatedUser;
+  expiresAt: number;
+}
+const authCache = new Map<string, CacheEntry>();
+
 export async function authenticateRequest(
   req: NextRequest
 ): Promise<AuthenticatedUser> {
@@ -26,6 +36,13 @@ export async function authenticateRequest(
     throw new AuthError("Invalid or expired token");
   }
 
+  // Check cache before hitting the DB.
+  const now = Date.now();
+  const cached = authCache.get(decoded.uid);
+  if (cached && now < cached.expiresAt) {
+    return cached.user;
+  }
+
   const users = await journalDb
     .select({ id: journalUsers.id })
     .from(journalUsers)
@@ -36,11 +53,19 @@ export async function authenticateRequest(
     throw new AuthError("User not found");
   }
 
-  return {
+  const user: AuthenticatedUser = {
     firebaseUid: decoded.uid,
     email: decoded.email ?? "",
     dbUserId: users[0].id,
   };
+
+  authCache.set(decoded.uid, { user, expiresAt: now + AUTH_CACHE_TTL_MS });
+  return user;
+}
+
+// Call when a user record is deleted so stale entries don't linger.
+export function invalidateAuthCache(firebaseUid: string): void {
+  authCache.delete(firebaseUid);
 }
 
 export class AuthError extends Error {

@@ -23,17 +23,20 @@ export async function GET(req: NextRequest) {
       if (from) conditions.push(gte(journalEntries.entryDate, from));
       if (to) conditions.push(lte(journalEntries.entryDate, to));
 
-      const [{ total }] = await journalDb
-        .select({ total: count() })
-        .from(journalEntries)
-        .where(and(...conditions));
+      const whereClause = and(...conditions);
 
-      const entries = await journalDb
-        .select()
-        .from(journalEntries)
-        .where(and(...conditions))
-        .orderBy(desc(journalEntries.entryDate))
-        .limit(limit);
+      const [[{ total }], entries] = await Promise.all([
+        journalDb
+          .select({ total: count() })
+          .from(journalEntries)
+          .where(whereClause),
+        journalDb
+          .select()
+          .from(journalEntries)
+          .where(whereClause)
+          .orderBy(desc(journalEntries.entryDate))
+          .limit(limit),
+      ]);
 
       return NextResponse.json({ entries, total });
     } catch (err) {

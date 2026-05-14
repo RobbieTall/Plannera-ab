@@ -98,28 +98,32 @@ export async function analyzeJournalPatterns(
   if (entries.length < 3) return [];
 
   const client = getClient();
+  const signal = AbortSignal.timeout(OPENAI_TIMEOUT_MS);
 
   const summary = entries
     .map((e) => `[${e.entryDate}] Mood:${e.mood ?? "?"} — ${e.content.slice(0, 200)}`)
     .join("\n\n");
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "Identify recurring emotional, behavioral, or thematic patterns in these journal entries. Return JSON array of {type, description}.",
-      },
-      {
-        role: "user",
-        content: `Identify up to 5 patterns:\n\n${summary}\n\nRespond with JSON: { "patterns": [...] }`,
-      },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 400,
-    temperature: 0.5,
-  });
+  const response = await client.chat.completions.create(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Identify recurring emotional, behavioral, or thematic patterns in these journal entries. Return JSON array of {type, description}.",
+        },
+        {
+          role: "user",
+          content: `Identify up to 5 patterns:\n\n${summary}\n\nRespond with JSON: { "patterns": [...] }`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 400,
+      temperature: 0.5,
+    },
+    { signal }
+  );
 
   const raw = response.choices[0]?.message?.content ?? "{}";
   const parsed = JSON.parse(raw);

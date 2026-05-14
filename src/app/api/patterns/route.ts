@@ -4,7 +4,7 @@ import { authenticateRequest } from "../../../../lib/auth";
 import { handleApiError } from "../../../../lib/errors/error-handler";
 import { withSecurity } from "../../../../lib/middleware/security";
 import { analyzeJournalPatterns } from "../../../../lib/openai";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   return withSecurity(req, async () => {
@@ -54,7 +54,14 @@ export async function POST(req: NextRequest) {
         }))
       );
 
+      if (analyzed.length === 0) {
+        return NextResponse.json({ patterns: [] });
+      }
+
       const today = new Date().toISOString().slice(0, 10);
+
+      // Upsert each pattern by (userId, type): update description + frequency
+      // when a type already exists rather than creating duplicate rows.
       const saved = await Promise.all(
         analyzed.map(async (p) => {
           const [pattern] = await journalDb
@@ -64,6 +71,17 @@ export async function POST(req: NextRequest) {
               type: p.type,
               description: p.description,
               lastSeen: today,
+              frequency: 1,
+            })
+            .onConflictDoUpdate({
+              target: [journalPatterns.userId, journalPatterns.type],
+              set: {
+                description: p.description,
+                lastSeen: today,
+                // Increment in SQL so concurrent upserts don't race.
+                frequency: sql`${journalPatterns.frequency} + 1`,
+                updatedAt: new Date(),
+              },
             })
             .returning();
           return pattern;

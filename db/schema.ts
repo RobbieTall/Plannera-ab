@@ -7,6 +7,7 @@ import {
   json,
   uuid,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const journalUsers = pgTable("journal_users", {
@@ -92,6 +93,8 @@ export const journalPatterns = pgTable(
   },
   (t) => ({
     userIdx: index("journal_patterns_user_idx").on(t.userId),
+    // Enforces one row per (user, pattern type) so upsert works correctly.
+    userTypeUniq: uniqueIndex("journal_patterns_user_type_uniq").on(t.userId, t.type),
   })
 );
 
