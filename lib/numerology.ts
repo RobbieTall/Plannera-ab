@@ -42,11 +42,14 @@ export function calculateExpression(fullName: string): number {
 export function calculatePersonalDay(birthDate: string, targetDate?: string): number {
   const today = targetDate ?? new Date().toISOString().slice(0, 10);
   const [year, month, day] = today.split("-").map(Number);
-  const birthParts = birthDate.split("-").map(Number);
+  const [, birthMonth, birthDay] = birthDate.split("-").map(Number);
 
-  const personalMonth = reduceToSingleDigit(birthParts[1] + month);
-  const personalYear = reduceToSingleDigit(birthParts[2] + month + year);
-  return reduceToSingleDigit(personalMonth + day + personalYear);
+  // Standard numerology: Personal Year = birth month + birth day + current year
+  const personalYear = reduceToSingleDigit(birthMonth + birthDay + year);
+  // Personal Month = Personal Year + current month
+  const personalMonth = reduceToSingleDigit(personalYear + month);
+  // Personal Day = Personal Month + current day
+  return reduceToSingleDigit(personalMonth + day);
 }
 
 export function getNumerologyMeaning(number: number): string {

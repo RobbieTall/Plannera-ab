@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 
-function getFirebaseAdmin(): admin.app.App {
+function getFirebaseApp(): admin.app.App {
   if (admin.apps.length > 0) {
     return admin.apps[0]!;
   }
@@ -21,5 +21,16 @@ function getFirebaseAdmin(): admin.app.App {
   });
 }
 
-export const firebaseAdmin = getFirebaseAdmin();
-export const firebaseAuth = firebaseAdmin.auth();
+// Lazy initializer — avoids running at build time when env vars may be absent.
+// All auth operations go through this function.
+export function getFirebaseAuth(): admin.auth.Auth {
+  return getFirebaseApp().auth();
+}
+
+// Proxy preserves the call-site API (`firebaseAuth.verifyIdToken(...)`) while
+// deferring SDK initialization to first actual use.
+export const firebaseAuth: Pick<admin.auth.Auth, "verifyIdToken" | "createCustomToken" | "getUser"> = {
+  verifyIdToken: (...args) => getFirebaseAuth().verifyIdToken(...args),
+  createCustomToken: (...args) => getFirebaseAuth().createCustomToken(...args),
+  getUser: (...args) => getFirebaseAuth().getUser(...args),
+};

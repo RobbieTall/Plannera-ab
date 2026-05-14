@@ -4,7 +4,6 @@ import { authenticateRequest } from "../../../../lib/auth";
 import { handleApiError, ValidationError } from "../../../../lib/errors/error-handler";
 import { withSecurity } from "../../../../lib/middleware/security";
 import { getMoonPhase } from "../../../../lib/astrology";
-import { calculatePersonalDay } from "../../../../lib/numerology";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {

@@ -2,15 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 60;
+// Prune stale entries after this many requests to bound memory usage.
+const PRUNE_INTERVAL = 500;
+let pruneCounter = 0;
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+function pruneExpired(now: number): void {
+  for (const [key, record] of requestCounts) {
+    if (now > record.resetAt) requestCounts.delete(key);
+  }
+}
 
 export function rateLimit(req: NextRequest): NextResponse | null {
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0] ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "unknown";
 
   const now = Date.now();
+
+  if (++pruneCounter >= PRUNE_INTERVAL) {
+    pruneCounter = 0;
+    pruneExpired(now);
+  }
+
   const record = requestCounts.get(ip);
 
   if (!record || now > record.resetAt) {
