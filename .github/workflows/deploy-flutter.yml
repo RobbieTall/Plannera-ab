@@ -1,0 +1,130 @@
+name: Deploy Flutter (DRME Journal)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'drme_journal/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'drme_journal/**'
+
+jobs:
+  test:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: drme_journal
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: drme_journal
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build code generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Decode keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=keystore.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.drme.journal
+          releaseFiles: drme_journal/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: drme_journal
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build code generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Import certificates
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          flutter build ios --release --no-codesign
+          cd ios && fastlane beta
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          ASC_API_KEY: ${{ secrets.ASC_API_KEY }}

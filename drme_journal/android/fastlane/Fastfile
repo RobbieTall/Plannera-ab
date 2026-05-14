@@ -1,0 +1,34 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build and deploy to Play Store internal track"
+  lane :deploy do
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: "android/",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
+      }
+    )
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+    )
+  end
+
+  desc "Build APK for testing"
+  lane :build_apk do
+    gradle(
+      task: "assemble",
+      build_type: "Release",
+      project_dir: "android/",
+    )
+  end
+end
