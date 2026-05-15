@@ -328,6 +328,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteTitle, setNoteTitle] = useState("");
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
+  const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
     getSessionSignals(projectKey)
   );
@@ -1578,6 +1579,70 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     showToast("Note saved to artefacts");
   }, [addArtefact, noteBody, noteTitle, noteType, projectKey, showToast]);
 
+  const generatePreSeeMemo = useCallback(async () => {
+    if (!siteContext) {
+      showToast("Set a confirmed site before generating a pre-SEE memo", "error");
+      return;
+    }
+
+    setIsGeneratingPreSeeMemo(true);
+    try {
+      const response = await fetch("/api/artefacts/generate-see", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          projectId: projectKey,
+          proposedWorksSummary:
+            project.description?.trim() ||
+            `Planning memo for ${project.name}${siteContext.formattedAddress ? ` at ${siteContext.formattedAddress}` : ""}.`,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        artefactId?: string;
+        content?: {
+          siteDescription?: { address?: string | null; lga?: string | null; zoneLabel?: string | null };
+          applicableControls?: { dcpClauses?: unknown[]; sourceExcerpts?: unknown[] };
+        };
+        error?: string;
+      };
+
+      if (!response.ok || !data.artefactId) {
+        throw new Error(data.error ?? "Unable to generate pre-SEE memo");
+      }
+
+      const dcpCount = data.content?.applicableControls?.dcpClauses?.length ?? 0;
+      const sourceCount = data.content?.applicableControls?.sourceExcerpts?.length ?? 0;
+      const address = data.content?.siteDescription?.address ?? siteContext.formattedAddress;
+      const zone = data.content?.siteDescription?.zoneLabel ?? zoningLabel;
+
+      const artefact: WorkspaceArtefact = {
+        id: data.artefactId,
+        title: `Pre-SEE planning memo${address ? ` — ${address}` : ""}`,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "report",
+        noteType: "Pre-SEE memo",
+        metadata: [zone, `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`, `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`]
+          .filter(Boolean)
+          .join(" · "),
+      };
+
+      addArtefact(projectKey, artefact);
+      showToast("Generated pre-SEE planning memo");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to generate pre-SEE memo";
+      showToast(message, "error");
+    } finally {
+      setIsGeneratingPreSeeMemo(false);
+    }
+  }, [addArtefact, project.description, project.name, projectKey, showToast, siteContext, zoningLabel]);
+
+  const handleGeneratePreSeeMemo = useCallback(() => {
+    requireAuth(generatePreSeeMemo);
+  }, [generatePreSeeMemo, requireAuth]);
+
   const handleSaveNote = useCallback(() => {
     requireAuth(saveNoteArtefact);
   }, [requireAuth, saveNoteArtefact]);
@@ -2121,19 +2186,30 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             )}
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-              <header className="flex items-center justify-between">
+              <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
                   <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsNoteEditorOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add note
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGeneratePreSeeMemo}
+                    disabled={isGeneratingPreSeeMemo}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {isGeneratingPreSeeMemo ? "Generating…" : "Generate pre-SEE memo"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsNoteEditorOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add note
+                  </button>
+                </div>
               </header>
               <ul className="mt-4 space-y-3 pr-1">
                 {artefacts.map((artefact) => (
