@@ -61,6 +61,7 @@ import type {
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspaceNoteCategory,
+  WorkspacePreSeePlanningMemoContent,
   WorkspaceSessionSignals,
   WorkspaceSource,
   WorkspaceSourceType,
@@ -245,6 +246,20 @@ const buildZoningLabel = (context: SiteContextSummary | null) => {
   return context.zone;
 };
 
+const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) =>
+  artefact.noteType === "Pre-SEE memo" || artefact.preSeeMemo?.memoType === "pre_see_planning_memo";
+
+const isPreSeeMemoContent = (value: unknown): value is WorkspacePreSeePlanningMemoContent => {
+  if (!value || typeof value !== "object") return false;
+  return (value as { memoType?: unknown }).memoType === "pre_see_planning_memo";
+};
+
+const formatMemoDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+};
+
 function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
   const normalized = message.toLowerCase();
   const zoneMatch = message.match(zoningPattern);
@@ -335,6 +350,8 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
   const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
+  const [selectedPreSeeMemo, setSelectedPreSeeMemo] = useState<WorkspaceArtefact | null>(null);
+  const [openingPreSeeMemoId, setOpeningPreSeeMemoId] = useState<string | null>(null);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
     getSessionSignals(projectKey)
   );
@@ -1562,6 +1579,38 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const experienceArtefacts = getArtefacts(projectKey);
   const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
 
+  const handleOpenPreSeeMemo = useCallback(
+    async (artefact: WorkspaceArtefact) => {
+      if (artefact.preSeeMemo) {
+        setSelectedPreSeeMemo(artefact);
+        return;
+      }
+
+      setOpeningPreSeeMemoId(artefact.id);
+      try {
+        const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
+        const data = (await response.json().catch(() => [])) as Array<{ id?: string; payload?: unknown }>;
+
+        if (!response.ok) {
+          throw new Error("Unable to load the saved memo");
+        }
+
+        const serverArtefact = data.find((entry) => entry.id === artefact.id);
+        if (!serverArtefact || !isPreSeeMemoContent(serverArtefact.payload)) {
+          throw new Error("This memo was saved, but its preview content is not available yet");
+        }
+
+        setSelectedPreSeeMemo({ ...artefact, preSeeMemo: serverArtefact.payload });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to open the saved memo";
+        showToast(message, "error");
+      } finally {
+        setOpeningPreSeeMemoId(null);
+      }
+    },
+    [projectKey, showToast],
+  );
+
   const saveNoteArtefact = useCallback(() => {
     if (!noteTitle.trim()) {
       showToast("Add a title before saving", "error");
@@ -1607,14 +1656,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
       const data = (await response.json().catch(() => ({}))) as {
         artefactId?: string;
-        content?: {
-          siteDescription?: { address?: string | null; lga?: string | null; zoneLabel?: string | null };
-          applicableControls?: { dcpClauses?: unknown[]; sourceExcerpts?: unknown[] };
-        };
+        content?: WorkspacePreSeePlanningMemoContent;
         error?: string;
       };
 
-      if (!response.ok || !data.artefactId) {
+      if (!response.ok || !data.artefactId || !data.content) {
         throw new Error(data.error ?? "Unable to generate pre-SEE memo");
       }
 
@@ -1633,10 +1679,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         metadata: [zone, `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`, `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`]
           .filter(Boolean)
           .join(" · "),
+        preSeeMemo: data.content,
       };
 
       addArtefact(projectKey, artefact);
-      showToast("Generated pre-SEE planning memo");
+      setSelectedPreSeeMemo(artefact);
+      showToast("Generated pre-SEE planning memo and opened it for review");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to generate pre-SEE memo";
       showToast(message, "error");
@@ -2269,6 +2317,22 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                         {artefact.type}
                       </span>
                     </div>
+                    {isPreSeeMemoArtefact(artefact) ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleOpenPreSeeMemo(artefact)}
+                          disabled={openingPreSeeMemoId === artefact.id}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-500 disabled:cursor-wait disabled:opacity-60 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:border-blue-300"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          {openingPreSeeMemoId === artefact.id ? "Opening memo…" : "Open memo"}
+                        </button>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Opens the generated SEE memo preview from the artefact record.
+                        </p>
+                      </div>
+                    ) : null}
                     {artefact.type === "chat" && artefact.messages?.length ? (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {/* TODO: implement artefact chat restoration */}
@@ -2320,6 +2384,116 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         onClose={() => setIsMapsToolsModalOpen(false)}
         siteContext={siteContext}
       />
+
+      {selectedPreSeeMemo?.preSeeMemo ? (
+        <Modal
+          open
+          onClose={() => setSelectedPreSeeMemo(null)}
+          title={selectedPreSeeMemo.title}
+          description="Generated pre-SEE planning memo preview. Review and confirm all controls before relying on it for lodgement."
+          size="lg"
+        >
+          <div className="space-y-5 text-sm text-slate-700">
+            <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Site</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {selectedPreSeeMemo.preSeeMemo.siteDescription.address ?? "Address not supplied"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {[
+                      selectedPreSeeMemo.preSeeMemo.siteDescription.lga,
+                      selectedPreSeeMemo.preSeeMemo.siteDescription.zoneLabel,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "LGA and zoning to be confirmed"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Generated</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatMemoDate(selectedPreSeeMemo.preSeeMemo.generatedAt)}</p>
+                  <p className="text-xs text-slate-500">{selectedPreSeeMemo.preSeeMemo.applicableControls.lepInstrument?.name ?? "LEP instrument not confirmed"}</p>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Proposed works summary</h4>
+              <p className="mt-2 rounded-2xl border border-slate-100 p-4 leading-relaxed">
+                {selectedPreSeeMemo.preSeeMemo.proposedWorksSummary}
+              </p>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Consistency assessment</h4>
+              <div className="mt-2 space-y-2">
+                {selectedPreSeeMemo.preSeeMemo.consistencyAssessment.map((item) => (
+                  <article key={item.topic} className="rounded-2xl border border-slate-100 p-4">
+                    <p className="font-semibold text-slate-900">{item.topic}</p>
+                    <p className="mt-1 leading-relaxed text-slate-600">{item.assessment}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Key LEP controls</h4>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {Object.entries(selectedPreSeeMemo.preSeeMemo.applicableControls.quickSiteControls).map(([key, control]) => (
+                  <article key={key} className="rounded-2xl border border-slate-100 p-4">
+                    <p className="font-semibold text-slate-900">{control.label ?? key}</p>
+                    <p className="text-xs font-semibold text-slate-500">{control.value ?? "Not mapped"}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">{control.interpretation ?? "Confirm against source controls."}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            {selectedPreSeeMemo.preSeeMemo.applicableControls.dcpClauses.length ? (
+              <section>
+                <h4 className="text-base font-semibold text-slate-900">DCP clauses referenced</h4>
+                <div className="mt-2 space-y-2">
+                  {selectedPreSeeMemo.preSeeMemo.applicableControls.dcpClauses.slice(0, 5).map((clause, index) => (
+                    <article key={`${clause.ref ?? "clause"}-${index}`} className="rounded-2xl border border-slate-100 p-4">
+                      <p className="font-semibold text-slate-900">{[clause.ref, clause.title].filter(Boolean).join(" — ") || "DCP clause"}</p>
+                      {clause.headingPath.length ? <p className="text-xs text-slate-500">{clause.headingPath.join(" › ")}</p> : null}
+                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                        {clause.bodyText.slice(0, 320)}{clause.bodyText.length > 320 ? "…" : ""}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {selectedPreSeeMemo.preSeeMemo.applicableControls.sourceExcerpts.length ? (
+              <section>
+                <h4 className="text-base font-semibold text-slate-900">Workspace source excerpts</h4>
+                <div className="mt-2 space-y-2">
+                  {selectedPreSeeMemo.preSeeMemo.applicableControls.sourceExcerpts.slice(0, 4).map((source) => (
+                    <article key={source.id} className="rounded-2xl border border-slate-100 p-4">
+                      <p className="font-semibold text-slate-900">{source.heading ?? source.sourceType}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                        {source.content.slice(0, 300)}{source.content.length > 300 ? "…" : ""}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <h4 className="font-semibold">Limitations</h4>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-relaxed">
+                {selectedPreSeeMemo.preSeeMemo.limitations.map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        </Modal>
+      ) : null}
 
       <Modal
         open={showUploadModal}
