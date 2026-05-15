@@ -1640,8 +1640,14 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   }, [addArtefact, project.description, project.name, projectKey, showToast, siteContext, zoningLabel]);
 
   const handleGeneratePreSeeMemo = useCallback(() => {
-    requireAuth(generatePreSeeMemo);
-  }, [generatePreSeeMemo, requireAuth]);
+    if (!isAuthenticated) {
+      showToast("Sign in, then click Draft SEE memo again", "error");
+      openAuthModal();
+      return;
+    }
+
+    void generatePreSeeMemo();
+  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast]);
 
   const handleSaveNote = useCallback(() => {
     requireAuth(saveNoteArtefact);
@@ -2161,6 +2167,27 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 </header>
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
                   <QuickSiteCheckPanel onClick={() => setIsQuickSiteCheckOpen(true)} />
+                  <button
+                    type="button"
+                    onClick={handleGeneratePreSeeMemo}
+                    disabled={isGeneratingPreSeeMemo}
+                    className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-slate-600"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30">
+                        <FileText className="h-4 w-4 text-slate-900 dark:text-slate-100" />
+                      </span>
+                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        MVP
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {isGeneratingPreSeeMemo ? "Drafting SEE memo…" : "Draft SEE memo"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">
+                      Create a pre-SEE planning memo from site, LEP, DCP and sources.
+                    </p>
+                  </button>
                   {tools.map((tool) => {
                     const Icon = tool.icon;
                     return (
@@ -2189,27 +2216,16 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Saved outputs from tools or chats appear here.</p>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGeneratePreSeeMemo}
-                    disabled={isGeneratingPreSeeMemo}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {isGeneratingPreSeeMemo ? "Generating…" : "Generate pre-SEE memo"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsNoteEditorOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add note
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNoteEditorOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add note
+                </button>
               </header>
               <ul className="mt-4 space-y-3 pr-1">
                 {artefacts.map((artefact) => (
