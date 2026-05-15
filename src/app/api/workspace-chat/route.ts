@@ -31,7 +31,7 @@ import {
   type WorkspaceSourceContext,
 } from "@/lib/workspace-source-context";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
-import { callModel } from "@/lib/modelRouter";
+import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -257,9 +257,8 @@ export async function POST(request: Request) {
       }
     }
 
-    const hasPlanningProvider = process.env.CLUADE_API_KEY || process.env.OPENAI_API_KEY;
-    if (!hasPlanningProvider && !debugSources) {
-      throw new Error("Missing CLUADE_API_KEY or OPENAI_API_KEY environment variables");
+    if (!hasPlanningChatProvider() && !debugSources) {
+      throw new Error("Missing planning chat provider environment variable");
     }
 
     const workspaceKey = projectId ?? "default";

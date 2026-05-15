@@ -5,6 +5,7 @@ import {
   ArtefactAccessError,
   ArtefactValidationError,
   createMapSnapshotArtefact,
+  createPreSeePlanningMemoArtefact,
   createQuickSiteCheckArtefact,
 } from "@/lib/artefact-service";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
@@ -14,6 +15,27 @@ class MockPrisma {
   constructor(private projectMembers: Record<string, string[]>) {}
 
   project = {
+    findUnique: async ({ where }: any) => ({
+      id: where.id,
+      publicId: where.id,
+      title: "Test project",
+      siteContext: {
+        id: "site-1",
+        projectId: where.id,
+        addressInput: "123 Test St",
+        formattedAddress: "123 Test St, Byron Bay NSW",
+        lgaName: "Byron",
+        lgaCode: "BYRON",
+        parcelId: null,
+        lot: null,
+        planNumber: null,
+        latitude: null,
+        longitude: null,
+        zone: "R2 Low Density Residential",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    }),
     findFirst: async ({ where }: any) => {
       const membershipCheck = where.OR?.some((clause: any) => clause.createdById || clause.collaborators);
 
@@ -70,7 +92,7 @@ test("creates a map_snapshot artefact with overlays and notes", async () => {
     formData,
     projectId: "proj-1",
     userId: "user-1",
-    deps: { prisma, saveFile: mockSaveFile },
+    deps: { prisma: prisma as any, saveFile: mockSaveFile },
   });
 
   assert.equal(artefact.type, "map_snapshot");
@@ -94,7 +116,7 @@ test("rejects creation when project access is missing", async () => {
         formData,
         projectId: "proj-1",
         userId: "user-1",
-        deps: { prisma, saveFile: mockSaveFile },
+        deps: { prisma: prisma as any, saveFile: mockSaveFile },
       }),
     (error) => {
       assert.ok(error instanceof ArtefactAccessError);
@@ -116,7 +138,7 @@ test("validates that an image file is required", async () => {
         formData,
         projectId: "proj-1",
         userId: "user-1",
-        deps: { prisma, saveFile: mockSaveFile },
+        deps: { prisma: prisma as any, saveFile: mockSaveFile },
       }),
     (error) => {
       assert.ok(error instanceof ArtefactValidationError);
@@ -161,11 +183,92 @@ test("creates a quick_site_check artefact with the report payload", async () => 
     body: { projectId: "proj-2", title: "Quick Site Check — 123 Test St", type: "quick_site_check", report },
     projectId: "proj-2",
     userId: "user-2",
-    deps: { prisma },
+    deps: { prisma: prisma as any },
   });
 
   assert.equal(artefact.type, "quick_site_check");
   assert.equal(artefact.title, "Quick Site Check — 123 Test St");
   assert.deepEqual(artefact.payload, report);
   assert.equal(artefact.notes, "A note");
+});
+
+
+test("creates a pre_see_planning_memo artefact with structured content", async () => {
+  const prisma = new MockPrisma({ "proj-3": ["user-3"] });
+  const quickSiteCheck: QuickSiteCheckReport = {
+    projectId: "proj-3",
+    generatedAt: new Date().toISOString(),
+    site: {
+      address: "123 Test St, Byron Bay NSW",
+      lga: "Byron",
+      zoneCode: "R2",
+      zoneName: "Low Density Residential",
+      zoneLabel: "R2 – Low Density Residential",
+    },
+    lepInstrument: { name: "Byron LEP 2014", code: "byron-lep-2014", lga: "Byron", source: "ingestion" },
+    permissibility: {
+      zoneLabel: "R2 – Low Density Residential",
+      permittedWithoutConsent: [],
+      permittedWithConsent: ["Dwelling houses"],
+      prohibited: [],
+      interpretation: "Dwelling houses require consent in Zone R2.",
+    },
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: "9m", present: true, interpretation: "Height appears to be 9m." },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No mapped FSR found." },
+      minimumLotSize: { label: "Minimum lot size", value: "600sqm", present: true, interpretation: "Minimum lot size appears to be 600sqm." },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const { artefact, content } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-3", proposedWorksSummary: "Alterations and additions to a dwelling." },
+    userId: "user-3",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => quickSiteCheck,
+      getDCPContext: async () => [
+        {
+          id: "dcp-1",
+          lgaCode: "BYRON",
+          instrumentSlug: "byron-dcp-2014",
+          ref: "D1.1",
+          title: "Built form",
+          headingPath: ["Chapter D1", "Built form"],
+          parentRef: null,
+          depth: 2,
+          bodyHtml: "<p>Controls</p>",
+          bodyText: "Setbacks and built-form controls apply.",
+          topicTags: [],
+          numericMeta: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          score: 12,
+        },
+      ],
+      getWorkspaceSourceContext: async () => ({
+        canonicalLgaCode: "BYRON",
+        hasCouncilDcp: true,
+        councilDcpSampleHeadings: ["Chapter D1"],
+        perSourceTotals: { council_dcp: 1 },
+        chunks: [
+          {
+            id: "chunk-1",
+            heading: "Chapter D1",
+            content: "Relevant Byron DCP excerpt.",
+            lgaCode: "BYRON",
+            sourceType: "council_dcp",
+            score: 0.9,
+          },
+        ],
+      }),
+    },
+  });
+
+  assert.equal(artefact.type, "pre_see_planning_memo");
+  assert.equal(content.memoType, "pre_see_planning_memo");
+  assert.equal(content.siteDescription.lga, "Byron");
+  assert.equal(content.applicableControls.dcpClauses[0].ref, "D1.1");
+  assert.equal(content.applicableControls.sourceExcerpts[0].heading, "Chapter D1");
 });

@@ -56,10 +56,14 @@ const toAnthropicMessages = (messages: ChatCompletionMessageParam[]) => {
 
 const buildOpenAIClient = (options?: ClientOptions) => new OpenAI(options);
 
+const resolveClaudeApiKey = () => process.env.CLAUDE_API_KEY ?? process.env.CLUADE_API_KEY;
+
+export const hasPlanningChatProvider = () => Boolean(resolveClaudeApiKey() || process.env.OPENAI_API_KEY);
+
 const callClaude = async (messages: ChatCompletionMessageParam[], options?: CallOptions) => {
-  const apiKey = process.env.CLUADE_API_KEY;
+  const apiKey = resolveClaudeApiKey();
   if (!apiKey) {
-    throw new Error("Missing CLUADE_API_KEY environment variable");
+    throw new Error("Missing CLAUDE_API_KEY environment variable");
   }
 
   const { system, messages: anthropicMessages } = toAnthropicMessages(messages);
@@ -151,7 +155,7 @@ export const callModel = async (
   options?: CallOptions,
 ): Promise<string> => {
   if (taskType === "planning_chat") {
-    if (process.env.CLUADE_API_KEY) {
+    if (resolveClaudeApiKey()) {
       try {
         return await callClaude(messages, options);
       } catch (error) {

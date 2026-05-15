@@ -32,7 +32,6 @@ class MockPrisma {
       const selected: Record<string, unknown> = {};
       Object.entries(select ?? {}).forEach(([key, enabled]) => {
         if (enabled) {
-          // @ts-expect-error - mock selection
           selected[key] = record[key];
         }
       });

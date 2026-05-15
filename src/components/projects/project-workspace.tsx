@@ -328,6 +328,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteTitle, setNoteTitle] = useState("");
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
+  const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
     getSessionSignals(projectKey)
   );
@@ -1578,6 +1579,76 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     showToast("Note saved to artefacts");
   }, [addArtefact, noteBody, noteTitle, noteType, projectKey, showToast]);
 
+  const generatePreSeeMemo = useCallback(async () => {
+    if (!siteContext) {
+      showToast("Set a confirmed site before generating a pre-SEE memo", "error");
+      return;
+    }
+
+    setIsGeneratingPreSeeMemo(true);
+    try {
+      const response = await fetch("/api/artefacts/generate-see", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          projectId: projectKey,
+          proposedWorksSummary:
+            project.description?.trim() ||
+            `Planning memo for ${project.name}${siteContext.formattedAddress ? ` at ${siteContext.formattedAddress}` : ""}.`,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        artefactId?: string;
+        content?: {
+          siteDescription?: { address?: string | null; lga?: string | null; zoneLabel?: string | null };
+          applicableControls?: { dcpClauses?: unknown[]; sourceExcerpts?: unknown[] };
+        };
+        error?: string;
+      };
+
+      if (!response.ok || !data.artefactId) {
+        throw new Error(data.error ?? "Unable to generate pre-SEE memo");
+      }
+
+      const dcpCount = data.content?.applicableControls?.dcpClauses?.length ?? 0;
+      const sourceCount = data.content?.applicableControls?.sourceExcerpts?.length ?? 0;
+      const address = data.content?.siteDescription?.address ?? siteContext.formattedAddress;
+      const zone = data.content?.siteDescription?.zoneLabel ?? zoningLabel;
+
+      const artefact: WorkspaceArtefact = {
+        id: data.artefactId,
+        title: `Pre-SEE planning memo${address ? ` — ${address}` : ""}`,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "report",
+        noteType: "Pre-SEE memo",
+        metadata: [zone, `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`, `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`]
+          .filter(Boolean)
+          .join(" · "),
+      };
+
+      addArtefact(projectKey, artefact);
+      showToast("Generated pre-SEE planning memo");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to generate pre-SEE memo";
+      showToast(message, "error");
+    } finally {
+      setIsGeneratingPreSeeMemo(false);
+    }
+  }, [addArtefact, project.description, project.name, projectKey, showToast, siteContext, zoningLabel]);
+
+  const handleGeneratePreSeeMemo = useCallback(() => {
+    if (!isAuthenticated) {
+      showToast("Sign in, then click Draft SEE memo again", "error");
+      openAuthModal();
+      return;
+    }
+
+    void generatePreSeeMemo();
+  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast]);
+
   const handleSaveNote = useCallback(() => {
     requireAuth(saveNoteArtefact);
   }, [requireAuth, saveNoteArtefact]);
@@ -2096,6 +2167,27 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 </header>
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
                   <QuickSiteCheckPanel onClick={() => setIsQuickSiteCheckOpen(true)} />
+                  <button
+                    type="button"
+                    onClick={handleGeneratePreSeeMemo}
+                    disabled={isGeneratingPreSeeMemo}
+                    className="flex flex-col rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-slate-600"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30">
+                        <FileText className="h-4 w-4 text-slate-900 dark:text-slate-100" />
+                      </span>
+                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        MVP
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {isGeneratingPreSeeMemo ? "Drafting SEE memo…" : "Draft SEE memo"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">
+                      Create a pre-SEE planning memo from site, LEP, DCP and sources.
+                    </p>
+                  </button>
                   {tools.map((tool) => {
                     const Icon = tool.icon;
                     return (
@@ -2121,10 +2213,10 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             )}
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-              <header className="flex items-center justify-between">
+              <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Save outputs from tools or chats.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Saved outputs from tools or chats appear here.</p>
                 </div>
                 <button
                   type="button"
