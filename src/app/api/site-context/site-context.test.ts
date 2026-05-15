@@ -4,8 +4,9 @@ import { persistSiteContextFromCandidate } from "../../../lib/site-context";
 import { POST } from "./route";
 import { candidateSchema } from "./schema";
 
-const { upsertMock, findProjectByExternalIdMock } = vi.hoisted(() => ({
+const { upsertMock, projectUpdateMock, findProjectByExternalIdMock } = vi.hoisted(() => ({
   upsertMock: vi.fn(),
+  projectUpdateMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
 }));
 
@@ -13,6 +14,10 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     siteContext: {
       upsert: upsertMock,
+    },
+    project: {
+      update: projectUpdateMock,
+      findUnique: vi.fn(async () => null),
     },
   },
 }));
@@ -24,6 +29,7 @@ vi.mock("@/lib/project-identifiers", () => ({
 
 beforeEach(() => {
   upsertMock.mockReset();
+  projectUpdateMock.mockReset();
   findProjectByExternalIdMock.mockReset();
   findProjectByExternalIdMock.mockImplementation(async (_prisma, id: string) => ({
     id: `db-${id}`,
@@ -36,7 +42,22 @@ const buildMockSite = (overrides: Partial<ReturnType<typeof createBaseSite>> = {
   ...overrides,
 });
 
-function createBaseSite() {
+function createBaseSite(): {
+  id: string;
+  projectId: string;
+  addressInput: string;
+  formattedAddress: string;
+  lgaName: string | null;
+  lgaCode: string | null;
+  parcelId: string | null;
+  lot: string | null;
+  planNumber: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  zone: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+} {
   return {
     id: "ctx-1",
     projectId: "db-proj-1",
@@ -52,7 +73,7 @@ function createBaseSite() {
     zone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as const;
+  };
 }
 
 describe("site-context api validation", () => {
@@ -92,7 +113,7 @@ describe("site-context api validation", () => {
     const result = await persistSiteContextFromCandidate({
       projectId: "proj-1",
       addressInput: "22 campbell",
-      candidate: parsedCandidate,
+      candidate: parsedCandidate as Parameters<typeof persistSiteContextFromCandidate>[0]["candidate"],
     });
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
@@ -313,7 +334,7 @@ describe("site-context api validation", () => {
     const result = await persistSiteContextFromCandidate({
       projectId: "proj-google-null-coords",
       addressInput: candidate.formattedAddress,
-      candidate: parsedCandidate,
+      candidate: parsedCandidate as Parameters<typeof persistSiteContextFromCandidate>[0]["candidate"],
     });
 
     expect(upsertMock).toHaveBeenCalledWith({

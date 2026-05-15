@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { handleUploadPost } from "@/app/api/projects/[projectId]/uploads/handler";
-import { UploadError } from "@/lib/upload-service";
+import { UploadError, validateFileForUpload } from "@/lib/upload-service";
 
 const buildRequest = (files: File[]) => {
   const formData = new FormData();
@@ -22,10 +22,10 @@ test("returns ok response for valid uploads", async () => {
       params: { projectId: "proj-1" },
       deps: {
         getStorageStatus: () => ({ ready: true, provider: "noop" as const }),
-        validateFile: () => undefined,
+        validateFile: validateFileForUpload,
         getSession: async () => ({ user: { id: "user-1", plan: "pro" } } as any),
-        countUploads: async () => 0,
-        persistUploads: async () => [
+        countUploads: (async () => 0) as any,
+        persistUploads: (async () => [
           {
             id: "upload-1",
             fileName: "doc.pdf",
@@ -35,7 +35,7 @@ test("returns ok response for valid uploads", async () => {
             publicUrl: "https://example.com/doc.pdf",
             createdAt: new Date(),
           },
-        ],
+        ]) as any,
         storageMode: "noop",
         prisma: { project: { findFirst: async () => ({ id: "db-proj-1", publicId: "proj-1" }) } } as any,
         saveFile: async () => ({
@@ -59,10 +59,10 @@ test("reports missing storage configuration", async () => {
     params: { projectId: "proj-1" },
     deps: {
       getStorageStatus: () => ({ ready: false, provider: "vercel-blob" as const, missingEnv: ["BLOB_READ_WRITE_TOKEN"] }),
-      validateFile: () => undefined,
+      validateFile: validateFileForUpload,
       getSession: async () => null,
-      countUploads: async () => 0,
-      persistUploads: async () => [],
+      countUploads: (async () => 0) as any,
+      persistUploads: (async () => []) as any,
       storageMode: "vercel-blob",
       prisma: { project: { findFirst: async () => ({ id: "db-proj-1", publicId: "proj-1" }) } } as any,
       saveFile: async () => ({ url: "", path: "", mimeType: "", size: 0 }),
@@ -85,8 +85,8 @@ test("returns structured validation errors", async () => {
         throw new UploadError("Unsupported file type", "unsupported_file_type", 400);
       },
       getSession: async () => null,
-      countUploads: async () => 0,
-      persistUploads: async () => [],
+      countUploads: (async () => 0) as any,
+      persistUploads: (async () => []) as any,
       storageMode: "noop",
       prisma: { project: { findFirst: async () => ({ id: "db-proj-1", publicId: "proj-1" }) } } as any,
       saveFile: async () => ({ url: "", path: "", mimeType: "", size: 0 }),

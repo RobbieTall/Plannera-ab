@@ -3,14 +3,18 @@ import { z } from "zod";
 import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
+import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
+import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 type PrismaClientArtefact = Pick<PrismaClient["artefact"], "create" | "findMany">;
-type PrismaClientProject = Pick<PrismaClient["project"], "findFirst">;
+type PrismaClientProject = Pick<PrismaClient["project"], "findFirst" | "findUnique">;
 
 type ArtefactDependencies = {
   prisma: {
@@ -175,7 +179,7 @@ async function assertProjectAccess(
   const hasAccess = await prismaClient.project.findFirst({
     where: {
       id: project.id,
-      OR: [{ createdById: userId }, { collaborators: { some: { userId } } }],
+      OR: [{ createdById: userId }, { userId }, { collaborators: { some: { userId } } }],
     },
     select: { id: true },
   });
@@ -287,6 +291,192 @@ export async function createQuickSiteCheckArtefact({
       capturedAt,
     },
   });
+}
+
+const generateSeeArtefactSchema = z.object({
+  projectId: z.string().trim().min(1, "projectId is required"),
+  title: z.string().trim().max(200).optional(),
+  proposedWorksSummary: z.string().trim().max(4000).optional(),
+});
+
+export type PreSeePlanningMemoContent = {
+  memoType: "pre_see_planning_memo";
+  generatedAt: string;
+  projectId: string;
+  siteDescription: {
+    address: string | null;
+    lga: string | null;
+    zoneCode: string | null;
+    zoneName: string | null;
+    zoneLabel: string | null;
+  };
+  proposedWorksSummary: string;
+  applicableControls: {
+    lepInstrument: QuickSiteCheckReport["lepInstrument"];
+    permissibility: QuickSiteCheckReport["permissibility"];
+    quickSiteControls: QuickSiteCheckReport["controls"];
+    dcpClauses: Array<{
+      ref: string | null;
+      title: string | null;
+      headingPath: string[];
+      bodyText: string;
+      score: number;
+    }>;
+    sourceExcerpts: Array<{
+      id: string;
+      heading: string | null | undefined;
+      sourceType: string;
+      content: string;
+      score: number;
+    }>;
+  };
+  consistencyAssessment: Array<{
+    topic: string;
+    assessment: string;
+  }>;
+  limitations: string[];
+};
+
+const buildControlAssessment = (label: string, interpretation: string) => ({
+  topic: label,
+  assessment: interpretation,
+});
+
+type PreSeePlanningMemoDeps = {
+  prisma: ArtefactDependencies["prisma"];
+  buildQuickSiteCheckReport: typeof buildQuickSiteCheckReport;
+  getDCPContext: typeof getDCPContext;
+  getWorkspaceSourceContext: typeof getWorkspaceSourceContext;
+};
+
+const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
+  prisma,
+  buildQuickSiteCheckReport,
+  getDCPContext,
+  getWorkspaceSourceContext,
+};
+
+export async function createPreSeePlanningMemoArtefact({
+  body,
+  userId,
+  deps = defaultPreSeePlanningMemoDeps,
+}: {
+  body: unknown;
+  userId: string;
+  deps?: PreSeePlanningMemoDeps;
+}): Promise<{ artefact: Artefact; content: PreSeePlanningMemoContent }> {
+  const parsed = generateSeeArtefactSchema.safeParse(body);
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid pre-SEE memo payload";
+    throw new ArtefactValidationError(message);
+  }
+
+  const { projectId, proposedWorksSummary, title } = parsed.data;
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
+  const projectWithContext = await deps.prisma.project.findUnique({
+    where: { id: project.id },
+    include: { siteContext: true },
+  });
+
+  if (!projectWithContext) {
+    throw new ArtefactAccessError("Project not found or access denied", 404);
+  }
+
+  if (!projectWithContext.siteContext) {
+    throw new ArtefactValidationError("Set a confirmed site before generating a pre-SEE planning memo");
+  }
+
+  const quickSiteCheck = await deps.buildQuickSiteCheckReport(projectWithContext);
+  const lgaCode = normalizeCouncilLgaCode(quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaCode);
+  const controlsQuery = [
+    proposedWorksSummary,
+    quickSiteCheck.site.lga,
+    quickSiteCheck.site.zoneLabel,
+    "development controls setbacks parking landscaping built form",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const [dcpClauses, sourceContext] = await Promise.all([
+    lgaCode ? deps.getDCPContext(lgaCode, controlsQuery) : Promise.resolve([]),
+    deps.getWorkspaceSourceContext({
+      projectId: project.id,
+      lgaCode,
+      lgaName: quickSiteCheck.site.lga ?? null,
+      query: controlsQuery || "pre SEE planning memo",
+      limit: 6,
+    }),
+  ]);
+
+  const siteDescription = {
+    address: quickSiteCheck.site.address ?? null,
+    lga: quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaName ?? null,
+    zoneCode: quickSiteCheck.site.zoneCode ?? null,
+    zoneName: quickSiteCheck.site.zoneName ?? null,
+    zoneLabel: quickSiteCheck.site.zoneLabel ?? null,
+  };
+
+  const controlAssessments = [
+    buildControlAssessment(
+      "Land use permissibility",
+      quickSiteCheck.permissibility?.interpretation ??
+        "Permissibility could not be confirmed from the available LEP data. Confirm the land use against the LEP before relying on this memo.",
+    ),
+    buildControlAssessment("Height of building", quickSiteCheck.controls.heightOfBuilding.interpretation),
+    buildControlAssessment("Floor space ratio", quickSiteCheck.controls.floorSpaceRatio.interpretation),
+    buildControlAssessment("Minimum lot size", quickSiteCheck.controls.minimumLotSize.interpretation),
+  ];
+
+  const content: PreSeePlanningMemoContent = {
+    memoType: "pre_see_planning_memo",
+    generatedAt: new Date().toISOString(),
+    projectId: project.id,
+    siteDescription,
+    proposedWorksSummary:
+      proposedWorksSummary ||
+      "Proposed works summary not supplied. Add a concise description of the intended development before using this memo for application preparation.",
+    applicableControls: {
+      lepInstrument: quickSiteCheck.lepInstrument ?? null,
+      permissibility: quickSiteCheck.permissibility ?? null,
+      quickSiteControls: quickSiteCheck.controls,
+      dcpClauses: dcpClauses.map((clause) => ({
+        ref: clause.ref,
+        title: clause.title,
+        headingPath: clause.headingPath,
+        bodyText: clause.bodyText,
+        score: clause.score,
+      })),
+      sourceExcerpts: sourceContext.chunks.map((chunk) => ({
+        id: chunk.id,
+        heading: chunk.heading,
+        sourceType: chunk.sourceType,
+        content: chunk.content,
+        score: chunk.score,
+      })),
+    },
+    consistencyAssessment: controlAssessments,
+    limitations: [
+      "This is an MVP pre-SEE planning memo, not a final legal Statement of Environmental Effects.",
+      "Confirm all controls against the current LEP, DCP, planning certificates, council mapping and specialist reports before lodgement.",
+      "Hazards, servicing, biodiversity, flooding, bushfire, heritage and engineering constraints may require separate assessment.",
+    ],
+  };
+
+  const artefact = await deps.prisma.artefact.create({
+    data: {
+      projectId: project.id,
+      createdById: userId,
+      type: "pre_see_planning_memo" as ArtefactType,
+      title: title || `Pre-SEE planning memo — ${siteDescription.address ?? project.title}`,
+      source: siteDescription.address ?? "Pre-SEE planning memo",
+      overlays: [],
+      notes: content.limitations[0],
+      payload: content,
+      capturedAt: new Date(content.generatedAt),
+    },
+  });
+
+  return { artefact, content };
 }
 
 export async function listProjectArtefacts(projectId: string, userId: string, deps = { prisma }) {
