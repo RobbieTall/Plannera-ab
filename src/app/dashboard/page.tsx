@@ -102,7 +102,7 @@ export default async function DashboardPage() {
                       <div className="flex justify-end gap-2">
                         <Link
                           className="rounded border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:border-slate-400"
-                          href={`/projects/${project.id}/workspace`}
+                          href={`/projects/${project.publicId ?? project.id}/workspace`}
                         >
                           Open
                         </Link>
