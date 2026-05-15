@@ -15,16 +15,16 @@ const navigation: { label: string; href: string }[] = [
 
 const featureHighlights: { title: string; description: string }[] = [
   {
-    title: "Chat-first scoping",
-    description: "Turn a rough idea into a structured pathway with feasibility, risks and next actions in one pass.",
+    title: "Know what matters first",
+    description: "Start with likely controls, risks, documents and approval paths instead of a blank page.",
   },
   {
-    title: "Council intelligence",
-    description: "Mock data today, API ready tomorrow. Swap in your planning database with one config change.",
+    title: "Keep evidence in one place",
+    description: "Attach source material, site context and notes so every answer has the same project memory.",
   },
   {
-    title: "Stakeholder ready",
-    description: "Share clear summaries with consultants, investors and councils from one polished workspace.",
+    title: "Move from chat to action",
+    description: "Turn questions into saved summaries, planning memos and next steps your team can use.",
   },
 ];
 
@@ -247,12 +247,12 @@ export default function HomePage() {
           <section id="how-it-works" className="mt-12 space-y-6">
             <div className="grid gap-4 md:grid-cols-[0.8fr,1.2fr] md:items-end">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Why Plannera</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950">Built for planning teams</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">After you start</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950">A calmer way to scope a planning decision</h2>
               </div>
               <p className="text-base leading-7 text-slate-600 md:max-w-2xl">
-                The landing experience is fully modular. Swap in your real council database, webhooks, or CRM without
-                rewriting the UI. All copy, prompts and data sources live in dedicated config files.
+                Enter a site or project idea and get a focused workspace for the early decisions: what to check, what to prepare,
+                and what to ask next.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -268,14 +268,27 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section id="about" className="mt-12 rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-6 shadow-sm shadow-slate-200/70 sm:p-8">
-            <div className="grid gap-3 md:grid-cols-[0.75fr,1.25fr] md:items-center">
-              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">From idea to lodgement</h2>
-              <p className="text-base leading-7 text-slate-600">
-                Plannera.ai orchestrates property development workflows across feasibility, approvals and delivery. The
-                chat-first assistant showcased here is wired to mock data sources, making it straightforward to connect to
-                your own planning intelligence APIs when ready.
-              </p>
+          <section id="about" className="mt-12 rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-6 text-white shadow-xl shadow-slate-200/80 sm:p-8">
+            <div className="grid gap-5 md:grid-cols-[0.85fr,1.15fr] md:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Next step</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">From idea to an approval-ready brief</h2>
+              </div>
+              <div className="space-y-4">
+                <p className="text-base leading-7 text-slate-200">
+                  Use the workspace to set the site, ask planning questions, save useful answers, and build the source pack
+                  your planner, consultant or investor needs to review the opportunity.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleExampleClick(examplePrompts[0])}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Open a sample workspace
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </section>
         </div>
