@@ -246,8 +246,15 @@ const buildZoningLabel = (context: SiteContextSummary | null) => {
   return context.zone;
 };
 
-const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) =>
-  artefact.noteType === "Pre-SEE memo" || artefact.preSeeMemo?.memoType === "pre_see_planning_memo";
+const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
+  const normalizedTitle = artefact.title.toLowerCase();
+  return (
+    artefact.noteType === "Pre-SEE memo" ||
+    artefact.preSeeMemo?.memoType === "pre_see_planning_memo" ||
+    normalizedTitle.includes("pre-see planning memo") ||
+    normalizedTitle.includes("see memo")
+  );
+};
 
 const isPreSeeMemoContent = (value: unknown): value is WorkspacePreSeePlanningMemoContent => {
   if (!value || typeof value !== "object") return false;
@@ -2302,55 +2309,85 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 </button>
               </header>
               <ul className="mt-4 space-y-3 pr-1">
-                {artefacts.map((artefact) => (
-                  <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-300">
-                          {artefact.owner} · {artefact.updatedAt}
-                          {artefact.noteType ? ` · ${artefact.noteType}` : ""}
-                        </p>
-                        {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
+                {artefacts.map((artefact) => {
+                  const canOpenPreSeeMemo = isPreSeeMemoArtefact(artefact);
+
+                  return (
+                    <li
+                      key={artefact.id}
+                      role={canOpenPreSeeMemo ? "button" : undefined}
+                      tabIndex={canOpenPreSeeMemo ? 0 : undefined}
+                      aria-label={canOpenPreSeeMemo ? `Open ${artefact.title}` : undefined}
+                      title={canOpenPreSeeMemo ? "Open generated SEE memo" : undefined}
+                      onClick={canOpenPreSeeMemo ? () => void handleOpenPreSeeMemo(artefact) : undefined}
+                      onKeyDown={
+                        canOpenPreSeeMemo
+                          ? (event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                void handleOpenPreSeeMemo(artefact);
+                              }
+                            }
+                          : undefined
+                      }
+                      className={cn(
+                        "rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70",
+                        canOpenPreSeeMemo
+                          ? "cursor-pointer hover:border-blue-300 hover:bg-blue-50/70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:border-blue-400/60 dark:hover:bg-blue-500/10"
+                          : null,
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-300">
+                            {artefact.owner} · {artefact.updatedAt}
+                            {artefact.noteType ? ` · ${artefact.noteType}` : ""}
+                          </p>
+                          {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
+                        </div>
+                        <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
+                          {artefact.type}
+                        </span>
                       </div>
-                      <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
-                        {artefact.type}
-                      </span>
-                    </div>
-                    {isPreSeeMemoArtefact(artefact) ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleOpenPreSeeMemo(artefact)}
-                          disabled={openingPreSeeMemoId === artefact.id}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-500 disabled:cursor-wait disabled:opacity-60 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:border-blue-300"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          {openingPreSeeMemoId === artefact.id ? "Opening memo…" : "Open memo"}
-                        </button>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Opens the generated SEE memo preview from the artefact record.
-                        </p>
-                      </div>
-                    ) : null}
-                    {artefact.type === "chat" && artefact.messages?.length ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {/* TODO: implement artefact chat restoration */}
-                        <button
-                          type="button"
-                          disabled
-                          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-                        >
-                          <RefreshCcw className="h-3.5 w-3.5" />
-                          Reopen in chat
-                        </button>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
-                        </p>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
+                      {canOpenPreSeeMemo ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleOpenPreSeeMemo(artefact);
+                            }}
+                            disabled={openingPreSeeMemoId === artefact.id}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-500 disabled:cursor-wait disabled:opacity-60 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:border-blue-300"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            {openingPreSeeMemoId === artefact.id ? "Opening memo…" : "Open memo"}
+                          </button>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Click the report tile or this button to open the SEE memo preview.
+                          </p>
+                        </div>
+                      ) : null}
+                      {artefact.type === "chat" && artefact.messages?.length ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {/* TODO: implement artefact chat restoration */}
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                          >
+                            <RefreshCcw className="h-3.5 w-3.5" />
+                            Reopen in chat
+                          </button>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
+                          </p>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
               <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
                 Save a chat, draft a memo, or add a note to build the project record.
