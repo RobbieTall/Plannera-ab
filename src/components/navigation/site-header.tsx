@@ -20,29 +20,29 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
+      <header className="sticky top-0 z-50 border-b border-white/70 bg-white/75 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+          <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-white/70 p-1 text-sm font-medium text-slate-600 shadow-sm shadow-slate-200/60 md:flex">
             {navigation.map((item) => (
-              <Link key={item.href} href={item.href} className="transition hover:text-slate-900">
+              <Link key={item.href} href={item.href} className="rounded-full px-3 py-1.5 transition hover:bg-slate-100 hover:text-slate-950">
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
                 <Link
                   href="/dashboard"
-                  className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 sm:inline-flex"
+                  className="hidden rounded-full border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
                 >
                   My Projects
                 </Link>
-                <SignOutButton className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
+                <SignOutButton className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800">
                   Sign out
                 </SignOutButton>
               </>
@@ -51,7 +51,7 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
                 <button
                   type="button"
                   onClick={() => openAuthModal()}
-                  className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
+                  className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800"
                 >
                   Sign in
                 </button>

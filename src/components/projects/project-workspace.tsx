@@ -140,6 +140,12 @@ const tools: ToolCard[] = [
   },
 ];
 
+const workspaceQuickPrompts = [
+  "What are the likely planning risks for this site?",
+  "Draft a practical approval pathway",
+  "What documents should I prepare next?",
+];
+
 const noteCategories: WorkspaceNoteCategory[] = ["Note", "Meeting minutes", "Observation", "Idea"];
 
 const ACCEPTED_EXTENSION_SET = new Set(ACCEPTED_EXTENSIONS.map((ext) => ext.replace(".", "")));
@@ -226,7 +232,7 @@ function ProjectTitleEditor({
       onChange={(event) => setTitle(event.target.value)}
       onBlur={handleBlur}
       disabled={isPending}
-      className="mt-1.5 w-full max-w-xl bg-transparent text-lg font-semibold text-slate-900 outline-none ring-0 transition focus:border-b focus:border-border dark:text-white sm:text-xl"
+      className="mt-1.5 w-full max-w-xl bg-transparent text-2xl font-semibold tracking-[-0.03em] text-white outline-none ring-0 transition placeholder:text-slate-400 focus:border-b focus:border-blue-200 sm:text-3xl"
     />
   );
 }
@@ -1654,8 +1660,8 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   }, [requireAuth, saveNoteArtefact]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-5 text-slate-900 transition-colors sm:px-6 lg:px-10 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-white">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto bg-[radial-gradient(circle_at_top_left,#eff6ff,transparent_30rem)] px-4 pb-5 pt-3 text-slate-900 transition-colors sm:px-6 lg:px-8 dark:bg-slate-950 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
+      <div className="sticky top-3 z-30 flex flex-wrap items-center justify-between gap-2 rounded-[1.5rem] border border-white/80 bg-white/85 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/85 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
             <Logo className="h-6 w-auto" />
@@ -1665,7 +1671,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
             >
               ← My Projects
             </button>
@@ -1675,18 +1681,18 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
           <button
             type="button"
             onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100"
             aria-label="Toggle light and dark mode"
           >
             {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {isDarkMode ? "Light mode" : "Dark mode"}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
             <Sparkles className="h-4 w-4" />
             Get help
           </button>
           {isAuthenticated ? (
-            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
               <LogOut className="h-4 w-4" />
               Logout
             </SignOutButton>
@@ -1695,7 +1701,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               <button
                 type="button"
                 onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
               >
                 Sign in
               </button>
@@ -1704,19 +1710,21 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-[260px] flex-1 flex-col">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
-          <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-300">Interactive notebook for pathways, risks, and council-ready artefacts.</p>
+      <div className="rounded-[1.75rem] border border-white/80 bg-slate-950 p-5 text-white shadow-2xl shadow-blue-950/10 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-[260px] flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Project workspace</p>
+            <ProjectTitleEditor projectId={project.id} initialTitle={project.name} />
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">Your command centre for site context, source material, chat decisions and approval-ready outputs.</p>
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-2xl bg-white px-3.5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50">
+            <Notebook className="h-4 w-4" />
+            Share workspace
+          </button>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white">
-          <Notebook className="h-4 w-4" />
-          Share workspace
-        </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin className="h-4 w-4 text-slate-500" />
           <span>{siteContext?.formattedAddress ?? "No site set"}</span>
@@ -1759,13 +1767,13 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto xl:overflow-hidden">
-        <div className="grid flex-1 min-h-0 items-stretch gap-5 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <section className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+        <div className="grid flex-1 min-h-0 items-stretch gap-4 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
+          <section className="flex flex-col rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Sources</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Emails, documents & references</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Project evidence and references</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Usage</p>
@@ -1817,7 +1825,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 {displayedSources.map((source) => {
                   const Icon = sourceIcons[source.type] ?? FileText;
                   return (
-                    <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
+                    <li key={source.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
                       {source.url ? (
                         <a
                           href={source.url}
@@ -1873,12 +1881,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             </div>
           </section>
 
-        <section className="flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+        <section className="flex min-h-0 flex-col rounded-[1.5rem] border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Chat</p>
               <p className="text-sm text-slate-500 dark:text-slate-300">
-                Set the site, ask follow-ups, send to agents, or refresh to start over.
+                Ask planning questions, confirm the site, and save useful answers back to this project.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1906,7 +1914,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             </div>
           </header>
           <div
-            className="flex min-h-[70vh] h-[calc(100svh-160px)] max-h-[calc(100svh-140px)] flex-1 flex-col gap-4 overflow-y-auto px-6 py-6 xl:min-h-0 xl:h-full xl:max-h-none xl:overflow-hidden"
+            className="flex min-h-[70vh] h-[calc(100svh-180px)] max-h-[calc(100svh-150px)] flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 xl:min-h-0 xl:h-full xl:max-h-none xl:overflow-hidden"
           >
             {siteSelection ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
@@ -2069,7 +2077,25 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 aria-live="polite"
               >
               {messages.length === 0 ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500">Start by typing a question to begin this chat.</p>
+                <div className="rounded-[1.25rem] border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Start with a planning question.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Use one of these prompts or ask in your own words.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {workspaceQuickPrompts.map((quickPrompt) => (
+                      <button
+                        key={quickPrompt}
+                        type="button"
+                        onClick={() => {
+                          setInput(quickPrompt);
+                          chatInputRef.current?.focus();
+                        }}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      >
+                        {quickPrompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 messages.map((message) => (
                   <article
@@ -2095,7 +2121,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             </div>
             <form
               onSubmit={handleSubmit}
-              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 xl:static"
+              className="sticky bottom-0 left-0 right-0 shrink-0 rounded-[1.25rem] border border-slate-200 bg-white/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-sm backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 xl:static"
             >
               <label htmlFor="chat-input" className="sr-only">
                 Ask the workspace
@@ -2107,14 +2133,14 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={3}
-                placeholder="Ask for a summary, send to an agent, or type / to see slash commands"
+                placeholder="Ask what to check next, draft a pathway, or summarise the site risks…"
                 className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-400 dark:text-slate-500">Responses stay inside this project unless you share them.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Saved answers become project artefacts.</p>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:hover:bg-slate-800"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400"
                 >
                   Send
                   <Sparkles className="h-4 w-4" />
@@ -2127,11 +2153,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
         <section className="flex flex-col md:h-full md:min-h-0">
           <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Maps & External Tools</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Keep overlays and exports aligned with the workspace.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Open maps, DCPs and site checks without losing context.</p>
                 </div>
                 <button
                   type="button"
@@ -2155,11 +2181,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 onCancel={() => setIsNoteEditorOpen(false)}
               />
             ) : (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
                 <header className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Tools & Agents</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-300">Send context or open in split view.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Create outputs from this workspace context.</p>
                   </div>
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
                     Pro access
@@ -2212,11 +2238,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               </div>
             )}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Artefacts</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">Saved outputs from tools or chats appear here.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Saved answers, memos and notes stay here.</p>
                 </div>
                 <button
                   type="button"
@@ -2263,11 +2289,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 ))}
               </ul>
               <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
-                Drop a chat summary or upload an attachment to pin it here.
+                Save a chat, draft a memo, or add a note to build the project record.
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-900/90 p-5 text-white">
+            <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70">
               <p className="text-sm font-semibold">Need a new artefact?</p>
               <p className="mt-1 text-xs text-slate-200">Send any conversation to a tool and it’ll appear here for future reference.</p>
               <button className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
@@ -2528,7 +2554,7 @@ function NoteEditor({ noteTitle, onTitleChange, noteType, onTypeChange, noteBody
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Note editor</p>

@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Sparkles, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, FileText, Sparkles, Users } from "lucide-react";
 
 import { SiteHeader } from "@/components/navigation/site-header";
 
@@ -15,16 +15,16 @@ const navigation: { label: string; href: string }[] = [
 
 const featureHighlights: { title: string; description: string }[] = [
   {
-    title: "Chat-first scoping",
-    description: "Use natural language to unpack feasibility, risks and next steps in seconds.",
+    title: "Know what matters first",
+    description: "Start with likely controls, risks, documents and approval paths instead of a blank page.",
   },
   {
-    title: "Council intelligence",
-    description: "Mock data today, API ready tomorrow. Swap in your planning database with one config change.",
+    title: "Keep evidence in one place",
+    description: "Attach source material, site context and notes so every answer has the same project memory.",
   },
   {
-    title: "Stakeholder ready",
-    description: "Share AI summaries with consultants, investors and councils from one workspace.",
+    title: "Move from chat to action",
+    description: "Turn questions into saved summaries, planning memos and next steps your team can use.",
   },
 ];
 
@@ -51,6 +51,12 @@ const quickStats = [
     description: "Planners, certifiers and heritage experts",
     icon: Users,
   },
+];
+
+const pathwaySteps = [
+  "Planning controls scanned",
+  "Approval pathway drafted",
+  "Consultant pack assembled",
 ];
 
 async function startProjectFromPrompt(
@@ -112,51 +118,60 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,#eff6ff,transparent_34rem),linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-950">
       <SiteHeader navigation={navigation} />
 
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-6xl px-6 py-16">
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <div id="product">
-            <section className="space-y-10">
-              <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-10 text-white">
-                <div className="relative z-10 grid gap-10 lg:grid-cols-[1.1fr,0.9fr]">
-                  <div className="space-y-5">
-                    <p className="text-sm uppercase tracking-[0.2em] text-blue-200">AI Planning Copilot</p>
-                    <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
-                      Navigate planning approvals with AI
-                    </h1>
-                    <p className="text-lg text-blue-100">
-                      Streamline your development from concept to consent. Describe your project and Plannera will surface
-                      local requirements, documentation, timelines and costs in seconds.
-                    </p>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+            <section className="space-y-5">
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-blue-950/20 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.34),transparent_26rem),radial-gradient(circle_at_82%_12%,rgba(14,165,233,0.18),transparent_22rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(15,23,42,0.88)_48%,rgba(30,64,175,0.72))]" />
+                <div className="relative z-10 grid items-center gap-7 lg:grid-cols-[1.05fr,0.95fr]">
+                  <div className="max-w-2xl space-y-5">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100 shadow-sm backdrop-blur">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                      AI Planning Copilot
+                    </div>
+                    <div className="space-y-3">
+                      <h1 className="text-balance text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
+                        Navigate planning approvals with AI-level clarity.
+                      </h1>
+                      <p className="max-w-xl text-base leading-7 text-blue-100/90 sm:text-lg">
+                        Describe the site once. Plannera tightens the brief, surfaces likely controls, and turns early
+                        uncertainty into a practical pathway before your first consultant call.
+                      </p>
+                    </div>
+                    <form
+                      onSubmit={handleSubmit}
+                      className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.12] p-2 shadow-2xl shadow-slate-950/20 backdrop-blur sm:flex sm:items-center sm:gap-2"
+                    >
                       <input
                         type="text"
                         value={prompt}
                         onChange={(event) => setPrompt(event.target.value)}
                         placeholder="Enter a site address or project idea…"
-                        className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-base text-white placeholder:text-blue-200 focus:border-blue-200 focus:outline-none"
+                        className="min-h-12 w-full rounded-2xl border border-transparent bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 shadow-inner shadow-slate-200/60 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-400/20 sm:flex-1"
                       />
                       <button
                         type="submit"
                         disabled={submitting || !prompt.trim()}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/90 px-5 py-3 text-base font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                        className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-500 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-950/20 transition hover:-translate-y-0.5 hover:bg-blue-400 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-400 sm:mt-0 sm:w-auto"
                       >
-                        {submitting ? "Starting workspace..." : "Generate planning pathway"}
-                        <Sparkles className={`h-4 w-4 text-blue-700 ${submitting ? "animate-pulse" : ""}`} />
+                        {submitting ? "Starting..." : "Generate pathway"}
+                        <ArrowRight className={`h-4 w-4 ${submitting ? "animate-pulse" : ""}`} />
                       </button>
                     </form>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">Try an example</p>
-                      <div className="mt-3 flex flex-wrap gap-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200/90">Try an example</p>
+                      <div className="flex flex-wrap gap-2">
                         {examplePrompts.map((example) => (
                           <button
                             key={example}
                             type="button"
                             onClick={() => handleExampleClick(example)}
                             disabled={submitting}
-                            className="rounded-full border border-white/20 px-4 py-2 text-left text-sm text-white transition hover:border-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-2 text-left text-xs font-medium text-white/90 transition hover:border-white/45 hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {example}
                           </button>
@@ -164,30 +179,64 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-4 rounded-[28px] bg-white/10 p-6 backdrop-blur">
-                    <p className="text-sm font-semibold text-blue-100">Plannera learns from:</p>
-                    <ul className="space-y-4 text-sm text-blue-50">
-                      <li>Historic DA outcomes across 50+ councils</li>
-                      <li>Library of planning reports and submission packs</li>
-                      <li>Consultant directories for specialist referrals</li>
-                    </ul>
-                    <div className="rounded-2xl bg-black/20 p-4 text-sm text-blue-100">
-                      Secure sandbox mode – no project data is stored. Perfect for early-stage scoping.
+
+                  <div className="rounded-[1.75rem] border border-white/[0.14] bg-white/10 p-3 shadow-2xl shadow-slate-950/25 backdrop-blur-xl">
+                    <div className="rounded-[1.35rem] bg-white p-4 text-slate-950 shadow-inner shadow-slate-200/80 sm:p-5">
+                      <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace preview</p>
+                          <h2 className="mt-1 text-xl font-semibold tracking-[-0.03em] text-slate-950">Approval pathway</h2>
+                        </div>
+                        <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Ready</div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl bg-slate-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Risk</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">Low-med</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Timeline</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">6-10 wk</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Docs</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-950">8 items</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2.5">
+                        {pathwaySteps.map((step) => (
+                          <div key={step} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500" />
+                            <span className="text-sm font-medium text-slate-700">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 rounded-2xl bg-slate-950 p-4 text-white">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
+                          <Clock3 className="h-4 w-4" />
+                          Next best action
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-200">
+                          Confirm zoning overlays, then brief a town planner with a one-page scope and evidence list.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-blue-500/30 blur-3xl" />
               </div>
 
-              <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
+              <div className="grid gap-3 rounded-[1.5rem] border border-white bg-white/90 p-3 shadow-sm shadow-slate-200/70 md:grid-cols-3">
                 {quickStats.map((stat) => (
-                  <div key={stat.label} className="flex items-center gap-4 rounded-2xl p-3">
-                    <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+                  <div key={stat.label} className="flex items-center gap-3 rounded-[1.15rem] px-3 py-3 transition hover:bg-slate-50">
+                    <div className="rounded-2xl bg-blue-50 p-2.5 text-blue-600">
                       <stat.icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{stat.label}</p>
-                      <p className="text-xs text-slate-500">{stat.description}</p>
+                      <p className="text-sm font-semibold text-slate-950">{stat.label}</p>
+                      <p className="text-xs leading-5 text-slate-500">{stat.description}</p>
                     </div>
                   </div>
                 ))}
@@ -195,38 +244,58 @@ export default function HomePage() {
             </section>
           </div>
 
-          <section id="how-it-works" className="mt-16 space-y-10">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Why Plannera</p>
-              <h2 className="text-3xl font-semibold text-slate-900">Built for planning teams</h2>
-              <p className="text-base text-slate-600">
-                The landing experience is fully modular. Swap in your real council database, webhooks, or CRM without
-                rewriting the UI. All copy, prompts and data sources live in dedicated config files.
+          <section id="how-it-works" className="mt-12 space-y-6">
+            <div className="grid gap-4 md:grid-cols-[0.8fr,1.2fr] md:items-end">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">After you start</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950">A calmer way to scope a planning decision</h2>
+              </div>
+              <p className="text-base leading-7 text-slate-600 md:max-w-2xl">
+                Enter a site or project idea and get a focused workspace for the early decisions: what to check, what to prepare,
+                and what to ask next.
               </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               {featureHighlights.map((feature) => (
-                <div key={feature.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-slate-900">{feature.title}</h3>
-                  <p className="mt-2 text-sm text-slate-600">{feature.description}</p>
+                <div
+                  key={feature.title}
+                  className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-5 shadow-sm shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80"
+                >
+                  <h3 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{feature.description}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          <section id="about" className="mt-16 space-y-6">
-            <h2 className="text-2xl font-semibold text-slate-900">From idea to lodgement</h2>
-            <p className="text-base text-slate-600">
-              Plannera.ai orchestrates property development workflows across feasibility, approvals and delivery. The
-              chat-first assistant showcased here is wired to mock data sources, making it straightforward to connect to
-              your own planning intelligence APIs when ready.
-            </p>
+          <section id="about" className="mt-12 rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-6 text-white shadow-xl shadow-slate-200/80 sm:p-8">
+            <div className="grid gap-5 md:grid-cols-[0.85fr,1.15fr] md:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Next step</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">From idea to an approval-ready brief</h2>
+              </div>
+              <div className="space-y-4">
+                <p className="text-base leading-7 text-slate-200">
+                  Use the workspace to set the site, ask planning questions, save useful answers, and build the source pack
+                  your planner, consultant or investor needs to review the opportunity.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleExampleClick(examplePrompts[0])}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Open a sample workspace
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-6 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
+      <footer className="border-t border-slate-200/80 bg-white/85 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-5 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <span>© {new Date().getFullYear()} Plannera.ai. Built with Next.js 14.</span>
           <div className="flex gap-4">
             <Link href="https://nextjs.org" className="transition hover:text-slate-700">
