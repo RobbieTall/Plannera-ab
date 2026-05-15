@@ -2,12 +2,13 @@ import type { Prisma, Project } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-export type ProjectSummary = Pick<Project, "id" | "title" | "address" | "zoning">;
+export type ProjectSummary = Pick<Project, "id" | "publicId" | "title" | "address" | "zoning">;
 
 export type ProjectListItem = ProjectSummary & Pick<Project, "updatedAt">;
 
 const projectSummarySelect = {
   id: true,
+  publicId: true,
   title: true,
   address: true,
   zoning: true,
@@ -15,6 +16,7 @@ const projectSummarySelect = {
 
 const sanitizeProject = (project: ProjectSummary): ProjectSummary => ({
   id: project.id,
+  publicId: project.publicId,
   title: project.title,
   address: project.address,
   zoning: project.zoning,
@@ -27,6 +29,7 @@ const projectListSelect = {
 
 const sanitizeProjectListItem = (project: ProjectListItem): ProjectListItem => ({
   id: project.id,
+  publicId: project.publicId,
   title: project.title,
   address: project.address,
   zoning: project.zoning,
@@ -116,14 +119,19 @@ export const claimProjectForUser = async (
   userId: string,
   sessionId?: string | null,
 ): Promise<boolean> => {
-  const where: Prisma.ProjectWhereInput = { id: projectId, userId: null };
+  const identityFilter: Prisma.ProjectWhereInput = {
+    OR: [{ id: projectId }, { publicId: projectId }],
+  };
 
+  const ownershipFilters: Prisma.ProjectWhereInput[] = [{ userId: null }];
   if (sessionId) {
-    where.sessionId = sessionId;
+    ownershipFilters.push({ sessionId });
   }
 
   const result = await prisma.project.updateMany({
-    where,
+    where: {
+      AND: [identityFilter, { OR: ownershipFilters }],
+    },
     data: { userId, sessionId: null },
   });
 
