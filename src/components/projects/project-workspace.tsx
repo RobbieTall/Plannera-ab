@@ -94,6 +94,17 @@ type DcpLink = {
   url: string | null;
 };
 
+type ServerArtefactRecord = {
+  id: string;
+  title: string;
+  type: string;
+  payload?: unknown;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  capturedAt?: string | null;
+};
+
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
 const tools: ToolCard[] = [
@@ -246,10 +257,17 @@ const buildZoningLabel = (context: SiteContextSummary | null) => {
   return context.zone;
 };
 
+const normaliseMemoLabel = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/[_\s]+/g, " ");
+
 const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
-  const normalizedTitle = artefact.title.toLowerCase();
+  const normalizedTitle = normaliseMemoLabel(artefact.title);
+  const normalizedNoteType = artefact.noteType ? normaliseMemoLabel(artefact.noteType) : "";
   return (
-    artefact.noteType === "Pre-SEE memo" ||
+    normalizedNoteType === "pre-see memo" ||
     artefact.preSeeMemo?.memoType === "pre_see_planning_memo" ||
     normalizedTitle.includes("pre-see planning memo") ||
     normalizedTitle.includes("see memo")
@@ -265,6 +283,35 @@ const formatMemoDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+};
+
+const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null => {
+  if (artefact.type !== "pre_see_planning_memo" && !isPreSeeMemoContent(artefact.payload)) {
+    return null;
+  }
+
+  const preSeeMemo = isPreSeeMemoContent(artefact.payload) ? artefact.payload : undefined;
+  const generatedAt = preSeeMemo?.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt;
+  const dcpCount = preSeeMemo?.applicableControls.dcpClauses.length ?? 0;
+  const sourceCount = preSeeMemo?.applicableControls.sourceExcerpts.length ?? 0;
+  const metadata = [
+    preSeeMemo?.siteDescription.zoneLabel,
+    `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`,
+    `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: generatedAt ? formatMemoDate(generatedAt) : "Saved",
+    type: "report",
+    noteType: "Pre-SEE memo",
+    metadata: metadata || artefact.notes || "Saved pre-SEE planning memo",
+    preSeeMemo,
+  };
 };
 
 function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
@@ -357,6 +404,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
   const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
+  const [serverArtefacts, setServerArtefacts] = useState<WorkspaceArtefact[]>([]);
   const [selectedPreSeeMemo, setSelectedPreSeeMemo] = useState<WorkspaceArtefact | null>(null);
   const [openingPreSeeMemoId, setOpeningPreSeeMemoId] = useState<string | null>(null);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
@@ -483,6 +531,35 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
       setMessages([]);
     }
   }, [getChatHistory, projectKey]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setServerArtefacts([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadServerArtefacts = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json().catch(() => [])) as ServerArtefactRecord[];
+        if (cancelled) return;
+
+        setServerArtefacts(data.map(mapServerPreSeeMemoArtefact).filter((artefact): artefact is WorkspaceArtefact => Boolean(artefact)));
+      } catch (error) {
+        console.error("Failed to load project artefacts", error);
+      }
+    };
+
+    void loadServerArtefacts();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, projectKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1584,7 +1661,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   );
 
   const experienceArtefacts = getArtefacts(projectKey);
-  const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
+  const artefacts = useMemo(() => {
+    const merged = new Map<string, WorkspaceArtefact>();
+    serverArtefacts.forEach((artefact) => merged.set(artefact.id, artefact));
+    experienceArtefacts.forEach((artefact) => merged.set(artefact.id, artefact));
+    return Array.from(merged.values());
+  }, [experienceArtefacts, serverArtefacts]);
 
   const handleOpenPreSeeMemo = useCallback(
     async (artefact: WorkspaceArtefact) => {
