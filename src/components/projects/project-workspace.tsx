@@ -261,22 +261,77 @@ const normaliseMemoLabel = (value: string) =>
   value
     .toLowerCase()
     .replace(/[‐‑‒–—―]/g, "-")
-    .replace(/[_\s]+/g, " ");
+    .replace(/[_\s]+/g, " ")
+    .trim();
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const readString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
+const readNullableString = (value: unknown) => (typeof value === "string" ? value : null);
+
+const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemoContent | null => {
+  if (!isRecord(value)) return null;
+
+  const siteDescription = isRecord(value.siteDescription) ? value.siteDescription : {};
+  const applicableControls = isRecord(value.applicableControls) ? value.applicableControls : {};
+  const hasMemoShape =
+    value.memoType === "pre_see_planning_memo" ||
+    isRecord(value.siteDescription) ||
+    isRecord(value.applicableControls) ||
+    Array.isArray(value.consistencyAssessment);
+
+  if (!hasMemoShape) return null;
+
+  const quickSiteControls = isRecord(applicableControls.quickSiteControls)
+    ? (applicableControls.quickSiteControls as WorkspacePreSeePlanningMemoContent["applicableControls"]["quickSiteControls"])
+    : {};
+
+  return {
+    memoType: "pre_see_planning_memo",
+    generatedAt: readString(value.generatedAt, new Date().toISOString()),
+    projectId: readString(value.projectId),
+    siteDescription: {
+      address: readNullableString(siteDescription.address),
+      lga: readNullableString(siteDescription.lga),
+      zoneCode: readNullableString(siteDescription.zoneCode),
+      zoneName: readNullableString(siteDescription.zoneName),
+      zoneLabel: readNullableString(siteDescription.zoneLabel),
+    },
+    proposedWorksSummary: readString(value.proposedWorksSummary, "Proposed works summary not supplied."),
+    applicableControls: {
+      lepInstrument: isRecord(applicableControls.lepInstrument)
+        ? (applicableControls.lepInstrument as WorkspacePreSeePlanningMemoContent["applicableControls"]["lepInstrument"])
+        : null,
+      permissibility: isRecord(applicableControls.permissibility)
+        ? (applicableControls.permissibility as WorkspacePreSeePlanningMemoContent["applicableControls"]["permissibility"])
+        : null,
+      quickSiteControls,
+      dcpClauses: Array.isArray(applicableControls.dcpClauses)
+        ? (applicableControls.dcpClauses as WorkspacePreSeePlanningMemoContent["applicableControls"]["dcpClauses"])
+        : [],
+      sourceExcerpts: Array.isArray(applicableControls.sourceExcerpts)
+        ? (applicableControls.sourceExcerpts as WorkspacePreSeePlanningMemoContent["applicableControls"]["sourceExcerpts"])
+        : [],
+    },
+    consistencyAssessment: Array.isArray(value.consistencyAssessment)
+      ? (value.consistencyAssessment as WorkspacePreSeePlanningMemoContent["consistencyAssessment"])
+      : [],
+    limitations: Array.isArray(value.limitations)
+      ? (value.limitations as WorkspacePreSeePlanningMemoContent["limitations"])
+      : ["Confirm all controls against current source documents before relying on this memo."],
+  };
+};
 
 const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
   const normalizedTitle = normaliseMemoLabel(artefact.title);
   const normalizedNoteType = artefact.noteType ? normaliseMemoLabel(artefact.noteType) : "";
   return (
     normalizedNoteType === "pre-see memo" ||
-    artefact.preSeeMemo?.memoType === "pre_see_planning_memo" ||
+    normalisePreSeeMemoContent(artefact.preSeeMemo) !== null ||
     normalizedTitle.includes("pre-see planning memo") ||
     normalizedTitle.includes("see memo")
   );
-};
-
-const isPreSeeMemoContent = (value: unknown): value is WorkspacePreSeePlanningMemoContent => {
-  if (!value || typeof value !== "object") return false;
-  return (value as { memoType?: unknown }).memoType === "pre_see_planning_memo";
 };
 
 const formatMemoDate = (value: string) => {
@@ -286,11 +341,12 @@ const formatMemoDate = (value: string) => {
 };
 
 const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null => {
-  if (artefact.type !== "pre_see_planning_memo" && !isPreSeeMemoContent(artefact.payload)) {
+  const preSeeMemo = normalisePreSeeMemoContent(artefact.payload);
+
+  if (artefact.type !== "pre_see_planning_memo" && !preSeeMemo) {
     return null;
   }
 
-  const preSeeMemo = isPreSeeMemoContent(artefact.payload) ? artefact.payload : undefined;
   const generatedAt = preSeeMemo?.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt;
   const dcpCount = preSeeMemo?.applicableControls.dcpClauses.length ?? 0;
   const sourceCount = preSeeMemo?.applicableControls.sourceExcerpts.length ?? 0;
@@ -310,8 +366,20 @@ const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceA
     type: "report",
     noteType: "Pre-SEE memo",
     metadata: metadata || artefact.notes || "Saved pre-SEE planning memo",
-    preSeeMemo,
+    preSeeMemo: preSeeMemo ?? undefined,
   };
+};
+
+const findMatchingServerMemoArtefact = (artefact: WorkspaceArtefact, serverArtefacts: ServerArtefactRecord[]) => {
+  const normalizedTitle = normaliseMemoLabel(artefact.title);
+  const exactMatch = serverArtefacts.find((entry) => entry.id === artefact.id);
+  if (exactMatch) return exactMatch;
+
+  return serverArtefacts.find((entry) => {
+    const serverMemo = mapServerPreSeeMemoArtefact(entry);
+    if (!serverMemo?.preSeeMemo) return false;
+    return normaliseMemoLabel(serverMemo.title) === normalizedTitle || entry.type === "pre_see_planning_memo";
+  });
 };
 
 function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
@@ -1663,33 +1731,60 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const experienceArtefacts = getArtefacts(projectKey);
   const artefacts = useMemo(() => {
     const merged = new Map<string, WorkspaceArtefact>();
-    serverArtefacts.forEach((artefact) => merged.set(artefact.id, artefact));
-    experienceArtefacts.forEach((artefact) => merged.set(artefact.id, artefact));
+    const serverMemoKeys = new Set<string>();
+
+    serverArtefacts.forEach((artefact) => {
+      merged.set(artefact.id, artefact);
+      serverMemoKeys.add(normaliseMemoLabel(artefact.title));
+    });
+
+    experienceArtefacts.forEach((artefact) => {
+      const isDuplicateLocalMemo =
+        isPreSeeMemoArtefact(artefact) && !artefact.preSeeMemo && serverMemoKeys.has(normaliseMemoLabel(artefact.title));
+
+      if (!isDuplicateLocalMemo) {
+        merged.set(artefact.id, artefact);
+      }
+    });
+
     return Array.from(merged.values());
   }, [experienceArtefacts, serverArtefacts]);
 
   const handleOpenPreSeeMemo = useCallback(
     async (artefact: WorkspaceArtefact) => {
-      if (artefact.preSeeMemo) {
-        setSelectedPreSeeMemo(artefact);
+      const localMemo = normalisePreSeeMemoContent(artefact.preSeeMemo);
+      if (localMemo) {
+        setSelectedPreSeeMemo({ ...artefact, preSeeMemo: localMemo });
         return;
       }
 
       setOpeningPreSeeMemoId(artefact.id);
       try {
         const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
-        const data = (await response.json().catch(() => [])) as Array<{ id?: string; payload?: unknown }>;
+        const data = (await response.json().catch(() => [])) as ServerArtefactRecord[];
 
         if (!response.ok) {
           throw new Error("Unable to load the saved memo");
         }
 
-        const serverArtefact = data.find((entry) => entry.id === artefact.id);
-        if (!serverArtefact || !isPreSeeMemoContent(serverArtefact.payload)) {
+        const mappedServerArtefacts = data
+          .map(mapServerPreSeeMemoArtefact)
+          .filter((entry): entry is WorkspaceArtefact => Boolean(entry));
+        setServerArtefacts(mappedServerArtefacts);
+
+        const serverArtefact = findMatchingServerMemoArtefact(artefact, data);
+        const serverMemo = normalisePreSeeMemoContent(serverArtefact?.payload);
+
+        if (!serverArtefact || !serverMemo) {
           throw new Error("This memo was saved, but its preview content is not available yet");
         }
 
-        setSelectedPreSeeMemo({ ...artefact, preSeeMemo: serverArtefact.payload });
+        setSelectedPreSeeMemo({
+          ...artefact,
+          id: serverArtefact.id,
+          title: serverArtefact.title || artefact.title,
+          preSeeMemo: serverMemo,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to open the saved memo";
         showToast(message, "error");
