@@ -267,30 +267,105 @@ const normaliseMemoLabel = (value: string) =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+const coerceRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
 const readString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
 const readNullableString = (value: unknown) => (typeof value === "string" ? value : null);
+const readNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const parsePossibleJson = (value: unknown) => {
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+};
+
+const normaliseQuickSiteControls = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["quickSiteControls"] => {
+  if (!isRecord(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, control]) => {
+      const controlRecord = coerceRecord(control);
+      return [
+        key,
+        {
+          label: readNullableString(controlRecord.label) ?? key,
+          value: readNullableString(controlRecord.value),
+          interpretation: readNullableString(controlRecord.interpretation) ?? "Confirm against source controls.",
+        },
+      ];
+    }),
+  );
+};
+
+const normaliseDcpClauses = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["dcpClauses"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((clause) => {
+    const clauseRecord = coerceRecord(clause);
+    return {
+      ref: readNullableString(clauseRecord.ref),
+      title: readNullableString(clauseRecord.title),
+      headingPath: Array.isArray(clauseRecord.headingPath) ? clauseRecord.headingPath.filter((entry): entry is string => typeof entry === "string") : [],
+      bodyText: readString(clauseRecord.bodyText),
+      score: readNumber(clauseRecord.score),
+    };
+  });
+};
+
+const normaliseSourceExcerpts = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["sourceExcerpts"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((source, index) => {
+    const sourceRecord = coerceRecord(source);
+    return {
+      id: readString(sourceRecord.id, `source-${index}`),
+      heading: readNullableString(sourceRecord.heading),
+      sourceType: readString(sourceRecord.sourceType, "source"),
+      content: readString(sourceRecord.content),
+      score: readNumber(sourceRecord.score),
+    };
+  });
+};
+
+const normaliseAssessments = (value: unknown): WorkspacePreSeePlanningMemoContent["consistencyAssessment"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item, index) => {
+    const itemRecord = coerceRecord(item);
+    return {
+      topic: readString(itemRecord.topic, `Assessment ${index + 1}`),
+      assessment: readString(itemRecord.assessment, "Assessment details were not saved with this memo."),
+    };
+  });
+};
+
+const normaliseLimitations = (value: unknown) => {
+  if (!Array.isArray(value)) return ["Confirm all controls against current source documents before relying on this memo."];
+  const limitations = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+  return limitations.length ? limitations : ["Confirm all controls against current source documents before relying on this memo."];
+};
 
 const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemoContent | null => {
-  if (!isRecord(value)) return null;
+  const parsedValue = parsePossibleJson(value);
+  if (!isRecord(parsedValue)) return null;
 
-  const siteDescription = isRecord(value.siteDescription) ? value.siteDescription : {};
-  const applicableControls = isRecord(value.applicableControls) ? value.applicableControls : {};
+  const siteDescription = coerceRecord(parsedValue.siteDescription);
+  const applicableControls = coerceRecord(parsedValue.applicableControls);
   const hasMemoShape =
-    value.memoType === "pre_see_planning_memo" ||
-    isRecord(value.siteDescription) ||
-    isRecord(value.applicableControls) ||
-    Array.isArray(value.consistencyAssessment);
+    parsedValue.memoType === "pre_see_planning_memo" ||
+    isRecord(parsedValue.siteDescription) ||
+    isRecord(parsedValue.applicableControls) ||
+    Array.isArray(parsedValue.consistencyAssessment);
 
   if (!hasMemoShape) return null;
 
-  const quickSiteControls = isRecord(applicableControls.quickSiteControls)
-    ? (applicableControls.quickSiteControls as WorkspacePreSeePlanningMemoContent["applicableControls"]["quickSiteControls"])
-    : {};
-
   return {
     memoType: "pre_see_planning_memo",
-    generatedAt: readString(value.generatedAt, new Date().toISOString()),
-    projectId: readString(value.projectId),
+    generatedAt: readString(parsedValue.generatedAt, new Date().toISOString()),
+    projectId: readString(parsedValue.projectId),
     siteDescription: {
       address: readNullableString(siteDescription.address),
       lga: readNullableString(siteDescription.lga),
@@ -298,7 +373,7 @@ const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemo
       zoneName: readNullableString(siteDescription.zoneName),
       zoneLabel: readNullableString(siteDescription.zoneLabel),
     },
-    proposedWorksSummary: readString(value.proposedWorksSummary, "Proposed works summary not supplied."),
+    proposedWorksSummary: readString(parsedValue.proposedWorksSummary, "Proposed works summary was not saved with this memo."),
     applicableControls: {
       lepInstrument: isRecord(applicableControls.lepInstrument)
         ? (applicableControls.lepInstrument as WorkspacePreSeePlanningMemoContent["applicableControls"]["lepInstrument"])
@@ -306,20 +381,12 @@ const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemo
       permissibility: isRecord(applicableControls.permissibility)
         ? (applicableControls.permissibility as WorkspacePreSeePlanningMemoContent["applicableControls"]["permissibility"])
         : null,
-      quickSiteControls,
-      dcpClauses: Array.isArray(applicableControls.dcpClauses)
-        ? (applicableControls.dcpClauses as WorkspacePreSeePlanningMemoContent["applicableControls"]["dcpClauses"])
-        : [],
-      sourceExcerpts: Array.isArray(applicableControls.sourceExcerpts)
-        ? (applicableControls.sourceExcerpts as WorkspacePreSeePlanningMemoContent["applicableControls"]["sourceExcerpts"])
-        : [],
+      quickSiteControls: normaliseQuickSiteControls(applicableControls.quickSiteControls),
+      dcpClauses: normaliseDcpClauses(applicableControls.dcpClauses),
+      sourceExcerpts: normaliseSourceExcerpts(applicableControls.sourceExcerpts),
     },
-    consistencyAssessment: Array.isArray(value.consistencyAssessment)
-      ? (value.consistencyAssessment as WorkspacePreSeePlanningMemoContent["consistencyAssessment"])
-      : [],
-    limitations: Array.isArray(value.limitations)
-      ? (value.limitations as WorkspacePreSeePlanningMemoContent["limitations"])
-      : ["Confirm all controls against current source documents before relying on this memo."],
+    consistencyAssessment: normaliseAssessments(parsedValue.consistencyAssessment),
+    limitations: normaliseLimitations(parsedValue.limitations),
   };
 };
 
@@ -343,7 +410,7 @@ const formatMemoDate = (value: string) => {
 const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null => {
   const preSeeMemo = normalisePreSeeMemoContent(artefact.payload);
 
-  if (artefact.type !== "pre_see_planning_memo" && !preSeeMemo) {
+  if (!preSeeMemo) {
     return null;
   }
 
@@ -473,6 +540,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteBody, setNoteBody] = useState("");
   const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
   const [serverArtefacts, setServerArtefacts] = useState<WorkspaceArtefact[]>([]);
+  const [hasLoadedServerArtefacts, setHasLoadedServerArtefacts] = useState(false);
   const [selectedPreSeeMemo, setSelectedPreSeeMemo] = useState<WorkspaceArtefact | null>(null);
   const [openingPreSeeMemoId, setOpeningPreSeeMemoId] = useState<string | null>(null);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
@@ -603,14 +671,18 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   useEffect(() => {
     if (!isAuthenticated) {
       setServerArtefacts([]);
+      setHasLoadedServerArtefacts(false);
       return;
     }
+
+    setHasLoadedServerArtefacts(false);
 
     let cancelled = false;
     const loadServerArtefacts = async () => {
       try {
         const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
         if (!response.ok) {
+          if (!cancelled) setHasLoadedServerArtefacts(true);
           return;
         }
 
@@ -618,8 +690,10 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         if (cancelled) return;
 
         setServerArtefacts(data.map(mapServerPreSeeMemoArtefact).filter((artefact): artefact is WorkspaceArtefact => Boolean(artefact)));
+        setHasLoadedServerArtefacts(true);
       } catch (error) {
         console.error("Failed to load project artefacts", error);
+        if (!cancelled) setHasLoadedServerArtefacts(true);
       }
     };
 
@@ -1739,16 +1813,17 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     });
 
     experienceArtefacts.forEach((artefact) => {
-      const isDuplicateLocalMemo =
-        isPreSeeMemoArtefact(artefact) && !artefact.preSeeMemo && serverMemoKeys.has(normaliseMemoLabel(artefact.title));
+      const isLocalMemoWithoutPayload = isPreSeeMemoArtefact(artefact) && !normalisePreSeeMemoContent(artefact.preSeeMemo);
+      const isDuplicateLocalMemo = isLocalMemoWithoutPayload && serverMemoKeys.has(normaliseMemoLabel(artefact.title));
+      const isStaleUnretrievableLocalMemo = isLocalMemoWithoutPayload && hasLoadedServerArtefacts;
 
-      if (!isDuplicateLocalMemo) {
+      if (!isDuplicateLocalMemo && !isStaleUnretrievableLocalMemo) {
         merged.set(artefact.id, artefact);
       }
     });
 
     return Array.from(merged.values());
-  }, [experienceArtefacts, serverArtefacts]);
+  }, [experienceArtefacts, hasLoadedServerArtefacts, serverArtefacts]);
 
   const handleOpenPreSeeMemo = useCallback(
     async (artefact: WorkspaceArtefact) => {
@@ -1771,6 +1846,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
           .map(mapServerPreSeeMemoArtefact)
           .filter((entry): entry is WorkspaceArtefact => Boolean(entry));
         setServerArtefacts(mappedServerArtefacts);
+        setHasLoadedServerArtefacts(true);
 
         const serverArtefact = findMatchingServerMemoArtefact(artefact, data);
         const serverMemo = normalisePreSeeMemoContent(serverArtefact?.payload);
