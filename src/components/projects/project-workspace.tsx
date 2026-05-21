@@ -61,6 +61,7 @@ import type {
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspaceNoteCategory,
+  WorkspacePreSeePlanningMemoContent,
   WorkspaceSessionSignals,
   WorkspaceSource,
   WorkspaceSourceType,
@@ -91,6 +92,17 @@ type DcpLink = {
   lgaCode: string;
   name: string | null;
   url: string | null;
+};
+
+type ServerArtefactRecord = {
+  id: string;
+  title: string;
+  type: string;
+  payload?: unknown;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  capturedAt?: string | null;
 };
 
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
@@ -245,6 +257,198 @@ const buildZoningLabel = (context: SiteContextSummary | null) => {
   return context.zone;
 };
 
+const normaliseMemoLabel = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/[_\s]+/g, " ")
+    .trim();
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const coerceRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
+const readString = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
+const readNullableString = (value: unknown) => (typeof value === "string" ? value : null);
+const readNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const parsePossibleJson = (value: unknown) => {
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+};
+
+const normaliseQuickSiteControls = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["quickSiteControls"] => {
+  if (!isRecord(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, control]) => {
+      const controlRecord = coerceRecord(control);
+      return [
+        key,
+        {
+          label: readNullableString(controlRecord.label) ?? key,
+          value: readNullableString(controlRecord.value),
+          interpretation: readNullableString(controlRecord.interpretation) ?? "Confirm against source controls.",
+        },
+      ];
+    }),
+  );
+};
+
+const normaliseDcpClauses = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["dcpClauses"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((clause) => {
+    const clauseRecord = coerceRecord(clause);
+    return {
+      ref: readNullableString(clauseRecord.ref),
+      title: readNullableString(clauseRecord.title),
+      headingPath: Array.isArray(clauseRecord.headingPath) ? clauseRecord.headingPath.filter((entry): entry is string => typeof entry === "string") : [],
+      bodyText: readString(clauseRecord.bodyText),
+      score: readNumber(clauseRecord.score),
+    };
+  });
+};
+
+const normaliseSourceExcerpts = (value: unknown): WorkspacePreSeePlanningMemoContent["applicableControls"]["sourceExcerpts"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((source, index) => {
+    const sourceRecord = coerceRecord(source);
+    return {
+      id: readString(sourceRecord.id, `source-${index}`),
+      heading: readNullableString(sourceRecord.heading),
+      sourceType: readString(sourceRecord.sourceType, "source"),
+      content: readString(sourceRecord.content),
+      score: readNumber(sourceRecord.score),
+    };
+  });
+};
+
+const normaliseAssessments = (value: unknown): WorkspacePreSeePlanningMemoContent["consistencyAssessment"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item, index) => {
+    const itemRecord = coerceRecord(item);
+    return {
+      topic: readString(itemRecord.topic, `Assessment ${index + 1}`),
+      assessment: readString(itemRecord.assessment, "Assessment details were not saved with this memo."),
+    };
+  });
+};
+
+const normaliseLimitations = (value: unknown) => {
+  if (!Array.isArray(value)) return ["Confirm all controls against current source documents before relying on this memo."];
+  const limitations = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+  return limitations.length ? limitations : ["Confirm all controls against current source documents before relying on this memo."];
+};
+
+const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemoContent | null => {
+  const parsedValue = parsePossibleJson(value);
+  if (!isRecord(parsedValue)) return null;
+
+  const siteDescription = coerceRecord(parsedValue.siteDescription);
+  const applicableControls = coerceRecord(parsedValue.applicableControls);
+  const hasMemoShape =
+    parsedValue.memoType === "pre_see_planning_memo" ||
+    isRecord(parsedValue.siteDescription) ||
+    isRecord(parsedValue.applicableControls) ||
+    Array.isArray(parsedValue.consistencyAssessment);
+
+  if (!hasMemoShape) return null;
+
+  return {
+    memoType: "pre_see_planning_memo",
+    generatedAt: readString(parsedValue.generatedAt, new Date().toISOString()),
+    projectId: readString(parsedValue.projectId),
+    siteDescription: {
+      address: readNullableString(siteDescription.address),
+      lga: readNullableString(siteDescription.lga),
+      zoneCode: readNullableString(siteDescription.zoneCode),
+      zoneName: readNullableString(siteDescription.zoneName),
+      zoneLabel: readNullableString(siteDescription.zoneLabel),
+    },
+    proposedWorksSummary: readString(parsedValue.proposedWorksSummary, "Proposed works summary was not saved with this memo."),
+    applicableControls: {
+      lepInstrument: isRecord(applicableControls.lepInstrument)
+        ? (applicableControls.lepInstrument as WorkspacePreSeePlanningMemoContent["applicableControls"]["lepInstrument"])
+        : null,
+      permissibility: isRecord(applicableControls.permissibility)
+        ? (applicableControls.permissibility as WorkspacePreSeePlanningMemoContent["applicableControls"]["permissibility"])
+        : null,
+      quickSiteControls: normaliseQuickSiteControls(applicableControls.quickSiteControls),
+      dcpClauses: normaliseDcpClauses(applicableControls.dcpClauses),
+      sourceExcerpts: normaliseSourceExcerpts(applicableControls.sourceExcerpts),
+    },
+    consistencyAssessment: normaliseAssessments(parsedValue.consistencyAssessment),
+    limitations: normaliseLimitations(parsedValue.limitations),
+  };
+};
+
+const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
+  const normalizedTitle = normaliseMemoLabel(artefact.title);
+  const normalizedNoteType = artefact.noteType ? normaliseMemoLabel(artefact.noteType) : "";
+  return (
+    normalizedNoteType === "pre-see memo" ||
+    normalisePreSeeMemoContent(artefact.preSeeMemo) !== null ||
+    normalizedTitle.includes("pre-see planning memo") ||
+    normalizedTitle.includes("see memo")
+  );
+};
+
+const formatMemoDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+};
+
+const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null => {
+  const preSeeMemo = normalisePreSeeMemoContent(artefact.payload);
+
+  if (!preSeeMemo) {
+    return null;
+  }
+
+  const generatedAt = preSeeMemo?.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt;
+  const dcpCount = preSeeMemo?.applicableControls.dcpClauses.length ?? 0;
+  const sourceCount = preSeeMemo?.applicableControls.sourceExcerpts.length ?? 0;
+  const metadata = [
+    preSeeMemo?.siteDescription.zoneLabel,
+    `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`,
+    `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: generatedAt ? formatMemoDate(generatedAt) : "Saved",
+    type: "report",
+    noteType: "Pre-SEE memo",
+    metadata: metadata || artefact.notes || "Saved pre-SEE planning memo",
+    preSeeMemo: preSeeMemo ?? undefined,
+  };
+};
+
+const findMatchingServerMemoArtefact = (artefact: WorkspaceArtefact, serverArtefacts: ServerArtefactRecord[]) => {
+  const normalizedTitle = normaliseMemoLabel(artefact.title);
+  const exactMatch = serverArtefacts.find((entry) => entry.id === artefact.id);
+  if (exactMatch) return exactMatch;
+
+  return serverArtefacts.find((entry) => {
+    const serverMemo = mapServerPreSeeMemoArtefact(entry);
+    if (!serverMemo?.preSeeMemo) return false;
+    return normaliseMemoLabel(serverMemo.title) === normalizedTitle || entry.type === "pre_see_planning_memo";
+  });
+};
+
 function extractSessionSignalsFromText(message: string, projectName: string): Partial<WorkspaceSessionSignals> {
   const normalized = message.toLowerCase();
   const zoneMatch = message.match(zoningPattern);
@@ -335,6 +539,10 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [noteType, setNoteType] = useState<WorkspaceNoteCategory>("Note");
   const [noteBody, setNoteBody] = useState("");
   const [isGeneratingPreSeeMemo, setIsGeneratingPreSeeMemo] = useState(false);
+  const [serverArtefacts, setServerArtefacts] = useState<WorkspaceArtefact[]>([]);
+  const [hasLoadedServerArtefacts, setHasLoadedServerArtefacts] = useState(false);
+  const [selectedPreSeeMemo, setSelectedPreSeeMemo] = useState<WorkspaceArtefact | null>(null);
+  const [openingPreSeeMemoId, setOpeningPreSeeMemoId] = useState<string | null>(null);
   const [sessionSignals, setSessionSignalsState] = useState<WorkspaceSessionSignals>(() =>
     getSessionSignals(projectKey)
   );
@@ -459,6 +667,41 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
       setMessages([]);
     }
   }, [getChatHistory, projectKey]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setServerArtefacts([]);
+      setHasLoadedServerArtefacts(false);
+      return;
+    }
+
+    setHasLoadedServerArtefacts(false);
+
+    let cancelled = false;
+    const loadServerArtefacts = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
+        if (!response.ok) {
+          if (!cancelled) setHasLoadedServerArtefacts(true);
+          return;
+        }
+
+        const data = (await response.json().catch(() => [])) as ServerArtefactRecord[];
+        if (cancelled) return;
+
+        setServerArtefacts(data.map(mapServerPreSeeMemoArtefact).filter((artefact): artefact is WorkspaceArtefact => Boolean(artefact)));
+        setHasLoadedServerArtefacts(true);
+      } catch (error) {
+        console.error("Failed to load project artefacts", error);
+        if (!cancelled) setHasLoadedServerArtefacts(true);
+      }
+    };
+
+    void loadServerArtefacts();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, projectKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1560,7 +1803,73 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   );
 
   const experienceArtefacts = getArtefacts(projectKey);
-  const artefacts = useMemo(() => experienceArtefacts, [experienceArtefacts]);
+  const artefacts = useMemo(() => {
+    const merged = new Map<string, WorkspaceArtefact>();
+    const serverMemoKeys = new Set<string>();
+
+    serverArtefacts.forEach((artefact) => {
+      merged.set(artefact.id, artefact);
+      serverMemoKeys.add(normaliseMemoLabel(artefact.title));
+    });
+
+    experienceArtefacts.forEach((artefact) => {
+      const isLocalMemoWithoutPayload = isPreSeeMemoArtefact(artefact) && !normalisePreSeeMemoContent(artefact.preSeeMemo);
+      const isDuplicateLocalMemo = isLocalMemoWithoutPayload && serverMemoKeys.has(normaliseMemoLabel(artefact.title));
+      const isStaleUnretrievableLocalMemo = isLocalMemoWithoutPayload && hasLoadedServerArtefacts;
+
+      if (!isDuplicateLocalMemo && !isStaleUnretrievableLocalMemo) {
+        merged.set(artefact.id, artefact);
+      }
+    });
+
+    return Array.from(merged.values());
+  }, [experienceArtefacts, hasLoadedServerArtefacts, serverArtefacts]);
+
+  const handleOpenPreSeeMemo = useCallback(
+    async (artefact: WorkspaceArtefact) => {
+      const localMemo = normalisePreSeeMemoContent(artefact.preSeeMemo);
+      if (localMemo) {
+        setSelectedPreSeeMemo({ ...artefact, preSeeMemo: localMemo });
+        return;
+      }
+
+      setOpeningPreSeeMemoId(artefact.id);
+      try {
+        const response = await fetch(`/api/projects/${projectKey}/artefacts`, { credentials: "include" });
+        const data = (await response.json().catch(() => [])) as ServerArtefactRecord[];
+
+        if (!response.ok) {
+          throw new Error("Unable to load the saved memo");
+        }
+
+        const mappedServerArtefacts = data
+          .map(mapServerPreSeeMemoArtefact)
+          .filter((entry): entry is WorkspaceArtefact => Boolean(entry));
+        setServerArtefacts(mappedServerArtefacts);
+        setHasLoadedServerArtefacts(true);
+
+        const serverArtefact = findMatchingServerMemoArtefact(artefact, data);
+        const serverMemo = normalisePreSeeMemoContent(serverArtefact?.payload);
+
+        if (!serverArtefact || !serverMemo) {
+          throw new Error("This memo was saved, but its preview content is not available yet");
+        }
+
+        setSelectedPreSeeMemo({
+          ...artefact,
+          id: serverArtefact.id,
+          title: serverArtefact.title || artefact.title,
+          preSeeMemo: serverMemo,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to open the saved memo";
+        showToast(message, "error");
+      } finally {
+        setOpeningPreSeeMemoId(null);
+      }
+    },
+    [projectKey, showToast],
+  );
 
   const saveNoteArtefact = useCallback(() => {
     if (!noteTitle.trim()) {
@@ -1607,14 +1916,11 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
       const data = (await response.json().catch(() => ({}))) as {
         artefactId?: string;
-        content?: {
-          siteDescription?: { address?: string | null; lga?: string | null; zoneLabel?: string | null };
-          applicableControls?: { dcpClauses?: unknown[]; sourceExcerpts?: unknown[] };
-        };
+        content?: WorkspacePreSeePlanningMemoContent;
         error?: string;
       };
 
-      if (!response.ok || !data.artefactId) {
+      if (!response.ok || !data.artefactId || !data.content) {
         throw new Error(data.error ?? "Unable to generate pre-SEE memo");
       }
 
@@ -1633,10 +1939,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         metadata: [zone, `${dcpCount} DCP clause${dcpCount === 1 ? "" : "s"}`, `${sourceCount} source excerpt${sourceCount === 1 ? "" : "s"}`]
           .filter(Boolean)
           .join(" · "),
+        preSeeMemo: data.content,
       };
 
       addArtefact(projectKey, artefact);
-      showToast("Generated pre-SEE planning memo");
+      setSelectedPreSeeMemo(artefact);
+      showToast("Generated pre-SEE planning memo and opened it for review");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to generate pre-SEE memo";
       showToast(message, "error");
@@ -2254,39 +2562,85 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 </button>
               </header>
               <ul className="mt-4 space-y-3 pr-1">
-                {artefacts.map((artefact) => (
-                  <li key={artefact.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-300">
-                          {artefact.owner} · {artefact.updatedAt}
-                          {artefact.noteType ? ` · ${artefact.noteType}` : ""}
-                        </p>
-                        {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
+                {artefacts.map((artefact) => {
+                  const canOpenPreSeeMemo = isPreSeeMemoArtefact(artefact);
+
+                  return (
+                    <li
+                      key={artefact.id}
+                      role={canOpenPreSeeMemo ? "button" : undefined}
+                      tabIndex={canOpenPreSeeMemo ? 0 : undefined}
+                      aria-label={canOpenPreSeeMemo ? `Open ${artefact.title}` : undefined}
+                      title={canOpenPreSeeMemo ? "Open generated SEE memo" : undefined}
+                      onClick={canOpenPreSeeMemo ? () => void handleOpenPreSeeMemo(artefact) : undefined}
+                      onKeyDown={
+                        canOpenPreSeeMemo
+                          ? (event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                void handleOpenPreSeeMemo(artefact);
+                              }
+                            }
+                          : undefined
+                      }
+                      className={cn(
+                        "rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/70",
+                        canOpenPreSeeMemo
+                          ? "cursor-pointer hover:border-blue-300 hover:bg-blue-50/70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:border-blue-400/60 dark:hover:bg-blue-500/10"
+                          : null,
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{artefact.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-300">
+                            {artefact.owner} · {artefact.updatedAt}
+                            {artefact.noteType ? ` · ${artefact.noteType}` : ""}
+                          </p>
+                          {artefact.metadata ? <p className="text-[11px] text-slate-400 dark:text-slate-500">{artefact.metadata}</p> : null}
+                        </div>
+                        <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
+                          {artefact.type}
+                        </span>
                       </div>
-                      <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", artefactBadges[artefact.type])}>
-                        {artefact.type}
-                      </span>
-                    </div>
-                    {artefact.type === "chat" && artefact.messages?.length ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {/* TODO: implement artefact chat restoration */}
-                        <button
-                          type="button"
-                          disabled
-                          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
-                        >
-                          <RefreshCcw className="h-3.5 w-3.5" />
-                          Reopen in chat
-                        </button>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
-                        </p>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
+                      {canOpenPreSeeMemo ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleOpenPreSeeMemo(artefact);
+                            }}
+                            disabled={openingPreSeeMemoId === artefact.id}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-500 disabled:cursor-wait disabled:opacity-60 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:border-blue-300"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            {openingPreSeeMemoId === artefact.id ? "Opening memo…" : "Open memo"}
+                          </button>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Click the report tile or this button to open the SEE memo preview.
+                          </p>
+                        </div>
+                      ) : null}
+                      {artefact.type === "chat" && artefact.messages?.length ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {/* TODO: implement artefact chat restoration */}
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                          >
+                            <RefreshCcw className="h-3.5 w-3.5" />
+                            Reopen in chat
+                          </button>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Restores {artefact.messages.length} message{artefact.messages.length === 1 ? "" : "s"} in the chat window.
+                          </p>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
               <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 transition-colors dark:border-slate-700 dark:text-slate-400">
                 Save a chat, draft a memo, or add a note to build the project record.
@@ -2320,6 +2674,116 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         onClose={() => setIsMapsToolsModalOpen(false)}
         siteContext={siteContext}
       />
+
+      {selectedPreSeeMemo?.preSeeMemo ? (
+        <Modal
+          open
+          onClose={() => setSelectedPreSeeMemo(null)}
+          title={selectedPreSeeMemo.title}
+          description="Generated pre-SEE planning memo preview. Review and confirm all controls before relying on it for lodgement."
+          size="lg"
+        >
+          <div className="space-y-5 text-sm text-slate-700">
+            <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Site</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {selectedPreSeeMemo.preSeeMemo.siteDescription.address ?? "Address not supplied"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {[
+                      selectedPreSeeMemo.preSeeMemo.siteDescription.lga,
+                      selectedPreSeeMemo.preSeeMemo.siteDescription.zoneLabel,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "LGA and zoning to be confirmed"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Generated</p>
+                  <p className="mt-1 font-semibold text-slate-900">{formatMemoDate(selectedPreSeeMemo.preSeeMemo.generatedAt)}</p>
+                  <p className="text-xs text-slate-500">{selectedPreSeeMemo.preSeeMemo.applicableControls.lepInstrument?.name ?? "LEP instrument not confirmed"}</p>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Proposed works summary</h4>
+              <p className="mt-2 rounded-2xl border border-slate-100 p-4 leading-relaxed">
+                {selectedPreSeeMemo.preSeeMemo.proposedWorksSummary}
+              </p>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Consistency assessment</h4>
+              <div className="mt-2 space-y-2">
+                {selectedPreSeeMemo.preSeeMemo.consistencyAssessment.map((item) => (
+                  <article key={item.topic} className="rounded-2xl border border-slate-100 p-4">
+                    <p className="font-semibold text-slate-900">{item.topic}</p>
+                    <p className="mt-1 leading-relaxed text-slate-600">{item.assessment}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h4 className="text-base font-semibold text-slate-900">Key LEP controls</h4>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {Object.entries(selectedPreSeeMemo.preSeeMemo.applicableControls.quickSiteControls).map(([key, control]) => (
+                  <article key={key} className="rounded-2xl border border-slate-100 p-4">
+                    <p className="font-semibold text-slate-900">{control.label ?? key}</p>
+                    <p className="text-xs font-semibold text-slate-500">{control.value ?? "Not mapped"}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">{control.interpretation ?? "Confirm against source controls."}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            {selectedPreSeeMemo.preSeeMemo.applicableControls.dcpClauses.length ? (
+              <section>
+                <h4 className="text-base font-semibold text-slate-900">DCP clauses referenced</h4>
+                <div className="mt-2 space-y-2">
+                  {selectedPreSeeMemo.preSeeMemo.applicableControls.dcpClauses.slice(0, 5).map((clause, index) => (
+                    <article key={`${clause.ref ?? "clause"}-${index}`} className="rounded-2xl border border-slate-100 p-4">
+                      <p className="font-semibold text-slate-900">{[clause.ref, clause.title].filter(Boolean).join(" — ") || "DCP clause"}</p>
+                      {clause.headingPath.length ? <p className="text-xs text-slate-500">{clause.headingPath.join(" › ")}</p> : null}
+                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                        {clause.bodyText.slice(0, 320)}{clause.bodyText.length > 320 ? "…" : ""}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {selectedPreSeeMemo.preSeeMemo.applicableControls.sourceExcerpts.length ? (
+              <section>
+                <h4 className="text-base font-semibold text-slate-900">Workspace source excerpts</h4>
+                <div className="mt-2 space-y-2">
+                  {selectedPreSeeMemo.preSeeMemo.applicableControls.sourceExcerpts.slice(0, 4).map((source) => (
+                    <article key={source.id} className="rounded-2xl border border-slate-100 p-4">
+                      <p className="font-semibold text-slate-900">{source.heading ?? source.sourceType}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                        {source.content.slice(0, 300)}{source.content.length > 300 ? "…" : ""}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <h4 className="font-semibold">Limitations</h4>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-relaxed">
+                {selectedPreSeeMemo.preSeeMemo.limitations.map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        </Modal>
+      ) : null}
 
       <Modal
         open={showUploadModal}
