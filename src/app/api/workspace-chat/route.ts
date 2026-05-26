@@ -584,7 +584,7 @@ When the user asks about local controls, rely first on the council Development C
       } else if (lgaLabel) {
         councilDcpPrompt =
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
-        if (controlsRelatedQuestion && !isByronLga) {
+        if (controlsRelatedQuestion) {
           forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
         }
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
