@@ -554,10 +554,10 @@ When the user asks about local controls, rely first on the council Development C
         }
       } else if (userAskedForDcp) {
         councilDcpPrompt =
-          `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls and avoid inventing numbers.`;
+          `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
       } else if (lgaLabel) {
         councilDcpPrompt =
-          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
+          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
           try {
             const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
