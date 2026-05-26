@@ -234,6 +234,53 @@ model Artefact {
   @@index([projectId])
 }
 
+
+
+model LgaCoverageState {
+  id                 String               @id @default(cuid())
+  lgaCode            String               @unique
+  state              LgaCoverageMaturity  @default(NOT_STARTED)
+  activePreparationId String?
+  lastPreparedAt     DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  preparations       LgaPreparationJob[]
+
+  @@index([state])
+}
+
+model LgaPreparationJob {
+  id               String            @id @default(cuid())
+  lgaCode          String
+  status           LgaPreparationStatus @default(QUEUED)
+  requestedByProjectId String?
+  dedupeKey        String            @unique
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  errorMessage     String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  coverage         LgaCoverageState  @relation(fields: [lgaCode], references: [lgaCode], onDelete: Cascade)
+
+  @@index([lgaCode, status])
+}
+
+enum LgaCoverageMaturity {
+  NOT_STARTED
+  QUEUED
+  PROCESSING
+  SEARCHABLE_READY
+  STRUCTURED_PARTIAL
+  VERIFIED
+}
+
+enum LgaPreparationStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum ArtefactType {
   map_snapshot
   quick_site_check

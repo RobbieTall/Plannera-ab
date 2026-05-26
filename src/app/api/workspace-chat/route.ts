@@ -32,6 +32,7 @@ import {
 } from "@/lib/workspace-source-context";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
+import { queueLgaPreparation } from "@/lib/lga-activation";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -556,6 +557,16 @@ When the user asks about local controls, rely first on the council Development C
       } else if (lgaLabel) {
         councilDcpPrompt =
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
+        if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
+          try {
+            await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
+          } catch (queueError) {
+            console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
+              lgaCode: canonicalLgaCode,
+              error: getErrorDetails(queueError),
+            });
+          }
+        }
       }
 
       sourceContextPrompt = buildWorkspaceSourcePrompt(usedChunksForPrompt);
