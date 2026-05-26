@@ -422,6 +422,7 @@ export async function POST(request: Request) {
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
     let coverageConfidencePrompt: string | null = null;
+    let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
@@ -577,9 +578,15 @@ When the user asks about local controls, rely first on the council Development C
       } else if (userAskedForDcp) {
         councilDcpPrompt =
           `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
+        if (controlsRelatedQuestion) {
+          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel ?? "this LGA"} yet because no council DCP/LEP excerpts are available in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. If you need exact numbers now, check the official council LEP/DCP documents or contact council planning; once local controls are ingested here, I can give clause-based figures with citations.`;
+        }
       } else if (lgaLabel) {
         councilDcpPrompt =
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
+        if (controlsRelatedQuestion && !isByronLga) {
+          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
+        }
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
           try {
             const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
@@ -624,6 +631,10 @@ When the user asks about local controls, rely first on the council Development C
         content:
           "No SiteContext is confirmed. Ask the user for the NSW suburb, council, or exact address before quoting detailed controls.",
       });
+      if (controlsRelatedQuestion) {
+        forcedFallbackReply =
+          "I don’t have a confirmed site in this workspace yet, so I can’t verify local DCP/LEP controls for your property. Please share the exact NSW address (or suburb + council), and I’ll resolve the site first. Until then, I won’t provide indicative numeric setbacks, parking rates, heights, or POS figures from memory.";
+      }
     }
 
     if (legislationContext) {
@@ -669,6 +680,7 @@ When the user asks about local controls, rely first on the council Development C
         dcp: {
           hasCouncilDcp: (dcpContext ?? sourceContext)?.hasCouncilDcp ?? false,
           coverageConfidencePrompt,
+          forcedFallbackReply,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
@@ -693,7 +705,9 @@ When the user asks about local controls, rely first on the council Development C
       });
     }
 
-    const reply = await (async () => {
+    const reply = forcedFallbackReply
+      ? forcedFallbackReply
+      : await (async () => {
       try {
         return await callModel("planning_chat", messages, { maxTokens: 512 });
       } catch (error) {
