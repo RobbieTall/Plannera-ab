@@ -408,6 +408,7 @@ export async function POST(request: Request) {
         : userMessage;
     let sourceContextPrompt: string | null = null;
     let councilDcpPrompt: string | null = null;
+    let lgaPreparationPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
@@ -559,7 +560,10 @@ When the user asks about local controls, rely first on the council Development C
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
           try {
-            await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
+            const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
+            lgaPreparationPrompt = queueResult.queued
+              ? `Local controls for ${lgaLabel ?? canonicalLgaCode} are now being prepared in the background. Tell the user preparation has started and they can ask follow-up DCP questions shortly for clause-level answers.`
+              : `Local controls for ${lgaLabel ?? canonicalLgaCode} are still preparing in the background (existing preparation job active). Tell the user preparation is already in progress and avoid repeating the same generic fallback wording.`;
           } catch (queueError) {
             console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
               lgaCode: canonicalLgaCode,
@@ -606,6 +610,10 @@ When the user asks about local controls, rely first on the council Development C
 
     if (councilDcpPrompt) {
       messages.push({ role: "system", content: councilDcpPrompt });
+    }
+
+    if (lgaPreparationPrompt) {
+      messages.push({ role: "system", content: lgaPreparationPrompt });
     }
 
     if (dcpGroundingPrompt) {
