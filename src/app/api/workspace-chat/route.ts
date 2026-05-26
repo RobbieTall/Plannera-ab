@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { WorkspaceSourceType, type DCPClause } from "@prisma/client";
+import { LgaCoverageMaturity, WorkspaceSourceType, type DCPClause } from "@prisma/client";
 
 import { searchClauses } from "@/lib/legislation";
 import {
@@ -78,6 +78,16 @@ const CONTROL_KEYWORDS = [
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
+const buildCoverageConfidencePrompt = (
+  lgaLabel: string,
+  coverageState: LgaCoverageMaturity | null,
+) => {
+  const state = coverageState ?? LgaCoverageMaturity.NOT_STARTED;
+  if (state === LgaCoverageMaturity.VERIFIED) {
+    return `Coverage status for ${lgaLabel}: VERIFIED. You may present local numeric controls as confirmed when backed by retrieved DCP/LEP excerpts, and cite those excerpts clearly.`;
+  }
+  return `Coverage status for ${lgaLabel}: ${state}. Treat local council controls as provisional only. Label local-control statements as inferred or unresolved unless directly quoted from retrieved excerpts. Do not frame local numeric controls as confirmed.`;
+};
 
 const hasExplicitDcpIntent = (message: string) => DCP_INTENT_REGEX.test(message.toLowerCase());
 const isControlsQuestion = (message: string) => {
@@ -411,6 +421,7 @@ export async function POST(request: Request) {
     let lgaPreparationPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
+    let coverageConfidencePrompt: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
@@ -514,6 +525,17 @@ export async function POST(request: Request) {
       }
 
       const lgaLabel = lgaName ?? canonicalLgaCode;
+      const coverageState = canonicalLgaCode
+        ? (
+            await prisma.lgaCoverageState.findUnique({
+              where: { lgaCode: canonicalLgaCode },
+              select: { state: true },
+            })
+          )?.state ?? null
+        : null;
+      if (lgaLabel) {
+        coverageConfidencePrompt = buildCoverageConfidencePrompt(lgaLabel, coverageState);
+      }
       const activeDcpContext = dcpContext ?? sourceContext;
       dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
       if ((hasDcpChunks || hasDcpClauses) && canonicalLgaCode) {
@@ -620,6 +642,10 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: dcpGroundingPrompt });
     }
 
+    if (coverageConfidencePrompt) {
+      messages.push({ role: "system", content: coverageConfidencePrompt });
+    }
+
     if (sourceContextPrompt) {
       messages.push({ role: "system", content: sourceContextPrompt });
     }
@@ -642,6 +668,7 @@ When the user asks about local controls, rely first on the council Development C
         },
         dcp: {
           hasCouncilDcp: (dcpContext ?? sourceContext)?.hasCouncilDcp ?? false,
+          coverageConfidencePrompt,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
