@@ -32,6 +32,7 @@ import {
 } from "@/lib/workspace-source-context";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
+import { queueLgaPreparation } from "@/lib/lga-activation";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -407,6 +408,7 @@ export async function POST(request: Request) {
         : userMessage;
     let sourceContextPrompt: string | null = null;
     let councilDcpPrompt: string | null = null;
+    let lgaPreparationPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
@@ -552,10 +554,23 @@ When the user asks about local controls, rely first on the council Development C
         }
       } else if (userAskedForDcp) {
         councilDcpPrompt =
-          `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls and avoid inventing numbers.`;
+          `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
       } else if (lgaLabel) {
         councilDcpPrompt =
-          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. I can only provide general NSW guidance. For exact local controls, refer to the council DCP.`;
+          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
+        if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
+          try {
+            const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
+            lgaPreparationPrompt = queueResult.queued
+              ? `Local controls for ${lgaLabel ?? canonicalLgaCode} are now being prepared in the background. Tell the user preparation has started and they can ask follow-up DCP questions shortly for clause-level answers.`
+              : `Local controls for ${lgaLabel ?? canonicalLgaCode} are still preparing in the background (existing preparation job active). Tell the user preparation is already in progress and avoid repeating the same generic fallback wording.`;
+          } catch (queueError) {
+            console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
+              lgaCode: canonicalLgaCode,
+              error: getErrorDetails(queueError),
+            });
+          }
+        }
       }
 
       sourceContextPrompt = buildWorkspaceSourcePrompt(usedChunksForPrompt);
@@ -595,6 +610,10 @@ When the user asks about local controls, rely first on the council Development C
 
     if (councilDcpPrompt) {
       messages.push({ role: "system", content: councilDcpPrompt });
+    }
+
+    if (lgaPreparationPrompt) {
+      messages.push({ role: "system", content: lgaPreparationPrompt });
     }
 
     if (dcpGroundingPrompt) {
