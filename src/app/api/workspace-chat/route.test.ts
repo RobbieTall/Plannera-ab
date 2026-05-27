@@ -132,4 +132,47 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.reply).toContain("won’t provide indicative");
     expect(callModelMock).not.toHaveBeenCalled();
   });
+
+  it("calls model when DCP excerpts are available for controls question", async () => {
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "BYRON",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["Chapter D1 Dual Occupancy"],
+      chunks: [
+        {
+          id: "chunk-1",
+          lgaCode: "BYRON",
+          sourceType: "council_dcp",
+          heading: "Chapter D1 Dual Occupancy",
+          content: "Front setback 4.5m. Side setback 1.5m. Rear setback 3m.",
+          metadata: {},
+        },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([
+      {
+        ref: "D1.2",
+        title: "Setbacks",
+        headingPath: ["Chapter D1", "Dual Occupancy"],
+        bodyText: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
+      },
+    ]);
+    callModelMock.mockResolvedValue("Front setback 4.5m (Chapter D1).");
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "What are the front, side and rear setbacks for dual occupancy?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string };
+
+    expect(response.status).toBe(200);
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+    expect(payload.reply).toContain("4.5m");
+  });
 });

@@ -560,6 +560,10 @@ When the user asks about local controls, rely first on the council Development C
             ? true
             : (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
         dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
+        if (controlsRelatedQuestion) {
+          dcpGroundingPrompt +=
+            " Be directly useful: when numeric values are present in the excerpts, provide a concise control-by-control list (for example front setback, side setback, rear setback, parking) with the exact figures and their source heading.";
+        }
         if (userAskedForDcp) {
           dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
         }
