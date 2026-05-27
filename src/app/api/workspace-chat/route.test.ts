@@ -215,6 +215,7 @@ describe("workspace-chat forced fallback", () => {
 
     expect(response.status).toBe(200);
     expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(payload.reply).toContain("Available retrieved sections right now");
     expect(callModelMock).not.toHaveBeenCalled();
   });
 });

@@ -101,6 +101,18 @@ const shouldSearchDcpClauses = (message: string) => {
 const SETBACK_QUERY_REGEX = /(setback|set back)/i;
 const hasSetbackEvidence = (text: string) =>
   /(setback|set back)/i.test(text) && (/\b\d+(?:\.\d+)?\s*m\b/i.test(text) || /\b45\s*degrees?\b/i.test(text));
+const buildEvidenceGapGuidance = (params: {
+  lgaLabel: string;
+  dualOccQuestion: boolean;
+  clauseHeadings: string[];
+  dcpChunkHeadings: string[];
+}) => {
+  const headingSample = [...params.clauseHeadings, ...params.dcpChunkHeadings].filter(Boolean).slice(0, 3);
+  const availableSections = headingSample.length
+    ? `Available retrieved sections right now: ${headingSample.map((heading) => `"${heading}"`).join(", ")}.`
+    : "No relevant DCP section headings were retrieved for this query.";
+  return `I can’t confirm ${params.dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${params.lgaLabel} from the currently retrieved council excerpts. ${availableSections} I won’t infer numbers from memory. Next best step: ask me to extract the exact setback clause text (for example the Dual Occupancy / setbacks section) after it is ingested, and I will return clause-based numeric controls only.`;
+};
 
 const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => {
   if (!clauses.length) return null;
@@ -554,13 +566,22 @@ export async function POST(request: Request) {
         const queryNeedsSetbackEvidence = controlsRelatedQuestion && SETBACK_QUERY_REGEX.test(userMessage);
         const missingSetbackEvidence = queryNeedsSetbackEvidence && !hasSetbackEvidence(dcpEvidenceText);
         const missingDualOccEvidence = dualOccQuestion && !/\bdual occupanc(y|ies)|duplex\b/i.test(dcpEvidenceText);
-        if (missingSetbackEvidence || missingDualOccEvidence) {
-          forcedFallbackReply = `I can’t confirm ${dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${lgaLabel ?? canonicalLgaCode} from the currently retrieved council excerpts. I won’t infer numbers from memory. Please provide or ingest the exact DCP clause text for this control, and I can then return clause-based figures.`;
-        }
         const clauseHeadingSamples = dcpClauses
           .map((clause) => clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title)
           .filter((heading): heading is string => Boolean(heading))
           .slice(0, 5);
+        const dcpChunkHeadingSamples = (dcpChunks ?? [])
+          .map((chunk) => chunk.heading)
+          .filter((heading): heading is string => Boolean(heading))
+          .slice(0, 5);
+        if (missingSetbackEvidence || missingDualOccEvidence) {
+          forcedFallbackReply = buildEvidenceGapGuidance({
+            lgaLabel: lgaLabel ?? canonicalLgaCode,
+            dualOccQuestion,
+            clauseHeadings: clauseHeadingSamples,
+            dcpChunkHeadings: dcpChunkHeadingSamples,
+          });
+        }
         const headingLines = (activeDcpContext?.councilDcpSampleHeadings?.length
           ? activeDcpContext?.councilDcpSampleHeadings
           : clauseHeadingSamples
