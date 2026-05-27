@@ -175,4 +175,46 @@ describe("workspace-chat forced fallback", () => {
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.reply).toContain("4.5m");
   });
+
+  it("returns fallback and skips model when retrieved excerpts lack setback evidence for setback question", async () => {
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "BYRON",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["Chapter D1 Residential"],
+      chunks: [
+        {
+          id: "chunk-2",
+          lgaCode: "BYRON",
+          sourceType: "council_dcp",
+          heading: "Chapter D1 Residential",
+          content: "Design objectives for streetscape and landscaping.",
+          metadata: {},
+        },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([
+      {
+        ref: "D1.3",
+        title: "Streetscape",
+        headingPath: ["Chapter D1", "Residential"],
+        bodyText: "Provide articulated façades and passive surveillance.",
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "What are the front, side and rear setbacks for dual occupancy?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(callModelMock).not.toHaveBeenCalled();
+  });
 });

@@ -98,6 +98,9 @@ const shouldSearchDcpClauses = (message: string) => {
   const normalised = message.toLowerCase();
   return hasExplicitDcpIntent(message) || isControlsQuestion(message) || DUAL_OCC_REGEX.test(normalised);
 };
+const SETBACK_QUERY_REGEX = /(setback|set back)/i;
+const hasSetbackEvidence = (text: string) =>
+  /(setback|set back)/i.test(text) && (/\b\d+(?:\.\d+)?\s*m\b/i.test(text) || /\b45\s*degrees?\b/i.test(text));
 
 const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => {
   if (!clauses.length) return null;
@@ -540,6 +543,20 @@ export async function POST(request: Request) {
       const activeDcpContext = dcpContext ?? sourceContext;
       dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
       if ((hasDcpChunks || hasDcpClauses) && canonicalLgaCode) {
+        const dcpEvidenceText = [
+          ...dcpClauses.map((clause) =>
+            [clause.title ?? "", clause.ref ?? "", clause.headingPath?.join(" ") ?? "", clause.bodyText ?? ""].join(" "),
+          ),
+          ...(dcpChunks ?? []).map((chunk) => `${chunk.heading ?? ""} ${chunk.content}`),
+        ]
+          .join("\n")
+          .toLowerCase();
+        const queryNeedsSetbackEvidence = controlsRelatedQuestion && SETBACK_QUERY_REGEX.test(userMessage);
+        const missingSetbackEvidence = queryNeedsSetbackEvidence && !hasSetbackEvidence(dcpEvidenceText);
+        const missingDualOccEvidence = dualOccQuestion && !/\bdual occupanc(y|ies)|duplex\b/i.test(dcpEvidenceText);
+        if (missingSetbackEvidence || missingDualOccEvidence) {
+          forcedFallbackReply = `I can’t confirm ${dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${lgaLabel ?? canonicalLgaCode} from the currently retrieved council excerpts. I won’t infer numbers from memory. Please provide or ingest the exact DCP clause text for this control, and I can then return clause-based figures.`;
+        }
         const clauseHeadingSamples = dcpClauses
           .map((clause) => clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title)
           .filter((heading): heading is string => Boolean(heading))
