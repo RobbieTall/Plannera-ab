@@ -2,7 +2,18 @@
 
 This is the active sequence for what to build next so direction is never lost.
 
-## 1) Just-in-Time LGA Activation Core
+## 1) Statutory-First Baseline (NEW PRIORITY)
+
+- Ensure every site can return useful clause-cited statutory answers (SEPP/LEP/Acts) even when DCP is unavailable.
+- Add deterministic response sections:
+  - statutory controls available now,
+  - local controls unresolved,
+  - exact next ingestion target.
+- Add test coverage for “DCP missing but statutory answer still useful and cited.”
+
+**Success signal:** users still get factual, useful answers immediately without waiting on DCP ingestion.
+
+## 2) Just-in-Time LGA Activation Core
 
 - Implement LGA coverage-state persistence.
 - Implement job de-duplication/locking.
@@ -11,7 +22,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** unsupported LGA requests return immediately with baseline guidance while local preparation runs in background.
 
-## 2) Confidence-State Surface Area
+## 3) Confidence-State Surface Area
 
 - Ensure outputs consistently distinguish:
   - confirmed / cited / inferred / user-provided / unresolved.
@@ -19,7 +30,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** no local-control claim is shown as verified unless coverage state is `VERIFIED`.
 
-## 3) Regeneration Flow After Local Readiness
+## 4) Regeneration Flow After Local Readiness
 
 - Trigger or prompt regeneration of:
   - Quick Site Check
@@ -29,7 +40,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** user can refresh project artefacts immediately after local controls become available.
 
-## 4) Coverage Maturity Promotion
+## 5) Coverage Maturity Promotion
 
 - Support progression across:
   - `NOT_STARTED` → `QUEUED` → `PROCESSING` → `SEARCHABLE_READY` → `STRUCTURED_PARTIAL` → `VERIFIED`.

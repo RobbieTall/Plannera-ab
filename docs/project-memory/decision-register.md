@@ -25,3 +25,10 @@ A compact register of active product/architecture decisions.
 **Status:** Active  
 **Decision:** Use restrained language during local preparation (e.g., “reviewing local controls”); avoid “correct/complete” certainty until confidence level supports it.  
 **Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+
+## DR-005 — Statutory-First Data Backbone
+
+**Status:** Active  
+**Decision:** Prioritize NSW statutory data (SEPPs, Acts, LEPs, and legal map references) as the always-on factual backbone. Treat DCP as a parallel enrichment layer, not the blocker for useful planning answers.  
+**Reference:** `docs/architecture/statutory-first-data-strategy.md`

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { WorkspaceSourceType, type DCPClause } from "@prisma/client";
+import { LgaCoverageMaturity, WorkspaceSourceType, type DCPClause } from "@prisma/client";
 
 import { searchClauses } from "@/lib/legislation";
 import {
@@ -78,6 +78,16 @@ const CONTROL_KEYWORDS = [
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
+const buildCoverageConfidencePrompt = (
+  lgaLabel: string,
+  coverageState: LgaCoverageMaturity | null,
+) => {
+  const state = coverageState ?? LgaCoverageMaturity.NOT_STARTED;
+  if (state === LgaCoverageMaturity.VERIFIED) {
+    return `Coverage status for ${lgaLabel}: VERIFIED. You may present local numeric controls as confirmed when backed by retrieved DCP/LEP excerpts, and cite those excerpts clearly.`;
+  }
+  return `Coverage status for ${lgaLabel}: ${state}. Treat local council controls as provisional only. Label local-control statements as inferred or unresolved unless directly quoted from retrieved excerpts. Do not frame local numeric controls as confirmed.`;
+};
 
 const hasExplicitDcpIntent = (message: string) => DCP_INTENT_REGEX.test(message.toLowerCase());
 const isControlsQuestion = (message: string) => {
@@ -87,6 +97,31 @@ const isControlsQuestion = (message: string) => {
 const shouldSearchDcpClauses = (message: string) => {
   const normalised = message.toLowerCase();
   return hasExplicitDcpIntent(message) || isControlsQuestion(message) || DUAL_OCC_REGEX.test(normalised);
+};
+const SETBACK_QUERY_REGEX = /(setback|set back)/i;
+const hasSetbackEvidence = (text: string) => {
+  const normalized = text.toLowerCase();
+  const hasSetbackWord = /(setback|set back)/.test(normalized);
+  const hasNumericMeasure = /\b\d+(?:\.\d+)?\s*m\b/.test(normalized) || /\b45\s*degrees?\b/.test(normalized);
+  const hasBoundaryContext =
+    /\bfront\b/.test(normalized) ||
+    /\bside\b/.test(normalized) ||
+    /\brear\b/.test(normalized) ||
+    /\bboundar(y|ies)\b/.test(normalized) ||
+    /\bbuilding envelope\b/.test(normalized);
+  return hasSetbackWord && hasNumericMeasure && hasBoundaryContext;
+};
+const buildEvidenceGapGuidance = (params: {
+  lgaLabel: string;
+  dualOccQuestion: boolean;
+  clauseHeadings: string[];
+  dcpChunkHeadings: string[];
+}) => {
+  const headingSample = [...params.clauseHeadings, ...params.dcpChunkHeadings].filter(Boolean).slice(0, 3);
+  const availableSections = headingSample.length
+    ? `Available retrieved sections right now: ${headingSample.map((heading) => `"${heading}"`).join(", ")}.`
+    : "No relevant DCP section headings were retrieved for this query.";
+  return `I can’t confirm ${params.dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${params.lgaLabel} from the currently retrieved council excerpts. ${availableSections} I won’t infer numbers from memory. Next best step: ask me to extract the exact setback clause text (for example the Dual Occupancy / setbacks section) after it is ingested, and I will return clause-based numeric controls only.`;
 };
 
 const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => {
@@ -411,6 +446,8 @@ export async function POST(request: Request) {
     let lgaPreparationPrompt: string | null = null;
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
+    let coverageConfidencePrompt: string | null = null;
+    let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
@@ -514,13 +551,47 @@ export async function POST(request: Request) {
       }
 
       const lgaLabel = lgaName ?? canonicalLgaCode;
+      const coverageState = canonicalLgaCode
+        ? (
+            await prisma.lgaCoverageState.findUnique({
+              where: { lgaCode: canonicalLgaCode },
+              select: { state: true },
+            })
+          )?.state ?? null
+        : null;
+      if (lgaLabel) {
+        coverageConfidencePrompt = buildCoverageConfidencePrompt(lgaLabel, coverageState);
+      }
       const activeDcpContext = dcpContext ?? sourceContext;
       dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
       if ((hasDcpChunks || hasDcpClauses) && canonicalLgaCode) {
+        const dcpEvidenceText = [
+          ...dcpClauses.map((clause) =>
+            [clause.title ?? "", clause.ref ?? "", clause.headingPath?.join(" ") ?? "", clause.bodyText ?? ""].join(" "),
+          ),
+          ...(dcpChunks ?? []).map((chunk) => `${chunk.heading ?? ""} ${chunk.content}`),
+        ]
+          .join("\n")
+          .toLowerCase();
+        const queryNeedsSetbackEvidence = controlsRelatedQuestion && SETBACK_QUERY_REGEX.test(userMessage);
+        const missingSetbackEvidence = queryNeedsSetbackEvidence && !hasSetbackEvidence(dcpEvidenceText);
+        const missingDualOccEvidence = dualOccQuestion && !/\bdual occupanc(y|ies)|duplex\b/i.test(dcpEvidenceText);
         const clauseHeadingSamples = dcpClauses
           .map((clause) => clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title)
           .filter((heading): heading is string => Boolean(heading))
           .slice(0, 5);
+        const dcpChunkHeadingSamples = (dcpChunks ?? [])
+          .map((chunk) => chunk.heading)
+          .filter((heading): heading is string => Boolean(heading))
+          .slice(0, 5);
+        if (missingSetbackEvidence || missingDualOccEvidence) {
+          forcedFallbackReply = buildEvidenceGapGuidance({
+            lgaLabel: lgaLabel ?? canonicalLgaCode,
+            dualOccQuestion,
+            clauseHeadings: clauseHeadingSamples,
+            dcpChunkHeadings: dcpChunkHeadingSamples,
+          });
+        }
         const headingLines = (activeDcpContext?.councilDcpSampleHeadings?.length
           ? activeDcpContext?.councilDcpSampleHeadings
           : clauseHeadingSamples
@@ -537,6 +608,10 @@ When the user asks about local controls, rely first on the council Development C
             ? true
             : (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
         dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
+        if (controlsRelatedQuestion) {
+          dcpGroundingPrompt +=
+            " Be directly useful: when numeric values are present in the excerpts, provide a concise control-by-control list (for example front setback, side setback, rear setback, parking) with the exact figures and their source heading.";
+        }
         if (userAskedForDcp) {
           dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
         }
@@ -555,9 +630,15 @@ When the user asks about local controls, rely first on the council Development C
       } else if (userAskedForDcp) {
         councilDcpPrompt =
           `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
+        if (controlsRelatedQuestion) {
+          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel ?? "this LGA"} yet because no council DCP/LEP excerpts are available in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. If you need exact numbers now, check the official council LEP/DCP documents or contact council planning; once local controls are ingested here, I can give clause-based figures with citations.`;
+        }
       } else if (lgaLabel) {
         councilDcpPrompt =
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
+        if (controlsRelatedQuestion) {
+          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
+        }
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
           try {
             const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
@@ -602,6 +683,10 @@ When the user asks about local controls, rely first on the council Development C
         content:
           "No SiteContext is confirmed. Ask the user for the NSW suburb, council, or exact address before quoting detailed controls.",
       });
+      if (controlsRelatedQuestion) {
+        forcedFallbackReply =
+          "I don’t have a confirmed site in this workspace yet, so I can’t verify local DCP/LEP controls for your property. Please share the exact NSW address (or suburb + council), and I’ll resolve the site first. Until then, I won’t provide indicative numeric setbacks, parking rates, heights, or POS figures from memory.";
+      }
     }
 
     if (legislationContext) {
@@ -618,6 +703,10 @@ When the user asks about local controls, rely first on the council Development C
 
     if (dcpGroundingPrompt) {
       messages.push({ role: "system", content: dcpGroundingPrompt });
+    }
+
+    if (coverageConfidencePrompt) {
+      messages.push({ role: "system", content: coverageConfidencePrompt });
     }
 
     if (sourceContextPrompt) {
@@ -642,6 +731,8 @@ When the user asks about local controls, rely first on the council Development C
         },
         dcp: {
           hasCouncilDcp: (dcpContext ?? sourceContext)?.hasCouncilDcp ?? false,
+          coverageConfidencePrompt,
+          forcedFallbackReply,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
@@ -666,7 +757,9 @@ When the user asks about local controls, rely first on the council Development C
       });
     }
 
-    const reply = await (async () => {
+    const reply = forcedFallbackReply
+      ? forcedFallbackReply
+      : await (async () => {
       try {
         return await callModel("planning_chat", messages, { maxTokens: 512 });
       } catch (error) {
