@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { type ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { z } from "zod";
 
-import { LgaCoverageMaturity, WorkspaceSourceType, type DCPClause } from "@prisma/client";
+import {
+  LgaCoverageMaturity,
+  WorkspaceSourceType,
+  type DCPClause,
+} from "@prisma/client";
 
-import { searchClauses } from "@/lib/legislation";
+import { searchClauses, type ClauseSummary } from "@/lib/legislation";
 import {
   getSiteContextForProject,
   persistSiteContextFromCandidate,
@@ -13,8 +17,14 @@ import {
   type SiteInstrumentMatch,
 } from "@/lib/site-context";
 import { prisma } from "@/lib/prisma";
-import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
-import { extractCandidateAddress, resolveSiteFromText } from "@/lib/site-resolver";
+import {
+  findProjectByExternalId,
+  normalizeProjectId,
+} from "@/lib/project-identifiers";
+import {
+  extractCandidateAddress,
+  resolveSiteFromText,
+} from "@/lib/site-resolver";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import { buildSiteContextMessage } from "@/lib/chat/site-context-message";
 import type { LepParseResult } from "@/lib/lep/types";
@@ -42,7 +52,8 @@ Use provided site context (address, LGA, zone, LEP, SEPP) whenever available and
 In all answers, rely on any provided site details and do not ask the user to repeat an address that is already set.
 If a relevant LEP is not yet in Plannera, clearly explain that you are answering at a higher/state level using NSW SEPPs.`;
 
-const SITE_CHANGE_REGEX = /(change|update|set).*(site|address|property)|new site|different (?:address|property)/i;
+const SITE_CHANGE_REGEX =
+  /(change|update|set).*(site|address|property)|new site|different (?:address|property)/i;
 
 const DCP_INTENT_REGEX = /(\bdcp\b|development control plan)/i;
 const CONTROL_KEYWORDS = [
@@ -78,6 +89,172 @@ const CONTROL_KEYWORDS = [
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
+
+const MAX_STATUTORY_CLAUSES = 5;
+
+type StatutoryBaseline = {
+  site: {
+    address: string | null;
+    lgaName: string | null;
+    lgaCode: string | null;
+    zone: string | null;
+  };
+  instruments: string[];
+  lep: {
+    matchedInstrument: string | null;
+    instrumentName: string | null;
+    clauseCount: number;
+    usedFallback: boolean;
+  };
+  clauseSearch: {
+    count: number;
+    instruments: { name: string; type: string }[];
+    clauses: {
+      instrumentName: string;
+      instrumentType: string;
+      clauseKey: string;
+      title: string | null;
+      snippet: string;
+    }[];
+  };
+  confidenceTags: string[];
+};
+
+const uniqueBy = <T>(items: T[], keyFor: (item: T) => string) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = keyFor(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const buildStatutoryBaseline = (params: {
+  siteContext: SiteContextSummary | null;
+  instrumentSlugs: string[];
+  clauses: ClauseSummary[];
+  instrumentMatch: SiteInstrumentMatch | null;
+  lepContext: LepContext | null;
+  usedLepFallback: boolean;
+}): StatutoryBaseline => {
+  const clauseSummaries = params.clauses
+    .slice(0, MAX_STATUTORY_CLAUSES)
+    .map((clause) => ({
+      instrumentName: clause.instrumentName,
+      instrumentType: clause.instrumentType,
+      clauseKey: clause.clauseKey,
+      title: clause.title,
+      snippet: clause.snippet,
+    }));
+  const confidenceTags = [
+    params.instrumentSlugs.length ? "STATUTORY_INSTRUMENTS_MATCHED" : null,
+    params.lepContext ? "LEP_CONTEXT_READY" : null,
+    params.clauses.length ? "STATUTORY_CLAUSES_RETRIEVED" : null,
+    params.usedLepFallback ? "LEP_FALLBACK_USED" : null,
+  ].filter((tag): tag is string => Boolean(tag));
+
+  return {
+    site: {
+      address: params.siteContext?.formattedAddress ?? null,
+      lgaName: params.siteContext?.lgaName ?? null,
+      lgaCode: params.siteContext?.lgaCode ?? null,
+      zone: params.siteContext?.zone ?? params.siteContext?.zoningCode ?? null,
+    },
+    instruments: params.instrumentSlugs,
+    lep: {
+      matchedInstrument:
+        params.lepContext?.instrumentCode ??
+        params.instrumentMatch?.lepInstrumentSlug ??
+        null,
+      instrumentName: params.lepContext?.instrumentName ?? null,
+      clauseCount: params.lepContext?.clauses.length ?? 0,
+      usedFallback: params.usedLepFallback,
+    },
+    clauseSearch: {
+      count: params.clauses.length,
+      instruments: uniqueBy(
+        params.clauses.map((clause) => ({
+          name: clause.instrumentName,
+          type: clause.instrumentType,
+        })),
+        (instrument) => `${instrument.type}:${instrument.name}`,
+      ),
+      clauses: clauseSummaries,
+    },
+    confidenceTags,
+  };
+};
+
+const buildStatutoryBaselinePrompt = (baseline: StatutoryBaseline) => {
+  if (
+    !baseline.instruments.length &&
+    !baseline.clauseSearch.clauses.length &&
+    !baseline.lep.matchedInstrument
+  ) {
+    return null;
+  }
+
+  const siteBits = [
+    baseline.site.address,
+    baseline.site.lgaName ? `LGA: ${baseline.site.lgaName}` : null,
+    baseline.site.zone ? `Zone: ${baseline.site.zone}` : null,
+  ].filter(Boolean);
+  const clauseLines = baseline.clauseSearch.clauses.map((clause) => {
+    const title = clause.title ?? clause.clauseKey;
+    return `- ${clause.instrumentName} (${clause.instrumentType}) ${clause.clauseKey} ${title}: ${clause.snippet}`;
+  });
+  const instrumentLine = baseline.instruments.length
+    ? `Matched statutory instruments: ${baseline.instruments.join(", ")}.`
+    : null;
+  const lepLine = baseline.lep.matchedInstrument
+    ? `LEP context: ${baseline.lep.instrumentName ?? baseline.lep.matchedInstrument} (${baseline.lep.clauseCount} loaded clauses).`
+    : null;
+  const clauseBlock = clauseLines.length
+    ? `Retrieved LEP/SEPP clauses for this question:
+${clauseLines.join("\n")}`
+    : "No LEP/SEPP clause snippets were retrieved for this exact question.";
+
+  return [
+    "Statutory baseline: Use this LEP/SEPP context as the always-on factual backbone. Do not let missing DCP excerpts suppress available statutory context, and distinguish statutory controls from unresolved council DCP controls.",
+    siteBits.length ? `Site: ${siteBits.join(" | ")}.` : null,
+    instrumentLine,
+    lepLine,
+    clauseBlock,
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
+const buildStatutoryFallbackContext = (baseline: StatutoryBaseline) => {
+  const clauseLines = baseline.clauseSearch.clauses
+    .slice(0, 3)
+    .map((clause) => {
+      const title = clause.title ?? clause.clauseKey;
+      return `- ${clause.instrumentName} ${clause.clauseKey} (${title}): ${clause.snippet}`;
+    });
+
+  if (clauseLines.length) {
+    return `
+
+Statutory context available now (separate from unresolved council DCP controls):
+${clauseLines.join("\n")}
+
+DCP status: council DCP numeric controls remain unresolved until matching DCP clauses are ingested/retrieved.`;
+  }
+
+  if (baseline.instruments.length || baseline.lep.matchedInstrument) {
+    const matched = [
+      baseline.lep.matchedInstrument,
+      ...baseline.instruments,
+    ].filter(Boolean);
+    return `
+
+Statutory context available now: matched ${matched.join(", ")}. No LEP/SEPP clause snippets were retrieved for this exact question yet, so I’m not going to invent statutory or DCP numbers.`;
+  }
+
+  return "";
+};
 const buildCoverageConfidencePrompt = (
   lgaLabel: string,
   coverageState: LgaCoverageMaturity | null,
@@ -89,20 +266,27 @@ const buildCoverageConfidencePrompt = (
   return `Coverage status for ${lgaLabel}: ${state}. Treat local council controls as provisional only. Label local-control statements as inferred or unresolved unless directly quoted from retrieved excerpts. Do not frame local numeric controls as confirmed.`;
 };
 
-const hasExplicitDcpIntent = (message: string) => DCP_INTENT_REGEX.test(message.toLowerCase());
+const hasExplicitDcpIntent = (message: string) =>
+  DCP_INTENT_REGEX.test(message.toLowerCase());
 const isControlsQuestion = (message: string) => {
   const normalised = message.toLowerCase();
   return CONTROL_KEYWORDS.some((keyword) => normalised.includes(keyword));
 };
 const shouldSearchDcpClauses = (message: string) => {
   const normalised = message.toLowerCase();
-  return hasExplicitDcpIntent(message) || isControlsQuestion(message) || DUAL_OCC_REGEX.test(normalised);
+  return (
+    hasExplicitDcpIntent(message) ||
+    isControlsQuestion(message) ||
+    DUAL_OCC_REGEX.test(normalised)
+  );
 };
 const SETBACK_QUERY_REGEX = /(setback|set back)/i;
 const hasSetbackEvidence = (text: string) => {
   const normalized = text.toLowerCase();
   const hasSetbackWord = /(setback|set back)/.test(normalized);
-  const hasNumericMeasure = /\b\d+(?:\.\d+)?\s*m\b/.test(normalized) || /\b45\s*degrees?\b/.test(normalized);
+  const hasNumericMeasure =
+    /\b\d+(?:\.\d+)?\s*m\b/.test(normalized) ||
+    /\b45\s*degrees?\b/.test(normalized);
   const hasBoundaryContext =
     /\bfront\b/.test(normalized) ||
     /\bside\b/.test(normalized) ||
@@ -117,24 +301,37 @@ const buildEvidenceGapGuidance = (params: {
   clauseHeadings: string[];
   dcpChunkHeadings: string[];
 }) => {
-  const headingSample = [...params.clauseHeadings, ...params.dcpChunkHeadings].filter(Boolean).slice(0, 3);
+  const headingSample = [...params.clauseHeadings, ...params.dcpChunkHeadings]
+    .filter(Boolean)
+    .slice(0, 3);
   const availableSections = headingSample.length
     ? `Available retrieved sections right now: ${headingSample.map((heading) => `"${heading}"`).join(", ")}.`
     : "No relevant DCP section headings were retrieved for this query.";
   return `I can’t confirm ${params.dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${params.lgaLabel} from the currently retrieved council excerpts. ${availableSections} I won’t infer numbers from memory. Next best step: ask me to extract the exact setback clause text (for example the Dual Occupancy / setbacks section) after it is ingested, and I will return clause-based numeric controls only.`;
 };
 
-const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => {
+const buildDcpClausePrompt = (
+  clauses: DCPClause[],
+  lgaLabel: string | null,
+) => {
   if (!clauses.length) return null;
   const lines = clauses.map((clause) => {
-    const heading = (clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title ?? clause.ref ?? "Clause").trim();
+    const heading = (
+      clause.headingPath?.[clause.headingPath.length - 1] ??
+      clause.title ??
+      clause.ref ??
+      "Clause"
+    ).trim();
     const refLabel = clause.ref ? ` (${clause.ref})` : "";
     const snippet = clause.bodyText?.length
-      ? clause.bodyText.slice(0, MAX_DCP_CLAUSE_TEXT).trimEnd() + (clause.bodyText.length > MAX_DCP_CLAUSE_TEXT ? "…" : "")
+      ? clause.bodyText.slice(0, MAX_DCP_CLAUSE_TEXT).trimEnd() +
+        (clause.bodyText.length > MAX_DCP_CLAUSE_TEXT ? "…" : "")
       : "";
     return `• ${heading}${refLabel}: ${snippet}`;
   });
-  const headingLabel = lgaLabel ? `${lgaLabel} Development Control Plan clauses` : "Development Control Plan clauses";
+  const headingLabel = lgaLabel
+    ? `${lgaLabel} Development Control Plan clauses`
+    : "Development Control Plan clauses";
   return `${headingLabel}: Use these council DCP controls as the primary source before LEP or SEPP guidance.\n${lines.join("\n")}`;
 };
 
@@ -167,14 +364,20 @@ const projectZoningSelect = {
 } as const;
 
 const getProjectZoningByExternalId = async (projectId: string) => {
-  const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
+  const project = await findProjectByExternalId(
+    prisma,
+    normalizeProjectId(projectId),
+  );
   if (!project) return null;
   const { zoningCode, zoningName, zoningSource, lepData, dcpData } = project;
   return { zoningCode, zoningName, zoningSource, lepData, dcpData };
 };
 
 const getProjectZoningByInternalId = (projectId: string) =>
-  prisma.project.findUnique({ where: { id: projectId }, select: projectZoningSelect });
+  prisma.project.findUnique({
+    where: { id: projectId },
+    select: projectZoningSelect,
+  });
 
 type ErrorWithResponse = {
   message?: string;
@@ -241,7 +444,10 @@ const buildLegislationContext = (params: {
 
   if (params.lepContext) {
     introParts.push(`LEP: ${params.lepContext.instrumentCode}`);
-  } else if (params.instrumentMatch?.lepInstrumentSlug && params.siteContext?.lgaName) {
+  } else if (
+    params.instrumentMatch?.lepInstrumentSlug &&
+    params.siteContext?.lgaName
+  ) {
     introParts.push(
       `LEP: ${params.instrumentMatch.lepInstrumentSlug} is not yet available for ${params.siteContext.lgaName}; rely on NSW SEPPs and confirm with council or the official LEP.`,
     );
@@ -265,7 +471,9 @@ const buildLegislationContext = (params: {
   }
 
   const preface = introParts.length ? introParts.join(" | ") : "";
-  const clausesLabel = clauseSummaries.length ? `Key clauses:\n${clauseSummaries.join("\n")}` : "";
+  const clausesLabel = clauseSummaries.length
+    ? `Key clauses:\n${clauseSummaries.join("\n")}`
+    : "";
   return [preface, clausesLabel].filter(Boolean).join("\n");
 };
 
@@ -300,7 +508,8 @@ export async function POST(request: Request) {
     const workspaceKey = projectId ?? "default";
     const existingMemory = workspaceMemory.get(workspaceKey);
 
-    let siteContextSummary: SiteContextSummary | null = existingMemory?.siteContext ?? null;
+    let siteContextSummary: SiteContextSummary | null =
+      existingMemory?.siteContext ?? null;
     let lepData: LepParseResult | null = existingMemory?.lepData ?? null;
     let lepContext: LepContext | null = existingMemory?.lepContext ?? null;
     let usedLepFallback = existingMemory?.usedLepFallback ?? false;
@@ -309,10 +518,14 @@ export async function POST(request: Request) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
         const project = await getProjectZoningByExternalId(projectId);
-        lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
+        lepData =
+          (project?.lepData as LepParseResult | null | undefined) ?? lepData;
         siteContextSummary = serializeSiteContext(dbSite, project);
       } catch (siteLoadError) {
-        console.warn("[workspace-chat-warning] Failed to load stored site context", getErrorDetails(siteLoadError));
+        console.warn(
+          "[workspace-chat-warning] Failed to load stored site context",
+          getErrorDetails(siteLoadError),
+        );
       }
     }
 
@@ -321,7 +534,9 @@ export async function POST(request: Request) {
       const candidateAddress = extractCandidateAddress(userMessage);
       if (candidateAddress) {
         try {
-          const resolution = await resolveSiteFromText(candidateAddress, { source: "chat" });
+          const resolution = await resolveSiteFromText(candidateAddress, {
+            source: "chat",
+          });
           if (resolution.status === "property_search_not_configured") {
             console.warn(
               "[chat-site-resolver]",
@@ -333,16 +548,27 @@ export async function POST(request: Request) {
               siteContext: siteContextSummary,
             });
           }
-          if (resolution.status === "ok" && resolution.decision === "auto" && resolution.candidates[0]) {
+          if (
+            resolution.status === "ok" &&
+            resolution.decision === "auto" &&
+            resolution.candidates[0]
+          ) {
             const persisted = await persistSiteContextFromCandidate({
               projectId,
               addressInput: candidateAddress,
               candidate: resolution.candidates[0],
             });
-            const project = await getProjectZoningByInternalId(persisted.projectId);
-            lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
+            const project = await getProjectZoningByInternalId(
+              persisted.projectId,
+            );
+            lepData =
+              (project?.lepData as LepParseResult | null | undefined) ??
+              lepData;
             siteContextSummary = serializeSiteContext(persisted, project);
-          } else if (resolution.status === "ok" && resolution.decision === "ambiguous") {
+          } else if (
+            resolution.status === "ok" &&
+            resolution.decision === "ambiguous"
+          ) {
             return NextResponse.json({
               requiresSiteSelection: true,
               addressInput: candidateAddress,
@@ -350,25 +576,36 @@ export async function POST(request: Request) {
               siteContext: siteContextSummary,
             });
           } else {
-            console.warn("[workspace-chat-warning] Site resolution returned no matches", resolution.status);
+            console.warn(
+              "[workspace-chat-warning] Site resolution returned no matches",
+              resolution.status,
+            );
           }
         } catch (addressError) {
-          console.warn("[workspace-chat-warning] Failed to resolve address", getErrorDetails(addressError));
+          console.warn(
+            "[workspace-chat-warning] Failed to resolve address",
+            getErrorDetails(addressError),
+          );
         }
       }
     }
 
-    const instrumentMatch = siteContextSummary ? resolveInstrumentsForSite(siteContextSummary) : null;
+    const instrumentMatch = siteContextSummary
+      ? resolveInstrumentsForSite(siteContextSummary)
+      : null;
     const instrumentSlugs = instrumentMatch
-      ? Array.from(
+      ? (Array.from(
           new Set([
-            ...(instrumentMatch.lepInstrumentSlug ? [instrumentMatch.lepInstrumentSlug] : []),
+            ...(instrumentMatch.lepInstrumentSlug
+              ? [instrumentMatch.lepInstrumentSlug]
+              : []),
             ...instrumentMatch.seppInstrumentSlugs,
           ]),
-        ).filter(Boolean) as string[]
-      : existingMemory?.instruments ?? [];
+        ).filter(Boolean) as string[])
+      : (existingMemory?.instruments ?? []);
 
-    const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
+    const fallbackLga =
+      siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
 
     console.log("[workspace-chat] instrument resolution", {
       lgaName: siteContextSummary?.lgaName,
@@ -410,7 +647,10 @@ export async function POST(request: Request) {
           limit: 12,
         });
       } catch (clauseError) {
-        console.warn("[workspace-chat-warning] Failed to search clauses", getErrorDetails(clauseError));
+        console.warn(
+          "[workspace-chat-warning] Failed to search clauses",
+          getErrorDetails(clauseError),
+        );
       }
     }
 
@@ -429,6 +669,16 @@ export async function POST(request: Request) {
       lepContext,
       lepUsedFallback: usedLepFallback,
     });
+    const statutoryBaseline = buildStatutoryBaseline({
+      siteContext: siteContextSummary,
+      instrumentSlugs,
+      clauses,
+      instrumentMatch,
+      lepContext,
+      usedLepFallback,
+    });
+    const statutoryBaselinePrompt =
+      buildStatutoryBaselinePrompt(statutoryBaseline);
 
     const userAskedForDcp = hasExplicitDcpIntent(userMessage);
     const controlsRelatedQuestion = isControlsQuestion(userMessage);
@@ -438,7 +688,9 @@ export async function POST(request: Request) {
     );
     let isByronLga = canonicalLgaCode === BYRON_LGA_CODE;
     const retrievalQuery =
-      canonicalLgaCode === BYRON_LGA_CODE && controlsRelatedQuestion && dualOccQuestion
+      canonicalLgaCode === BYRON_LGA_CODE &&
+      controlsRelatedQuestion &&
+      dualOccQuestion
         ? `${userMessage} dual occupancy setbacks parking Chapter D1 Chapter B4 Byron DCP 2014`
         : userMessage;
     let sourceContextPrompt: string | null = null;
@@ -470,7 +722,10 @@ export async function POST(request: Request) {
         try {
           dcpClauses = await getDCPContext(canonicalLgaCode, retrievalQuery);
         } catch (dcpError) {
-          console.warn("[workspace-chat-warning] Failed to search DCP clauses", getErrorDetails(dcpError));
+          console.warn(
+            "[workspace-chat-warning] Failed to search DCP clauses",
+            getErrorDetails(dcpError),
+          );
         }
       }
 
@@ -493,7 +748,9 @@ export async function POST(request: Request) {
           canonicalLgaCode: sourceContext.canonicalLgaCode,
           hasCouncilDcp: (dcpContext ?? sourceContext)?.hasCouncilDcp,
           councilDcpChunkCount: dcpTotals[WorkspaceSourceType.council_dcp] ?? 0,
-          councilDcpSampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings.slice(0, 5),
+          councilDcpSampleHeadings: (
+            dcpContext ?? sourceContext
+          )?.councilDcpSampleHeadings.slice(0, 5),
         });
       }
 
@@ -504,26 +761,50 @@ export async function POST(request: Request) {
       const hasDcpClauses = dcpClauses.length > 0;
       const hasDcpChunks = (dcpChunks?.length ?? 0) > 0;
 
-      if (isByronLga && controlsRelatedQuestion && dualOccQuestion && dcpChunks?.length) {
+      if (
+        isByronLga &&
+        controlsRelatedQuestion &&
+        dualOccQuestion &&
+        dcpChunks?.length
+      ) {
         dcpChunks.sort((a, b) => {
           const boost = (chunk: (typeof dcpChunks)[number]) => {
             const heading = (chunk.heading ?? "").toLowerCase();
             const content = chunk.content.toLowerCase();
             const metadata =
-              chunk.metadata && typeof chunk.metadata === "object" && !Array.isArray(chunk.metadata)
+              chunk.metadata &&
+              typeof chunk.metadata === "object" &&
+              !Array.isArray(chunk.metadata)
                 ? (chunk.metadata as Record<string, unknown>)
                 : null;
-            const clauseKey = typeof metadata?.clauseKey === "string" ? metadata.clauseKey.toLowerCase() : "";
+            const clauseKey =
+              typeof metadata?.clauseKey === "string"
+                ? metadata.clauseKey.toLowerCase()
+                : "";
             const instrumentSlug =
-              typeof metadata?.instrumentSlug === "string" ? metadata.instrumentSlug.toLowerCase() : "";
+              typeof metadata?.instrumentSlug === "string"
+                ? metadata.instrumentSlug.toLowerCase()
+                : "";
             let score = 0;
-            if (DUAL_OCC_REGEX.test(heading) || DUAL_OCC_REGEX.test(content) || DUAL_OCC_REGEX.test(clauseKey)) {
+            if (
+              DUAL_OCC_REGEX.test(heading) ||
+              DUAL_OCC_REGEX.test(content) ||
+              DUAL_OCC_REGEX.test(clauseKey)
+            ) {
               score += 2;
             }
-            if (/\bd1\b|chapter d1/.test(`${heading} ${clauseKey} ${instrumentSlug}`)) {
+            if (
+              /\bd1\b|chapter d1/.test(
+                `${heading} ${clauseKey} ${instrumentSlug}`,
+              )
+            ) {
               score += 1;
             }
-            if (/\bb4\b|chapter b4/.test(`${heading} ${clauseKey} ${instrumentSlug}`)) {
+            if (
+              /\bb4\b|chapter b4/.test(
+                `${heading} ${clauseKey} ${instrumentSlug}`,
+              )
+            ) {
               score += 1;
             }
             return score;
@@ -552,32 +833,50 @@ export async function POST(request: Request) {
 
       const lgaLabel = lgaName ?? canonicalLgaCode;
       const coverageState = canonicalLgaCode
-        ? (
+        ? ((
             await prisma.lgaCoverageState.findUnique({
               where: { lgaCode: canonicalLgaCode },
               select: { state: true },
             })
-          )?.state ?? null
+          )?.state ?? null)
         : null;
       if (lgaLabel) {
-        coverageConfidencePrompt = buildCoverageConfidencePrompt(lgaLabel, coverageState);
+        coverageConfidencePrompt = buildCoverageConfidencePrompt(
+          lgaLabel,
+          coverageState,
+        );
       }
       const activeDcpContext = dcpContext ?? sourceContext;
       dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
       if ((hasDcpChunks || hasDcpClauses) && canonicalLgaCode) {
         const dcpEvidenceText = [
           ...dcpClauses.map((clause) =>
-            [clause.title ?? "", clause.ref ?? "", clause.headingPath?.join(" ") ?? "", clause.bodyText ?? ""].join(" "),
+            [
+              clause.title ?? "",
+              clause.ref ?? "",
+              clause.headingPath?.join(" ") ?? "",
+              clause.bodyText ?? "",
+            ].join(" "),
           ),
-          ...(dcpChunks ?? []).map((chunk) => `${chunk.heading ?? ""} ${chunk.content}`),
+          ...(dcpChunks ?? []).map(
+            (chunk) => `${chunk.heading ?? ""} ${chunk.content}`,
+          ),
         ]
           .join("\n")
           .toLowerCase();
-        const queryNeedsSetbackEvidence = controlsRelatedQuestion && SETBACK_QUERY_REGEX.test(userMessage);
-        const missingSetbackEvidence = queryNeedsSetbackEvidence && !hasSetbackEvidence(dcpEvidenceText);
-        const missingDualOccEvidence = dualOccQuestion && !/\bdual occupanc(y|ies)|duplex\b/i.test(dcpEvidenceText);
+        const queryNeedsSetbackEvidence =
+          controlsRelatedQuestion && SETBACK_QUERY_REGEX.test(userMessage);
+        const missingSetbackEvidence =
+          queryNeedsSetbackEvidence && !hasSetbackEvidence(dcpEvidenceText);
+        const missingDualOccEvidence =
+          dualOccQuestion &&
+          !/\bdual occupanc(y|ies)|duplex\b/i.test(dcpEvidenceText);
         const clauseHeadingSamples = dcpClauses
-          .map((clause) => clause.headingPath?.[clause.headingPath.length - 1] ?? clause.title)
+          .map(
+            (clause) =>
+              clause.headingPath?.[clause.headingPath.length - 1] ??
+              clause.title,
+          )
           .filter((heading): heading is string => Boolean(heading))
           .slice(0, 5);
         const dcpChunkHeadingSamples = (dcpChunks ?? [])
@@ -592,9 +891,10 @@ export async function POST(request: Request) {
             dcpChunkHeadings: dcpChunkHeadingSamples,
           });
         }
-        const headingLines = (activeDcpContext?.councilDcpSampleHeadings?.length
-          ? activeDcpContext?.councilDcpSampleHeadings
-          : clauseHeadingSamples
+        const headingLines = (
+          activeDcpContext?.councilDcpSampleHeadings?.length
+            ? activeDcpContext?.councilDcpSampleHeadings
+            : clauseHeadingSamples
         )
           .map((heading) => `- ${heading}`)
           .join("\n");
@@ -602,9 +902,12 @@ export async function POST(request: Request) {
 Use these council DCP sections as the primary source when answering questions about detailed design controls (for example setbacks, parking, landscaping, and built form):
 ${headingLines}
 When the user asks about local controls, rely first on the council Development Control Plan content provided and state that your answer is based on that DCP. You may add NSW guidance for additional context.`;
-        const dcpNameLabel = isByronLga ? "Byron Shire DCP 2014" : "this council DCP";
+        const dcpNameLabel = isByronLga
+          ? "Byron Shire DCP 2014"
+          : "this council DCP";
         const dcpHasSpecificFigures =
-          hasDcpClauses && dcpClauses.some((clause) => /\d/.test(clause.bodyText ?? ""))
+          hasDcpClauses &&
+          dcpClauses.some((clause) => /\d/.test(clause.bodyText ?? ""))
             ? true
             : (dcpChunks ?? []).some((chunk) => /\d/.test(chunk.content));
         dcpGroundingPrompt = `DCP grounding: The user is asking about development controls. Use the provided ${dcpNameLabel} excerpts as your primary source. Quote numeric requirements directly and cite the clause or section heading referenced in the source bullets or metadata labels. Do not invent measurements or parking rates that are not visible in the DCP excerpts. Avoid hedging phrases when values are present. If the provided DCP excerpts do not cover a control, say that the excerpts do not specify it instead of guessing.`;
@@ -613,7 +916,8 @@ When the user asks about local controls, rely first on the council Development C
             " Be directly useful: when numeric values are present in the excerpts, provide a concise control-by-control list (for example front setback, side setback, rear setback, parking) with the exact figures and their source heading.";
         }
         if (userAskedForDcp) {
-          dcpGroundingPrompt += " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
+          dcpGroundingPrompt +=
+            " Answer solely from the DCP excerpts unless noting that no relevant clause is available.";
         }
         if (isByronLga && controlsRelatedQuestion) {
           dcpGroundingPrompt +=
@@ -628,42 +932,54 @@ When the user asks about local controls, rely first on the council Development C
             " If no numeric requirements appear in the supplied DCP excerpts, explicitly state that the excerpts do not give a specific figure rather than inferring typical controls.";
         }
       } else if (userAskedForDcp) {
-        councilDcpPrompt =
-          `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
+        councilDcpPrompt = `The user asked for Development Control Plan requirements, but no DCP excerpts are available for ${lgaLabel ?? "this LGA"}. Explain that you cannot quote local DCP controls. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory. If asked for figures, state the local controls are unavailable in this workspace and direct the user to official council LEP/DCP sources for exact numbers.`;
         if (controlsRelatedQuestion) {
-          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel ?? "this LGA"} yet because no council DCP/LEP excerpts are available in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. If you need exact numbers now, check the official council LEP/DCP documents or contact council planning; once local controls are ingested here, I can give clause-based figures with citations.`;
+          forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel ?? "this LGA"} yet because no council DCP excerpts are available in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. If you need exact numbers now, check the official council LEP/DCP documents or contact council planning; once local controls are ingested here, I can give clause-based figures with citations.`;
         }
       } else if (lgaLabel) {
-        councilDcpPrompt =
-          `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
+        councilDcpPrompt = `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
         if (controlsRelatedQuestion) {
           forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
         }
         if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
           try {
-            const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
+            const queueResult = await queueLgaPreparation({
+              lgaCode: canonicalLgaCode,
+              projectId: projectId,
+            });
             lgaPreparationPrompt = queueResult.queued
               ? `Local controls for ${lgaLabel ?? canonicalLgaCode} are now being prepared in the background. Tell the user preparation has started and they can ask follow-up DCP questions shortly for clause-level answers.`
               : `Local controls for ${lgaLabel ?? canonicalLgaCode} are still preparing in the background (existing preparation job active). Tell the user preparation is already in progress and avoid repeating the same generic fallback wording.`;
           } catch (queueError) {
-            console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
-              lgaCode: canonicalLgaCode,
-              error: getErrorDetails(queueError),
-            });
+            console.warn(
+              "[workspace-chat-warning] Failed to queue LGA preparation",
+              {
+                lgaCode: canonicalLgaCode,
+                error: getErrorDetails(queueError),
+              },
+            );
           }
         }
       }
 
       sourceContextPrompt = buildWorkspaceSourcePrompt(usedChunksForPrompt);
     } catch (sourceError) {
-      console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
+      console.warn(
+        "[workspace-chat-warning] Failed to retrieve workspace sources",
+        getErrorDetails(sourceError),
+      );
     }
 
-    const siteContextMessage = buildSiteContextMessage(siteContextSummary, lepData);
+    const siteContextMessage = buildSiteContextMessage(
+      siteContextSummary,
+      lepData,
+    );
     const lepContextMessage = buildLepPromptMessage(lepContext);
 
     const historyMessages = existingMemory?.messages ?? [];
-    const messages: ChatCompletionMessageParam[] = [{ role: "system", content: SYSTEM_PROMPT }];
+    const messages: ChatCompletionMessageParam[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+    ];
 
     if (siteContextMessage) {
       messages.push({ role: "system", content: siteContextMessage });
@@ -685,12 +1001,19 @@ When the user asks about local controls, rely first on the council Development C
       });
       if (controlsRelatedQuestion) {
         forcedFallbackReply =
-          "I don’t have a confirmed site in this workspace yet, so I can’t verify local DCP/LEP controls for your property. Please share the exact NSW address (or suburb + council), and I’ll resolve the site first. Until then, I won’t provide indicative numeric setbacks, parking rates, heights, or POS figures from memory.";
+          "I don’t have a confirmed site in this workspace yet, so I can’t verify local DCP controls for your property. Please share the exact NSW address (or suburb + council), and I’ll resolve the site first. Until then, I won’t provide indicative numeric setbacks, parking rates, heights, or POS figures from memory.";
       }
     }
 
     if (legislationContext) {
-      messages.push({ role: "system", content: `Site context:\n${legislationContext}` });
+      messages.push({
+        role: "system",
+        content: `Site context:\n${legislationContext}`,
+      });
+    }
+
+    if (statutoryBaselinePrompt) {
+      messages.push({ role: "system", content: statutoryBaselinePrompt });
     }
 
     if (councilDcpPrompt) {
@@ -716,10 +1039,16 @@ When the user asks about local controls, rely first on the council Development C
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
 
+    if (forcedFallbackReply) {
+      forcedFallbackReply += buildStatutoryFallbackContext(statutoryBaseline);
+    }
+
     if (debugSources) {
       const systemPrompt = messages
         .filter((message) => message.role === "system")
-        .map((message) => (typeof message.content === "string" ? message.content : ""))
+        .map((message) =>
+          typeof message.content === "string" ? message.content : "",
+        )
         .join("\n\n");
 
       return NextResponse.json({
@@ -734,8 +1063,13 @@ When the user asks about local controls, rely first on the council Development C
           coverageConfidencePrompt,
           forcedFallbackReply,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
-          sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
+          sampleHeadings:
+            (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(
+              0,
+              10,
+            ) ?? [],
         },
+        statutoryBaseline,
         dcpClauses: dcpClauses.slice(0, 5).map((clause) => ({
           ref: clause.ref,
           title: clause.title,
@@ -760,13 +1094,15 @@ When the user asks about local controls, rely first on the council Development C
     const reply = forcedFallbackReply
       ? forcedFallbackReply
       : await (async () => {
-      try {
-        return await callModel("planning_chat", messages, { maxTokens: 512 });
-      } catch (error) {
-        console.error("[model-router-error]", getErrorDetails(error));
-        throw error;
-      }
-    })();
+          try {
+            return await callModel("planning_chat", messages, {
+              maxTokens: 512,
+            });
+          } catch (error) {
+            console.error("[model-router-error]", getErrorDetails(error));
+            throw error;
+          }
+        })();
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,
@@ -798,7 +1134,8 @@ When the user asks about local controls, rely first on the council Development C
     return NextResponse.json(
       {
         error: "assistant_unavailable",
-        message: "The planning assistant is unavailable right now. Please try again shortly.",
+        message:
+          "The planning assistant is unavailable right now. Please try again shortly.",
       },
       { status: 500 },
     );

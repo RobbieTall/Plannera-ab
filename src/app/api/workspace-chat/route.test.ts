@@ -6,6 +6,8 @@ const {
   getLepContextForProjectMock,
   getWorkspaceSourceContextMock,
   getDCPContextMock,
+  searchClausesMock,
+  resolveInstrumentsForSiteMock,
   callModelMock,
   hasPlanningChatProviderMock,
 } = vi.hoisted(() => ({
@@ -14,6 +16,8 @@ const {
   getLepContextForProjectMock: vi.fn(),
   getWorkspaceSourceContextMock: vi.fn(),
   getDCPContextMock: vi.fn(),
+  searchClausesMock: vi.fn(),
+  resolveInstrumentsForSiteMock: vi.fn(),
   callModelMock: vi.fn(),
   hasPlanningChatProviderMock: vi.fn(),
 }));
@@ -46,7 +50,7 @@ vi.mock("@prisma/client", () => ({
 vi.mock("@/lib/site-context", () => ({
   getSiteContextForProject: getSiteContextForProjectMock,
   persistSiteContextFromCandidate: vi.fn(),
-  resolveInstrumentsForSite: vi.fn(() => ({ lepInstrumentSlug: null, seppInstrumentSlugs: [] })),
+  resolveInstrumentsForSite: resolveInstrumentsForSiteMock,
   serializeSiteContext: vi.fn((site) => site),
 }));
 
@@ -76,7 +80,7 @@ vi.mock("@/lib/modelRouter", () => ({
 }));
 
 vi.mock("@/lib/legislation", () => ({
-  searchClauses: vi.fn(async () => []),
+  searchClauses: searchClausesMock,
 }));
 
 vi.mock("@/lib/lga-activation", () => ({
@@ -89,6 +93,11 @@ describe("workspace-chat forced fallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasPlanningChatProviderMock.mockReturnValue(true);
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: null,
+      seppInstrumentSlugs: [],
+    });
+    searchClausesMock.mockResolvedValue([]);
     getSiteContextForProjectMock.mockResolvedValue({
       formattedAddress: "3 Garruka Way, South West Rocks NSW",
       lgaCode: "KEMPSEY",
@@ -104,7 +113,10 @@ describe("workspace-chat forced fallback", () => {
       lepData: null,
       dcpData: null,
     });
-    getLepContextForProjectMock.mockResolvedValue({ lepContext: null, usedFallback: false });
+    getLepContextForProjectMock.mockResolvedValue({
+      lepContext: null,
+      usedFallback: false,
+    });
     getWorkspaceSourceContextMock.mockResolvedValue({
       canonicalLgaCode: "KEMPSEY",
       hasCouncilDcp: false,
@@ -120,7 +132,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for a dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for a dual occupancy?",
       }),
     });
 
@@ -155,7 +168,8 @@ describe("workspace-chat forced fallback", () => {
         ref: "D1.2",
         title: "Setbacks",
         headingPath: ["Chapter D1", "Dual Occupancy"],
-        bodyText: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
+        bodyText:
+          "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
       },
     ]);
     callModelMock.mockResolvedValue("Front setback 4.5m (Chapter D1).");
@@ -164,7 +178,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -206,7 +221,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -214,7 +230,9 @@ describe("workspace-chat forced fallback", () => {
     const payload = (await response.json()) as { reply: string };
 
     expect(response.status).toBe(200);
-    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(payload.reply).toContain(
+      "can’t confirm dual occupancy setback requirements",
+    );
     expect(payload.reply).toContain("Available retrieved sections right now");
     expect(callModelMock).not.toHaveBeenCalled();
   });
@@ -231,7 +249,8 @@ describe("workspace-chat forced fallback", () => {
           lgaCode: "BYRON",
           sourceType: "council_dcp",
           heading: "Chapter D1 General Residential",
-          content: "Deep soil in front setback must include one contiguous area of 20m2.",
+          content:
+            "Deep soil in front setback must include one contiguous area of 20m2.",
           metadata: {},
         },
       ],
@@ -241,7 +260,8 @@ describe("workspace-chat forced fallback", () => {
         ref: "D1.5.2",
         title: "Deep soil zones",
         headingPath: ["Chapter D1", "General Residential"],
-        bodyText: "Provide minimum 25% deep soil area and one contiguous 20m2 area in front setback.",
+        bodyText:
+          "Provide minimum 25% deep soil area and one contiguous 20m2 area in front setback.",
       },
     ]);
 
@@ -249,7 +269,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -257,7 +278,141 @@ describe("workspace-chat forced fallback", () => {
     const payload = (await response.json()) as { reply: string };
 
     expect(response.status).toBe(200);
-    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(payload.reply).toContain(
+      "can’t confirm dual occupancy setback requirements",
+    );
+    expect(callModelMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps statutory clause context available when DCP controls are missing", async () => {
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: "kempsey-local-environmental-plan-2013",
+      seppInstrumentSlugs: ["state-environmental-planning-policy-housing-2021"],
+    });
+    searchClausesMock.mockResolvedValue([
+      {
+        instrumentId: "inst-1",
+        instrumentName: "Kempsey Local Environmental Plan 2013",
+        instrumentType: "LEP",
+        clauseId: "clause-1",
+        clauseKey: "2.3",
+        title: "Zone objectives and Land Use Table",
+        snippet:
+          "Dual occupancies are listed with consent in Zone R1 General Residential.",
+        isCurrent: true,
+        currentAsAt: new Date("2026-01-01T00:00:00Z"),
+      },
+      {
+        instrumentId: "inst-2",
+        instrumentName: "State Environmental Planning Policy (Housing) 2021",
+        instrumentType: "SEPP",
+        clauseId: "clause-2",
+        clauseKey: "division-dual-occupancies",
+        title: "Dual occupancies",
+        snippet:
+          "This Division contains standards for dual occupancies where the policy applies.",
+        isCurrent: true,
+        currentAsAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message:
+          "What are the front, side and rear setbacks for a dual occupancy?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.reply).toContain("I can’t confirm local numeric controls");
+    expect(payload.reply).toContain("Statutory context available now");
+    expect(payload.reply).toContain(
+      "Kempsey Local Environmental Plan 2013 2.3",
+    );
+    expect(payload.reply).toContain(
+      "State Environmental Planning Policy (Housing) 2021",
+    );
+    expect(callModelMock).not.toHaveBeenCalled();
+  });
+
+  it("exposes a structured statutory baseline in debug output", async () => {
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: "kempsey-local-environmental-plan-2013",
+      seppInstrumentSlugs: ["state-environmental-planning-policy-housing-2021"],
+    });
+    getLepContextForProjectMock.mockResolvedValue({
+      lepContext: {
+        lga: "KEMPSEY",
+        instrumentName: "Kempsey Local Environmental Plan 2013",
+        instrumentCode: "kempsey-local-environmental-plan-2013",
+        clauses: [
+          {
+            ref: "2.3",
+            title: "Zone objectives",
+            text: "Zone R1 land use table.",
+          },
+        ],
+      },
+      usedFallback: false,
+    });
+    searchClausesMock.mockResolvedValue([
+      {
+        instrumentId: "inst-1",
+        instrumentName: "Kempsey Local Environmental Plan 2013",
+        instrumentType: "LEP",
+        clauseId: "clause-1",
+        clauseKey: "2.3",
+        title: "Zone objectives and Land Use Table",
+        snippet:
+          "Dual occupancies are listed with consent in Zone R1 General Residential.",
+        isCurrent: true,
+        currentAsAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
+
+    const request = new Request(
+      "http://localhost/api/workspace-chat?debugSources=1",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: "proj-1",
+          message: "Can I do dual occupancy under the LEP?",
+          debugSources: true,
+        }),
+      },
+    );
+
+    const response = await POST(request);
+    const payload = (await response.json()) as {
+      statutoryBaseline: {
+        instruments: string[];
+        lep: { matchedInstrument: string | null; clauseCount: number };
+        clauseSearch: { count: number; clauses: { clauseKey: string }[] };
+        confidenceTags: string[];
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.statutoryBaseline.instruments).toEqual([
+      "kempsey-local-environmental-plan-2013",
+      "state-environmental-planning-policy-housing-2021",
+    ]);
+    expect(payload.statutoryBaseline.lep.matchedInstrument).toBe(
+      "kempsey-local-environmental-plan-2013",
+    );
+    expect(payload.statutoryBaseline.lep.clauseCount).toBe(1);
+    expect(payload.statutoryBaseline.clauseSearch.count).toBe(1);
+    expect(payload.statutoryBaseline.clauseSearch.clauses[0]?.clauseKey).toBe(
+      "2.3",
+    );
+    expect(payload.statutoryBaseline.confidenceTags).toContain(
+      "STATUTORY_CLAUSES_RETRIEVED",
+    );
     expect(callModelMock).not.toHaveBeenCalled();
   });
 });
