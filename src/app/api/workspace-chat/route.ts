@@ -99,8 +99,18 @@ const shouldSearchDcpClauses = (message: string) => {
   return hasExplicitDcpIntent(message) || isControlsQuestion(message) || DUAL_OCC_REGEX.test(normalised);
 };
 const SETBACK_QUERY_REGEX = /(setback|set back)/i;
-const hasSetbackEvidence = (text: string) =>
-  /(setback|set back)/i.test(text) && (/\b\d+(?:\.\d+)?\s*m\b/i.test(text) || /\b45\s*degrees?\b/i.test(text));
+const hasSetbackEvidence = (text: string) => {
+  const normalized = text.toLowerCase();
+  const hasSetbackWord = /(setback|set back)/.test(normalized);
+  const hasNumericMeasure = /\b\d+(?:\.\d+)?\s*m\b/.test(normalized) || /\b45\s*degrees?\b/.test(normalized);
+  const hasBoundaryContext =
+    /\bfront\b/.test(normalized) ||
+    /\bside\b/.test(normalized) ||
+    /\brear\b/.test(normalized) ||
+    /\bboundar(y|ies)\b/.test(normalized) ||
+    /\bbuilding envelope\b/.test(normalized);
+  return hasSetbackWord && hasNumericMeasure && hasBoundaryContext;
+};
 const buildEvidenceGapGuidance = (params: {
   lgaLabel: string;
   dualOccQuestion: boolean;

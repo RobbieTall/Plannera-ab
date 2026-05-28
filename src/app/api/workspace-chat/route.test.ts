@@ -218,4 +218,46 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.reply).toContain("Available retrieved sections right now");
     expect(callModelMock).not.toHaveBeenCalled();
   });
+
+  it("returns fallback when excerpts mention setbacks but only contain unrelated numeric controls", async () => {
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "BYRON",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["Chapter D1 General Residential"],
+      chunks: [
+        {
+          id: "chunk-3",
+          lgaCode: "BYRON",
+          sourceType: "council_dcp",
+          heading: "Chapter D1 General Residential",
+          content: "Deep soil in front setback must include one contiguous area of 20m2.",
+          metadata: {},
+        },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([
+      {
+        ref: "D1.5.2",
+        title: "Deep soil zones",
+        headingPath: ["Chapter D1", "General Residential"],
+        bodyText: "Provide minimum 25% deep soil area and one contiguous 20m2 area in front setback.",
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "What are the front, side and rear setbacks for dual occupancy?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(callModelMock).not.toHaveBeenCalled();
+  });
 });
