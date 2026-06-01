@@ -86,6 +86,18 @@ const CONTROL_KEYWORDS = [
   "dual occupancy",
   "duplex",
 ];
+const CONTROLS_INVENTORY_REGEX =
+  /(?:what|which|show|list).{0,60}(?:controls|rules|constraints).{0,100}(?:site|land|property|address)|(?:site|land|property|address).{0,100}(?:controls|rules|constraints)/i;
+const STATUTORY_CONTROL_QUERY_TERMS = [
+  "land use table",
+  "zone objectives",
+  "height of buildings",
+  "floor space ratio",
+  "minimum subdivision lot size",
+  "heritage conservation",
+  "acid sulfate soils",
+  "earthworks",
+];
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
@@ -128,6 +140,62 @@ const uniqueBy = <T>(items: T[], keyFor: (item: T) => string) => {
     seen.add(key);
     return true;
   });
+};
+
+const isControlsInventoryQuestion = (message: string) =>
+  CONTROLS_INVENTORY_REGEX.test(message.toLowerCase());
+
+const buildStatutorySearchQueries = (params: {
+  message: string;
+  siteContext: SiteContextSummary | null;
+  controlsInventoryQuestion: boolean;
+}) => {
+  const baseQueries = [params.message];
+  if (params.controlsInventoryQuestion) {
+    const zone = params.siteContext?.zone ?? params.siteContext?.zoningCode;
+    baseQueries.push(
+      ...(zone ? [`Zone ${zone}`, `${zone} land use table`] : []),
+      ...STATUTORY_CONTROL_QUERY_TERMS,
+    );
+  }
+
+  return uniqueBy(
+    baseQueries.map((query) => query.trim()).filter(Boolean),
+    (query) => query.toLowerCase(),
+  );
+};
+
+const searchStatutoryClauses = async (params: {
+  message: string;
+  siteContext: SiteContextSummary | null;
+  instrumentSlugs: string[];
+  controlsInventoryQuestion: boolean;
+}) => {
+  const queries = buildStatutorySearchQueries({
+    message: params.message,
+    siteContext: params.siteContext,
+    controlsInventoryQuestion: params.controlsInventoryQuestion,
+  });
+  const results: ClauseSummary[] = [];
+
+  for (const query of queries) {
+    const remaining = Math.max(12 - results.length, 0);
+    if (!remaining) break;
+    const found = await searchClauses({
+      query,
+      instrumentSlugs: params.instrumentSlugs,
+      instrumentTypes: ["LEP", "SEPP"],
+      limit: params.controlsInventoryQuestion
+        ? Math.min(4, remaining)
+        : remaining,
+    });
+    results.push(...found);
+  }
+
+  return uniqueBy(
+    results,
+    (clause) => `${clause.instrumentId}:${clause.clauseKey}:${clause.clauseId}`,
+  ).slice(0, 12);
 };
 
 const buildStatutoryBaseline = (params: {
@@ -255,6 +323,73 @@ Statutory context available now: matched ${matched.join(", ")}. No LEP/SEPP clau
 
   return "";
 };
+const buildControlsInventoryReply = (params: {
+  baseline: StatutoryBaseline;
+  dcpAvailable: boolean;
+  dcpHeadings: string[];
+}) => {
+  const { baseline } = params;
+  const siteBits = [
+    baseline.site.address,
+    baseline.site.lgaName ? `LGA: ${baseline.site.lgaName}` : null,
+    baseline.site.zone ? `Zone: ${baseline.site.zone}` : null,
+  ].filter(Boolean);
+  const lines = [
+    siteBits.length
+      ? `For ${siteBits.join(" | ")}, here is what Plannera can tell you from loaded, source-backed data right now.`
+      : "Here is what Plannera can tell you from loaded, source-backed data right now.",
+  ];
+
+  const clauseLines = baseline.clauseSearch.clauses.map((clause) => {
+    const title = clause.title ?? clause.clauseKey;
+    return `- ${clause.instrumentName} ${clause.clauseKey} (${title}): ${clause.snippet}`;
+  });
+
+  lines.push("\n**Confirmed site context**");
+  lines.push(`- Address: ${baseline.site.address ?? "not confirmed"}`);
+  lines.push(
+    `- LGA: ${baseline.site.lgaName ?? baseline.site.lgaCode ?? "not confirmed"}`,
+  );
+  lines.push(`- Zone: ${baseline.site.zone ?? "not confirmed"}`);
+
+  lines.push("\n**Statutory controls currently available**");
+  if (clauseLines.length) {
+    lines.push(...clauseLines);
+  } else if (baseline.instruments.length || baseline.lep.matchedInstrument) {
+    const matched = [baseline.lep.matchedInstrument, ...baseline.instruments]
+      .filter(Boolean)
+      .join(", ");
+    lines.push(
+      `- Matched instruments: ${matched}. Clause search did not return specific excerpts for this broad controls question yet, so I will not summarise controls from memory.`,
+    );
+  } else {
+    lines.push(
+      "- No LEP/SEPP clause excerpts are currently available for this site in this request.",
+    );
+  }
+
+  lines.push("\n**Council DCP controls**");
+  if (params.dcpAvailable) {
+    const headings = params.dcpHeadings.slice(0, 5);
+    lines.push(
+      headings.length
+        ? `- DCP material is loaded. Retrieved DCP sections include: ${headings.map((heading) => `"${heading}"`).join(", ")}. Ask for a specific control and I will answer only from matching DCP clauses.`
+        : "- DCP material is loaded, but no section headings were retrieved for this broad question. Ask for a specific control to retrieve matching clauses.",
+    );
+  } else {
+    lines.push(
+      "- Detailed council DCP numeric controls (for example setbacks, parking, landscaping, private open space and site coverage) are not available from retrieved DCP excerpts in this request, so I will not provide indicative figures.",
+    );
+  }
+
+  lines.push("\n**Best next question**");
+  lines.push(
+    "- Ask a specific source-backed question such as: ‘is dual occupancy permitted under the LEP?’, ‘what height/FSR/minimum lot clauses are loaded?’, or ‘retrieve DCP setback clauses for this LGA’. I will answer with clause references where the data is available.",
+  );
+
+  return lines.join("\n");
+};
+
 const buildCoverageConfidencePrompt = (
   lgaLabel: string,
   coverageState: LgaCoverageMaturity | null,
@@ -448,8 +583,13 @@ const buildLegislationContext = (params: {
     params.instrumentMatch?.lepInstrumentSlug &&
     params.siteContext?.lgaName
   ) {
+    const hasLepClauseSearchResults = params.clauses.some(
+      (clause) => clause.instrumentType === "LEP",
+    );
     introParts.push(
-      `LEP: ${params.instrumentMatch.lepInstrumentSlug} is not yet available for ${params.siteContext.lgaName}; rely on NSW SEPPs and confirm with council or the official LEP.`,
+      hasLepClauseSearchResults
+        ? `LEP: ${params.instrumentMatch.lepInstrumentSlug} matched for ${params.siteContext.lgaName}; retrieved LEP clause snippets are listed below.`
+        : `LEP: ${params.instrumentMatch.lepInstrumentSlug} matched for ${params.siteContext.lgaName}, but no LEP clause snippets were retrieved for this exact question.`,
     );
   } else if (params.siteContext?.lgaName && params.lepUsedFallback) {
     introParts.push(
@@ -637,14 +777,20 @@ export async function POST(request: Request) {
       });
     }
 
+    const userAskedForDcp = hasExplicitDcpIntent(userMessage);
+    const controlsRelatedQuestion = isControlsQuestion(userMessage);
+    const controlsInventoryQuestion =
+      isControlsInventoryQuestion(userMessage) && !controlsRelatedQuestion;
+    const dualOccQuestion = DUAL_OCC_REGEX.test(userMessage.toLowerCase());
+
     let clauses: Awaited<ReturnType<typeof searchClauses>> = [];
     if (instrumentSlugs.length) {
       try {
-        clauses = await searchClauses({
-          query: userMessage,
+        clauses = await searchStatutoryClauses({
+          message: userMessage,
+          siteContext: siteContextSummary,
           instrumentSlugs,
-          instrumentTypes: ["LEP", "SEPP"],
-          limit: 12,
+          controlsInventoryQuestion,
         });
       } catch (clauseError) {
         console.warn(
@@ -680,9 +826,6 @@ export async function POST(request: Request) {
     const statutoryBaselinePrompt =
       buildStatutoryBaselinePrompt(statutoryBaseline);
 
-    const userAskedForDcp = hasExplicitDcpIntent(userMessage);
-    const controlsRelatedQuestion = isControlsQuestion(userMessage);
-    const dualOccQuestion = DUAL_OCC_REGEX.test(userMessage.toLowerCase());
     let canonicalLgaCode = normalizeCouncilLgaCode(
       siteContextSummary?.lgaCode ?? siteContextSummary?.lgaName ?? fallbackLga,
     );
@@ -960,6 +1103,15 @@ When the user asks about local controls, rely first on the council Development C
             );
           }
         }
+      }
+
+      if (controlsInventoryQuestion) {
+        const activeDcpContext = dcpContext ?? sourceContext;
+        forcedFallbackReply = buildControlsInventoryReply({
+          baseline: statutoryBaseline,
+          dcpAvailable: activeDcpContext?.hasCouncilDcp ?? false,
+          dcpHeadings: activeDcpContext?.councilDcpSampleHeadings ?? [],
+        });
       }
 
       sourceContextPrompt = buildWorkspaceSourcePrompt(usedChunksForPrompt);

@@ -340,6 +340,76 @@ describe("workspace-chat forced fallback", () => {
     expect(callModelMock).not.toHaveBeenCalled();
   });
 
+  it("returns a source-backed controls inventory instead of generic controls guidance", async () => {
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: "kempsey-lep-2013",
+      seppInstrumentSlugs: ["sepp-housing-2021"],
+    });
+    searchClausesMock.mockImplementation(
+      async ({ query }: { query?: string }) => {
+        if (query === "Zone R1" || query === "R1 land use table") {
+          return [
+            {
+              instrumentId: "inst-1",
+              instrumentName: "Kempsey Local Environmental Plan 2013",
+              instrumentType: "LEP",
+              clauseId: "clause-zone-r1",
+              clauseKey: "2.3",
+              title: "Zone objectives and Land Use Table",
+              snippet:
+                "Zone R1 General Residential permits dual occupancies with consent.",
+              isCurrent: true,
+              currentAsAt: new Date("2026-01-01T00:00:00Z"),
+            },
+          ];
+        }
+        if (query === "height of buildings") {
+          return [
+            {
+              instrumentId: "inst-1",
+              instrumentName: "Kempsey Local Environmental Plan 2013",
+              instrumentType: "LEP",
+              clauseId: "clause-height",
+              clauseKey: "4.3",
+              title: "Height of buildings",
+              snippet:
+                "The height of a building is not to exceed the maximum height shown for the land on the Height of Buildings Map.",
+              isCurrent: true,
+              currentAsAt: new Date("2026-01-01T00:00:00Z"),
+            },
+          ];
+        }
+        return [];
+      },
+    );
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message:
+          "What controls can Plannera tell me about the land in question?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string };
+
+    expect(response.status).toBe(200);
+    expect(payload.reply).toContain("source-backed data right now");
+    expect(payload.reply).toContain("**Confirmed site context**");
+    expect(payload.reply).toContain(
+      "Kempsey Local Environmental Plan 2013 2.3",
+    );
+    expect(payload.reply).toContain(
+      "Kempsey Local Environmental Plan 2013 4.3",
+    );
+    expect(payload.reply).toContain("Council DCP controls");
+    expect(payload.reply).toContain("will not provide indicative figures");
+    expect(payload.reply.toLowerCase()).not.toContain("typically allows");
+    expect(callModelMock).not.toHaveBeenCalled();
+  });
+
   it("exposes a structured statutory baseline in debug output", async () => {
     resolveInstrumentsForSiteMock.mockReturnValue({
       lepInstrumentSlug: "kempsey-local-environmental-plan-2013",
