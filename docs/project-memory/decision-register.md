@@ -11,7 +11,7 @@ A compact register of active product/architecture decisions.
 ## DR-002 — Staged Intelligence Delivery
 
 **Status:** Active  
-**Decision:** Start with usable search-supported capability, then progress to structured controls and verified rule packs. Do not pretend partial ingestion is complete intelligence.  
+**Decision:** Start with usable search-supported capability, then progress to structured controls and verified rule packs. Do not pretend partial ingestion is complete intelligence. Workspace chat must surface source confidence explicitly so retrieved statutory/DCP excerpts are shown as cited, model-only guidance is labelled inferred, and coverage gaps remain unresolved until local controls are available.
 **Reference:** `docs/plannera-product-philosophy.md`
 
 ## DR-003 — Just-in-Time LGA Activation

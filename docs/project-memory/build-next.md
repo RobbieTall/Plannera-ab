@@ -11,7 +11,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** unsupported LGA requests return immediately with baseline guidance while local preparation runs in background.
 
-## 2) Confidence-State Surface Area
+## 2) Confidence-State Surface Area — IN PROGRESS
 
 - Ensure outputs consistently distinguish:
   - confirmed / cited / inferred / user-provided / unresolved.

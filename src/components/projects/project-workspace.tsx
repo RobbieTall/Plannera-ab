@@ -45,6 +45,7 @@ import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SetSiteInput } from "@/components/projects/set-site-input";
+import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
@@ -1171,6 +1172,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         requiresSiteSelection?: boolean;
         candidates?: SiteCandidate[];
         addressInput?: string;
+        sourceAttribution?: WorkspaceMessage["sourceAttribution"];
       } = await response.json();
 
       if (data.siteContext) {
@@ -1202,6 +1204,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         role: "assistant",
         content: data.reply ?? replyFallback,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        sourceAttribution: data.sourceAttribution,
       };
       applySessionSignals(
         deriveSignalsFromAssistantPayload({
@@ -2416,6 +2419,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                     )}
                   >
                     <p>{message.content}</p>
+                    {message.role === "assistant" && message.sourceAttribution ? (
+                      <SourceConfidenceBadge
+                        sourceAttribution={message.sourceAttribution}
+                        lgaCode={siteContext?.lgaCode ?? sessionSignals.lga}
+                      />
+                    ) : null}
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
                   </article>
                 ))
