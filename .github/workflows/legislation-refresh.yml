@@ -17,4 +17,3 @@ jobs:
       - run: npm run refresh:legislation
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LEGISLATION_USE_FIXTURES: true

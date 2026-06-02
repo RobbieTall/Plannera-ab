@@ -8,6 +8,8 @@ const {
   getDCPContextMock,
   callModelMock,
   hasPlanningChatProviderMock,
+  searchClausesMock,
+  resolveInstrumentsForSiteMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
@@ -16,6 +18,8 @@ const {
   getDCPContextMock: vi.fn(),
   callModelMock: vi.fn(),
   hasPlanningChatProviderMock: vi.fn(),
+  searchClausesMock: vi.fn(),
+  resolveInstrumentsForSiteMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -46,7 +50,7 @@ vi.mock("@prisma/client", () => ({
 vi.mock("@/lib/site-context", () => ({
   getSiteContextForProject: getSiteContextForProjectMock,
   persistSiteContextFromCandidate: vi.fn(),
-  resolveInstrumentsForSite: vi.fn(() => ({ lepInstrumentSlug: null, seppInstrumentSlugs: [] })),
+  resolveInstrumentsForSite: resolveInstrumentsForSiteMock,
   serializeSiteContext: vi.fn((site) => site),
 }));
 
@@ -76,7 +80,11 @@ vi.mock("@/lib/modelRouter", () => ({
 }));
 
 vi.mock("@/lib/legislation", () => ({
-  searchClauses: vi.fn(async () => []),
+  searchClauses: searchClausesMock,
+}));
+
+vi.mock("@/lib/lep/nsw-lep-registry", () => ({
+  listNswLgaKeys: vi.fn(() => ["byron", "kempsey"]),
 }));
 
 vi.mock("@/lib/lga-activation", () => ({
@@ -89,6 +97,8 @@ describe("workspace-chat forced fallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasPlanningChatProviderMock.mockReturnValue(true);
+    searchClausesMock.mockResolvedValue([]);
+    resolveInstrumentsForSiteMock.mockReturnValue({ lepInstrumentSlug: null, seppInstrumentSlugs: [] });
     getSiteContextForProjectMock.mockResolvedValue({
       formattedAddress: "3 Garruka Way, South West Rocks NSW",
       lgaCode: "KEMPSEY",
@@ -260,4 +270,70 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
     expect(callModelMock).not.toHaveBeenCalled();
   });
+
+  it("searches resolved LEP and SEPP instruments when the user names an LGA in the question", async () => {
+    getSiteContextForProjectMock.mockResolvedValue(null);
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: "byron-lep-2014",
+      seppInstrumentSlugs: ["sepp-housing-2021"],
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "BYRON",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["Chapter D1 Dual Occupancy"],
+      chunks: [
+        {
+          id: "chunk-lgatest",
+          lgaCode: "BYRON",
+          sourceType: "council_dcp",
+          heading: "Chapter D1 Dual Occupancy",
+          content: "Front setback 4.5m. Side setback 1.5m. Rear setback 3m.",
+          metadata: {},
+        },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([
+      {
+        ref: "D1.2",
+        title: "Setbacks",
+        headingPath: ["Chapter D1", "Dual Occupancy"],
+        bodyText: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m for dual occupancy development.",
+      },
+    ]);
+    searchClausesMock.mockResolvedValue([
+      {
+        instrumentId: "instrument-1",
+        instrumentName: "Byron Local Environmental Plan 2014",
+        instrumentType: "LEP",
+        clauseId: "clause-1",
+        clauseKey: "4.1C",
+        title: "Dual occupancies",
+        snippet: "Development consent may be granted for dual occupancy development.",
+        isCurrent: true,
+        currentAsAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+    callModelMock.mockResolvedValue("Clause-based answer.");
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "What are the setbacks for dual occupancy in Byron Shire?",
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(resolveInstrumentsForSiteMock).toHaveBeenCalledWith({ lgaName: "byron" });
+    expect(searchClausesMock).toHaveBeenCalledWith({
+      query: "What are the setbacks for dual occupancy in Byron Shire?",
+      instrumentSlugs: ["byron-lep-2014", "sepp-housing-2021"],
+      instrumentTypes: ["LEP", "SEPP"],
+      limit: 12,
+    });
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+  });
+
 });

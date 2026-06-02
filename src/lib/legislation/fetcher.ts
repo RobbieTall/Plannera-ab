@@ -196,7 +196,6 @@ export const fetchInstrumentXml = async (
   config: InstrumentConfig,
 ): Promise<InstrumentFetchResult> => {
   const preferFixtures = process.env.LEGISLATION_USE_FIXTURES === "true";
-  const isVercel = Boolean(process.env.VERCEL);
 
   const localResult = await loadFromLocalXml(config);
   if (localResult) {
@@ -220,18 +219,6 @@ export const fetchInstrumentXml = async (
   }
 
   try {
-    if (isVercel) {
-      if (config.fixtureFile) {
-        console.warn(
-          `[fetcher] Vercel environment detected; using fixture for ${config.slug} instead of network fetch.`,
-        );
-        return loadFromFixture(config);
-      }
-      throw new Error(
-        `Vercel environment detected and no local XML found for ${config.slug}; network fetch is disabled.`,
-      );
-    }
-
     const targetUrl = buildXmlSourceUrl(config);
     const { document, status } = await performHttpFetch(targetUrl);
     return {

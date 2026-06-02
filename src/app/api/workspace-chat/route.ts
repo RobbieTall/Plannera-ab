@@ -33,6 +33,8 @@ import {
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
 import { queueLgaPreparation } from "@/lib/lga-activation";
+import { listNswLgaKeys } from "@/lib/lep/nsw-lep-registry";
+import { normalizeNswLgaName } from "@/lib/lep/nsw-lga-normaliser";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -276,6 +278,16 @@ const summarizeCandidates = (candidates: SiteCandidate[]) =>
     lgaName: candidate.lgaName,
   }));
 
+const inferLgaFromMessage = (message: string) => {
+  const normalizedMessage = normalizeNswLgaName(message);
+  if (!normalizedMessage) {
+    return null;
+  }
+
+  const paddedMessage = ` ${normalizedMessage} `;
+  return listNswLgaKeys().find((lgaKey) => paddedMessage.includes(` ${lgaKey} `)) ?? null;
+};
+
 export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
@@ -358,7 +370,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const instrumentMatch = siteContextSummary ? resolveInstrumentsForSite(siteContextSummary) : null;
+    const messageLga = !siteContextSummary ? inferLgaFromMessage(userMessage) : null;
+    const instrumentMatch = siteContextSummary
+      ? resolveInstrumentsForSite(siteContextSummary)
+      : resolveInstrumentsForSite(messageLga ? { lgaName: messageLga } : null);
     const instrumentSlugs = instrumentMatch
       ? Array.from(
           new Set([
@@ -368,7 +383,7 @@ export async function POST(request: Request) {
         ).filter(Boolean) as string[]
       : existingMemory?.instruments ?? [];
 
-    const fallbackLga = siteContextSummary?.lgaName ?? existingMemory?.lga ?? null;
+    const fallbackLga = siteContextSummary?.lgaName ?? messageLga ?? existingMemory?.lga ?? null;
 
     console.log("[workspace-chat] instrument resolution", {
       lgaName: siteContextSummary?.lgaName,
@@ -452,7 +467,7 @@ export async function POST(request: Request) {
     let dcpContext: WorkspaceSourceContext | null = null;
     let usedChunksForPrompt: WorkspaceSourceContext["chunks"] = [];
     const lgaCode = siteContextSummary?.lgaCode ?? null;
-    const lgaName = siteContextSummary?.lgaName ?? null;
+    const lgaName = siteContextSummary?.lgaName ?? fallbackLga;
     try {
       sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
@@ -677,7 +692,7 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: lepContextMessage });
     }
 
-    if (!siteContextSummary) {
+    if (!siteContextSummary && !fallbackLga) {
       messages.push({
         role: "system",
         content:

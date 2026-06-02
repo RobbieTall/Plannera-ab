@@ -17,6 +17,33 @@ import type {
 import { refreshLepZoneTables } from "../lep/zone-table-extractor";
 
 const DEFAULT_SEARCH_LIMIT = 25;
+const MAX_SEARCH_CANDIDATES = 200;
+const SEARCH_STOP_WORDS = new Set([
+  "a",
+  "about",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "by",
+  "do",
+  "does",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "what",
+  "where",
+  "with",
+]);
 let parserModulePromise: Promise<typeof import("./parser")> | null = null;
 let fetcherModulePromise: Promise<typeof import("./fetcher")> | null = null;
 
@@ -113,14 +140,45 @@ const dedupeParsedClauses = (clauses: ParsedClause[]): ParsedClause[] => {
   return unique;
 };
 
-const computeRelevance = (bodyText: string, query?: string) => {
+const computeRelevance = (bodyText: string, query?: string, title?: string | null, clauseKey?: string) => {
   if (!query) {
     return 0;
   }
 
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const haystack = bodyText.toLowerCase();
-  return tokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+  const tokens = tokenizeSearchQuery(query);
+  const bodyHaystack = bodyText.toLowerCase();
+  const headingHaystack = `${title ?? ""} ${clauseKey ?? ""}`.toLowerCase();
+  return tokens.reduce(
+    (score, token) =>
+      score +
+      (bodyHaystack.includes(token) ? 1 : 0) +
+      (headingHaystack.includes(token) ? 2 : 0),
+    0,
+  );
+};
+
+const tokenizeSearchQuery = (query?: string) =>
+  (query ?? "")
+    .toLowerCase()
+    .match(/[a-z0-9]+/g)
+    ?.filter((token) => token.length > 1 && !SEARCH_STOP_WORDS.has(token))
+    .slice(0, 8) ?? [];
+
+const buildSearchWhere = (
+  query: string | undefined,
+): Prisma.ClauseWhereInput | undefined => {
+  const tokens = tokenizeSearchQuery(query);
+  if (!tokens.length) {
+    return undefined;
+  }
+
+  return {
+    OR: tokens.flatMap((token) => [
+      { bodyText: { contains: token, mode: Prisma.QueryMode.insensitive } },
+      { title: { contains: token, mode: Prisma.QueryMode.insensitive } },
+      { clauseKey: { contains: token, mode: Prisma.QueryMode.insensitive } },
+    ]),
+  };
 };
 
 const ingestParsedClauses = async (
@@ -308,10 +366,18 @@ export const syncInstrumentFromDocument = async (
   return ingestParsedClauses(config, parsedClauses, fetchedAt, { forceReplace: options?.forceReplace });
 };
 
-export const syncAllInstruments = async (): Promise<SyncResult[]> => {
+export const syncAllInstruments = async (options?: {
+  configs?: InstrumentConfigType[];
+  slugs?: string[];
+  limit?: number;
+}): Promise<SyncResult[]> => {
   const results: SyncResult[] = [];
+  const slugFilter = options?.slugs?.length ? new Set(options.slugs) : null;
+  const configs = (options?.configs ?? ALL_INSTRUMENT_CONFIG)
+    .filter((config) => !slugFilter || slugFilter.has(config.slug))
+    .slice(0, options?.limit ?? undefined);
 
-  for (const config of ALL_INSTRUMENT_CONFIG) {
+  for (const config of configs) {
     try {
       const result = await syncInstrumentInternal(config);
       results.push(result);
@@ -333,16 +399,25 @@ export const syncAllInstruments = async (): Promise<SyncResult[]> => {
 
 export const searchClauses = async (params: SearchClausesParams): Promise<ClauseSummary[]> => {
   const { query, instrumentSlugs, instrumentTypes, isCurrent = true, limit = DEFAULT_SEARCH_LIMIT } = params;
+  const searchWhere = buildSearchWhere(query);
 
   const clauses = await prisma.clause.findMany({
     where: {
       ...(isCurrent !== undefined ? { isCurrent } : {}),
-      ...(query ? { bodyText: { contains: query, mode: Prisma.QueryMode.insensitive } } : {}),
-      ...(instrumentSlugs ? { instrument: { slug: { in: instrumentSlugs } } } : {}),
-      ...(instrumentTypes ? { instrument: { instrumentType: { in: instrumentTypes } } } : {}),
+      ...(searchWhere ? searchWhere : {}),
+      ...(
+        instrumentSlugs || instrumentTypes
+          ? {
+              instrument: {
+                ...(instrumentSlugs ? { slug: { in: instrumentSlugs } } : {}),
+                ...(instrumentTypes ? { instrumentType: { in: instrumentTypes } } : {}),
+              },
+            }
+          : {}
+      ),
     },
     include: { instrument: true },
-    take: limit,
+    take: query ? Math.max(Math.min(limit * 8, MAX_SEARCH_CANDIDATES), limit) : limit,
   });
 
   const summaries = clauses.map((clause) => ({
@@ -355,16 +430,62 @@ export const searchClauses = async (params: SearchClausesParams): Promise<Clause
     snippet: buildSnippet(clause.bodyText, query),
     isCurrent: clause.isCurrent,
     currentAsAt: clause.retrievedAt ?? clause.updatedAt,
-    score: computeRelevance(clause.bodyText, query),
+    score: computeRelevance(clause.bodyText, query, clause.title, clause.clauseKey),
   }));
 
   return summaries
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
     .map((summary) => {
       const { score, ...rest } = summary;
       void score;
       return rest;
     });
+};
+
+export const getLegislationHealth = async () => {
+  const [instrumentCount, clauseCount, clausesByInstrument, instruments] = await Promise.all([
+    prisma.instrument.count(),
+    prisma.clause.count({ where: { isCurrent: true } }),
+    prisma.clause.groupBy({
+      by: ["instrumentId"],
+      where: { isCurrent: true },
+      _count: { _all: true },
+    }),
+    prisma.instrument.findMany({
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        shortName: true,
+        instrumentType: true,
+        jurisdiction: true,
+        lastSyncedAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ instrumentType: "asc" }, { slug: "asc" }],
+    }),
+  ]);
+
+  const clauseCountsByInstrumentId = new Map(
+    clausesByInstrument.map((row) => [row.instrumentId, row._count._all]),
+  );
+
+  return {
+    instrumentCount,
+    clauseCount,
+    instruments: instruments.map((instrument) => ({
+      id: instrument.id,
+      slug: instrument.slug,
+      name: instrument.name,
+      shortName: instrument.shortName,
+      instrumentType: instrument.instrumentType,
+      jurisdiction: instrument.jurisdiction,
+      currentClauseCount: clauseCountsByInstrumentId.get(instrument.id) ?? 0,
+      lastSyncedAt: instrument.lastSyncedAt,
+      updatedAt: instrument.updatedAt,
+    })),
+  };
 };
 
 export const getClauseById = async (clauseId: string): Promise<ClauseDetail | null> => {
