@@ -272,6 +272,7 @@ enum LgaCoverageMaturity {
   SEARCHABLE_READY
   STRUCTURED_PARTIAL
   VERIFIED
+  FAILED_REVIEW_NEEDED
 }
 
 enum LgaPreparationStatus {

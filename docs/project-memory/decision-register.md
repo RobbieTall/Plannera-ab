@@ -25,3 +25,11 @@ A compact register of active product/architecture decisions.
 **Status:** Active  
 **Decision:** Use restrained language during local preparation (e.g., “reviewing local controls”); avoid “correct/complete” certainty until confidence level supports it.  
 **Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+## DR-005 — Statutory-First Data Strategy
+
+**Status:** Active
+
+**Decision:** Prioritise authoritative statutory instruments (LEPs, SEPPs, and council DCP source material) as the primary grounding layer before heuristic or model-inferred planning guidance. Local-control answers must cite retrieved statutory/DCP excerpts where available and must identify unresolved controls when source coverage is not yet searchable or verified.
+
+**Reference:** `docs/architecture/just-in-time-lga-activation.md`
