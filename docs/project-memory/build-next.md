@@ -2,7 +2,7 @@
 
 This is the active sequence for what to build next so direction is never lost.
 
-## 1) Just-in-Time LGA Activation Core
+## 1) Just-in-Time LGA Activation Core — IN PROGRESS
 
 - Implement LGA coverage-state persistence.
 - Implement job de-duplication/locking.

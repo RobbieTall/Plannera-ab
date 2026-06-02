@@ -10,6 +10,8 @@ const {
   hasPlanningChatProviderMock,
   searchClausesMock,
   resolveInstrumentsForSiteMock,
+  lgaCoverageFindUniqueMock,
+  queueLgaPreparationMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
@@ -20,12 +22,14 @@ const {
   hasPlanningChatProviderMock: vi.fn(),
   searchClausesMock: vi.fn(),
   resolveInstrumentsForSiteMock: vi.fn(),
+  lgaCoverageFindUniqueMock: vi.fn(),
+  queueLgaPreparationMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     lgaCoverageState: {
-      findUnique: vi.fn(async () => ({ state: "QUEUED" })),
+      findUnique: lgaCoverageFindUniqueMock,
     },
     project: {
       findUnique: vi.fn(async () => null),
@@ -41,6 +45,7 @@ vi.mock("@prisma/client", () => ({
     SEARCHABLE_READY: "SEARCHABLE_READY",
     STRUCTURED_PARTIAL: "STRUCTURED_PARTIAL",
     VERIFIED: "VERIFIED",
+    FAILED_REVIEW_NEEDED: "FAILED_REVIEW_NEEDED",
   },
   WorkspaceSourceType: {
     council_dcp: "council_dcp",
@@ -88,7 +93,7 @@ vi.mock("@/lib/lep/nsw-lep-registry", () => ({
 }));
 
 vi.mock("@/lib/lga-activation", () => ({
-  queueLgaPreparation: vi.fn(async () => ({ queued: true })),
+  queueLgaPreparation: queueLgaPreparationMock,
 }));
 
 import { POST } from "./route";
@@ -123,6 +128,8 @@ describe("workspace-chat forced fallback", () => {
       chunks: [],
     });
     getDCPContextMock.mockResolvedValue([]);
+    lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
+    queueLgaPreparationMock.mockResolvedValue({ queued: true, coverageState: "QUEUED" });
   });
 
   it("returns deterministic fallback and skips model for controls question when no local DCP excerpts exist", async () => {
@@ -334,6 +341,29 @@ describe("workspace-chat forced fallback", () => {
       limit: 12,
     });
     expect(callModelMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("injects a coverage notice, queues preparation, and still calls the model for preparing LGAs", async () => {
+    callModelMock.mockResolvedValue("Baseline planning answer.");
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "Can you summarise the planning context for this site?",
+      }),
+    });
+
+    const response = await POST(request);
+    const payload = (await response.json()) as { reply: string; coverageState: string; coverageNotice: string };
+
+    expect(response.status).toBe(200);
+    expect(queueLgaPreparationMock).toHaveBeenCalledWith({ lgaCode: "KEMPSEY", projectId: "proj-1" });
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+    expect(payload.coverageState).toBe("QUEUED");
+    expect(payload.coverageNotice).toContain("local DCP controls are being prepared");
+    const messages = callModelMock.mock.calls[0]?.[1] as Array<{ role: string; content: string }>;
+    expect(messages.some((message) => message.content.includes("Do not fabricate or infer council-specific"))).toBe(true);
   });
 
 });

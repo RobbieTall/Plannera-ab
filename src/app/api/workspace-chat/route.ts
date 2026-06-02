@@ -80,6 +80,15 @@ const CONTROL_KEYWORDS = [
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
+
+const PREPARING_COVERAGE_STATES = new Set<LgaCoverageMaturity>([
+  LgaCoverageMaturity.NOT_STARTED,
+  LgaCoverageMaturity.QUEUED,
+  LgaCoverageMaturity.PROCESSING,
+]);
+
+const buildLgaCoverageNotice = (lgaLabel: string, state: LgaCoverageMaturity) =>
+  `Coverage notice for ${lgaLabel}: local DCP controls are being prepared (coverage state ${state}). Use restrained language. Do not fabricate or infer council-specific setback, height, parking, landscaping, private open space, FSR, or site coverage controls. If no retrieved local clause supports a numeric control, say local controls are being prepared and exact council figures are not yet available in Plannera.`;
 const buildCoverageConfidencePrompt = (
   lgaLabel: string,
   coverageState: LgaCoverageMaturity | null,
@@ -317,6 +326,8 @@ export async function POST(request: Request) {
     let lepContext: LepContext | null = existingMemory?.lepContext ?? null;
     let usedLepFallback = existingMemory?.usedLepFallback ?? false;
     let dcpClauses: Awaited<ReturnType<typeof getDCPContext>> = [];
+    let coverageStateForResponse: LgaCoverageMaturity | null = null;
+    let coverageNotice: string | null = null;
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
@@ -566,16 +577,31 @@ export async function POST(request: Request) {
       }
 
       const lgaLabel = lgaName ?? canonicalLgaCode;
-      const coverageState = canonicalLgaCode
-        ? (
-            await prisma.lgaCoverageState.findUnique({
-              where: { lgaCode: canonicalLgaCode },
-              select: { state: true },
-            })
-          )?.state ?? null
+      const coverageRecord = canonicalLgaCode
+        ? await prisma.lgaCoverageState.findUnique({
+            where: { lgaCode: canonicalLgaCode },
+            select: { state: true },
+          })
         : null;
+      const coverageState = canonicalLgaCode
+        ? coverageRecord?.state ?? LgaCoverageMaturity.NOT_STARTED
+        : null;
+      coverageStateForResponse = coverageState;
       if (lgaLabel) {
         coverageConfidencePrompt = buildCoverageConfidencePrompt(lgaLabel, coverageState);
+      }
+      if (canonicalLgaCode && lgaLabel && coverageState && PREPARING_COVERAGE_STATES.has(coverageState)) {
+        try {
+          const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId });
+          coverageStateForResponse = queueResult.coverageState;
+          coverageNotice = buildLgaCoverageNotice(lgaLabel, coverageStateForResponse);
+          lgaPreparationPrompt = coverageNotice;
+        } catch (queueError) {
+          console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
+            lgaCode: canonicalLgaCode,
+            error: getErrorDetails(queueError),
+          });
+        }
       }
       const activeDcpContext = dcpContext ?? sourceContext;
       dcpClausePrompt = buildDcpClausePrompt(dcpClauses, lgaLabel);
@@ -653,19 +679,6 @@ When the user asks about local controls, rely first on the council Development C
           `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
         if (controlsRelatedQuestion) {
           forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
-        }
-        if (canonicalLgaCode && canonicalLgaCode !== BYRON_LGA_CODE) {
-          try {
-            const queueResult = await queueLgaPreparation({ lgaCode: canonicalLgaCode, projectId: projectId });
-            lgaPreparationPrompt = queueResult.queued
-              ? `Local controls for ${lgaLabel ?? canonicalLgaCode} are now being prepared in the background. Tell the user preparation has started and they can ask follow-up DCP questions shortly for clause-level answers.`
-              : `Local controls for ${lgaLabel ?? canonicalLgaCode} are still preparing in the background (existing preparation job active). Tell the user preparation is already in progress and avoid repeating the same generic fallback wording.`;
-          } catch (queueError) {
-            console.warn("[workspace-chat-warning] Failed to queue LGA preparation", {
-              lgaCode: canonicalLgaCode,
-              error: getErrorDetails(queueError),
-            });
-          }
         }
       }
 
@@ -747,6 +760,8 @@ When the user asks about local controls, rely first on the council Development C
         dcp: {
           hasCouncilDcp: (dcpContext ?? sourceContext)?.hasCouncilDcp ?? false,
           coverageConfidencePrompt,
+          coverageState: coverageStateForResponse,
+          coverageNotice,
           forcedFallbackReply,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
@@ -775,13 +790,13 @@ When the user asks about local controls, rely first on the council Development C
     const reply = forcedFallbackReply
       ? forcedFallbackReply
       : await (async () => {
-      try {
-        return await callModel("planning_chat", messages, { maxTokens: 512 });
-      } catch (error) {
-        console.error("[model-router-error]", getErrorDetails(error));
-        throw error;
-      }
-    })();
+          try {
+            return await callModel("planning_chat", messages, { maxTokens: 512 });
+          } catch (error) {
+            console.error("[model-router-error]", getErrorDetails(error));
+            throw error;
+          }
+        })();
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,
@@ -807,6 +822,8 @@ When the user asks about local controls, rely first on the council Development C
       instruments: instrumentSlugs,
       siteContext: siteContextSummary,
       dcpContext: dcpClauses,
+      coverageState: coverageStateForResponse,
+      coverageNotice,
     });
   } catch (error) {
     console.error("[workspace-chat-error]", getErrorDetails(error));
