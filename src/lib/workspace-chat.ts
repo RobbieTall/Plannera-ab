@@ -124,3 +124,147 @@ export const generatePlanningReplyForNswSite = async (
     instruments: instrumentSlugs,
   };
 };
+
+export type SourceAttribution = {
+  confidence: "cited" | "inferred" | "unresolved";
+  sources: Array<{
+    ref: string;
+    type: "LEP" | "SEPP" | "DCP" | "model";
+    title: string;
+    snippet?: string;
+  }>;
+  coverageState: string;
+  coverageNotice?: string;
+};
+
+type SourceAttributionClause = Pick<
+  ClauseSummary,
+  "instrumentName" | "instrumentType" | "clauseKey" | "title" | "snippet"
+>;
+
+type SourceAttributionDcpClause = {
+  ref?: string | null;
+  title?: string | null;
+  headingPath?: string[] | null;
+  bodyText?: string | null;
+};
+
+type SourceAttributionDcpChunk = {
+  heading?: string | null;
+  content?: string | null;
+  metadata?: unknown;
+};
+
+const SEARCHABLE_COVERAGE_STATES = ["SEARCHABLE_READY", "STRUCTURED_PARTIAL", "VERIFIED"] as const;
+
+const isSearchableCoverageState = (coverageState: string | null | undefined) =>
+  Boolean(coverageState && SEARCHABLE_COVERAGE_STATES.includes(coverageState as (typeof SEARCHABLE_COVERAGE_STATES)[number]));
+
+const readSourceMetadata = (metadata: unknown) =>
+  metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : null;
+
+const truncateSourceSnippet = (snippet: string | null | undefined) => {
+  if (!snippet) return undefined;
+  const trimmed = snippet.trim();
+  if (!trimmed) return undefined;
+  return trimmed.length > 240 ? `${trimmed.slice(0, 240).trimEnd()}…` : trimmed;
+};
+
+const buildDcpRef = (params: { ref?: string | null; title?: string | null; heading?: string | null }) => {
+  if (params.ref?.trim()) return params.ref.trim();
+  if (params.heading?.trim()) return params.heading.trim();
+  if (params.title?.trim()) return params.title.trim();
+  return "DCP excerpt";
+};
+
+export const buildSourceAttribution = (params: {
+  clauses?: SourceAttributionClause[];
+  dcpClauses?: SourceAttributionDcpClause[];
+  dcpChunks?: SourceAttributionDcpChunk[];
+  coverageState?: string | null;
+  coverageNotice?: string | null;
+  forcedFallbackReply?: string | null;
+  modelWasCalled?: boolean;
+}): SourceAttribution => {
+  const coverageState = params.coverageState ?? "UNKNOWN";
+
+  if (params.forcedFallbackReply) {
+    return {
+      confidence: "unresolved",
+      sources: [],
+      coverageState,
+      ...(params.coverageNotice ? { coverageNotice: params.coverageNotice } : {}),
+    };
+  }
+
+  const sources: SourceAttribution["sources"] = [];
+
+  if (isSearchableCoverageState(params.coverageState)) {
+    for (const clause of (params.clauses ?? []).slice(0, 4)) {
+      if (clause.instrumentType !== "LEP" && clause.instrumentType !== "SEPP") continue;
+      sources.push({
+        ref: `${clause.instrumentName} ${clause.clauseKey}`,
+        type: clause.instrumentType,
+        title: clause.title ?? clause.clauseKey,
+        ...(truncateSourceSnippet(clause.snippet) ? { snippet: truncateSourceSnippet(clause.snippet) } : {}),
+      });
+    }
+  }
+
+  for (const clause of (params.dcpClauses ?? []).slice(0, 4)) {
+    const heading = clause.headingPath?.[clause.headingPath.length - 1] ?? null;
+    const title = clause.title?.trim() || heading?.trim() || clause.ref?.trim() || "DCP clause excerpt";
+    sources.push({
+      ref: buildDcpRef({ ref: clause.ref, title: clause.title, heading }),
+      type: "DCP",
+      title,
+      ...(truncateSourceSnippet(clause.bodyText) ? { snippet: truncateSourceSnippet(clause.bodyText) } : {}),
+    });
+  }
+
+  for (const chunk of (params.dcpChunks ?? []).slice(0, Math.max(0, 4 - sources.filter((source) => source.type === "DCP").length))) {
+    const metadata = readSourceMetadata(chunk.metadata);
+    const metadataRef = typeof metadata?.clauseKey === "string" ? metadata.clauseKey : null;
+    const metadataTitle = typeof metadata?.title === "string" ? metadata.title : null;
+    const title = chunk.heading?.trim() || metadataTitle?.trim() || metadataRef?.trim() || "DCP excerpt";
+    sources.push({
+      ref: buildDcpRef({ ref: metadataRef, title, heading: chunk.heading }),
+      type: "DCP",
+      title,
+      ...(truncateSourceSnippet(chunk.content) ? { snippet: truncateSourceSnippet(chunk.content) } : {}),
+    });
+  }
+
+  if (sources.length) {
+    return {
+      confidence: "cited",
+      sources,
+      coverageState,
+      ...(params.coverageNotice ? { coverageNotice: params.coverageNotice } : {}),
+    };
+  }
+
+  if (params.modelWasCalled) {
+    return {
+      confidence: "inferred",
+      sources: [
+        {
+          ref: "AI reasoning",
+          type: "model",
+          title: "Model-generated — not from a retrieved statutory source",
+        },
+      ],
+      coverageState,
+      ...(params.coverageNotice ? { coverageNotice: params.coverageNotice } : {}),
+    };
+  }
+
+  return {
+    confidence: "unresolved",
+    sources: [],
+    coverageState,
+    ...(params.coverageNotice ? { coverageNotice: params.coverageNotice } : {}),
+  };
+};

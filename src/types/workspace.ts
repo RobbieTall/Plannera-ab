@@ -1,3 +1,5 @@
+import type { SourceAttribution } from "@/lib/workspace-chat";
+
 export type UserTier = "guest" | "free" | "pro";
 
 export type WorkspaceMessage = {
@@ -5,6 +7,7 @@ export type WorkspaceMessage = {
   role: "assistant" | "user";
   content: string;
   timestamp: string;
+  sourceAttribution?: SourceAttribution;
 };
 
 export type WorkspaceSessionSignals = {

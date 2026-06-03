@@ -35,6 +35,7 @@ import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
 import { queueLgaPreparation } from "@/lib/lga-activation";
 import { listNswLgaKeys } from "@/lib/lep/nsw-lep-registry";
 import { normalizeNswLgaName } from "@/lib/lep/nsw-lga-normaliser";
+import { buildSourceAttribution } from "@/lib/workspace-chat";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -86,6 +87,28 @@ const PREPARING_COVERAGE_STATES = new Set<LgaCoverageMaturity>([
   LgaCoverageMaturity.QUEUED,
   LgaCoverageMaturity.PROCESSING,
 ]);
+
+const SEARCHABLE_SOURCE_COVERAGE_STATES = new Set<LgaCoverageMaturity>([
+  LgaCoverageMaturity.SEARCHABLE_READY,
+  LgaCoverageMaturity.STRUCTURED_PARTIAL,
+  LgaCoverageMaturity.VERIFIED,
+]);
+
+const buildSourceAttributionPrompt = (params: {
+  coverageState: LgaCoverageMaturity | null;
+  hasLegislationClauses: boolean;
+  hasRetrievedEvidence: boolean;
+}) => {
+  if (params.hasLegislationClauses && params.coverageState && SEARCHABLE_SOURCE_COVERAGE_STATES.has(params.coverageState)) {
+    return 'Source attribution: When making a claim from a provided LEP or SEPP clause, cite the clause key inline (for example "Byron LEP 2014 cl.4.1C"). Keep claims tied to the retrieved clause text.';
+  }
+
+  if (!params.hasRetrievedEvidence) {
+    return 'Source attribution: No retrieved statutory or DCP evidence is available for this answer. Explicitly label any planning guidance as "Based on general NSW planning principles — not verified against local instruments".';
+  }
+
+  return null;
+};
 
 const buildLgaCoverageNotice = (lgaLabel: string, state: LgaCoverageMaturity) =>
   `Coverage notice for ${lgaLabel}: local DCP controls are being prepared (coverage state ${state}). Use restrained language. Do not fabricate or infer council-specific setback, height, parking, landscaping, private open space, FSR, or site coverage controls. If no retrieved local clause supports a numeric control, say local controls are being prepared and exact council figures are not yet available in Plannera.`;
@@ -350,10 +373,16 @@ export async function POST(request: Request) {
               "[chat-site-resolver]",
               "property search not configured; falling back to manual address",
             );
+            const reply =
+              "I can keep helping if you share the NSW suburb or council and the exact address—property search isn't configured here yet.";
             return NextResponse.json({
-              reply:
-                "I can keep helping if you share the NSW suburb or council and the exact address—property search isn't configured here yet.",
+              reply,
               siteContext: siteContextSummary,
+              sourceAttribution: buildSourceAttribution({
+                coverageState: coverageStateForResponse,
+                forcedFallbackReply: reply,
+                modelWasCalled: false,
+              }),
             });
           }
           if (resolution.status === "ok" && resolution.decision === "auto" && resolution.candidates[0]) {
@@ -473,6 +502,7 @@ export async function POST(request: Request) {
     let dcpGroundingPrompt: string | null = null;
     let dcpClausePrompt: string | null = null;
     let coverageConfidencePrompt: string | null = null;
+    let sourceAttributionPrompt: string | null = null;
     let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
@@ -741,6 +771,19 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: sourceContextPrompt });
     }
 
+    const usedDcpChunksForAttribution = usedChunksForPrompt.filter((chunk) => COUNCIL_DCP_TYPES.includes(chunk.sourceType));
+
+    if (!forcedFallbackReply) {
+      sourceAttributionPrompt = buildSourceAttributionPrompt({
+        coverageState: coverageStateForResponse,
+        hasLegislationClauses: clauses.length > 0,
+        hasRetrievedEvidence: clauses.length > 0 || dcpClauses.length > 0 || usedDcpChunksForAttribution.length > 0,
+      });
+      if (sourceAttributionPrompt) {
+        messages.push({ role: "system", content: sourceAttributionPrompt });
+      }
+    }
+
     messages.push(...historyMessages);
     messages.push({ role: "user", content: userMessage });
 
@@ -763,6 +806,7 @@ When the user asks about local controls, rely first on the council Development C
           coverageState: coverageStateForResponse,
           coverageNotice,
           forcedFallbackReply,
+          sourceAttributionPrompt,
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
@@ -787,6 +831,7 @@ When the user asks about local controls, rely first on the council Development C
       });
     }
 
+    const modelWasCalled = !forcedFallbackReply;
     const reply = forcedFallbackReply
       ? forcedFallbackReply
       : await (async () => {
@@ -814,6 +859,16 @@ When the user asks about local controls, rely first on the council Development C
       usedLepFallback,
     });
 
+    const sourceAttribution = buildSourceAttribution({
+      clauses,
+      dcpClauses,
+      dcpChunks: usedDcpChunksForAttribution,
+      coverageState: coverageStateForResponse,
+      coverageNotice,
+      forcedFallbackReply,
+      modelWasCalled,
+    });
+
     return NextResponse.json({
       reply,
       lga: fallbackLga,
@@ -824,6 +879,7 @@ When the user asks about local controls, rely first on the council Development C
       dcpContext: dcpClauses,
       coverageState: coverageStateForResponse,
       coverageNotice,
+      sourceAttribution,
     });
   } catch (error) {
     console.error("[workspace-chat-error]", getErrorDetails(error));
