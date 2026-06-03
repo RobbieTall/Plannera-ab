@@ -29,7 +29,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** user can refresh project artefacts immediately after local controls become available.
 
-## 4) Coverage Maturity Promotion
+## 4) Coverage Maturity Promotion — IN PROGRESS
 
 - Support progression across:
   - `NOT_STARTED` → `QUEUED` → `PROCESSING` → `SEARCHABLE_READY` → `STRUCTURED_PARTIAL` → `VERIFIED`.
