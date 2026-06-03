@@ -50,3 +50,11 @@ A compact register of active product/architecture decisions.
 **Decision:** Deterministic QA gates for coverage maturity — VERIFIED state requires ≥50 clauses with zoning and height/FSR coverage, plus all STRUCTURED_PARTIAL checks. Checks run automatically post-ingestion and can be re-run via admin API. FAILED_REVIEW_NEEDED is set on any check failure to surface issues without blocking the system.
 
 **Reference:** `docs/project-memory/build-next.md`
+
+## DR-008 — Live LGA Preparation Visibility
+
+**Status:** Active
+
+**Decision:** While LGA coverage state is `QUEUED` or `PROCESSING`, surface a dismissible status banner in the workspace using a polling hook (10s interval). Stop polling on terminal states. Never show internal `errorMessage` to end users — `FAILED_REVIEW_NEEDED` shows generic "review needed" copy only.
+
+**Reference:** `docs/project-memory/build-next.md`

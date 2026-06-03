@@ -70,6 +70,30 @@ describe("GET /api/lga/coverage", () => {
     });
   });
 
+  it("accepts the lga query alias used by the workspace status panel", async () => {
+    lgaCoverageFindUniqueMock.mockResolvedValue({
+      lgaCode: "BYRON",
+      state: "QUEUED",
+      activePreparationId: "job-456",
+      updatedAt: new Date("2026-06-02T01:00:00.000Z"),
+    });
+
+    const response = await GET(new Request("http://localhost/api/lga/coverage?lga=byron"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(lgaCoverageFindUniqueMock).toHaveBeenCalledWith({
+      where: { lgaCode: "BYRON" },
+      select: { lgaCode: true, state: true, activePreparationId: true, updatedAt: true },
+    });
+    expect(payload).toEqual({
+      lgaCode: "BYRON",
+      state: "QUEUED",
+      activeJobId: "job-456",
+      lastUpdatedAt: "2026-06-02T01:00:00.000Z",
+    });
+  });
+
   it("rejects missing LGA codes", async () => {
     const response = await GET(new Request("http://localhost/api/lga/coverage"));
     expect(response.status).toBe(400);
