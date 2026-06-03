@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const lgaCode = url.searchParams.get("lgaCode")?.trim().toUpperCase();
+  const lgaCode = (url.searchParams.get("lgaCode") ?? url.searchParams.get("lga"))?.trim().toUpperCase();
 
   if (!lgaCode) {
     return NextResponse.json({ error: "missing_lga_code" }, { status: 400 });
