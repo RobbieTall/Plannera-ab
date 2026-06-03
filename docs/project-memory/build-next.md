@@ -19,7 +19,7 @@ This is the active sequence for what to build next so direction is never lost.
 
 **Success signal:** no local-control claim is shown as verified unless coverage state is `VERIFIED`.
 
-## 3) Regeneration Flow After Local Readiness
+## 3) Regeneration Flow After Local Readiness — IN PROGRESS
 
 - Trigger or prompt regeneration of:
   - Quick Site Check

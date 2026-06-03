@@ -2,6 +2,7 @@ import { LgaCoverageMaturity, LgaPreparationStatus, Prisma } from "@prisma/clien
 
 import { prisma } from "@/lib/prisma";
 import { syncInstrument } from "@/lib/legislation/service";
+import { getStaleArtefactsForLga, markArtefactStale } from "@/lib/artefact-regeneration";
 import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import type { InstrumentConfig } from "@/lib/legislation/types";
 import { findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
@@ -171,6 +172,11 @@ export const processNextLgaJob = async (): Promise<ProcessLgaJobResult> => {
         },
       });
     });
+
+    if (coverageState === LgaCoverageMaturity.SEARCHABLE_READY) {
+      const staleArtefacts = await getStaleArtefactsForLga(job.lgaCode);
+      await Promise.all(staleArtefacts.map((artefact) => markArtefactStale(artefact.artefactId)));
+    }
 
     if (job.requestedByProjectId) {
       await updateProjectPreparationNotice(job.requestedByProjectId, {

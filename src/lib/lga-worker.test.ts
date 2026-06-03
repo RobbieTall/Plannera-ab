@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, syncInstrumentMock } = vi.hoisted(() => ({
+const { getStaleArtefactsForLgaMock, markArtefactStaleMock, prismaMock, syncInstrumentMock } = vi.hoisted(() => ({
+  getStaleArtefactsForLgaMock: vi.fn(),
+  markArtefactStaleMock: vi.fn(),
   prismaMock: {
     $transaction: vi.fn(),
     lgaPreparationJob: {
@@ -26,6 +28,11 @@ const { prismaMock, syncInstrumentMock } = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
 vi.mock("@/lib/legislation/service", () => ({ syncInstrument: syncInstrumentMock }));
+
+vi.mock("@/lib/artefact-regeneration", () => ({
+  getStaleArtefactsForLga: getStaleArtefactsForLgaMock,
+  markArtefactStale: markArtefactStaleMock,
+}));
 
 vi.mock("@/lib/legislation/config", () => ({
   ALL_INSTRUMENT_CONFIG: [
@@ -73,6 +80,7 @@ describe("processNextLgaJob", () => {
     vi.clearAllMocks();
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
     prismaMock.project.findFirst.mockResolvedValue(null);
+    getStaleArtefactsForLgaMock.mockResolvedValue([]);
   });
 
   it("claims the oldest queued job, syncs applicable instruments, counts clauses, and completes it", async () => {
@@ -85,6 +93,8 @@ describe("processNextLgaJob", () => {
     prismaMock.lgaCoverageState.upsert.mockResolvedValue({});
     syncInstrumentMock.mockResolvedValue({ status: "ok", config: { slug: "kempsey-lep-2013" } });
     prismaMock.clause.count.mockResolvedValue(12);
+    getStaleArtefactsForLgaMock.mockResolvedValue([{ artefactId: "artefact-1" }]);
+    markArtefactStaleMock.mockResolvedValue(undefined);
     prismaMock.lgaPreparationJob.update.mockResolvedValue({});
     prismaMock.lgaCoverageState.update.mockResolvedValue({});
 
@@ -105,6 +115,8 @@ describe("processNextLgaJob", () => {
       update: expect.objectContaining({ state: "PROCESSING", activePreparationId: "job-1" }),
     }));
     expect(syncInstrumentMock).toHaveBeenCalledWith("kempsey-lep-2013");
+    expect(getStaleArtefactsForLgaMock).toHaveBeenCalledWith("KEMPSEY");
+    expect(markArtefactStaleMock).toHaveBeenCalledWith("artefact-1");
     expect(prismaMock.lgaPreparationJob.update).toHaveBeenLastCalledWith(expect.objectContaining({
       where: { id: "job-1" },
       data: expect.objectContaining({ status: "COMPLETED", errorMessage: null }),
