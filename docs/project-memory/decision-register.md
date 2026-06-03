@@ -66,3 +66,11 @@ A compact register of active product/architecture decisions.
 **Decision:** When an LGA transitions to SEARCHABLE_READY from a project-triggered preparation job, create a persistent in-app notification for the relevant project. Use in-app notifications before email to avoid provider/env complexity. Notifications must be deduplicated per project/LGA and dismissible by the user.
 
 **Reference:** `docs/project-memory/build-next.md`
+
+## DR-010 — Workspace Project Intelligence Summary
+
+**Status:** Active
+
+**Decision:** Surface a compact Project Intelligence card in the workspace sidebar as the primary at-a-glance summary of site context, LGA coverage maturity, artefact freshness and answer confidence mix. Keep the card read-only for this slice and derive it from existing workspace state and APIs rather than adding new persistence.
+
+**Reference:** `docs/project-memory/build-next.md`

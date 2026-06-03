@@ -46,6 +46,7 @@ import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-moda
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { LgaCoverageStatusPanel } from "@/components/projects/lga-coverage-status-panel";
 import { ProjectNotificationsPanel } from "@/components/projects/project-notifications-panel";
+import { ProjectIntelligenceCard } from "@/components/projects/project-intelligence-card";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
 import { StaleArtefactsBanner } from "@/components/projects/stale-artefacts-banner";
@@ -2476,6 +2477,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
         <section className="flex flex-col md:h-full md:min-h-0">
           <div className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1">
+            <ProjectIntelligenceCard projectId={projectKey} siteContext={siteContext} messages={messages} artefacts={artefacts} />
             <div className="rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

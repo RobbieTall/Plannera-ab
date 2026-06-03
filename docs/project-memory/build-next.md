@@ -49,9 +49,9 @@ When an LGA transitions to `SEARCHABLE_READY`, notify the project owner with a p
 
 **Success signal:** user is proactively informed when their LGA becomes available without needing to refresh.
 
-## 7) Project Intelligence Summary Card
+## 7) Project Intelligence Summary Card — DONE ✓
 
-A persistent "Project Intelligence" card in the workspace sidebar that shows:
+A persistent "Project Intelligence" card in the workspace sidebar now shows:
 
 - Site address and zone
 - LGA coverage maturity level (human-readable)
