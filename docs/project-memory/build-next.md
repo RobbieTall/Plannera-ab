@@ -43,11 +43,9 @@ Real-time polling hook + status panel component wired into workspace.
 
 **Success signal:** user sees live progress while LGA data is being indexed.
 
-## 6) End-to-End Notification: LGA Ready Email / In-App Alert
+## 6) End-to-End Notification: LGA Ready In-App Alert — DONE ✓
 
-When an LGA transitions to `SEARCHABLE_READY`, notify the project owner.
-
-Options: in-app toast that persists across sessions (stored in DB), or email via existing notification plumbing.
+When an LGA transitions to `SEARCHABLE_READY`, notify the project owner with a persistent, dismissible in-app notification stored in the DB.
 
 **Success signal:** user is proactively informed when their LGA becomes available without needing to refresh.
 

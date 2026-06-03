@@ -58,3 +58,11 @@ A compact register of active product/architecture decisions.
 **Decision:** While LGA coverage state is `QUEUED` or `PROCESSING`, surface a dismissible status banner in the workspace using a polling hook (10s interval). Stop polling on terminal states. Never show internal `errorMessage` to end users — `FAILED_REVIEW_NEEDED` shows generic "review needed" copy only.
 
 **Reference:** `docs/project-memory/build-next.md`
+
+## DR-009 — Persistent LGA Ready Notifications
+
+**Status:** Active
+
+**Decision:** When an LGA transitions to SEARCHABLE_READY from a project-triggered preparation job, create a persistent in-app notification for the relevant project. Use in-app notifications before email to avoid provider/env complexity. Notifications must be deduplicated per project/LGA and dismissible by the user.
+
+**Reference:** `docs/project-memory/build-next.md`

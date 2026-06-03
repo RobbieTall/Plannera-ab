@@ -45,6 +45,7 @@ import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { LgaCoverageStatusPanel } from "@/components/projects/lga-coverage-status-panel";
+import { ProjectNotificationsPanel } from "@/components/projects/project-notifications-panel";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
 import { StaleArtefactsBanner } from "@/components/projects/stale-artefacts-banner";
@@ -2385,6 +2386,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col gap-4">
               <LgaCoverageStatusPanel lgaCode={siteContext?.lgaCode ?? undefined} lgaDisplayName={siteContext?.lgaName ?? undefined} />
+              <ProjectNotificationsPanel projectId={projectKey} />
               <StaleArtefactsBanner projectId={projectKey} />
               <div
                 ref={chatScrollRef}
