@@ -228,6 +228,7 @@ model Artefact {
   imageUrl    String?
   payload     Json?
   capturedAt  DateTime?    @default(now())
+  staleAt     DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

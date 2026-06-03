@@ -46,6 +46,7 @@ import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-moda
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
+import { StaleArtefactsBanner } from "@/components/projects/stale-artefacts-banner";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
@@ -2382,6 +2383,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               <SetSiteInput onSubmit={handleInlineSiteSubmit} initialValue={initialInlineAddress} />
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <StaleArtefactsBanner projectId={projectKey} />
               <div
                 ref={chatScrollRef}
                 className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"

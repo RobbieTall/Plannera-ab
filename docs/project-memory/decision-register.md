@@ -33,3 +33,12 @@ A compact register of active product/architecture decisions.
 **Decision:** Prioritise authoritative statutory instruments (LEPs, SEPPs, and council DCP source material) as the primary grounding layer before heuristic or model-inferred planning guidance. Local-control answers must cite retrieved statutory/DCP excerpts where available and must identify unresolved controls when source coverage is not yet searchable or verified.
 
 **Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+
+## DR-006 — Stale-not-deleted Artefact Strategy
+
+**Status:** Active
+
+**Decision:** When an LGA reaches `SEARCHABLE_READY`, existing artefacts are marked with `staleAt` rather than deleted, preserving history while surfacing a regeneration prompt to the user.
+
+**Reference:** `docs/project-memory/build-next.md`
