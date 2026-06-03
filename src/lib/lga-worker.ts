@@ -3,6 +3,7 @@ import { LgaCoverageMaturity, LgaPreparationStatus, Prisma } from "@prisma/clien
 import { prisma } from "@/lib/prisma";
 import { syncInstrument } from "@/lib/legislation/service";
 import { getStaleArtefactsForLga, markArtefactStale } from "@/lib/artefact-regeneration";
+import { promoteMaturity } from "@/lib/lga-coverage-qa";
 import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import type { InstrumentConfig } from "@/lib/legislation/types";
 import { findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
@@ -173,9 +174,37 @@ export const processNextLgaJob = async (): Promise<ProcessLgaJobResult> => {
       });
     });
 
+    let finalCoverageState = coverageState;
+
     if (coverageState === LgaCoverageMaturity.SEARCHABLE_READY) {
       const staleArtefacts = await getStaleArtefactsForLga(job.lgaCode);
       await Promise.all(staleArtefacts.map((artefact) => markArtefactStale(artefact.artefactId)));
+
+      try {
+        const promotion = await promoteMaturity(job.lgaCode);
+        finalCoverageState = promotion.to;
+
+        if (
+          promotion.to === LgaCoverageMaturity.STRUCTURED_PARTIAL ||
+          promotion.to === LgaCoverageMaturity.VERIFIED
+        ) {
+          console.info("[lga-worker] Coverage maturity promoted", {
+            lgaCode: job.lgaCode,
+            from: promotion.from,
+            to: promotion.to,
+          });
+        } else if (promotion.to === FAILED_REVIEW_NEEDED) {
+          console.warn("[lga-worker] Coverage QA failed after successful ingestion", {
+            lgaCode: job.lgaCode,
+            failedChecks: promotion.result.checks.filter((check) => !check.passed).map((check) => check.name),
+          });
+        }
+      } catch (qaError) {
+        console.warn("[lga-worker] Coverage QA failed to run after successful ingestion", {
+          lgaCode: job.lgaCode,
+          error: qaError instanceof Error ? qaError.message : qaError,
+        });
+      }
     }
 
     if (job.requestedByProjectId) {
@@ -196,7 +225,7 @@ export const processNextLgaJob = async (): Promise<ProcessLgaJobResult> => {
         status: clauseCount > 0 ? "completed" : "failed",
         instrumentSlugs,
         clauseCount,
-        coverageState,
+        coverageState: finalCoverageState,
         ...(errorMessage ? { error: errorMessage } : {}),
       },
     };

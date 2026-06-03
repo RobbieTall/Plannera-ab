@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getStaleArtefactsForLgaMock, markArtefactStaleMock, prismaMock, syncInstrumentMock } = vi.hoisted(() => ({
+const { getStaleArtefactsForLgaMock, markArtefactStaleMock, prismaMock, promoteMaturityMock, syncInstrumentMock } = vi.hoisted(() => ({
   getStaleArtefactsForLgaMock: vi.fn(),
   markArtefactStaleMock: vi.fn(),
+  promoteMaturityMock: vi.fn(),
   prismaMock: {
     $transaction: vi.fn(),
     lgaPreparationJob: {
@@ -32,6 +33,10 @@ vi.mock("@/lib/legislation/service", () => ({ syncInstrument: syncInstrumentMock
 vi.mock("@/lib/artefact-regeneration", () => ({
   getStaleArtefactsForLga: getStaleArtefactsForLgaMock,
   markArtefactStale: markArtefactStaleMock,
+}));
+
+vi.mock("@/lib/lga-coverage-qa", () => ({
+  promoteMaturity: promoteMaturityMock,
 }));
 
 vi.mock("@/lib/legislation/config", () => ({
@@ -81,6 +86,11 @@ describe("processNextLgaJob", () => {
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
     prismaMock.project.findFirst.mockResolvedValue(null);
     getStaleArtefactsForLgaMock.mockResolvedValue([]);
+    promoteMaturityMock.mockResolvedValue({
+      from: "SEARCHABLE_READY",
+      to: "SEARCHABLE_READY",
+      result: { passed: true, checks: [], clauseCount: 12, instrumentSlugsChecked: ["kempsey-lep-2013"] },
+    });
   });
 
   it("claims the oldest queued job, syncs applicable instruments, counts clauses, and completes it", async () => {
@@ -117,6 +127,7 @@ describe("processNextLgaJob", () => {
     expect(syncInstrumentMock).toHaveBeenCalledWith("kempsey-lep-2013");
     expect(getStaleArtefactsForLgaMock).toHaveBeenCalledWith("KEMPSEY");
     expect(markArtefactStaleMock).toHaveBeenCalledWith("artefact-1");
+    expect(promoteMaturityMock).toHaveBeenCalledWith("KEMPSEY");
     expect(prismaMock.lgaPreparationJob.update).toHaveBeenLastCalledWith(expect.objectContaining({
       where: { id: "job-1" },
       data: expect.objectContaining({ status: "COMPLETED", errorMessage: null }),

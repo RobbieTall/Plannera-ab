@@ -243,6 +243,7 @@ model LgaCoverageState {
   state              LgaCoverageMaturity  @default(NOT_STARTED)
   activePreparationId String?
   lastPreparedAt     DateTime?
+  errorMessage       String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   preparations       LgaPreparationJob[]
