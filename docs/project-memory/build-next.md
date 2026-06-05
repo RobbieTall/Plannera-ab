@@ -60,9 +60,15 @@ A persistent "Project Intelligence" card in the workspace sidebar now shows:
 
 **Success signal:** user can assess data quality at a glance without asking the chat.
 
-## 8) Workspace Chat History Persistence & Thread UX
+## 8) Workspace Chat History Persistence & Thread UX — DONE ✓
 
 Persist chat messages to the Project model so conversation history survives page refresh.
 Add a "New thread" button to clear the UI without deleting history.
 
 **Success signal:** users can return to a project and continue a conversation.
+
+## 9) Workspace Thread Management & Search
+
+Add first-class workspace thread naming, transcript search, and history reopening controls without deleting the existing project record.
+
+**Success signal:** users can find and resume relevant prior planning conversations quickly.

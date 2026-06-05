@@ -35,6 +35,7 @@ import { callModel, hasPlanningChatProvider } from "@/lib/modelRouter";
 import { queueLgaPreparation } from "@/lib/lga-activation";
 import { listNswLgaKeys } from "@/lib/lep/nsw-lep-registry";
 import { normalizeNswLgaName } from "@/lib/lep/nsw-lga-normaliser";
+import { persistWorkspaceChatExchange } from "@/lib/chat-persistence";
 import { buildSourceAttribution } from "@/lib/workspace-chat";
 import { buildStatutoryContextBlock, type StatutoryContextBlock } from "@/lib/statutory-context-builder";
 
@@ -180,10 +181,16 @@ const buildDcpClausePrompt = (clauses: DCPClause[], lgaLabel: string | null) => 
   return `${headingLabel}: Use these council DCP controls as the primary source before LEP or SEPP guidance.\n${lines.join("\n")}`;
 };
 
+const requestMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+});
+
 const requestSchema = z.object({
   message: z.string().min(1),
   projectId: z.string().optional(),
   projectName: z.string().optional(),
+  messages: z.array(requestMessageSchema).optional(),
   debugSources: z.boolean().optional(),
   token: z.string().optional(),
 });
@@ -201,6 +208,7 @@ type WorkspaceMemory = {
 const workspaceMemory = new Map<string, WorkspaceMemory>();
 
 const projectZoningSelect = {
+  id: true,
   zoningCode: true,
   zoningName: true,
   zoningSource: true,
@@ -211,8 +219,8 @@ const projectZoningSelect = {
 const getProjectZoningByExternalId = async (projectId: string) => {
   const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
   if (!project) return null;
-  const { zoningCode, zoningName, zoningSource, lepData, dcpData } = project;
-  return { zoningCode, zoningName, zoningSource, lepData, dcpData };
+  const { id, zoningCode, zoningName, zoningSource, lepData, dcpData } = project;
+  return { id, zoningCode, zoningName, zoningSource, lepData, dcpData };
 };
 
 const getProjectZoningByInternalId = (projectId: string) =>
@@ -334,6 +342,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = requestSchema.parse(body);
     const { message: userMessage, projectId, projectName } = parsed;
+    const incomingMessages: ChatCompletionMessageParam[] = parsed.messages?.length
+      ? parsed.messages
+      : [{ role: "user", content: userMessage }];
     const debugSources =
       parsed.debugSources === true ||
       ["1", "true"].includes(url.searchParams.get("debugSources") ?? "");
@@ -359,10 +370,12 @@ export async function POST(request: Request) {
     let dcpClauses: Awaited<ReturnType<typeof getDCPContext>> = [];
     let coverageStateForResponse: LgaCoverageMaturity | null = null;
     let coverageNotice: string | null = null;
+    let persistedProjectId: string | null = null;
     if (projectId) {
       try {
         const dbSite = await getSiteContextForProject(projectId);
         const project = await getProjectZoningByExternalId(projectId);
+        persistedProjectId = project?.id ?? null;
         lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
         siteContextSummary = serializeSiteContext(dbSite, project);
       } catch (siteLoadError) {
@@ -400,6 +413,7 @@ export async function POST(request: Request) {
               candidate: resolution.candidates[0],
             });
             const project = await getProjectZoningByInternalId(persisted.projectId);
+            persistedProjectId = persisted.projectId;
             lepData = (project?.lepData as LepParseResult | null | undefined) ?? lepData;
             siteContextSummary = serializeSiteContext(persisted, project);
           } else if (resolution.status === "ok" && resolution.decision === "ambiguous") {
@@ -913,6 +927,13 @@ When the user asks about local controls, rely first on the council Development C
       lepData,
       lepContext,
       usedLepFallback,
+    });
+
+    await persistWorkspaceChatExchange({
+      prisma,
+      projectId: persistedProjectId,
+      incomingMessages,
+      assistantReply: reply,
     });
 
     const sourceAttribution = buildSourceAttribution({

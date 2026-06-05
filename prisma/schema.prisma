@@ -62,38 +62,39 @@ model Property {
 
 /// Project groups tasks under a property and tracks its lifecycle.
 model Project {
-  id               String            @id @default(cuid())
-  publicId         String            @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
-  name             String
-  title            String            @default("Untitled project")
-  description      String?
-  status           ProjectStatus     @default(PLANNING)
-  isDemo           Boolean           @default(false)
-  lepData          Json?             @db.JsonB
-  dcpData          Json?             @db.JsonB
-  zoningCode       String?
-  zoningName       String?
-  zoningSource     String?
-  zoning           String?
-  address          String?
-  sessionId        String?
-  userId           String?
-  propertyId       String
-  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  createdById      String?
-  createdBy        User?             @relation("ProjectCreatedBy", fields: [createdById], references: [id])
-  owner            User?             @relation("ProjectOwner", fields: [userId], references: [id])
-  startDate        DateTime?
-  dueDate          DateTime?
-  tasks            Task[]
-  collaborators    ProjectMember[]
-  artefacts        Artefact[]
-  workspaceUploads WorkspaceUpload[]
+  id                    String                 @id @default(cuid())
+  publicId              String                 @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
+  name                  String
+  title                 String                 @default("Untitled project")
+  description           String?
+  status                ProjectStatus          @default(PLANNING)
+  isDemo                Boolean                @default(false)
+  lepData               Json?                  @db.JsonB
+  dcpData               Json?                  @db.JsonB
+  zoningCode            String?
+  zoningName            String?
+  zoningSource          String?
+  zoning                String?
+  address               String?
+  sessionId             String?
+  userId                String?
+  propertyId            String
+  property              Property               @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdById           String?
+  createdBy             User?                  @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  owner                 User?                  @relation("ProjectOwner", fields: [userId], references: [id])
+  startDate             DateTime?
+  dueDate               DateTime?
+  tasks                 Task[]
+  collaborators         ProjectMember[]
+  artefacts             Artefact[]
+  workspaceUploads      WorkspaceUpload[]
   workspaceSourceChunks WorkspaceSourceChunk[]
-  projectNotifications ProjectNotification[]
-  siteContext      SiteContext?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  projectNotifications  ProjectNotification[]
+  chatMessages          ChatMessage[]
+  siteContext           SiteContext?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   @@index([sessionId])
   @@index([userId])
@@ -236,7 +237,17 @@ model Artefact {
   @@index([projectId])
 }
 
+model ChatMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  role      String // "user" | "assistant" | "system"
+  content   String
+  createdAt DateTime @default(now())
 
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
 
 model ProjectNotification {
   id        String                  @id @default(cuid())
@@ -259,31 +270,31 @@ enum ProjectNotificationType {
 }
 
 model LgaCoverageState {
-  id                 String               @id @default(cuid())
-  lgaCode            String               @unique
-  state              LgaCoverageMaturity  @default(NOT_STARTED)
+  id                  String              @id @default(cuid())
+  lgaCode             String              @unique
+  state               LgaCoverageMaturity @default(NOT_STARTED)
   activePreparationId String?
-  lastPreparedAt     DateTime?
-  errorMessage       String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  preparations       LgaPreparationJob[]
+  lastPreparedAt      DateTime?
+  errorMessage        String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  preparations        LgaPreparationJob[]
 
   @@index([state])
 }
 
 model LgaPreparationJob {
-  id               String            @id @default(cuid())
-  lgaCode          String
-  status           LgaPreparationStatus @default(QUEUED)
+  id                   String               @id @default(cuid())
+  lgaCode              String
+  status               LgaPreparationStatus @default(QUEUED)
   requestedByProjectId String?
-  dedupeKey        String            @unique
-  startedAt        DateTime?
-  finishedAt       DateTime?
-  errorMessage     String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  coverage         LgaCoverageState  @relation(fields: [lgaCode], references: [lgaCode], onDelete: Cascade)
+  dedupeKey            String               @unique
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  errorMessage         String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  coverage             LgaCoverageState     @relation(fields: [lgaCode], references: [lgaCode], onDelete: Cascade)
 
   @@index([lgaCode, status])
 }
@@ -312,19 +323,19 @@ enum ArtefactType {
 }
 
 model Instrument {
-  id             String         @id @default(cuid())
-  slug           String         @unique
-  name           String
-  shortName      String
-  jurisdiction   String         @default("NSW")
-  instrumentType InstrumentType
-  sourceUrl      String
-  lastSyncedAt   DateTime?
-  clauses        Clause[]
+  id                String             @id @default(cuid())
+  slug              String             @unique
+  name              String
+  shortName         String
+  jurisdiction      String             @default("NSW")
+  instrumentType    InstrumentType
+  sourceUrl         String
+  lastSyncedAt      DateTime?
+  clauses           Clause[]
   lepZoneObjectives LepZoneObjective[]
   lepZoneLandUses   LepZoneLandUse[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([instrumentType])
 }
@@ -435,29 +446,29 @@ enum WorkspaceSourceType {
 }
 
 model WorkspaceSourceChunk {
-  id                 String               @id @default(cuid())
-  projectId          String?
-  uploadId           String?
-  councilDocumentId  String?
-  lgaCode            String?
-  heading            String?
-  content            String
-  embedding          Json?
-  sourceType         WorkspaceSourceType  @default(upload)
-  metadata           Json?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id                String              @id @default(cuid())
+  projectId         String?
+  uploadId          String?
+  councilDocumentId String?
+  lgaCode           String?
+  heading           String?
+  content           String
+  embedding         Json?
+  sourceType        WorkspaceSourceType @default(upload)
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
-  project            Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  upload             WorkspaceUpload?     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  councilDocument    CouncilDocument?     @relation(fields: [councilDocumentId], references: [id], onDelete: Cascade)
+  project         Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  upload          WorkspaceUpload? @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  councilDocument CouncilDocument? @relation(fields: [councilDocumentId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([lgaCode])
 }
 
 model CouncilDocument {
-  id            String                @id @default(cuid())
+  id            String                 @id @default(cuid())
   lgaCode       String
   title         String
   sourceUrl     String
@@ -468,29 +479,29 @@ model CouncilDocument {
   storagePath   String
   publicUrl     String
   extractedText String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   chunks        WorkspaceSourceChunk[]
 
-  @@index([lgaCode])
   @@unique([lgaCode])
+  @@index([lgaCode])
 }
 
 model DCPClause {
-  id            String   @id @default(cuid())
-  lgaCode       String
+  id             String   @id @default(cuid())
+  lgaCode        String
   instrumentSlug String?
-  ref           String?
-  title         String?
-  headingPath   String[]
-  parentRef     String?
-  depth         Int?
-  bodyHtml      String
-  bodyText      String
-  topicTags     String[] @default([])
-  numericMeta   Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ref            String?
+  title          String?
+  headingPath    String[]
+  parentRef      String?
+  depth          Int?
+  bodyHtml       String
+  bodyText       String
+  topicTags      String[] @default([])
+  numericMeta    Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([lgaCode])
   @@index([instrumentSlug])

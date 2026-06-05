@@ -110,6 +110,12 @@ type ServerArtefactRecord = {
   capturedAt?: string | null;
 };
 
+type ServerChatHistoryMessage = {
+  role: string;
+  content: string;
+  createdAt: string;
+};
+
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
 const tools: ToolCard[] = [
@@ -675,6 +681,50 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
 
   useEffect(() => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadChatHistory = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectKey}/chat-history`, { credentials: "include" });
+        if (!response.ok) {
+          return;
+        }
+
+        const data: { messages?: ServerChatHistoryMessage[] } = await response.json();
+        if (cancelled || !Array.isArray(data.messages)) {
+          return;
+        }
+
+        const hydratedMessages = data.messages
+          .filter((message): message is ServerChatHistoryMessage & { role: WorkspaceMessage["role"] } =>
+            message.role === "user" || message.role === "assistant",
+          )
+          .map((message, index): WorkspaceMessage => ({
+            id: `history-${projectKey}-${index}-${new Date(message.createdAt).getTime()}`,
+            role: message.role,
+            content: message.content,
+            timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          }));
+
+        setMessages(hydratedMessages);
+        saveChatHistory(projectKey, hydratedMessages);
+      } catch (error) {
+        console.error("[workspace] Failed to load chat history", error);
+      }
+    };
+
+    void loadChatHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, projectKey, saveChatHistory]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
       setServerArtefacts([]);
       setHasLoadedServerArtefacts(false);
       return;
@@ -1165,6 +1215,10 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
           message: trimmedInput,
           projectId: projectKey,
           projectName: project.name,
+          messages: [
+            ...messages.map((message) => ({ role: message.role, content: message.content })),
+            ...(skipUserMessage ? [] : [{ role: "user", content: trimmedInput }]),
+          ],
         }),
       });
       const data: {
@@ -1245,6 +1299,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     [
       applySessionSignals,
       input,
+      messages,
       project.name,
       projectKey,
       saveChatHistory,
@@ -1281,6 +1336,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     saveChatHistory(projectKey, []);
     setSessionSignalsState({});
     setSessionSignals(projectKey, {});
+    setInput("");
+  };
+
+  const handleNewThread = () => {
+    setMessages([]);
+    saveChatHistory(projectKey, []);
     setInput("");
   };
 
@@ -2461,7 +2522,19 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 className="w-full resize-none overflow-y-auto border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-slate-400 dark:text-slate-500">Saved answers become project artefacts.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Saved answers become project artefacts.</p>
+                  {messages.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleNewThread}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    >
+                      <Plus className="h-3 w-3" />
+                      New thread
+                    </button>
+                  ) : null}
+                </div>
                 <button
                   type="submit"
                   className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400"
