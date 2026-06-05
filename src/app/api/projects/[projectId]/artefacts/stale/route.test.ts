@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { artefactFindManyMock, projectFindFirstMock, requireSessionUserMock } = vi.hoisted(() => ({
@@ -43,7 +44,7 @@ describe("GET /api/projects/[projectId]/artefacts/stale", () => {
       { id: "artefact-1", type: "quick_site_check", staleAt, createdAt },
     ]);
 
-    const response = await GET(new Request("http://localhost/api/projects/project-1/artefacts/stale"), {
+    const response = await GET(new NextRequest("http://localhost/api/projects/project-1/artefacts/stale"), {
       params: { projectId: "project-1" },
     });
     const payload = await response.json();

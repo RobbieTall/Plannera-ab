@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { notificationsFindManyMock, projectFindFirstMock, requireSessionUserMock } = vi.hoisted(() => ({
@@ -45,7 +46,7 @@ describe("GET /api/projects/[projectId]/notifications", () => {
       },
     ]);
 
-    const response = await GET(new Request("http://localhost/api/projects/project-1/notifications"), {
+    const response = await GET(new NextRequest("http://localhost/api/projects/project-1/notifications"), {
       params: { projectId: "project-1" },
     });
     const payload = await response.json();
