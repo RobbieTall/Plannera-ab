@@ -36,6 +36,7 @@ import { queueLgaPreparation } from "@/lib/lga-activation";
 import { listNswLgaKeys } from "@/lib/lep/nsw-lep-registry";
 import { normalizeNswLgaName } from "@/lib/lep/nsw-lga-normaliser";
 import { buildSourceAttribution } from "@/lib/workspace-chat";
+import { buildStatutoryContextBlock, type StatutoryContextBlock } from "@/lib/statutory-context-builder";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -43,7 +44,14 @@ Never invent user messages or assume multiple questions.
 If no SiteContext is available, ask for the NSW suburb, council or address before quoting detailed controls.
 Use provided site context (address, LGA, zone, LEP, SEPP) whenever available and reference the LGA name in your answer.
 In all answers, rely on any provided site details and do not ask the user to repeat an address that is already set.
-If a relevant LEP is not yet in Plannera, clearly explain that you are answering at a higher/state level using NSW SEPPs.`;
+If a relevant LEP is not yet in Plannera, clearly explain that you are answering at a higher/state level using NSW SEPPs.
+
+Statutory grounding rules:
+- Lead every local-control answer with the exact retrieved clause text where a relevant clause is provided; do not start with a paraphrase.
+- Cite the clause number, instrument name, and coverage source type (cited, inferred, or unresolved) for every LEP/DCP control.
+- When no clause is found for a question, say: "No specific clause was found for [topic] in the retrieved [LGA] planning controls. Based on general NSW planning principles: [answer]". Never fabricate a clause reference.
+- When coverage is SEARCHABLE_READY, STRUCTURED_PARTIAL, or VERIFIED, prefer retrieved clauses over model training knowledge.
+- When coverage is NOT_STARTED or QUEUED, explicitly say: "Local planning controls for [LGA] are being prepared. This answer uses general guidance only."`;
 
 const SITE_CHANGE_REGEX = /(change|update|set).*(site|address|property)|new site|different (?:address|property)/i;
 
@@ -503,6 +511,8 @@ export async function POST(request: Request) {
     let dcpClausePrompt: string | null = null;
     let coverageConfidencePrompt: string | null = null;
     let sourceAttributionPrompt: string | null = null;
+    let statutoryContext: StatutoryContextBlock | null = null;
+    let statutoryContextPrompt: string | null = null;
     let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
@@ -522,9 +532,43 @@ export async function POST(request: Request) {
       canonicalLgaCode = sourceContext.canonicalLgaCode ?? canonicalLgaCode;
       isByronLga = canonicalLgaCode === BYRON_LGA_CODE;
 
+      if (canonicalLgaCode) {
+        try {
+          statutoryContext = await buildStatutoryContextBlock({
+            lgaCode: canonicalLgaCode,
+            query: retrievalQuery,
+            maxDcpClauses: 5,
+            maxLepClauses: 3,
+          });
+          statutoryContextPrompt = `${statutoryContext.promptBlock}
+
+Use the raw clause text above as the first source for local-control answers. For any cited item, quote the relevant clause text first and cite the clause number plus instrument/source type. If the block says no clause was found for the user's topic, use the required no-specific-clause fallback wording instead of inventing a clause.`;
+        } catch (statutoryError) {
+          console.warn("[workspace-chat-warning] Failed to build statutory context", getErrorDetails(statutoryError));
+        }
+      }
+
       if (canonicalLgaCode && shouldSearchDcpClauses(userMessage)) {
         try {
-          dcpClauses = await getDCPContext(canonicalLgaCode, retrievalQuery);
+          dcpClauses = statutoryContext?.dcpClauses.length
+            ? statutoryContext.dcpClauses.map((clause) => ({
+                id: clause.clauseNumber,
+                lgaCode: canonicalLgaCode as string,
+                instrumentSlug: null,
+                ref: clause.clauseNumber,
+                title: clause.heading,
+                headingPath: [clause.heading],
+                parentRef: null,
+                depth: null,
+                bodyHtml: clause.body,
+                bodyText: clause.body,
+                topicTags: [],
+                numericMeta: null,
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
+                score: 0,
+              }))
+            : await getDCPContext(canonicalLgaCode, retrievalQuery);
         } catch (dcpError) {
           console.warn("[workspace-chat-warning] Failed to search DCP clauses", getErrorDetails(dcpError));
         }
@@ -727,6 +771,10 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: siteContextMessage });
     }
 
+    if (statutoryContextPrompt) {
+      messages.push({ role: "system", content: statutoryContextPrompt });
+    }
+
     if (dcpClausePrompt) {
       messages.push({ role: "system", content: dcpClausePrompt });
     }
@@ -810,6 +858,14 @@ When the user asks about local controls, rely first on the council Development C
           perSourceTotals: (dcpContext ?? sourceContext)?.perSourceTotals ?? {},
           sampleHeadings: (dcpContext ?? sourceContext)?.councilDcpSampleHeadings?.slice(0, 10) ?? [],
         },
+        statutoryContext: statutoryContext
+          ? {
+              sourceTypes: statutoryContext.sourceTypes,
+              lepClauseCount: statutoryContext.lepClauses.length,
+              dcpClauseCount: statutoryContext.dcpClauses.length,
+              promptPreview: statutoryContext.promptBlock.slice(0, 1200),
+            }
+          : null,
         dcpClauses: dcpClauses.slice(0, 5).map((clause) => ({
           ref: clause.ref,
           title: clause.title,
