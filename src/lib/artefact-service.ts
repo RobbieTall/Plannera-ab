@@ -8,6 +8,7 @@ import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
+import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
@@ -15,11 +16,13 @@ import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 type PrismaClientArtefact = Pick<PrismaClient["artefact"], "create" | "findMany">;
 type PrismaClientProject = Pick<PrismaClient["project"], "findFirst" | "findUnique">;
+type PrismaClientLgaCoverageState = Pick<PrismaClient["lgaCoverageState"], "findUnique">;
 
 type ArtefactDependencies = {
   prisma: {
     artefact: PrismaClientArtefact;
     project: PrismaClientProject;
+    lgaCoverageState?: PrismaClientLgaCoverageState;
   };
   saveFile: (file: File) => Promise<SavedFile>;
 };
@@ -275,6 +278,65 @@ export async function createQuickSiteCheckArtefact({
   const generatedAt = new Date(report.generatedAt ?? Date.now());
   const capturedAt = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
 
+  const lgaCode = normalizeCouncilLgaCode(report.site?.lga ?? report.lepInstrument?.lga ?? null);
+  const shouldEnrichWithStatutoryGrounding = Boolean(lgaCode && deps.prisma.lgaCoverageState);
+  const statutoryContext = shouldEnrichWithStatutoryGrounding && lgaCode
+    ? await buildStatutoryContextBlock({
+        lgaCode,
+        query: [
+          report.site?.zoneLabel,
+          "zone permissibility floor space ratio height of buildings minimum lot size",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        maxDcpClauses: 0,
+        maxLepClauses: 6,
+      })
+    : null;
+  const coverageState = lgaCode && deps.prisma.lgaCoverageState
+    ? (await deps.prisma.lgaCoverageState.findUnique({ where: { lgaCode }, select: { state: true } }))?.state ?? null
+    : null;
+
+  const sourceForControl = (clauseRef: string | null | undefined, present: boolean) => {
+    if (!present) return "Not in retrieved data";
+    return clauseRef ? `LEP clause ${clauseRef}` : "Not in retrieved data";
+  };
+  const groundedReport = statutoryContext ? {
+    ...report,
+    controls: {
+      heightOfBuilding: {
+        ...report.controls.heightOfBuilding,
+        source: sourceForControl(report.controls.heightOfBuilding.clauseRef, report.controls.heightOfBuilding.present),
+        interpretation: report.controls.heightOfBuilding.present
+          ? report.controls.heightOfBuilding.interpretation
+          : "Not found in retrieved LEP data",
+      },
+      floorSpaceRatio: {
+        ...report.controls.floorSpaceRatio,
+        source: sourceForControl(report.controls.floorSpaceRatio.clauseRef, report.controls.floorSpaceRatio.present),
+        interpretation: report.controls.floorSpaceRatio.present
+          ? report.controls.floorSpaceRatio.interpretation
+          : "Not found in retrieved LEP data",
+      },
+      minimumLotSize: {
+        ...report.controls.minimumLotSize,
+        source: sourceForControl(report.controls.minimumLotSize.clauseRef, report.controls.minimumLotSize.present),
+        interpretation: report.controls.minimumLotSize.present
+          ? report.controls.minimumLotSize.interpretation
+          : "Not found in retrieved LEP data",
+      },
+    },
+    statutoryGrounding: statutoryContext
+      ? {
+          lgaCode,
+          coverageState,
+          promptBlock: statutoryContext.promptBlock,
+          instructions:
+            'Answer every structured field from the retrieved clause text. If LEP data is missing, write "Not found in retrieved LEP data" and set source to "Not in retrieved data".',
+        }
+      : null,
+  } : report;
+
   const source = report.site?.address ?? report.site?.zoneLabel ?? "Quick Site Check";
   const notes = report.notes.length ? report.notes.join(" ") : null;
 
@@ -287,7 +349,7 @@ export async function createQuickSiteCheckArtefact({
       source,
       overlays: [],
       notes,
-      payload: report,
+      payload: groundedReport,
       capturedAt,
     },
   });
@@ -329,6 +391,13 @@ export type PreSeePlanningMemoContent = {
       content: string;
       score: number;
     }>;
+    statutoryContext: {
+      promptBlock: string;
+      lepClauses: Array<{ clauseKey: string; heading: string; value: string }>;
+      dcpClauses: Array<{ clauseNumber: string; heading: string; body: string }>;
+      sourceTypes: string[];
+    } | null;
+    groundingInstructions: string[];
   };
   consistencyAssessment: Array<{
     topic: string;
@@ -347,6 +416,7 @@ type PreSeePlanningMemoDeps = {
   buildQuickSiteCheckReport: typeof buildQuickSiteCheckReport;
   getDCPContext: typeof getDCPContext;
   getWorkspaceSourceContext: typeof getWorkspaceSourceContext;
+  buildStatutoryContextBlock?: typeof buildStatutoryContextBlock;
 };
 
 const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
@@ -354,6 +424,7 @@ const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
   buildQuickSiteCheckReport,
   getDCPContext,
   getWorkspaceSourceContext,
+  buildStatutoryContextBlock,
 };
 
 export async function createPreSeePlanningMemoArtefact({
@@ -397,7 +468,7 @@ export async function createPreSeePlanningMemoArtefact({
     .filter(Boolean)
     .join(" ");
 
-  const [dcpClauses, sourceContext] = await Promise.all([
+  const [dcpClauses, sourceContext, statutoryContext] = await Promise.all([
     lgaCode ? deps.getDCPContext(lgaCode, controlsQuery) : Promise.resolve([]),
     deps.getWorkspaceSourceContext({
       projectId: project.id,
@@ -406,6 +477,14 @@ export async function createPreSeePlanningMemoArtefact({
       query: controlsQuery || "pre SEE planning memo",
       limit: 6,
     }),
+    lgaCode && deps.buildStatutoryContextBlock
+      ? deps.buildStatutoryContextBlock({
+          lgaCode,
+          query: controlsQuery || "pre SEE planning memo LEP DCP controls",
+          maxDcpClauses: 5,
+          maxLepClauses: 3,
+        })
+      : Promise.resolve(null),
   ]);
 
   const siteDescription = {
@@ -453,6 +532,19 @@ export async function createPreSeePlanningMemoArtefact({
         content: chunk.content,
         score: chunk.score,
       })),
+      statutoryContext: statutoryContext
+        ? {
+            promptBlock: statutoryContext.promptBlock,
+            lepClauses: statutoryContext.lepClauses,
+            dcpClauses: statutoryContext.dcpClauses,
+            sourceTypes: statutoryContext.sourceTypes,
+          }
+        : null,
+      groundingInstructions: [
+        "Base all LEP and DCP references on the retrieved clause text provided below. Do not invent clause numbers or policy references.",
+        "Development Description, Site Context, LEP Compliance, DCP Compliance and Conclusion must cite retrieved clause text where available.",
+        "Use retrieved LEP zone, FSR and height controls from the quick site check/statutory context; if a value is missing, say it was not found in retrieved data.",
+      ],
     },
     consistencyAssessment: controlAssessments,
     limitations: [

@@ -12,6 +12,7 @@ const {
   resolveInstrumentsForSiteMock,
   lgaCoverageFindUniqueMock,
   queueLgaPreparationMock,
+  buildStatutoryContextBlockMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   resolveInstrumentsForSiteMock: vi.fn(),
   lgaCoverageFindUniqueMock: vi.fn(),
   queueLgaPreparationMock: vi.fn(),
+  buildStatutoryContextBlockMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -96,6 +98,10 @@ vi.mock("@/lib/lga-activation", () => ({
   queueLgaPreparation: queueLgaPreparationMock,
 }));
 
+vi.mock("@/lib/statutory-context-builder", () => ({
+  buildStatutoryContextBlock: buildStatutoryContextBlockMock,
+}));
+
 import { POST } from "./route";
 
 describe("workspace-chat forced fallback", () => {
@@ -130,6 +136,12 @@ describe("workspace-chat forced fallback", () => {
     getDCPContextMock.mockResolvedValue([]);
     lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
     queueLgaPreparationMock.mockResolvedValue({ queued: true, coverageState: "QUEUED" });
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [],
+      lepClauses: [],
+      promptBlock: "--- RETRIEVED PLANNING CONTROLS FOR KEMPSEY ---\nLEP PROVISIONS:\nNo LEP clauses were found for this query in the retrieved planning controls.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---",
+      sourceTypes: ["unresolved"],
+    });
   });
 
   it("returns deterministic fallback and skips model for controls question when no local DCP excerpts exist", async () => {
@@ -191,6 +203,58 @@ describe("workspace-chat forced fallback", () => {
     expect(response.status).toBe(200);
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.reply).toContain("4.5m");
+  });
+
+
+  it("injects retrieved statutory DCP clauses into the model context", async () => {
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "BYRON",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["Chapter D1 Dual Occupancy"],
+      chunks: [
+        {
+          id: "chunk-statutory",
+          lgaCode: "BYRON",
+          sourceType: "council_dcp",
+          heading: "Chapter D1 Dual Occupancy",
+          content: "Front setback 4.5m. Side setback 1.5m. Rear setback 3m.",
+          metadata: {},
+        },
+      ],
+    });
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [
+        {
+          clauseNumber: "D1.2",
+          heading: "Setbacks",
+          body: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
+        },
+      ],
+      lepClauses: [
+        { clauseKey: "4.3", heading: "Height of buildings", value: "Maximum height must come from the Height of Buildings Map." },
+      ],
+      promptBlock:
+        "--- RETRIEVED PLANNING CONTROLS FOR BYRON ---\nLEP PROVISIONS:\n- [Byron LEP 2014 4.3]: Height of buildings — Maximum height must come from the Height of Buildings Map.\nDCP PROVISIONS:\n- [D1.2] Setbacks: Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.\n--- END RETRIEVED PLANNING CONTROLS ---",
+      sourceTypes: ["cited"],
+    });
+    callModelMock.mockResolvedValue("Clause-grounded answer.");
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "What are the front, side and rear setbacks for dual occupancy?",
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+    const messages = callModelMock.mock.calls[0]?.[1] as Array<{ role: string; content: string }>;
+    expect(messages.some((message) => message.content.includes("[D1.2] Setbacks"))).toBe(true);
+    expect(messages.some((message) => message.content.includes("Minimum front setback 4.5m"))).toBe(true);
   });
 
   it("returns fallback and skips model when retrieved excerpts lack setback evidence for setback question", async () => {
