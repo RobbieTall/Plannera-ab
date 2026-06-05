@@ -22,6 +22,9 @@ const { getStaleArtefactsForLgaMock, markArtefactStaleMock, prismaMock, promoteM
       findFirst: vi.fn(),
       update: vi.fn(),
     },
+    projectNotification: {
+      upsert: vi.fn(),
+    },
   },
   syncInstrumentMock: vi.fn(),
 }));
@@ -76,6 +79,9 @@ vi.mock("@prisma/client", () => ({
     FAILED: "FAILED",
   },
   Prisma: {},
+  ProjectNotificationType: {
+    LGA_SEARCHABLE_READY: "LGA_SEARCHABLE_READY",
+  },
 }));
 
 import { processNextLgaJob } from "./lga-worker";
@@ -85,6 +91,8 @@ describe("processNextLgaJob", () => {
     vi.clearAllMocks();
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock));
     prismaMock.project.findFirst.mockResolvedValue(null);
+    prismaMock.project.update.mockResolvedValue({});
+    prismaMock.projectNotification.upsert.mockResolvedValue({});
     getStaleArtefactsForLgaMock.mockResolvedValue([]);
     promoteMaturityMock.mockResolvedValue({
       from: "SEARCHABLE_READY",
@@ -133,6 +141,83 @@ describe("processNextLgaJob", () => {
       data: expect.objectContaining({ status: "COMPLETED", errorMessage: null }),
     }));
   });
+
+  it("creates a notification when a project-triggered LGA job reaches SEARCHABLE_READY", async () => {
+    prismaMock.lgaPreparationJob.findFirst.mockResolvedValue({
+      id: "job-project-1",
+      lgaCode: "KEMPSEY",
+      requestedByProjectId: "proj-public-1",
+    });
+    prismaMock.lgaPreparationJob.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.lgaCoverageState.upsert.mockResolvedValue({});
+    syncInstrumentMock.mockResolvedValue({ status: "ok", config: { slug: "kempsey-lep-2013" } });
+    prismaMock.clause.count.mockResolvedValue(12);
+    prismaMock.lgaPreparationJob.update.mockResolvedValue({});
+    prismaMock.lgaCoverageState.update.mockResolvedValue({});
+    prismaMock.project.findFirst.mockResolvedValue({ id: "project-1", dcpData: {} });
+
+    await processNextLgaJob();
+
+    expect(prismaMock.projectNotification.upsert).toHaveBeenCalledWith({
+      where: {
+        projectId_type_lgaCode: {
+          projectId: "project-1",
+          type: "LGA_SEARCHABLE_READY",
+          lgaCode: "KEMPSEY",
+        },
+      },
+      update: {
+        title: "Local planning controls are searchable",
+        message:
+          "Local planning controls for KEMPSEY are now searchable. You can refresh affected project outputs where needed.",
+      },
+      create: {
+        projectId: "project-1",
+        type: "LGA_SEARCHABLE_READY",
+        title: "Local planning controls are searchable",
+        message:
+          "Local planning controls for KEMPSEY are now searchable. You can refresh affected project outputs where needed.",
+        lgaCode: "KEMPSEY",
+      },
+    });
+  });
+
+  it("does not duplicate the notification for the same project and LGA", async () => {
+    prismaMock.lgaPreparationJob.findFirst
+      .mockResolvedValueOnce({ id: "job-project-1", lgaCode: "KEMPSEY", requestedByProjectId: "proj-public-1" })
+      .mockResolvedValueOnce({ id: "job-project-2", lgaCode: "KEMPSEY", requestedByProjectId: "proj-public-1" });
+    prismaMock.lgaPreparationJob.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.lgaCoverageState.upsert.mockResolvedValue({});
+    syncInstrumentMock.mockResolvedValue({ status: "ok", config: { slug: "kempsey-lep-2013" } });
+    prismaMock.clause.count.mockResolvedValue(12);
+    prismaMock.lgaPreparationJob.update.mockResolvedValue({});
+    prismaMock.lgaCoverageState.update.mockResolvedValue({});
+    prismaMock.project.findFirst.mockResolvedValue({ id: "project-1", dcpData: {} });
+
+    await processNextLgaJob();
+    await processNextLgaJob();
+
+    expect(prismaMock.projectNotification.upsert).toHaveBeenCalledTimes(2);
+    expect(prismaMock.projectNotification.upsert).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: {
+        projectId_type_lgaCode: {
+          projectId: "project-1",
+          type: "LGA_SEARCHABLE_READY",
+          lgaCode: "KEMPSEY",
+        },
+      },
+    }));
+    expect(prismaMock.projectNotification.upsert).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: {
+        projectId_type_lgaCode: {
+          projectId: "project-1",
+          type: "LGA_SEARCHABLE_READY",
+          lgaCode: "KEMPSEY",
+        },
+      },
+    }));
+  });
+
 
   it("marks the job and coverage failed when instrument sync fails", async () => {
     prismaMock.lgaPreparationJob.findFirst.mockResolvedValue({

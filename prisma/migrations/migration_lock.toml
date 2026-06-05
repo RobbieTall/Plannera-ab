@@ -1,1 +1,3 @@
 provider = "postgresql"
+
+# Latest migration: 20260605000000_add_project_notification

@@ -8,6 +8,7 @@ import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import type { InstrumentConfig } from "@/lib/legislation/types";
 import { findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
 import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
+import { createLgaReadyProjectNotification } from "@/lib/project-notifications";
 
 const FAILED_REVIEW_NEEDED = "FAILED_REVIEW_NEEDED" as LgaCoverageMaturity;
 
@@ -215,6 +216,18 @@ export const processNextLgaJob = async (): Promise<ProcessLgaJobResult> => {
         instrumentSlugs,
         updatedAt: new Date().toISOString(),
       });
+
+      if (coverageState === LgaCoverageMaturity.SEARCHABLE_READY) {
+        try {
+          await createLgaReadyProjectNotification(job.requestedByProjectId, job.lgaCode);
+        } catch (notificationError) {
+          console.warn("[lga-worker] Unable to create LGA ready notification", {
+            lgaCode: job.lgaCode,
+            projectId: job.requestedByProjectId,
+            error: notificationError instanceof Error ? notificationError.message : notificationError,
+          });
+        }
+      }
     }
 
     return {
