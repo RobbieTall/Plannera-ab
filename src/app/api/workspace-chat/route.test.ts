@@ -13,6 +13,7 @@ const {
   lgaCoverageFindUniqueMock,
   queueLgaPreparationMock,
   buildStatutoryContextBlockMock,
+  chatMessageCreateManyMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
@@ -26,6 +27,7 @@ const {
   lgaCoverageFindUniqueMock: vi.fn(),
   queueLgaPreparationMock: vi.fn(),
   buildStatutoryContextBlockMock: vi.fn(),
+  chatMessageCreateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -35,6 +37,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     project: {
       findUnique: vi.fn(async () => null),
+    },
+    chatMessage: {
+      createMany: chatMessageCreateManyMock,
     },
   },
 }));
@@ -136,6 +141,7 @@ describe("workspace-chat forced fallback", () => {
     getDCPContextMock.mockResolvedValue([]);
     lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
     queueLgaPreparationMock.mockResolvedValue({ queued: true, coverageState: "QUEUED" });
+    chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [],
       lepClauses: [],
@@ -223,6 +229,7 @@ describe("workspace-chat forced fallback", () => {
         },
       ],
     });
+    chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [
         {
