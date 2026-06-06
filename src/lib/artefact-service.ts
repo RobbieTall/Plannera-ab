@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
+import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
+import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
+import { serializeSiteContext } from "@/lib/site-context";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
@@ -25,6 +28,14 @@ type ArtefactDependencies = {
     lgaCoverageState?: PrismaClientLgaCoverageState;
   };
   saveFile: (file: File) => Promise<SavedFile>;
+};
+
+type LepContextResolver = typeof getLepContextForProject;
+type QuickSiteCheckLepBuilder = typeof buildQuickSiteCheckLep;
+
+type QuickSiteCheckArtefactDeps = Pick<ArtefactDependencies, "prisma"> & {
+  getLepContextForProject?: LepContextResolver;
+  buildQuickSiteCheckLep?: QuickSiteCheckLepBuilder;
 };
 
 const overlayEntrySchema = z
@@ -47,6 +58,7 @@ const quickSiteCheckControlSchema = z.object({
   value: z.string().nullable(),
   present: z.boolean(),
   source: z.string().nullable().optional(),
+  lepSource: z.boolean().optional(),
   clauseRef: z.string().nullable().optional(),
   detail: z.string().nullable().optional(),
   interpretation: z.string(),
@@ -211,6 +223,188 @@ export type QuickSiteCheckArtefactInput = {
   report: QuickSiteCheckReport;
 };
 
+
+type ProjectWithOptionalSiteContext = Awaited<ReturnType<typeof assertProjectAccess>> & {
+  siteContext?: Parameters<typeof serializeSiteContext>[0] | null;
+};
+
+type LepEnrichment = {
+  lepContext: LepContext | null;
+  lepResponse: Awaited<ReturnType<typeof buildQuickSiteCheckLep>> | null;
+};
+
+const truncatePromptText = (value: string, maxLength = 300) => {
+  const compacted = value.replace(/\s+/g, " ").trim();
+  return compacted.length > maxLength ? `${compacted.slice(0, maxLength).trimEnd()}…` : compacted;
+};
+
+const formatPromptList = (values: string[] | undefined, fallback = "Not found in retrieved LEP data") => {
+  const filtered = (values ?? []).map((value) => value.trim()).filter(Boolean);
+  return filtered.length ? filtered.slice(0, 10).join(", ") : fallback;
+};
+
+const isRealLepResponse = (
+  response: Awaited<ReturnType<typeof buildQuickSiteCheckLep>> | null,
+): response is Extract<Awaited<ReturnType<typeof buildQuickSiteCheckLep>>, { ok: true }> => Boolean(response?.ok);
+
+const findLepClause = (clauses: LepClauseContext[], refs: string[], keywords: string[]) => {
+  const byRef = clauses.find((clause) => refs.some((ref) => clause.ref === ref || clause.ref.startsWith(`${ref}`)));
+  if (byRef) return byRef;
+
+  const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase());
+  return clauses.find((clause) => {
+    const haystack = `${clause.title ?? ""} ${clause.text}`.toLowerCase();
+    return normalizedKeywords.some((keyword) => haystack.includes(keyword));
+  });
+};
+
+const extractNumericControlValue = (clause: LepClauseContext | null) => {
+  if (!clause) return null;
+  const text = `${clause.title ?? ""} ${clause.text}`;
+  const patterns = [
+    /\b\d+(?:\.\d+)?\s*(?:m|metres|metre)\b/i,
+    /\b\d+(?:\.\d+)?\s*:\s*1\b/i,
+    /\b\d+(?:,\d{3})*(?:\.\d+)?\s*(?:m2|m²|sqm|square metres)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+
+  return null;
+};
+
+const withRealLepControl = (
+  control: QuickSiteCheckReport["controls"][keyof QuickSiteCheckReport["controls"]],
+  clause: LepClauseContext | null,
+) => {
+  if (!clause) return { ...control, lepSource: false };
+
+  const parsedValue = extractNumericControlValue(clause);
+  const value = parsedValue ?? control.value;
+  const clauseTitle = clause.title ? `${clause.ref}: ${clause.title}` : clause.ref;
+
+  return {
+    ...control,
+    value,
+    present: Boolean(value || clause.text),
+    clauseRef: clause.ref,
+    detail: truncatePromptText(clause.text),
+    source: "lep",
+    lepSource: true,
+    interpretation: value
+      ? `${control.label} is ${value} based on retrieved LEP clause ${clauseTitle}. Verify the mapped value against the official LEP map before lodgement.`
+      : `${control.label} is addressed in retrieved LEP clause ${clauseTitle}, but no numeric mapped value was extracted. Verify the LEP map before lodgement.`,
+  } satisfies QuickSiteCheckReport["controls"][keyof QuickSiteCheckReport["controls"]];
+};
+
+const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment: LepEnrichment): QuickSiteCheckReport => {
+  const lepClauses = enrichment.lepContext?.clauses ?? [];
+  const lepResponse = isRealLepResponse(enrichment.lepResponse) ? enrichment.lepResponse : null;
+
+  const heightClause = findLepClause(lepClauses, ["4.3"], ["height of buildings", "height of building"]);
+  const fsrClause = findLepClause(lepClauses, ["4.4"], ["floor space ratio", "fsr"]);
+  const lotSizeClause = findLepClause(lepClauses, ["4.1"], ["minimum subdivision lot size", "minimum lot size"]);
+
+  const zoneLabel = lepResponse?.zone
+    ? [lepResponse.zone, report.site.zoneName].filter(Boolean).join(" – ")
+    : report.permissibility?.zoneLabel ?? report.site.zoneLabel ?? null;
+
+  const site = { ...report.site };
+  if (lepResponse?.zone || report.site.zoneCode) {
+    site.zoneCode = lepResponse?.zone ?? report.site.zoneCode ?? null;
+  }
+  if (zoneLabel || report.site.zoneLabel) {
+    site.zoneLabel = zoneLabel;
+  }
+
+  return {
+    ...report,
+    site,
+    lepInstrument: enrichment.lepContext
+      ? {
+          name: enrichment.lepContext.instrumentName,
+          code: enrichment.lepContext.instrumentCode,
+          lga: enrichment.lepContext.lga,
+          source: "ingestion",
+        }
+      : report.lepInstrument ?? null,
+    permissibility: lepResponse
+      ? {
+          zoneLabel,
+          permittedWithoutConsent: lepResponse.landUse.withoutConsent,
+          permittedWithConsent: lepResponse.landUse.withConsent,
+          prohibited: lepResponse.landUse.prohibited,
+          interpretation: `Zone ${lepResponse.zone ?? report.site.zoneCode ?? "(unknown)"} objectives include ${formatPromptList(lepResponse.objectives, "no objectives found")}. Uses permitted with consent include ${formatPromptList(lepResponse.landUse.withConsent, "no uses found")}.`,
+        }
+      : report.permissibility ?? null,
+    controls: {
+      heightOfBuilding: withRealLepControl(report.controls.heightOfBuilding, heightClause ?? null),
+      floorSpaceRatio: withRealLepControl(report.controls.floorSpaceRatio, fsrClause ?? null),
+      minimumLotSize: withRealLepControl(report.controls.minimumLotSize, lotSizeClause ?? null),
+    },
+  };
+};
+
+const loadLepEnrichmentForProject = async (
+  project: ProjectWithOptionalSiteContext,
+  deps: {
+    getLepContextForProject?: LepContextResolver;
+    buildQuickSiteCheckLep?: QuickSiteCheckLepBuilder;
+  },
+): Promise<LepEnrichment> => {
+  const resolver = deps.getLepContextForProject ?? getLepContextForProject;
+  const quickSiteCheckLepBuilder = deps.buildQuickSiteCheckLep ?? buildQuickSiteCheckLep;
+  const siteSummary = serializeSiteContext(project.siteContext ?? null, project);
+
+  let lepContext: LepContext | null = null;
+  let lepResponse: Awaited<ReturnType<typeof buildQuickSiteCheckLep>> | null = null;
+
+  try {
+    const lepResolution = await resolver({
+      siteContext: siteSummary,
+      fallbackLga: siteSummary?.lgaName ?? null,
+    });
+    lepContext = lepResolution.lepContext;
+  } catch (error) {
+    console.error("[artefact-service] failed to load LEP context", error);
+  }
+
+  try {
+    lepResponse = await quickSiteCheckLepBuilder(project.id, { debug: true });
+  } catch (error) {
+    console.error("[artefact-service] failed to build LEP quick site check", error);
+  }
+
+  return { lepContext, lepResponse };
+};
+
+const buildPreSeeLepPromptBlock = (enrichment: LepEnrichment, quickSiteCheck: QuickSiteCheckReport) => {
+  const lepResponse = isRealLepResponse(enrichment.lepResponse) ? enrichment.lepResponse : null;
+  if (!enrichment.lepContext && !lepResponse) return null;
+
+  const controls = quickSiteCheck.controls;
+  const clauseLines = (enrichment.lepContext?.clauses ?? []).slice(0, 5).map((clause) => {
+    const title = clause.title ? ` ${clause.title}` : "";
+    return `- Clause ${clause.ref}${title}: ${truncatePromptText(clause.text)}`;
+  });
+
+  return [
+    "=== REAL LEP ZONE CONTEXT FOR PRE-SEE MEMO ===",
+    `Zone: ${lepResponse?.zone ?? quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneCode ?? "Not found in retrieved LEP data"}`,
+    `Objectives: ${formatPromptList(lepResponse?.objectives)}`,
+    `Permissible uses with consent: ${formatPromptList(lepResponse?.landUse.withConsent)}`,
+    `Permissible uses without consent: ${formatPromptList(lepResponse?.landUse.withoutConsent)}`,
+    `Height limit: ${controls.heightOfBuilding.value ?? "Not found in retrieved LEP data"}`,
+    `FSR: ${controls.floorSpaceRatio.value ?? "Not found in retrieved LEP data"}`,
+    `Minimum lot size: ${controls.minimumLotSize.value ?? "Not found in retrieved LEP data"}`,
+    "Top LEP clauses (verbatim excerpts, truncated):",
+    clauseLines.length ? clauseLines.join("\n") : "No LEP clause excerpts were retrieved.",
+    "=== END REAL LEP ZONE CONTEXT ===",
+  ].join("\n");
+};
+
 export async function createMapSnapshotArtefact({
   formData,
   projectId,
@@ -253,7 +447,7 @@ export async function createQuickSiteCheckArtefact({
   body: unknown;
   projectId: string;
   userId: string;
-  deps?: Pick<ArtefactDependencies, "prisma">;
+  deps?: QuickSiteCheckArtefactDeps;
 }): Promise<Artefact> {
   const parsed = quickSiteCheckArtefactSchema.safeParse(body);
 
@@ -275,16 +469,24 @@ export async function createQuickSiteCheckArtefact({
     throw new ArtefactValidationError("Report belongs to a different project");
   }
 
-  const generatedAt = new Date(report.generatedAt ?? Date.now());
+  const projectWithContext = await deps.prisma.project.findUnique({
+    where: { id: project.id },
+    include: { siteContext: true },
+  });
+
+  const lepEnrichment = await loadLepEnrichmentForProject(projectWithContext ?? project, deps);
+  const enrichedReport = applyRealLepEnrichmentToReport(report, lepEnrichment);
+
+  const generatedAt = new Date(enrichedReport.generatedAt ?? Date.now());
   const capturedAt = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
 
-  const lgaCode = normalizeCouncilLgaCode(report.site?.lga ?? report.lepInstrument?.lga ?? null);
+  const lgaCode = normalizeCouncilLgaCode(enrichedReport.site?.lga ?? enrichedReport.lepInstrument?.lga ?? null);
   const shouldEnrichWithStatutoryGrounding = Boolean(lgaCode && deps.prisma.lgaCoverageState);
   const statutoryContext = shouldEnrichWithStatutoryGrounding && lgaCode
     ? await buildStatutoryContextBlock({
         lgaCode,
         query: [
-          report.site?.zoneLabel,
+          enrichedReport.site?.zoneLabel,
           "zone permissibility floor space ratio height of buildings minimum lot size",
         ]
           .filter(Boolean)
@@ -302,27 +504,27 @@ export async function createQuickSiteCheckArtefact({
     return clauseRef ? `LEP clause ${clauseRef}` : "Not in retrieved data";
   };
   const groundedReport = statutoryContext ? {
-    ...report,
+    ...enrichedReport,
     controls: {
       heightOfBuilding: {
-        ...report.controls.heightOfBuilding,
-        source: sourceForControl(report.controls.heightOfBuilding.clauseRef, report.controls.heightOfBuilding.present),
-        interpretation: report.controls.heightOfBuilding.present
-          ? report.controls.heightOfBuilding.interpretation
+        ...enrichedReport.controls.heightOfBuilding,
+        source: enrichedReport.controls.heightOfBuilding.lepSource ? enrichedReport.controls.heightOfBuilding.source : sourceForControl(enrichedReport.controls.heightOfBuilding.clauseRef, enrichedReport.controls.heightOfBuilding.present),
+        interpretation: enrichedReport.controls.heightOfBuilding.present
+          ? enrichedReport.controls.heightOfBuilding.interpretation
           : "Not found in retrieved LEP data",
       },
       floorSpaceRatio: {
-        ...report.controls.floorSpaceRatio,
-        source: sourceForControl(report.controls.floorSpaceRatio.clauseRef, report.controls.floorSpaceRatio.present),
-        interpretation: report.controls.floorSpaceRatio.present
-          ? report.controls.floorSpaceRatio.interpretation
+        ...enrichedReport.controls.floorSpaceRatio,
+        source: enrichedReport.controls.floorSpaceRatio.lepSource ? enrichedReport.controls.floorSpaceRatio.source : sourceForControl(enrichedReport.controls.floorSpaceRatio.clauseRef, enrichedReport.controls.floorSpaceRatio.present),
+        interpretation: enrichedReport.controls.floorSpaceRatio.present
+          ? enrichedReport.controls.floorSpaceRatio.interpretation
           : "Not found in retrieved LEP data",
       },
       minimumLotSize: {
-        ...report.controls.minimumLotSize,
-        source: sourceForControl(report.controls.minimumLotSize.clauseRef, report.controls.minimumLotSize.present),
-        interpretation: report.controls.minimumLotSize.present
-          ? report.controls.minimumLotSize.interpretation
+        ...enrichedReport.controls.minimumLotSize,
+        source: enrichedReport.controls.minimumLotSize.lepSource ? enrichedReport.controls.minimumLotSize.source : sourceForControl(enrichedReport.controls.minimumLotSize.clauseRef, enrichedReport.controls.minimumLotSize.present),
+        interpretation: enrichedReport.controls.minimumLotSize.present
+          ? enrichedReport.controls.minimumLotSize.interpretation
           : "Not found in retrieved LEP data",
       },
     },
@@ -335,10 +537,10 @@ export async function createQuickSiteCheckArtefact({
             'Answer every structured field from the retrieved clause text. If LEP data is missing, write "Not found in retrieved LEP data" and set source to "Not in retrieved data".',
         }
       : null,
-  } : report;
+  } : enrichedReport;
 
-  const source = report.site?.address ?? report.site?.zoneLabel ?? "Quick Site Check";
-  const notes = report.notes.length ? report.notes.join(" ") : null;
+  const source = enrichedReport.site?.address ?? enrichedReport.site?.zoneLabel ?? "Quick Site Check";
+  const notes = enrichedReport.notes.length ? enrichedReport.notes.join(" ") : null;
 
   return deps.prisma.artefact.create({
     data: {
@@ -417,6 +619,8 @@ type PreSeePlanningMemoDeps = {
   getDCPContext: typeof getDCPContext;
   getWorkspaceSourceContext: typeof getWorkspaceSourceContext;
   buildStatutoryContextBlock?: typeof buildStatutoryContextBlock;
+  getLepContextForProject?: LepContextResolver;
+  buildQuickSiteCheckLep?: QuickSiteCheckLepBuilder;
 };
 
 const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
@@ -457,7 +661,10 @@ export async function createPreSeePlanningMemoArtefact({
     throw new ArtefactValidationError("Set a confirmed site before generating a pre-SEE planning memo");
   }
 
-  const quickSiteCheck = await deps.buildQuickSiteCheckReport(projectWithContext);
+  const quickSiteCheckFallback = await deps.buildQuickSiteCheckReport(projectWithContext);
+  const lepEnrichment = await loadLepEnrichmentForProject(projectWithContext, deps);
+  const quickSiteCheck = applyRealLepEnrichmentToReport(quickSiteCheckFallback, lepEnrichment);
+  const preSeeLepPromptBlock = buildPreSeeLepPromptBlock(lepEnrichment, quickSiteCheck);
   const lgaCode = normalizeCouncilLgaCode(quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaCode);
   const controlsQuery = [
     proposedWorksSummary,
@@ -534,12 +741,19 @@ export async function createPreSeePlanningMemoArtefact({
       })),
       statutoryContext: statutoryContext
         ? {
-            promptBlock: statutoryContext.promptBlock,
+            promptBlock: [preSeeLepPromptBlock, statutoryContext.promptBlock].filter(Boolean).join("\n\n"),
             lepClauses: statutoryContext.lepClauses,
             dcpClauses: statutoryContext.dcpClauses,
             sourceTypes: statutoryContext.sourceTypes,
           }
-        : null,
+        : preSeeLepPromptBlock
+          ? {
+              promptBlock: preSeeLepPromptBlock,
+              lepClauses: [],
+              dcpClauses: [],
+              sourceTypes: ["cited"],
+            }
+          : null,
       groundingInstructions: [
         "Base all LEP and DCP references on the retrieved clause text provided below. Do not invent clause numbers or policy references.",
         "Development Description, Site Context, LEP Compliance, DCP Compliance and Conclusion must cite retrieved clause text where available.",

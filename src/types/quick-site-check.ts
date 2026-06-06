@@ -3,6 +3,7 @@ export type QuickSiteCheckControl = {
   value: string | null;
   present: boolean;
   source?: string | null;
+  lepSource?: boolean;
   clauseRef?: string | null;
   detail?: string | null;
   interpretation: string;

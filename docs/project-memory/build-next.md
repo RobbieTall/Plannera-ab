@@ -67,8 +67,14 @@ Add a "New thread" button to clear the UI without deleting history.
 
 **Success signal:** users can return to a project and continue a conversation.
 
-## 9) Workspace Thread Management & Search
+## 9) Real LEP Zone Data in Quick Site Check and Pre-SEE Artefacts — DONE ✓
 
-Add first-class workspace thread naming, transcript search, and history reopening controls without deleting the existing project record.
+Wire retrieved LEP context and parsed zone data into Quick Site Check artefacts, Pre-SEE planning memo grounding context, and workspace-chat system prompts.
 
-**Success signal:** users can find and resume relevant prior planning conversations quickly.
+**Success signal:** site check, chat, and Pre-SEE outputs prefer real retrieved LEP zone/permissibility/control evidence and flag LEP-sourced controls in artefact JSON.
+
+## 10) DCP Clause Injection into SEE Sections
+
+Pull the top-5 DCP clauses by SEE section type (setbacks, heights, parking, landscaping) into each SEE section prompt so the AI writes to actual control numbers.
+
+**Success signal:** each generated SEE section cites section-specific DCP clause text and avoids generic control numbers when a retrieved DCP clause is unavailable.

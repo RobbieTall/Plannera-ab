@@ -38,6 +38,7 @@ import { normalizeNswLgaName } from "@/lib/lep/nsw-lga-normaliser";
 import { persistWorkspaceChatExchange } from "@/lib/chat-persistence";
 import { buildSourceAttribution } from "@/lib/workspace-chat";
 import { buildStatutoryContextBlock, type StatutoryContextBlock } from "@/lib/statutory-context-builder";
+import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -102,6 +103,34 @@ const SEARCHABLE_SOURCE_COVERAGE_STATES = new Set<LgaCoverageMaturity>([
   LgaCoverageMaturity.STRUCTURED_PARTIAL,
   LgaCoverageMaturity.VERIFIED,
 ]);
+
+
+const formatZoneSummaryList = (values: string[] | undefined, fallback = "Not found in retrieved LEP data") => {
+  const filtered = (values ?? []).map((value) => value.trim()).filter(Boolean).slice(0, 10);
+  return filtered.length ? filtered.join(", ") : fallback;
+};
+
+const buildWorkspaceZoneSummaryBlock = async (projectId: string | null, siteContext: SiteContextSummary | null) => {
+  if (!projectId || !siteContext) return null;
+
+  try {
+    const response = await buildQuickSiteCheckLep(projectId, { debug: true });
+    if (!response.ok) return null;
+
+    return [
+      "=== ZONE SUMMARY (from LEP) ===",
+      `Zone: ${response.zone ?? siteContext.zone ?? siteContext.zoningCode ?? "Not found in retrieved LEP data"}`,
+      "Height Limit: Not found in retrieved LEP zone data",
+      "FSR: Not found in retrieved LEP zone data",
+      "Min Lot Size: Not found in retrieved LEP zone data",
+      `Permissible (with consent): ${formatZoneSummaryList(response.landUse.withConsent)}`,
+      `Zone Objectives: ${formatZoneSummaryList(response.objectives)}`,
+    ].join("\n");
+  } catch (error) {
+    console.warn("[workspace-chat-warning] Failed to build LEP zone summary", getErrorDetails(error));
+    return null;
+  }
+};
 
 const buildSourceAttributionPrompt = (params: {
   coverageState: LgaCoverageMaturity | null;
@@ -527,6 +556,7 @@ export async function POST(request: Request) {
     let sourceAttributionPrompt: string | null = null;
     let statutoryContext: StatutoryContextBlock | null = null;
     let statutoryContextPrompt: string | null = null;
+    let zoneSummaryPrompt: string | null = null;
     let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
@@ -775,6 +805,7 @@ When the user asks about local controls, rely first on the council Development C
       console.warn("[workspace-chat-warning] Failed to retrieve workspace sources", getErrorDetails(sourceError));
     }
 
+    zoneSummaryPrompt = await buildWorkspaceZoneSummaryBlock(projectId ?? null, siteContextSummary);
     const siteContextMessage = buildSiteContextMessage(siteContextSummary, lepData);
     const lepContextMessage = buildLepPromptMessage(lepContext);
 
@@ -783,6 +814,10 @@ When the user asks about local controls, rely first on the council Development C
 
     if (siteContextMessage) {
       messages.push({ role: "system", content: siteContextMessage });
+    }
+
+    if (zoneSummaryPrompt) {
+      messages.push({ role: "system", content: zoneSummaryPrompt });
     }
 
     if (statutoryContextPrompt) {
