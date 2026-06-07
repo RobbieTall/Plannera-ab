@@ -24,6 +24,7 @@ import {
   type LepContext,
 } from "@/lib/lep/lep-context";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { detectMessageTopic } from "./dcp-topic";
 import {
   buildWorkspaceSourcePrompt,
   COUNCIL_DCP_TYPES,
@@ -91,6 +92,15 @@ const CONTROL_KEYWORDS = [
 const BYRON_LGA_CODE = "BYRON";
 const DUAL_OCC_REGEX = /(dual occ|dual occupancy|duplex)/i;
 const MAX_DCP_CLAUSE_TEXT = 420;
+const TOPIC_DCP_QUERIES: Record<string, string> = {
+  setbacks: "setback building line street side rear boundary frontage",
+  height: "height storey building height plane levels roof",
+  parking: "parking car space visitor bicycle driveway garage",
+  landscaping: "landscaping deep soil tree vegetation planting garden",
+  site_coverage: "site coverage floor area plot ratio site density",
+  private_open_space: "private open space POS courtyard balcony",
+  flooding: "flood flooding floodplain",
+};
 
 const PREPARING_COVERAGE_STATES = new Set<LgaCoverageMaturity>([
   LgaCoverageMaturity.NOT_STARTED,
@@ -537,6 +547,7 @@ export async function POST(request: Request) {
     });
 
     const userAskedForDcp = hasExplicitDcpIntent(userMessage);
+    const detectedDcpTopic = detectMessageTopic(userMessage);
     const controlsRelatedQuestion = isControlsQuestion(userMessage);
     const dualOccQuestion = DUAL_OCC_REGEX.test(userMessage.toLowerCase());
     let canonicalLgaCode = normalizeCouncilLgaCode(
@@ -592,27 +603,30 @@ Use the raw clause text above as the first source for local-control answers. For
         }
       }
 
-      if (canonicalLgaCode && shouldSearchDcpClauses(userMessage)) {
+      if (canonicalLgaCode && (detectedDcpTopic || shouldSearchDcpClauses(userMessage))) {
         try {
-          dcpClauses = statutoryContext?.dcpClauses.length
-            ? statutoryContext.dcpClauses.map((clause) => ({
-                id: clause.clauseNumber,
-                lgaCode: canonicalLgaCode as string,
-                instrumentSlug: null,
-                ref: clause.clauseNumber,
-                title: clause.heading,
-                headingPath: [clause.heading],
-                parentRef: null,
-                depth: null,
-                bodyHtml: clause.body,
-                bodyText: clause.body,
-                topicTags: [],
-                numericMeta: null,
-                createdAt: new Date(0),
-                updatedAt: new Date(0),
-                score: 0,
-              }))
-            : await getDCPContext(canonicalLgaCode, retrievalQuery);
+          const topicQuery = detectedDcpTopic ? TOPIC_DCP_QUERIES[detectedDcpTopic] : null;
+          dcpClauses = topicQuery
+            ? await getDCPContext(canonicalLgaCode, topicQuery)
+            : statutoryContext?.dcpClauses.length
+              ? statutoryContext.dcpClauses.map((clause) => ({
+                  id: clause.clauseNumber,
+                  lgaCode: canonicalLgaCode as string,
+                  instrumentSlug: null,
+                  ref: clause.clauseNumber,
+                  title: clause.heading,
+                  headingPath: [clause.heading],
+                  parentRef: null,
+                  depth: null,
+                  bodyHtml: clause.body,
+                  bodyText: clause.body,
+                  topicTags: [],
+                  numericMeta: null,
+                  createdAt: new Date(0),
+                  updatedAt: new Date(0),
+                  score: 0,
+                }))
+              : await getDCPContext(canonicalLgaCode, retrievalQuery);
         } catch (dcpError) {
           console.warn("[workspace-chat-warning] Failed to search DCP clauses", getErrorDetails(dcpError));
         }
@@ -816,16 +830,16 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: siteContextMessage });
     }
 
+    if (dcpClausePrompt) {
+      messages.push({ role: "system", content: dcpClausePrompt });
+    }
+
     if (zoneSummaryPrompt) {
       messages.push({ role: "system", content: zoneSummaryPrompt });
     }
 
     if (statutoryContextPrompt) {
       messages.push({ role: "system", content: statutoryContextPrompt });
-    }
-
-    if (dcpClausePrompt) {
-      messages.push({ role: "system", content: dcpClausePrompt });
     }
 
     if (lepContextMessage) {

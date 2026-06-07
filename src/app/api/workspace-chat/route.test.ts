@@ -113,7 +113,21 @@ vi.mock("@/lib/statutory-context-builder", () => ({
   buildStatutoryContextBlock: buildStatutoryContextBlockMock,
 }));
 
+import { detectMessageTopic } from "./dcp-topic";
 import { POST } from "./route";
+
+
+describe("detectMessageTopic", () => {
+  it.each([
+    ["what is the setback", "setbacks"],
+    ["how tall can I build", "height"],
+    ["parking spaces required", "parking"],
+    ["landscaping requirements", "landscaping"],
+    ["hello", null],
+  ])("detects %s as %s", (message, expectedTopic) => {
+    expect(detectMessageTopic(message)).toBe(expectedTopic);
+  });
+});
 
 describe("workspace-chat forced fallback", () => {
   beforeEach(() => {
@@ -214,6 +228,10 @@ describe("workspace-chat forced fallback", () => {
     const payload = (await response.json()) as { reply: string };
 
     expect(response.status).toBe(200);
+    expect(getDCPContextMock).toHaveBeenCalledWith(
+      "BYRON",
+      "setback building line street side rear boundary frontage",
+    );
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.reply).toContain("4.5m");
   });
