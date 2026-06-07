@@ -4,6 +4,7 @@ import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
@@ -380,6 +381,56 @@ const loadLepEnrichmentForProject = async (
   return { lepContext, lepResponse };
 };
 
+export const buildDcpSectionPromptBlock = (clauses: ScoredDcpClause[], sectionLabel: string) => {
+  if (!clauses.length) return "";
+
+  const clauseLines = clauses.map((clause) => {
+    const ref = clause.ref ?? clause.headingPath.join(" > ");
+    return `- [${ref}] ${clause.title}: ${clause.bodyText.substring(0, 400)}`;
+  });
+
+  return [`## Relevant DCP Clauses for ${sectionLabel}`, ...clauseLines].join("\n");
+};
+
+export const loadDcpClausesForSections = async (
+  getDCPContextResolver: typeof getDCPContext,
+  lgaCode: string,
+  sections: Array<{ id: string; label: string; query: string }>,
+): Promise<Map<string, ScoredDcpClause[]>> => {
+  try {
+    const results = await Promise.all(
+      sections.map(async (section) => [section.id, await getDCPContextResolver(lgaCode, section.query)] as const),
+    );
+
+    return new Map(results);
+  } catch (error) {
+    console.error("[artefact-service] failed to load section DCP clauses", error);
+    return new Map();
+  }
+};
+
+const SEE_SECTION_DCP_QUERIES = [
+  { id: "setbacks", label: "Setbacks", query: "setback building line street side rear boundary" },
+  { id: "height", label: "Building Height", query: "height storey building height plane levels" },
+  { id: "parking", label: "Car Parking", query: "parking car space visitor bicycle driveway" },
+  { id: "landscaping", label: "Landscaping", query: "landscaping deep soil tree vegetation planting" },
+  { id: "site_coverage", label: "Site Coverage", query: "site coverage floor area plot ratio site density" },
+  { id: "private_open_space", label: "Private Open Space", query: "private open space POS courtyard balcony" },
+  { id: "character", label: "Character and Appearance", query: "character streetscape appearance context" },
+  { id: "flooding", label: "Flood Risk", query: "flood flooding floodplain" },
+];
+
+const buildDcpSectionPromptContext = (sectionClauses: Map<string, ScoredDcpClause[]>) =>
+  SEE_SECTION_DCP_QUERIES.map((section) => buildDcpSectionPromptBlock(sectionClauses.get(section.id) ?? [], section.label))
+    .filter(Boolean)
+    .join("\n\n");
+
+const countDcpClausesBySection = (sectionClauses: Map<string, ScoredDcpClause[]>) =>
+  SEE_SECTION_DCP_QUERIES.reduce<Record<string, number>>((counts, section) => {
+    counts[section.id] = sectionClauses.get(section.id)?.length ?? 0;
+    return counts;
+  }, {});
+
 const buildPreSeeLepPromptBlock = (enrichment: LepEnrichment, quickSiteCheck: QuickSiteCheckReport) => {
   const lepResponse = isRealLepResponse(enrichment.lepResponse) ? enrichment.lepResponse : null;
   if (!enrichment.lepContext && !lepResponse) return null;
@@ -575,6 +626,7 @@ export type PreSeePlanningMemoContent = {
     zoneLabel: string | null;
   };
   proposedWorksSummary: string;
+  dcpClauses: Record<string, number>;
   applicableControls: {
     lepInstrument: QuickSiteCheckReport["lepInstrument"];
     permissibility: QuickSiteCheckReport["permissibility"];
@@ -675,8 +727,9 @@ export async function createPreSeePlanningMemoArtefact({
     .filter(Boolean)
     .join(" ");
 
-  const [dcpClauses, sourceContext, statutoryContext] = await Promise.all([
+  const [dcpClauses, dcpSectionClauses, sourceContext, statutoryContext] = await Promise.all([
     lgaCode ? deps.getDCPContext(lgaCode, controlsQuery) : Promise.resolve([]),
+    lgaCode ? loadDcpClausesForSections(deps.getDCPContext, lgaCode, SEE_SECTION_DCP_QUERIES) : Promise.resolve(new Map<string, ScoredDcpClause[]>()),
     deps.getWorkspaceSourceContext({
       projectId: project.id,
       lgaCode,
@@ -693,6 +746,9 @@ export async function createPreSeePlanningMemoArtefact({
         })
       : Promise.resolve(null),
   ]);
+
+  const dcpSectionPromptContext = buildDcpSectionPromptContext(dcpSectionClauses);
+  const dcpClauseCounts = countDcpClausesBySection(dcpSectionClauses);
 
   const siteDescription = {
     address: quickSiteCheck.site.address ?? null,
@@ -717,6 +773,7 @@ export async function createPreSeePlanningMemoArtefact({
     memoType: "pre_see_planning_memo",
     generatedAt: new Date().toISOString(),
     projectId: project.id,
+    dcpClauses: dcpClauseCounts,
     siteDescription,
     proposedWorksSummary:
       proposedWorksSummary ||
@@ -741,14 +798,14 @@ export async function createPreSeePlanningMemoArtefact({
       })),
       statutoryContext: statutoryContext
         ? {
-            promptBlock: [preSeeLepPromptBlock, statutoryContext.promptBlock].filter(Boolean).join("\n\n"),
+            promptBlock: [dcpSectionPromptContext, preSeeLepPromptBlock, statutoryContext.promptBlock].filter(Boolean).join("\n\n"),
             lepClauses: statutoryContext.lepClauses,
             dcpClauses: statutoryContext.dcpClauses,
             sourceTypes: statutoryContext.sourceTypes,
           }
-        : preSeeLepPromptBlock
+        : dcpSectionPromptContext || preSeeLepPromptBlock
           ? {
-              promptBlock: preSeeLepPromptBlock,
+              promptBlock: [dcpSectionPromptContext, preSeeLepPromptBlock].filter(Boolean).join("\n\n"),
               lepClauses: [],
               dcpClauses: [],
               sourceTypes: ["cited"],
