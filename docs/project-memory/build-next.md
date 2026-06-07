@@ -79,6 +79,12 @@ Pull the top-5 DCP clauses by SEE section type (setbacks, heights, parking, land
 
 **Success signal:** each generated SEE section cites section-specific DCP clause text and avoids generic control numbers when a retrieved DCP clause is unavailable.
 
-## 11) Workspace-chat DCP grounding
+## 11) Workspace-chat DCP grounding — DONE ✓
 
-Inject top-3 DCP clauses into workspace-chat system prompt for user-initiated questions about setbacks, height, parking, and landscaping, keyed by the detected topic from the user's message.
+Inject top-5 DCP clauses into workspace-chat system prompt for user-initiated questions about setbacks, height, parking, and landscaping, keyed by the detected topic from the user's message.
+
+**Success signal:** workspace-chat retrieves topic-aware DCP clauses for setbacks, height, parking, landscaping and related controls before building the system prompt, and falls back gracefully when no topic-specific clauses are available.
+
+## 12) Artefact confidence scoring
+
+After each chat response, parse assistant message for confidence signals (cited clause numbers, hedging language, unresolved gaps) and persist a `confidence_score` + `confidence_breakdown` JSON to the ChatMessage row.
