@@ -73,8 +73,12 @@ Wire retrieved LEP context and parsed zone data into Quick Site Check artefacts,
 
 **Success signal:** site check, chat, and Pre-SEE outputs prefer real retrieved LEP zone/permissibility/control evidence and flag LEP-sourced controls in artefact JSON.
 
-## 10) DCP Clause Injection into SEE Sections
+## 10) DCP Clause Injection into SEE Sections — DONE ✓
 
 Pull the top-5 DCP clauses by SEE section type (setbacks, heights, parking, landscaping) into each SEE section prompt so the AI writes to actual control numbers.
 
 **Success signal:** each generated SEE section cites section-specific DCP clause text and avoids generic control numbers when a retrieved DCP clause is unavailable.
+
+## 11) Workspace-chat DCP grounding
+
+Inject top-3 DCP clauses into workspace-chat system prompt for user-initiated questions about setbacks, height, parking, and landscaping, keyed by the detected topic from the user's message.
