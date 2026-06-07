@@ -183,15 +183,135 @@ test("creates a quick_site_check artefact with the report payload", async () => 
     body: { projectId: "proj-2", title: "Quick Site Check — 123 Test St", type: "quick_site_check", report },
     projectId: "proj-2",
     userId: "user-2",
-    deps: { prisma: prisma as any },
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => ({
+        lepContext: null,
+        rawLga: null,
+        normalisedLga: null,
+        instruments: [],
+        chosenInstrumentId: null,
+        lepClauseCount: 0,
+        usedFallback: true,
+      }),
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP data" }),
+    },
   });
 
   assert.equal(artefact.type, "quick_site_check");
   assert.equal(artefact.title, "Quick Site Check — 123 Test St");
-  assert.deepEqual(artefact.payload, report);
+  assert.deepEqual(artefact.payload, {
+    ...report,
+    controls: {
+      heightOfBuilding: { ...report.controls.heightOfBuilding, lepSource: false },
+      floorSpaceRatio: { ...report.controls.floorSpaceRatio, lepSource: false },
+      minimumLotSize: { ...report.controls.minimumLotSize, lepSource: false },
+    },
+  });
   assert.equal(artefact.notes, "A note");
 });
 
+test("creates a quick_site_check artefact enriched with real LEP values", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "123 Test St", lga: "Byron", zoneCode: "R2", zoneName: "Low Density Residential" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: null, present: false, interpretation: "Fallback height" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Fallback FSR" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Fallback MLS" },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — 123 Test St", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => ({
+        lepContext: {
+          lga: "Byron",
+          instrumentName: "Byron LEP 2014",
+          instrumentCode: "byron-lep-2014",
+          clauses: [
+            { ref: "4.3", title: "Height of buildings", text: "The height of a building must not exceed 8.5m." },
+            { ref: "4.4", title: "Floor space ratio", text: "The maximum floor space ratio for a building is 0.5:1." },
+            { ref: "4.1", title: "Minimum subdivision lot size", text: "The minimum lot size shown for the land is 600 sqm." },
+          ],
+        },
+        rawLga: "Byron",
+        normalisedLga: "BYRON",
+        instruments: [],
+        chosenInstrumentId: "lep-1",
+        lepClauseCount: 3,
+        usedFallback: false,
+      }),
+      buildQuickSiteCheckLep: async () => ({
+        ok: true,
+        projectId: "proj-2",
+        lga: "Byron",
+        lepName: "Byron LEP 2014",
+        zone: "R2",
+        objectives: ["To provide for the housing needs of the community."],
+        landUse: { withoutConsent: ["Home occupations"], withConsent: ["Dwelling houses"], prohibited: ["Industries"] },
+        part4: [],
+        part5: [],
+        part6: [],
+      }),
+    },
+  });
+
+  const payload = artefact.payload as QuickSiteCheckReport;
+  assert.equal(payload.lepInstrument?.name, "Byron LEP 2014");
+  assert.equal(payload.permissibility?.permittedWithConsent[0], "Dwelling houses");
+  assert.equal(payload.controls.heightOfBuilding.value, "8.5m");
+  assert.equal(payload.controls.heightOfBuilding.source, "lep");
+  assert.equal(payload.controls.heightOfBuilding.lepSource, true);
+  assert.equal(payload.controls.floorSpaceRatio.value, "0.5:1");
+  assert.equal(payload.controls.minimumLotSize.value, "600 sqm");
+});
+
+test("creates a quick_site_check artefact when LEP enrichment fails", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "123 Test St" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: "12m", present: true, interpretation: "Fallback height" },
+      floorSpaceRatio: { label: "FSR", value: "1:1", present: true, interpretation: "Fallback FSR" },
+      minimumLotSize: { label: "MLS", value: "450sqm", present: true, interpretation: "Fallback MLS" },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — 123 Test St", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => {
+        throw new Error("LEP unavailable");
+      },
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP data" }),
+    },
+  });
+
+  const payload = artefact.payload as QuickSiteCheckReport;
+  assert.equal(payload.controls.heightOfBuilding.value, "12m");
+  assert.equal(payload.controls.heightOfBuilding.lepSource, false);
+  assert.equal(payload.controls.floorSpaceRatio.value, "1:1");
+});
 
 test("creates a pre_see_planning_memo artefact with structured content", async () => {
   const prisma = new MockPrisma({ "proj-3": ["user-3"] });
@@ -263,6 +383,16 @@ test("creates a pre_see_planning_memo artefact with structured content", async (
           },
         ],
       }),
+      getLepContextForProject: async () => ({
+        lepContext: null,
+        rawLga: null,
+        normalisedLga: null,
+        instruments: [],
+        chosenInstrumentId: null,
+        lepClauseCount: 0,
+        usedFallback: true,
+      }),
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP data" }),
     },
   });
 

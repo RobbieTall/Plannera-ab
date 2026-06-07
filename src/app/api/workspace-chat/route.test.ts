@@ -13,6 +13,7 @@ const {
   lgaCoverageFindUniqueMock,
   queueLgaPreparationMock,
   buildStatutoryContextBlockMock,
+  buildQuickSiteCheckLepMock,
   chatMessageCreateManyMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   lgaCoverageFindUniqueMock: vi.fn(),
   queueLgaPreparationMock: vi.fn(),
   buildStatutoryContextBlockMock: vi.fn(),
+  buildQuickSiteCheckLepMock: vi.fn(),
   chatMessageCreateManyMock: vi.fn(),
 }));
 
@@ -99,6 +101,10 @@ vi.mock("@/lib/lep/nsw-lep-registry", () => ({
   listNswLgaKeys: vi.fn(() => ["byron", "kempsey"]),
 }));
 
+vi.mock("@/lib/lep/quick-site-check", () => ({
+  buildQuickSiteCheckLep: buildQuickSiteCheckLepMock,
+}));
+
 vi.mock("@/lib/lga-activation", () => ({
   queueLgaPreparation: queueLgaPreparationMock,
 }));
@@ -142,6 +148,7 @@ describe("workspace-chat forced fallback", () => {
     lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
     queueLgaPreparationMock.mockResolvedValue({ queued: true, coverageState: "QUEUED" });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
+    buildQuickSiteCheckLepMock.mockResolvedValue({ ok: false, message: "No LEP zone summary" });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [],
       lepClauses: [],
@@ -230,6 +237,7 @@ describe("workspace-chat forced fallback", () => {
       ],
     });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
+    buildQuickSiteCheckLepMock.mockResolvedValue({ ok: false, message: "No LEP zone summary" });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [
         {
