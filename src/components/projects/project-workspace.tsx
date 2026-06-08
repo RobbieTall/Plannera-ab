@@ -44,6 +44,7 @@ import { useRouter } from "next/navigation";
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
+import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge";
 import { LgaCoverageStatusPanel } from "@/components/projects/lga-coverage-status-panel";
 import { ProjectNotificationsPanel } from "@/components/projects/project-notifications-panel";
 import { ProjectIntelligenceCard } from "@/components/projects/project-intelligence-card";
@@ -114,6 +115,7 @@ type ServerChatHistoryMessage = {
   role: string;
   content: string;
   createdAt: string;
+  confidenceScore?: number | null;
 };
 
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
@@ -707,6 +709,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             role: message.role,
             content: message.content,
             timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            confidenceScore: message.confidenceScore ?? null,
           }));
 
         setMessages(hydratedMessages);
@@ -2493,6 +2496,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                         lgaCode={siteContext?.lgaCode ?? sessionSignals.lga}
                       />
                     ) : null}
+                    {message.role === "assistant" ? <ChatConfidenceBadge score={message.confidenceScore} /> : null}
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
                   </article>
                 ))

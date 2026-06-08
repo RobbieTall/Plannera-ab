@@ -8,6 +8,7 @@ export type WorkspaceMessage = {
   content: string;
   timestamp: string;
   sourceAttribution?: SourceAttribution;
+  confidenceScore?: number | null;
 };
 
 export type WorkspaceSessionSignals = {

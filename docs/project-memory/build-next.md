@@ -89,10 +89,14 @@ Inject top-5 DCP clauses into workspace-chat system prompt for user-initiated qu
 
 After each chat response, parse assistant message for confidence signals (cited clause numbers, hedging language, unresolved gaps) and persist a `confidence_score` + `confidence_breakdown` JSON to the ChatMessage row.
 
-## 13) Surface confidence score in the workspace UI
+## 13) Surface confidence score in the workspace UI — DONE ✓
 
 Show a small confidence badge on each assistant chat bubble, sourced from the `confidenceScore` field returned by the chat-history GET endpoint.
 
 - Green for scores ≥0.7
 - Amber for scores 0.4–0.69
 - Red for scores <0.4
+
+## 14) Workspace chat export
+
+Add a Copy transcript button to the chat panel that copies the full conversation as markdown to the clipboard, including assistant confidence scores as footnotes.
