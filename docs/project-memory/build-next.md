@@ -113,6 +113,24 @@ Add a search input above the chat history that filters displayed messages by key
 
 Show relative time (e.g. "2 minutes ago", "just now") instead of HH:MM on assistant and user message bubbles, updating every minute via a useInterval hook.
 
-## 18) Message reactions
+## 18) Quick Site Check — make it the killer feature ← CURRENT PRIORITY
 
-Allow users to click a thumbs-up or thumbs-down icon on any assistant message bubble to rate it. Store the reaction in local state (no API persistence needed). Show a small reaction count next to the icon.
+Wire the Quick Site Check result to show: zone name, permissibility table (what's permitted/prohibited/consent required), key LEP controls (height, FSR, min lot size) — all sourced from real ingested LepClause data, not AI guessing. The check should take <5 seconds and show a confidence label (Cited/Inferred/Unavailable) on each data point.
+
+Success signal: user enters any NSW address → sees real zone + land use table sourced from the matching LEP XML within 5 seconds.
+
+## 19) Workspace chat — grounded responses with clause citations
+
+Every assistant response to a planning question must cite at least one real LEP clause reference (e.g. "Byron LEP 2014 cl. 4.3") when LEP data is available for that LGA. Show a "Sources" section below each response listing the clauses used.
+
+Success signal: ask "can I build a secondary dwelling at [Byron Bay address]?" → response cites real Byron LEP clauses, not generic advice.
+
+## 20) SEE Builder — real first draft
+
+The generate-SEE endpoint exists. Wire it end-to-end: user clicks "Generate SEE" → sections stream in with real LEP/DCP grounding → completed SEE is saved as an artefact → user can copy full text or download as .txt. This is the first thing users will pay for.
+
+Success signal: clicking Generate SEE produces a full structured Statement of Environmental Effects with real clause citations for a Byron Bay or Ballina property.
+
+## 21) README and product docs — keep current (DONE in this PR)
+
+## 22) Message reactions — low priority, do after 18-20 are solid.

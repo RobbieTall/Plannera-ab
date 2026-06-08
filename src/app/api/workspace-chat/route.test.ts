@@ -15,6 +15,8 @@ const {
   buildStatutoryContextBlockMock,
   buildQuickSiteCheckLepMock,
   chatMessageCreateManyMock,
+  projectFindUniqueMock,
+  resolveSiteInstrumentsMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
@@ -30,6 +32,8 @@ const {
   buildStatutoryContextBlockMock: vi.fn(),
   buildQuickSiteCheckLepMock: vi.fn(),
   chatMessageCreateManyMock: vi.fn(),
+  projectFindUniqueMock: vi.fn(),
+  resolveSiteInstrumentsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -38,7 +42,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: lgaCoverageFindUniqueMock,
     },
     project: {
-      findUnique: vi.fn(async () => null),
+      findUnique: projectFindUniqueMock,
     },
     chatMessage: {
       createMany: chatMessageCreateManyMock,
@@ -97,6 +101,10 @@ vi.mock("@/lib/legislation", () => ({
   searchClauses: searchClausesMock,
 }));
 
+vi.mock("@/lib/legislation/site-resolution", () => ({
+  resolveSiteInstruments: resolveSiteInstrumentsMock,
+}));
+
 vi.mock("@/lib/lep/nsw-lep-registry", () => ({
   listNswLgaKeys: vi.fn(() => ["byron", "kempsey"]),
 }));
@@ -116,7 +124,6 @@ vi.mock("@/lib/statutory-context-builder", () => ({
 import { detectMessageTopic } from "./dcp-topic";
 import { POST } from "./route";
 
-
 describe("detectMessageTopic", () => {
   it.each([
     ["what is the setback", "setbacks"],
@@ -134,7 +141,10 @@ describe("workspace-chat forced fallback", () => {
     vi.clearAllMocks();
     hasPlanningChatProviderMock.mockReturnValue(true);
     searchClausesMock.mockResolvedValue([]);
-    resolveInstrumentsForSiteMock.mockReturnValue({ lepInstrumentSlug: null, seppInstrumentSlugs: [] });
+    resolveInstrumentsForSiteMock.mockReturnValue({
+      lepInstrumentSlug: null,
+      seppInstrumentSlugs: [],
+    });
     getSiteContextForProjectMock.mockResolvedValue({
       formattedAddress: "3 Garruka Way, South West Rocks NSW",
       lgaCode: "KEMPSEY",
@@ -150,7 +160,10 @@ describe("workspace-chat forced fallback", () => {
       lepData: null,
       dcpData: null,
     });
-    getLepContextForProjectMock.mockResolvedValue({ lepContext: null, usedFallback: false });
+    getLepContextForProjectMock.mockResolvedValue({
+      lepContext: null,
+      usedFallback: false,
+    });
     getWorkspaceSourceContextMock.mockResolvedValue({
       canonicalLgaCode: "KEMPSEY",
       hasCouncilDcp: false,
@@ -160,13 +173,27 @@ describe("workspace-chat forced fallback", () => {
     });
     getDCPContextMock.mockResolvedValue([]);
     lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
-    queueLgaPreparationMock.mockResolvedValue({ queued: true, coverageState: "QUEUED" });
+    queueLgaPreparationMock.mockResolvedValue({
+      queued: true,
+      coverageState: "QUEUED",
+    });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
-    buildQuickSiteCheckLepMock.mockResolvedValue({ ok: false, message: "No LEP zone summary" });
+    projectFindUniqueMock.mockResolvedValue(null);
+    resolveSiteInstrumentsMock.mockResolvedValue({
+      address: "3 Garruka Way, South West Rocks NSW",
+      localGovernmentArea: "Kempsey Shire",
+      instrumentSlugs: [],
+      rationale: [],
+    });
+    buildQuickSiteCheckLepMock.mockResolvedValue({
+      ok: false,
+      message: "No LEP zone summary",
+    });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [],
       lepClauses: [],
-      promptBlock: "--- RETRIEVED PLANNING CONTROLS FOR KEMPSEY ---\nLEP PROVISIONS:\nNo LEP clauses were found for this query in the retrieved planning controls.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---",
+      promptBlock:
+        "--- RETRIEVED PLANNING CONTROLS FOR KEMPSEY ---\nLEP PROVISIONS:\nNo LEP clauses were found for this query in the retrieved planning controls.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---",
       sourceTypes: ["unresolved"],
     });
   });
@@ -176,7 +203,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for a dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for a dual occupancy?",
       }),
     });
 
@@ -211,7 +239,8 @@ describe("workspace-chat forced fallback", () => {
         ref: "D1.2",
         title: "Setbacks",
         headingPath: ["Chapter D1", "Dual Occupancy"],
-        bodyText: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
+        bodyText:
+          "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.",
       },
     ]);
     callModelMock.mockResolvedValue("Front setback 4.5m (Chapter D1).");
@@ -220,7 +249,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -235,7 +265,6 @@ describe("workspace-chat forced fallback", () => {
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.reply).toContain("4.5m");
   });
-
 
   it("injects retrieved statutory DCP clauses into the model context", async () => {
     getWorkspaceSourceContextMock.mockResolvedValue({
@@ -255,7 +284,17 @@ describe("workspace-chat forced fallback", () => {
       ],
     });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
-    buildQuickSiteCheckLepMock.mockResolvedValue({ ok: false, message: "No LEP zone summary" });
+    projectFindUniqueMock.mockResolvedValue(null);
+    resolveSiteInstrumentsMock.mockResolvedValue({
+      address: "3 Garruka Way, South West Rocks NSW",
+      localGovernmentArea: "Kempsey Shire",
+      instrumentSlugs: [],
+      rationale: [],
+    });
+    buildQuickSiteCheckLepMock.mockResolvedValue({
+      ok: false,
+      message: "No LEP zone summary",
+    });
     buildStatutoryContextBlockMock.mockResolvedValue({
       dcpClauses: [
         {
@@ -265,7 +304,11 @@ describe("workspace-chat forced fallback", () => {
         },
       ],
       lepClauses: [
-        { clauseKey: "4.3", heading: "Height of buildings", value: "Maximum height must come from the Height of Buildings Map." },
+        {
+          clauseKey: "4.3",
+          heading: "Height of buildings",
+          value: "Maximum height must come from the Height of Buildings Map.",
+        },
       ],
       promptBlock:
         "--- RETRIEVED PLANNING CONTROLS FOR BYRON ---\nLEP PROVISIONS:\n- [Byron LEP 2014 4.3]: Height of buildings — Maximum height must come from the Height of Buildings Map.\nDCP PROVISIONS:\n- [D1.2] Setbacks: Minimum front setback 4.5m, side setback 1.5m, rear setback 3m.\n--- END RETRIEVED PLANNING CONTROLS ---",
@@ -277,7 +320,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -285,9 +329,18 @@ describe("workspace-chat forced fallback", () => {
 
     expect(response.status).toBe(200);
     expect(callModelMock).toHaveBeenCalledTimes(1);
-    const messages = callModelMock.mock.calls[0]?.[1] as Array<{ role: string; content: string }>;
-    expect(messages.some((message) => message.content.includes("[D1.2] Setbacks"))).toBe(true);
-    expect(messages.some((message) => message.content.includes("Minimum front setback 4.5m"))).toBe(true);
+    const messages = callModelMock.mock.calls[0]?.[1] as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(
+      messages.some((message) => message.content.includes("[D1.2] Setbacks")),
+    ).toBe(true);
+    expect(
+      messages.some((message) =>
+        message.content.includes("Minimum front setback 4.5m"),
+      ),
+    ).toBe(true);
   });
 
   it("returns fallback and skips model when retrieved excerpts lack setback evidence for setback question", async () => {
@@ -320,7 +373,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -328,7 +382,9 @@ describe("workspace-chat forced fallback", () => {
     const payload = (await response.json()) as { reply: string };
 
     expect(response.status).toBe(200);
-    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(payload.reply).toContain(
+      "can’t confirm dual occupancy setback requirements",
+    );
     expect(payload.reply).toContain("Available retrieved sections right now");
     expect(callModelMock).not.toHaveBeenCalled();
   });
@@ -345,7 +401,8 @@ describe("workspace-chat forced fallback", () => {
           lgaCode: "BYRON",
           sourceType: "council_dcp",
           heading: "Chapter D1 General Residential",
-          content: "Deep soil in front setback must include one contiguous area of 20m2.",
+          content:
+            "Deep soil in front setback must include one contiguous area of 20m2.",
           metadata: {},
         },
       ],
@@ -355,7 +412,8 @@ describe("workspace-chat forced fallback", () => {
         ref: "D1.5.2",
         title: "Deep soil zones",
         headingPath: ["Chapter D1", "General Residential"],
-        bodyText: "Provide minimum 25% deep soil area and one contiguous 20m2 area in front setback.",
+        bodyText:
+          "Provide minimum 25% deep soil area and one contiguous 20m2 area in front setback.",
       },
     ]);
 
@@ -363,7 +421,8 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({
         projectId: "proj-1",
-        message: "What are the front, side and rear setbacks for dual occupancy?",
+        message:
+          "What are the front, side and rear setbacks for dual occupancy?",
       }),
     });
 
@@ -371,7 +430,9 @@ describe("workspace-chat forced fallback", () => {
     const payload = (await response.json()) as { reply: string };
 
     expect(response.status).toBe(200);
-    expect(payload.reply).toContain("can’t confirm dual occupancy setback requirements");
+    expect(payload.reply).toContain(
+      "can’t confirm dual occupancy setback requirements",
+    );
     expect(callModelMock).not.toHaveBeenCalled();
   });
 
@@ -402,7 +463,8 @@ describe("workspace-chat forced fallback", () => {
         ref: "D1.2",
         title: "Setbacks",
         headingPath: ["Chapter D1", "Dual Occupancy"],
-        bodyText: "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m for dual occupancy development.",
+        bodyText:
+          "Minimum front setback 4.5m, side setback 1.5m, rear setback 3m for dual occupancy development.",
       },
     ]);
     searchClausesMock.mockResolvedValue([
@@ -413,7 +475,8 @@ describe("workspace-chat forced fallback", () => {
         clauseId: "clause-1",
         clauseKey: "4.1C",
         title: "Dual occupancies",
-        snippet: "Development consent may be granted for dual occupancy development.",
+        snippet:
+          "Development consent may be granted for dual occupancy development.",
         isCurrent: true,
         currentAsAt: new Date("2026-01-01T00:00:00.000Z"),
       },
@@ -430,7 +493,9 @@ describe("workspace-chat forced fallback", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(200);
-    expect(resolveInstrumentsForSiteMock).toHaveBeenCalledWith({ lgaName: "byron" });
+    expect(resolveInstrumentsForSiteMock).toHaveBeenCalledWith({
+      lgaName: "byron",
+    });
     expect(searchClausesMock).toHaveBeenCalledWith({
       query: "What are the setbacks for dual occupancy in Byron Shire?",
       instrumentSlugs: ["byron-lep-2014", "sepp-housing-2021"],
@@ -452,15 +517,100 @@ describe("workspace-chat forced fallback", () => {
     });
 
     const response = await POST(request);
-    const payload = (await response.json()) as { reply: string; coverageState: string; coverageNotice: string };
+    const payload = (await response.json()) as {
+      reply: string;
+      coverageState: string;
+      coverageNotice: string;
+    };
 
     expect(response.status).toBe(200);
-    expect(queueLgaPreparationMock).toHaveBeenCalledWith({ lgaCode: "KEMPSEY", projectId: "proj-1" });
+    expect(queueLgaPreparationMock).toHaveBeenCalledWith({
+      lgaCode: "KEMPSEY",
+      projectId: "proj-1",
+    });
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.coverageState).toBe("QUEUED");
-    expect(payload.coverageNotice).toContain("local DCP controls are being prepared");
-    const messages = callModelMock.mock.calls[0]?.[1] as Array<{ role: string; content: string }>;
-    expect(messages.some((message) => message.content.includes("Do not fabricate or infer council-specific"))).toBe(true);
+    expect(payload.coverageNotice).toContain(
+      "local DCP controls are being prepared",
+    );
+    const messages = callModelMock.mock.calls[0]?.[1] as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(
+      messages.some((message) =>
+        message.content.includes("Do not fabricate or infer council-specific"),
+      ),
+    ).toBe(true);
   });
 
+  it("resolves the workspace LGA from the project address and passes it into statutory context", async () => {
+    projectFindUniqueMock.mockResolvedValueOnce({
+      address: "1 River Street, Ballina NSW 2478",
+    });
+    resolveSiteInstrumentsMock.mockResolvedValueOnce({
+      address: "1 River Street, Ballina NSW 2478",
+      localGovernmentArea: "Ballina",
+      instrumentSlugs: ["ballina-lep-2012"],
+      rationale: [],
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: null,
+      hasCouncilDcp: false,
+      perSourceTotals: {},
+      councilDcpSampleHeadings: [],
+      chunks: [],
+    });
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [],
+      lepClauses: [
+        {
+          clauseKey: "4.3",
+          heading: "Height of buildings",
+          value:
+            "The height of a building is not to exceed the mapped maximum height.",
+          instrumentName: "Ballina Local Environmental Plan 2012",
+        },
+      ],
+      promptBlock:
+        "--- RETRIEVED PLANNING CONTROLS FOR BALLINA ---\nLEP PROVISIONS:\n- [Ballina Local Environmental Plan 2012 4.3]: Height of buildings — The height of a building is not to exceed the mapped maximum height.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---",
+      sourceTypes: ["cited"],
+    });
+    callModelMock.mockResolvedValue("Ballina LEP clause-grounded answer.");
+
+    const request = new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "proj-1",
+        message: "What height control applies to this site?",
+      }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(projectFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "proj-1" },
+      select: { address: true },
+    });
+    expect(resolveSiteInstrumentsMock).toHaveBeenCalledWith({
+      address: "1 River Street, Ballina NSW 2478",
+    });
+    expect(buildStatutoryContextBlockMock).toHaveBeenCalledWith({
+      lgaCode: "BALLINA",
+      query: "What height control applies to this site?",
+      maxDcpClauses: 5,
+      maxLepClauses: 3,
+    });
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+    const messages = callModelMock.mock.calls[0]?.[1] as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(
+      messages.some((message) =>
+        message.content.includes("Ballina Local Environmental Plan 2012 4.3"),
+      ),
+    ).toBe(true);
+  });
 });

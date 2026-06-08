@@ -1,236 +1,88 @@
-# Plannera.ai - AB Version
+# Plannera
 
-AI-powered property development platform that generates council documents, feasibility reports, and guides users through development milestones.
+Plannera is an AI-powered NSW planning intelligence platform for property owners, planners, consultants, designers, and small developers who need fast, source-aware planning clarity before they commit time or money.
 
-## Tech Stack
+The product is built around a simple loop:
 
-- Next.js 14 with the App Router
-- TypeScript
-- Tailwind CSS 3
-- NextAuth.js for passwordless authentication
-- Prisma ORM with a PostgreSQL database
-- ESLint & Prettier defaults from Next.js
+1. **Address entry** — the user starts with a NSW property address.
+2. **Quick Site Check** — Plannera resolves the site and returns real LEP zone and permissibility intelligence.
+3. **Grounded workspace chat** — the assistant answers planning questions using retrieved LEP clauses and available DCP material.
+4. **SEE artefact builder** — Plannera drafts Statement of Environmental Effects content from the project context and statutory sources.
+5. **Export** — users copy or export grounded outputs for review and further project work.
 
-## Getting Started
+## Tech stack
 
-1. Install dependencies:
+- **Next.js 14 App Router**
+- **TypeScript**
+- **Tailwind CSS**
+- **NextAuth** for authentication
+- **Prisma** with **Neon PostgreSQL**
+- **OpenAI** for planning assistant and document-generation workflows
 
-   ```bash
-   npm install
-   ```
+## Planning data pipeline
 
-2. Configure environment variables by copying `.env.example` to `.env` and filling in the values for:
+Plannera bundles 160+ NSW LEP XML fixtures in `data/nsw/xml/`, covering all NSW LGAs represented by the local XML corpus.
 
-   - `DATABASE_URL` – PostgreSQL connection string (see the [Database setup](#database-setup) section for the exact retrieval steps)
-   - `NEXTAUTH_URL` – the public base URL of your app (e.g. `http://localhost:3000` in development)
-   - `NEXTAUTH_SECRET` – secret for signing NextAuth cookies/tokens
-   - `EMAIL_SERVER_*` & `EMAIL_FROM` – SMTP credentials for sending magic links
-   - `NSW_PROPERTY_API_*`, `NSW_WATER_API_*`, `NSW_TRADES_API_*` – optional NSW Planning API endpoints + keys. When omitted, local fixtures are used for development.
+LEP ingestion is handled by the admin endpoint:
 
-3. Start the development server:
+```http
+POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET[&lga=LGACODE][&force=true]
+```
 
-   ```bash
-   npm run dev
-   ```
+The ingestion pipeline parses the bundled LEP XML files and stores current LEP provisions in the Prisma `Clause` records for LEP instruments. DCP provisions are stored in the `DCPClause` table and are retrieved separately for local development-control grounding.
 
-The app runs on [http://localhost:3000](http://localhost:3000).
+To inspect current LEP database coverage:
 
-### Authentication flows
+```http
+GET /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET
+```
 
-- Visit `/signin` to request a passwordless magic link.
-- `/dashboard` is protected by middleware and requires an authenticated session.
-- Use the magic-link email sent by NextAuth to sign in; the dashboard displays basic session details and provides a sign-out action.
+The GET response returns:
 
-### Available Scripts
+```json
+{ "lepClauseCount": 0, "lgasCovered": [] }
+```
 
-- `npm run dev` – start the Next.js development server.
-- `npm run build` – generate the Prisma client and create an optimized production build.
-- `npm run start` – start the production server after building.
-- `npm run lint` – run ESLint using the Next.js configuration.
-- `npm run legislation:ingest` – load the configured NSW planning instruments into the local database.
-- `npm run legislation:sync` – re-fetch sources and create new clause versions when changes are detected.
-- `npm run nsw:data:test` – run the NSW property/water/trades ingest + parse pipeline against fixtures or live APIs.
+## LGA coverage
 
-### Deploying to Vercel
+Plannera’s NSW LEP coverage is fixture-backed across the bundled NSW XML set in `data/nsw/xml/`. Use the ingest endpoint above to seed LEP data into the connected database before relying on Quick Site Check or workspace-chat clause grounding in an environment.
 
-Configure these environment variables in your Vercel project settings so the deployment build succeeds and authentication remains functional:
+## Environment variables
 
-- `DATABASE_URL`
-- `NEXTAUTH_URL`
-- `NEXTAUTH_SECRET`
-- `EMAIL_SERVER_HOST`
-- `EMAIL_SERVER_PORT`
-- `EMAIL_SERVER_USER`
-- `EMAIL_SERVER_PASSWORD`
-- `EMAIL_FROM`
+Required for a production-like deployment:
 
-Vercel runs `npm run build` during deployment, which now executes `prisma generate` before `next build` to ensure the Prisma client is available at build time.
+- `DATABASE_URL` — PostgreSQL connection string for Prisma/Neon.
+- `NEXTAUTH_URL` — public base URL for NextAuth callbacks.
+- `NEXTAUTH_SECRET` — secret for signing NextAuth cookies and tokens.
+- `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_FROM` — SMTP configuration for magic-link email.
+- `OPENAI_API_KEY` — OpenAI API key for assistant and generation workflows.
+- `INGEST_ADMIN_SECRET` — shared secret protecting LEP ingestion endpoints.
 
-Pending Prisma migrations are applied automatically during deployments via `npm run migrate:deploy` (see the `vercel-build` script), so the hosted database stays in sync with `prisma/schema.prisma`.
+Optional integrations:
 
-## Database setup
+- `GOOGLE_MAPS_API_KEY` — optional address/geocoding support.
+- `NSW_PROPERTY_API_*` — optional NSW property API configuration when live property feeds are enabled.
 
-This project uses Prisma with a PostgreSQL database hosted on Vercel/Neon. Because `.env*` files are git-ignored, keep sensitive URLs out of commits and source them locally instead.
+## Available scripts
 
-1. **Retrieve production secrets from Vercel.** From a network that can reach Vercel run:
+```bash
+npm run dev
+npm run build
+npm run lint
+npm test
+```
 
-   ```bash
-   npm i -g vercel
-   vercel login                # follow the browser prompt
-   vercel link                 # run inside the repo to link to the Plannera project
-   vercel env pull .env.local  # grabs DATABASE_URL + friends for local use
-   ```
+Additional data and operational scripts exist for ingestion, NSW data checks, and smoke tests, but the commands above are the core development/build checks.
 
-   If CLI access is unavailable, copy the `DATABASE_URL` (and optional `DATABASE_URL_UNPOOLED`) directly from **Vercel → Project → Settings → Environment Variables**. The format is `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`.
+## Local development
 
-2. **Store the secrets locally.** The recommended file for local development is `.env.local`:
+Install dependencies and start the app:
 
-   ```bash
-   # .env.local (never commit this)
-   DATABASE_URL="postgresql://...pooler.../neondb?sslmode=require"
-   DATABASE_URL_UNPOOLED="postgresql://...primary.../neondb?sslmode=require"
-   PGHOST="ep-...-pooler.ap-southeast-2.aws.neon.tech"
-   ```
+```bash
+npm install
+npm run dev
+```
 
-   Prisma automatically reads `.env` and `.env.local`, so no additional wiring is required.
+The app runs at [http://localhost:3000](http://localhost:3000).
 
-3. **(Optional) expose a direct connection string.** If you prefer to keep the pooled URL in `DATABASE_URL`, set `PRISMA_DIRECT_URL` (or configure `directUrl` in `prisma/schema.prisma`) to point at the non-pooled Neon host for schema pushes/migrations.
-
-## Prisma workflows
-
-All Prisma commands assume a valid `DATABASE_URL` is present in your environment.
-
-- Generate (or re-generate) the Prisma client after schema edits:
-
-  ```bash
-  npx prisma generate
-  ```
-
-- Push the schema to the connected Neon database without generating a migration:
-
-  ```bash
-  npx prisma db push
-  ```
-
-- For local Postgres instances or if you need repeatable migrations, use:
-
-  ```bash
-  npx prisma migrate dev --name descriptive-name
-  ```
-
-> **Limitation / manual step:** Outbound traffic to TCP 5432 is blocked from this Codespaces-style environment, so `npx prisma db push` cannot reach the Neon host (`P1001`). Run the same command locally (or in CI) after adding the production `DATABASE_URL` to `.env.local` to materialize the tables. Once the push succeeds you can confirm the tables in Neon via `psql`/Prisma Studio.
-
-## Project Status
-
-Initializing fresh AB version with focus on:
-
-- Modular, testable components
-- Clean separation of concerns
-- Robust architecture to avoid fragility
-
-This foundation provides an opinionated landing experience that can be extended into the full Plannera.ai product.
-
-## Landing Experience Updates
-
-The root landing page now showcases the chat-first property development assistant described in the project brief:
-
-- Hero section with AI-focused messaging, large chat input, and curated example prompts.
-- Quick stats strip highlighting DA timeline tracking, document templates, and the consultant directory.
-- Interactive assistant that parses project descriptions, pulls mock council data, and renders requirements, documents, timelines, budgets, and approval hurdles.
-- Sign-up gate that allows a single free exploration before prompting users to create an account for downloads, exports, shares, or adding a second project.
-
-### Mock Data + Parsing
-
-Planning logic is decoupled into two files for simple future swaps:
-
-- `src/lib/project-parser.ts` – lightweight heuristics to extract location, development type, and scale from free-text descriptions. Update the keyword lists or parsing rules here as your use cases expand.
-- `src/lib/mock-planning-data.ts` – council requirement/timeline/budget mocks keyed by location. Replace the in-memory profiles with API calls or database lookups without changing the UI.
-
-`PlanningAssistant` (in `src/components/landing/planning-assistant.tsx`) consumes both helpers, so integrating a real knowledge base only requires swapping the data providers.
-
-## NSW Legislation Service (LEG-01)
-
-The backend NSW legislation service lives under `src/lib/legislation` and powers ingestion, versioning, and querying of planning instruments.
-
-### Data model
-
-- `Instrument` and `Clause` Prisma models capture metadata, clause versions, and search indices (`prisma/schema.prisma`).
-- Each clause record stores the parsed HTML/text, hierarchy path, `contentHash`, timestamps, and a `ClauseSearchIndex` row for lightweight text search.
-
-### Instrument configuration & fixtures
-
-- Instrument sources now live in `src/lib/legislation/instruments.json`. Each object defines the slug, display names, instrument type, jurisdiction, canonical NSW legislation URL, optional topics, and a `fixtureFile` used for deterministic development runs. The default bundle now covers the EPA Act + Regulation, the Housing, Biodiversity, Industry & Employment, Primary Production, Resilience, and Transport SEPPs, plus LEPs for Ballina, Byron, Kempsey, Lismore, Clarence Valley, Coffs Harbour, and the City of Sydney so the shared ingestion path sees a representative sample of NSW councils from day one.
-- `src/lib/legislation/config.ts` loads that JSON at runtime, normalises the paths, and exposes helper getters used by the ingestion and sync jobs. The default list includes the EPA Act 1979, EPA Regulation 2021, SEPP Housing 2021, Ballina LEP 2012, and the Sydney LEP 2012 so we cover Acts, Regulations, SEPPs and LEPs out of the box.
-- Deterministic fixtures (HTML or XML) continue to live under `scripts/fixtures/legislation/` and `data/nsw/`. Set `LEGISLATION_USE_FIXTURES=true` when running the ingestion or sync scripts to force the fetcher to use these files instead of the live NSW endpoint (helpful in CI or when the public site is unreachable).
-
-### Ingestion & sync
-
-1. Ensure `DATABASE_URL` is set locally (see [Database setup](#database-setup)).
-2. Run `npm run legislation:ingest` for a clean import. For each instrument the `LegislationFetcher` downloads the live NSW HTML (with retries, timeouts and fixture fallbacks), hands it to the parser, and stores the parsed clauses as version `1` rows stamped with the fetch time.
-3. To poll for changes, run `npm run legislation:sync`. The job fetches again, compares `contentHash` values, creates superseding versions when the text changes, marks removed clauses as non-current, and updates `Instrument.lastSyncedAt`. Set `LEGISLATION_USE_FIXTURES=true` to simulate a run against the bundled HTML snapshots.
-
-### Query APIs
-
-`src/lib/legislation/service.ts` exposes reusable functions:
-
-- `searchClauses({ query, instrumentSlugs, instrumentTypes, isCurrent })` – ranked free-text search returning clause summaries with `currentAsAt` dates.
-- `getClauseById`/`getClauseByKey` – fetch full clause content plus version metadata.
-- `getApplicableClausesForSite({ address, parcelId?, topic? })` – stub resolver that maps a site to applicable instruments (state-wide SEPPs + inferred LEP) and runs a scoped search.
-
-### Platform integration & HTTP endpoints
-
-- `/api/chat` now enriches every planning summary request with applicable NSW clauses, feeds the snippets into the OpenAI prompt, and returns a `legislation` block alongside the existing `summary` payload so artefact generators and future tools can reuse the same context.
-- `/api/legislation/search` (`POST`) – accepts the same filters as `searchClauses` and returns serialized clause summaries.
-- `/api/legislation/clauses/[clauseId]` (`GET`) – loads a clause (latest version by ID) with HTML/text + version metadata.
-- `/api/legislation/clauses/by-key/[clauseKey]?version=2` (`GET`) – resolves a clause by its canonical key and optional version number.
-- `/api/legislation/applicable` (`POST`) – resolves the instruments for a site/topic and returns the filtered clause set.
-
-All API responses serialize dates to ISO strings, making them safe to consume from browser or server components.
-
-### Adding a new instrument
-
-Because coverage is config-driven, adding another NSW instrument later is a data-only change:
-
-- Append a JSON object to `src/lib/legislation/instruments.json` with the slug, names, `instrumentType`, canonical NSW legislation URL, and optional `clausePrefix`, `topics`, or `fixtureFile`.
-- (Optional) drop a snapshot HTML file under `scripts/fixtures/legislation/` and point `fixtureFile` at it so local runs stay deterministic.
-- Run `npm run legislation:ingest` to import the new instrument for the first time, or `npm run legislation:sync` after that to keep all configured instruments current.
-- Use the exported query helpers (or Prisma) to verify the clauses.
-
-## NSW Planning data feeds (DATA-02)
-
-The NSW property, water and trades APIs are ingested through the helpers in `src/lib/nsw`.
-
-- `getNswPlanningSnapshot` orchestrates fetch + parse cycles for the three datasets. When the `NSW_*` environment variables are
-  set it will fetch the live NSW Planning endpoints with the configured API keys; otherwise it falls back to deterministic JSON
-  fixtures in `scripts/fixtures/nsw-data/` for development.
-- `/api/chat` now calls `getNswPlanningSnapshot` for every request so chats and downstream tools receive the latest property,
-  water and trades context alongside the planning summary and legislation snippets.
-- `npm run nsw:data:test` executes `scripts/nsw-data-check.ts`, exercising the ingest/parse logic in isolation. This provides a
-  quick health check that the environment has valid API keys and that the returned payloads can be parsed.
-- The landing `PlanningAssistant` component displays the live NSW dataset snippets so users can see what was pulled in from the
-  portal during each run.
-
-## Workspace + Dashboard Enhancements
-
-- **Navigation + Dashboard.** Every workspace now includes a persistent "← My Projects" button that returns to the `/dashboard` overview. The new dashboard lists all mock projects (name, type, location, created date), shows the remaining free project allowance, and links back to the landing page for new project creation.
-- **Single-click project generation.** The landing "Generate planning pathway" button fires immediately, shows a loading indicator, and records the newly generated project/chat history in the shared experience store. Anonymous users see the "You've used your 1 free project" modal if they attempt a second workspace.
-- **Chat persistence.** Initial project descriptions and AI summaries are saved as `WorkspaceMessage[]` via the `ExperienceProvider`. When a workspace loads, the chat panel replays that conversation and keeps it in scope for subsequent prompts.
-- **Free vs paid limits.** Guest visitors receive 1 project and 1 upload per workspace. Signed-in free plans unlock 5 uploads and limited tool runs, while Pro (or mocked authenticated) plans have higher caps. The dashboard, sources panel, and modals surface these usage indicators.
-- **Sources & uploads.** The Sources panel enforces upload limits, supports the requested file types (PDF, Word, Excel, JPEG/PNG, email, and GIS formats), parses lightweight context when possible, and feeds that context into chat responses.
-- **Server-side upload enforcement.** `/api/projects/[projectId]/uploads` persists uploaded files, counts usage per workspace tier (guest/free/pro), and returns structured `upload_limit_reached` errors so the UI can disable the Add button when a limit is hit.
-- **Tools & artefacts.** All six tools are marked as Pro with usage gating. Anonymous users are prompted to sign up, free users have limited runs, and Pro unlocks full access. "Save Chat" captures the conversation as a chat artefact, while a rich-text note editor replaces the tools panel when drafting new notes.
-- **Documented state management.** A reusable `ExperienceProvider` (in `src/components/providers/experience-provider.tsx`) tracks project usage, uploads, artefacts, tool runs, and chat history in localStorage so navigation between landing, dashboard, and workspace stays consistent.
-
-### File upload specification
-
-- Allowed types: `.pdf`, `.doc/.docx`, `.xls/.xlsx`, `.csv`, `.jpg/.jpeg/.png`, `.eml/.msg`, `.shp/.kml/.geojson`, `.txt`.
-- Guest: 1 upload per workspace, prompted to sign up immediately for more.
-- Free signed-in: 5 uploads per project (visual counter shown in Sources panel).
-- Pro: 100 uploads per project (configurable in the provider).
-- Each upload stores filename, size, upload date, optional status, and a short context snippet for the AI chat.
-
-### State management
-
-- `ExperienceProvider` wraps the entire app in `src/app/layout.tsx` and persists state to `localStorage`.
-- Exposes helper methods: `canStartProject`, `trackProjectCreation`, `getChatHistory`/`saveChatHistory`, `getUploadUsage`/`recordUpload`, `addArtefact`, `recordToolUsage`, and `appendSourceContext`.
-- Components use the provider to render usage indicators (dashboard, sources), gate modals, hydrate chats, and keep artefacts in sync across routes.
+Before testing LEP-grounded features against a database, ensure `DATABASE_URL` is set and run the LEP ingestion endpoint with `INGEST_ADMIN_SECRET`.
