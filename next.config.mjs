@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/admin/ingest-lep": ["./data/nsw/xml/**/*.xml"],
+    },
+  },
   images: {
     remotePatterns: [
       {

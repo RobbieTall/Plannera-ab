@@ -84,6 +84,8 @@ const getRegistry = (): RegistryState => {
 
 export const LOCAL_NSW_LEP_CONFIGS: InstrumentConfig[] = getRegistry().preparations.map((prep) => prep.config);
 
+export const listLocalNswLepPreparations = (): LepConfigPreparation[] => [...getRegistry().preparations];
+
 export const listNswLgaKeys = () => Array.from(getRegistry().lgaIndex.keys());
 
 export const resolveNswLgaKey = (lga: string | null | undefined): string | null => {

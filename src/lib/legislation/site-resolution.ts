@@ -12,10 +12,11 @@ interface SiteInput {
 }
 
 const LGA_KEYWORDS: Record<string, string[]> = {
-  "City of Sydney": ["sydney", "haymarket", "ultimo", "glebe"],
+  "City of Sydney": ["sydney", "haymarket", "ultimo", "glebe", "darlinghurst", "surry hills", "redfern"],
   "Northern Beaches": ["manly", "dee why", "brookvale"],
-  Ballina: ["ballina", "lennox", "skennars", "alstonville"],
+  Ballina: ["ballina", "lennox", "lennox head", "skennars", "skennars head", "alstonville"],
   "Byron Shire": ["byron", "byron bay", "mullumbimby", "bangalow", "ocean shores"],
+  Randwick: ["randwick", "coogee", "maroubra", "kensington", "kingsford"],
 };
 
 const DEFAULT_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter((config) => config.instrumentType === "SEPP").map(
