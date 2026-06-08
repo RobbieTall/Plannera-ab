@@ -109,6 +109,10 @@ After each assistant response, show 2-3 clickable question chips generated local
 
 Add a search input above the chat history that filters displayed messages by keyword in real time, highlighting matched text. Shows message count when filter is active.
 
-## 17) Chat message timestamps
+## 17) Chat message timestamps — DONE ✓
 
 Show relative time (e.g. "2 minutes ago", "just now") instead of HH:MM on assistant and user message bubbles, updating every minute via a useInterval hook.
+
+## 18) Message reactions
+
+Allow users to click a thumbs-up or thumbs-down icon on any assistant message bubble to rate it. Store the reaction in local state (no API persistence needed). Show a small reaction count next to the icon.
