@@ -57,6 +57,7 @@ import { Modal } from "@/components/ui/modal";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
+import { formatTranscript } from "@/lib/chat-transcript";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
 import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
@@ -533,6 +534,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
   const [hasClaimedProjects, setHasClaimedProjects] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -1346,6 +1348,13 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     setMessages([]);
     saveChatHistory(projectKey, []);
     setInput("");
+  };
+
+  const handleCopyTranscript = async () => {
+    const text = formatTranscript(messages);
+    await navigator.clipboard.writeText(text).catch(() => {});
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const saveChatArtefact = useCallback(() => {
@@ -2529,14 +2538,23 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs text-slate-400 dark:text-slate-500">Saved answers become project artefacts.</p>
                   {messages.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleNewThread}
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                    >
-                      <Plus className="h-3 w-3" />
-                      New thread
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleNewThread}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      >
+                        <Plus className="h-3 w-3" />
+                        New thread
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyTranscript}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      >
+                        {isCopied ? "Copied!" : "Copy transcript"}
+                      </button>
+                    </>
                   ) : null}
                 </div>
                 <button
