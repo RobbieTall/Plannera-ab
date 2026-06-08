@@ -39,8 +39,20 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
     requireSessionUserMock.mockResolvedValue({ userId: "user-1" });
     projectFindFirstMock.mockResolvedValue({ id: "project-1" });
     chatMessageFindManyMock.mockResolvedValue([
-      { role: "assistant", content: "Second", createdAt: new Date("2026-06-02T10:05:00.000Z") },
-      { role: "user", content: "First", createdAt: new Date("2026-06-02T10:00:00.000Z") },
+      {
+        role: "assistant",
+        content: "Second",
+        createdAt: new Date("2026-06-02T10:05:00.000Z"),
+        confidenceScore: 0.7,
+        confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
+      },
+      {
+        role: "user",
+        content: "First",
+        createdAt: new Date("2026-06-02T10:00:00.000Z"),
+        confidenceScore: null,
+        confidenceBreakdown: null,
+      },
     ]);
 
     const response = await GET(new NextRequest("http://localhost/api/projects/proj-1/chat-history"), {
@@ -58,14 +70,32 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
     });
     expect(chatMessageFindManyMock).toHaveBeenCalledWith({
       where: { projectId: "project-1" },
-      select: { role: true, content: true, createdAt: true },
+      select: {
+        role: true,
+        content: true,
+        createdAt: true,
+        confidenceScore: true,
+        confidenceBreakdown: true,
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
     expect(payload).toEqual({
       messages: [
-        { role: "user", content: "First", createdAt: "2026-06-02T10:00:00.000Z" },
-        { role: "assistant", content: "Second", createdAt: "2026-06-02T10:05:00.000Z" },
+        {
+          role: "user",
+          content: "First",
+          createdAt: "2026-06-02T10:00:00.000Z",
+          confidenceScore: null,
+          confidenceBreakdown: null,
+        },
+        {
+          role: "assistant",
+          content: "Second",
+          createdAt: "2026-06-02T10:05:00.000Z",
+          confidenceScore: 0.7,
+          confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
+        },
       ],
     });
   });

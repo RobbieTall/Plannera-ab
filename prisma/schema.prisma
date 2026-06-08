@@ -238,11 +238,13 @@ model Artefact {
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  projectId String
-  role      String // "user" | "assistant" | "system"
-  content   String
-  createdAt DateTime @default(now())
+  id                  String   @id @default(cuid())
+  projectId           String
+  role                String // "user" | "assistant" | "system"
+  content             String
+  confidenceScore     Float?
+  confidenceBreakdown Json?
+  createdAt           DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 

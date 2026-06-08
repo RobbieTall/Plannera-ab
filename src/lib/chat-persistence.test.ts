@@ -49,6 +49,49 @@ describe("chat persistence", () => {
     expect(createMany).not.toHaveBeenCalled();
   });
 
+  it("adds assistant confidence fields when confidence parsing is enabled", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+
+    await persistWorkspaceChatExchange({
+      prisma: { chatMessage: { createMany } },
+      projectId: "project-1",
+      incomingMessages: [{ role: "user", content: "Question" }],
+      assistantReply: "Clause 3.2 may apply.",
+      parseConfidence: true,
+    });
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        { projectId: "project-1", role: "user", content: "Question" },
+        {
+          projectId: "project-1",
+          role: "assistant",
+          content: "Clause 3.2 may apply.",
+          confidenceScore: 0.5,
+          confidenceBreakdown: { citedClauses: 1, hedgingPhrases: 1, unresolvedGaps: 0 },
+        },
+      ],
+    });
+  });
+
+  it("omits assistant confidence fields when confidence parsing is disabled", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+
+    await persistWorkspaceChatExchange({
+      prisma: { chatMessage: { createMany } },
+      projectId: "project-1",
+      incomingMessages: [{ role: "user", content: "Question" }],
+      assistantReply: "Clause 3.2 may apply.",
+    });
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        { projectId: "project-1", role: "user", content: "Question" },
+        { projectId: "project-1", role: "assistant", content: "Clause 3.2 may apply." },
+      ],
+    });
+  });
+
   it("logs DB errors without rethrowing", async () => {
     const createMany = vi.fn().mockRejectedValue(new Error("database offline"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
