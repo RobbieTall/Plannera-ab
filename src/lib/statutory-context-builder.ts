@@ -46,7 +46,10 @@ const tokenize = (value: string) =>
 
 const scoreText = (queryTokens: string[], text: string) => {
   const haystack = text.toLowerCase();
-  return queryTokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+  return queryTokens.reduce(
+    (score, token) => score + (haystack.includes(token) ? 1 : 0),
+    0,
+  );
 };
 
 const buildEmptyPromptBlock = (lgaCode: string) =>
@@ -59,17 +62,23 @@ const formatPromptBlock = (params: {
 }) => {
   const lepLines = params.lepClauses.length
     ? params.lepClauses.map((clause) => {
-        const instrument = clause.instrumentName ? `${clause.instrumentName} ` : "";
+        const instrument = clause.instrumentName
+          ? `${clause.instrumentName} `
+          : "";
         return `- [${instrument}${clause.clauseKey}]: ${clause.heading} — ${truncateForPrompt(clause.value, LEP_PROMPT_EXCERPT_LENGTH)}`;
       })
-    : ["No LEP clauses were found for this query in the retrieved planning controls."];
+    : [
+        "No LEP clauses were found for this query in the retrieved planning controls.",
+      ];
 
   const dcpLines = params.dcpClauses.length
     ? params.dcpClauses.map(
         (clause) =>
           `- [${clause.clauseNumber || "DCP clause"}] ${clause.heading}: ${truncateForPrompt(clause.body, DCP_PROMPT_EXCERPT_LENGTH)}`,
       )
-    : ["No DCP clauses were found for this query in the retrieved planning controls."];
+    : [
+        "No DCP clauses were found for this query in the retrieved planning controls.",
+      ];
 
   return [
     `--- RETRIEVED PLANNING CONTROLS FOR ${params.lgaCode.toUpperCase()} ---`,
@@ -109,12 +118,18 @@ const findLepClauses = async (params: {
         heading: clause.title?.trim() || clause.clauseKey,
         value: clause.bodyText,
         instrumentName: instrument.name,
-        score: scoreText(queryTokens, `${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`),
+        score: scoreText(
+          queryTokens,
+          `${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`,
+        ),
       })),
     )
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      return a.clauseKey.localeCompare(b.clauseKey, undefined, { numeric: true, sensitivity: "base" });
+      return a.clauseKey.localeCompare(b.clauseKey, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
     })
     .slice(0, params.limit)
     .map(({ score, ...clause }) => {
@@ -148,13 +163,20 @@ export async function buildStatutoryContextBlock(params: {
     findLepClauses({ lgaCode, query, limit: maxLepClauses }),
   ]);
 
+  console.log("[statutory-context] lepClauses found:", lepClauses.length);
+
   const dcpClauses = dcpResults.slice(0, maxDcpClauses).map((clause) => ({
     clauseNumber: clause.ref?.trim() || clause.id,
-    heading: clause.title?.trim() || clause.headingPath?.[clause.headingPath.length - 1]?.trim() || clause.ref?.trim() || "DCP clause",
+    heading:
+      clause.title?.trim() ||
+      clause.headingPath?.[clause.headingPath.length - 1]?.trim() ||
+      clause.ref?.trim() ||
+      "DCP clause",
     body: clause.bodyText,
   }));
 
-  const sourceTypes: StatutorySourceType[] = dcpClauses.length || lepClauses.length ? ["cited"] : ["unresolved"];
+  const sourceTypes: StatutorySourceType[] =
+    dcpClauses.length || lepClauses.length ? ["cited"] : ["unresolved"];
 
   return {
     dcpClauses,
