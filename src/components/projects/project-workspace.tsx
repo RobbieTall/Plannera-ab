@@ -58,6 +58,7 @@ import { useExperience } from "@/components/providers/experience-provider";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { formatTranscript } from "@/lib/chat-transcript";
+import { generateSuggestions } from "@/lib/suggestion-chips";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
 import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
@@ -2488,7 +2489,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                   </div>
                 </div>
               ) : (
-                messages.map((message) => (
+                messages.map((message, index) => (
                   <article
                     key={message.id}
                     className={cn(
@@ -2506,6 +2507,27 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                       />
                     ) : null}
                     {message.role === "assistant" ? <ChatConfidenceBadge score={message.confidenceScore} /> : null}
+                    {message.role === "assistant" && index === messages.length - 1
+                      ? (() => {
+                          const suggestionChips = generateSuggestions(message.content);
+
+                          return suggestionChips.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {suggestionChips.map((chip) => (
+                                <button
+                                  key={chip}
+                                  type="button"
+                                  onClick={() => setInput(chip)}
+                                  className="max-w-full truncate whitespace-nowrap rounded-full border border-slate-200 px-3 py-1 text-left text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+                                  title={chip}
+                                >
+                                  {chip}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null;
+                        })()
+                      : null}
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
                   </article>
                 ))
