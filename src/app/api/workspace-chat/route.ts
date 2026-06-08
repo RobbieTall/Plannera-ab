@@ -983,6 +983,7 @@ When the user asks about local controls, rely first on the council Development C
       projectId: persistedProjectId,
       incomingMessages,
       assistantReply: reply,
+      parseConfidence: true,
     });
 
     const sourceAttribution = buildSourceAttribution({

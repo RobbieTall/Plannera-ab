@@ -1,15 +1,19 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
+import { parseConfidenceFromMessage } from "./confidence-scorer";
+
 export type PersistableChatRole = "user" | "assistant";
 
 type ChatMessageCreateManyInput = {
   projectId: string;
   role: PersistableChatRole;
   content: string;
+  confidenceScore?: number | null;
+  confidenceBreakdown?: Record<string, unknown> | null;
 };
 
 type ChatMessageWriter = {
-  createMany: (args: { data: ChatMessageCreateManyInput[] }) => Promise<unknown>;
+  createMany: unknown;
 };
 
 type PersistWorkspaceChatExchangeParams = {
@@ -17,6 +21,7 @@ type PersistWorkspaceChatExchangeParams = {
   projectId: string | null | undefined;
   incomingMessages: ChatCompletionMessageParam[];
   assistantReply: string | null | undefined;
+  parseConfidence?: boolean;
 };
 
 const isTextContent = (content: ChatCompletionMessageParam["content"]): content is string => typeof content === "string";
@@ -37,6 +42,7 @@ export const persistWorkspaceChatExchange = async ({
   projectId,
   incomingMessages,
   assistantReply,
+  parseConfidence = false,
 }: PersistWorkspaceChatExchangeParams): Promise<void> => {
   if (!projectId) {
     return;
@@ -51,7 +57,19 @@ export const persistWorkspaceChatExchange = async ({
   }
 
   if (assistantContent) {
-    data.push({ projectId, role: "assistant", content: assistantContent });
+    const assistantMessage: ChatMessageCreateManyInput = { projectId, role: "assistant", content: assistantContent };
+
+    if (parseConfidence) {
+      try {
+        const confidence = parseConfidenceFromMessage(assistantContent);
+        assistantMessage.confidenceScore = confidence.score;
+        assistantMessage.confidenceBreakdown = confidence.breakdown;
+      } catch (error) {
+        console.error("[workspace-chat-persistence] Failed to parse assistant confidence", error);
+      }
+    }
+
+    data.push(assistantMessage);
   }
 
   if (!data.length) {
@@ -59,7 +77,7 @@ export const persistWorkspaceChatExchange = async ({
   }
 
   try {
-    await prisma.chatMessage.createMany({ data });
+    await (prisma.chatMessage.createMany as (args: { data: ChatMessageCreateManyInput[] }) => Promise<unknown>)({ data });
   } catch (error) {
     console.error("[workspace-chat-persistence] Failed to persist chat messages", error);
   }

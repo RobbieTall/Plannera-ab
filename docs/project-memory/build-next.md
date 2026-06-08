@@ -85,6 +85,14 @@ Inject top-5 DCP clauses into workspace-chat system prompt for user-initiated qu
 
 **Success signal:** workspace-chat retrieves topic-aware DCP clauses for setbacks, height, parking, landscaping and related controls before building the system prompt, and falls back gracefully when no topic-specific clauses are available.
 
-## 12) Artefact confidence scoring
+## 12) Artefact confidence scoring — DONE ✓
 
 After each chat response, parse assistant message for confidence signals (cited clause numbers, hedging language, unresolved gaps) and persist a `confidence_score` + `confidence_breakdown` JSON to the ChatMessage row.
+
+## 13) Surface confidence score in the workspace UI
+
+Show a small confidence badge on each assistant chat bubble, sourced from the `confidenceScore` field returned by the chat-history GET endpoint.
+
+- Green for scores ≥0.7
+- Amber for scores 0.4–0.69
+- Red for scores <0.4
