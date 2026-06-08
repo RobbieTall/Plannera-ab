@@ -1,8 +1,12 @@
-import fs from "fs/promises";
+import fs from "fs";
 import { NextResponse } from "next/server";
 
-import { buildLepConfigFromFile } from "@/lib/lep/lep-ingest-files";
-import { findLocalNswLepBySlug, findLocalNswLepsByLga } from "@/lib/lep/nsw-lep-registry";
+import { buildLepConfigFromFileSync } from "@/lib/lep/lep-ingest-files";
+import {
+  findLocalNswLepBySlug,
+  findLocalNswLepsByLga,
+  listLocalNswLepPreparations,
+} from "@/lib/lep/nsw-lep-registry";
 import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
 import { parseInstrumentDocument } from "@/lib/legislation/parser";
 import { syncInstrumentFromDocument } from "@/lib/legislation/service";
@@ -10,28 +14,44 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
- *
- * Usage (after setting INGEST_ADMIN_SECRET in the environment):
- *   POST https://<prod-domain>/api/admin/ingest-lep?secret=<value>&lga=<LGA>
- *
- * The endpoint will parse each XML, upsert the instrument + clauses, and
- * can be safely re-run without creating duplicates.
- */
-export async function POST(request: Request) {
-  const adminSecret = process.env.INGEST_ADMIN_SECRET;
-  const url = new URL(request.url);
-  const providedSecret = url.searchParams.get("secret") ?? request.headers.get("x-ingest-secret");
+type IngestError = { lga: string; error: string };
 
-  if (!adminSecret || providedSecret !== adminSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const getAdminSecret = () => process.env.ADMIN_SECRET ?? process.env.INGEST_ADMIN_SECRET;
 
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "database_not_configured" }, { status: 503 });
-  }
+const getProvidedSecret = (request: Request, url: URL) => {
+  const authorization = request.headers.get("authorization");
+  const bearerToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  return (
+    bearerToken ??
+    request.headers.get("admin-secret") ??
+    request.headers.get("admin_secret") ??
+    request.headers.get("x-admin-secret") ??
+    request.headers.get("x-ingest-secret") ??
+    url.searchParams.get("secret")
+  );
+};
 
+const requireAdmin = (request: Request, url: URL) => {
+  const adminSecret = getAdminSecret();
+  const providedSecret = getProvidedSecret(request, url);
+  return Boolean(adminSecret && providedSecret === adminSecret);
+};
+
+const getTargetLabel = (target: ReturnType<typeof listLocalNswLepPreparations>[number]) =>
+  target.details.canonicalLga ?? target.details.lgaCode ?? target.details.lgaName ?? target.config.slug;
+
+const getCurrentClauseCount = async (slug: string) => {
+  const instrument = await prisma.instrument.findUnique({
+    where: { slug },
+    select: {
+      _count: { select: { clauses: { where: { isCurrent: true } } } },
+    },
+  });
+
+  return instrument?._count.clauses ?? 0;
+};
+
+const getIngestTargets = (url: URL) => {
   const lgaParam = url.searchParams.get("lga")?.trim();
   const instrumentParam = url.searchParams.get("instrument")?.trim();
 
@@ -39,78 +59,158 @@ export async function POST(request: Request) {
   const lgaMatches = normalizedLga ? findLocalNswLepsByLga(normalizedLga) : [];
   const instrumentMatch = instrumentParam ? findLocalNswLepBySlug(instrumentParam) : null;
 
-  const ingestionTargets = instrumentMatch
-    ? [instrumentMatch]
-    : normalizedLga
-      ? lgaMatches
-      : [];
+  const targets = instrumentMatch ? [instrumentMatch] : normalizedLga ? lgaMatches : listLocalNswLepPreparations();
 
-  console.log("[INGEST-LEP] Start", { lga: normalizedLga, instrument: instrumentParam, matches: ingestionTargets.length });
+  return { targets, lgaParam, normalizedLga, instrumentParam };
+};
 
-  if (!ingestionTargets.length) {
-    return NextResponse.json({ error: "No LEP XML found for requested LGA", lga: lgaParam }, { status: 404 });
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+
+  if (!requireAdmin(request, url)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let instrumentsProcessed = 0;
-  let totalClauses = 0;
-  const failed: string[] = [];
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: "database_not_configured" }, { status: 503 });
+  }
 
-  try {
-    for (const target of ingestionTargets) {
-      const xmlPath = target.config.xmlLocalPath ?? target.details.fileName;
-      try {
-        await fs.access(xmlPath);
-      } catch (error) {
-        const message = `XML not found at ${xmlPath}`;
-        console.error("[INGEST-LEP] Missing XML", { xmlPath, error });
-        failed.push(message);
+  const instruments = await prisma.instrument.findMany({
+    where: { instrumentType: "LEP" },
+    select: {
+      slug: true,
+      name: true,
+      _count: { select: { clauses: { where: { isCurrent: true } } } },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const countsByLga: Record<string, number> = {};
+  let lepClauseCount = 0;
+
+  for (const instrument of instruments) {
+    const registryMatch = findLocalNswLepBySlug(instrument.slug);
+    const lgaCode = (
+      registryMatch?.details.canonicalLga ??
+      registryMatch?.details.lgaCode ??
+      registryMatch?.details.lgaName ??
+      instrument.name
+    )
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const clauseCount = instrument._count.clauses;
+    lepClauseCount += clauseCount;
+    countsByLga[lgaCode] = (countsByLga[lgaCode] ?? 0) + clauseCount;
+  }
+
+  return NextResponse.json({
+    lepClauseCount,
+    lgasCovered: Object.keys(countsByLga).filter((lgaCode) => countsByLga[lgaCode] > 0).sort(),
+    countsByLga,
+  });
+}
+
+/**
+ * Admin-only endpoint to ingest NSW LEP XML files under data/nsw/xml.
+ *
+ * Usage:
+ *   POST /api/admin/ingest-lep
+ *   Authorization: Bearer $ADMIN_SECRET
+ *
+ * Optional query params:
+ *   ?lga=BYRON       Ingest one LGA for testing.
+ *   ?instrument=...  Ingest one instrument slug.
+ *   ?force=true      Re-ingest even when current clauses already exist.
+ */
+export async function POST(request: Request) {
+  const url = new URL(request.url);
+
+  if (!requireAdmin(request, url)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: "database_not_configured" }, { status: 503 });
+  }
+
+  const force = url.searchParams.get("force") === "true";
+  const { targets, lgaParam, normalizedLga, instrumentParam } = getIngestTargets(url);
+
+  console.log("[INGEST-LEP] Start", {
+    lga: normalizedLga,
+    instrument: instrumentParam,
+    matches: targets.length,
+    force,
+  });
+
+  if (!targets.length) {
+    return NextResponse.json(
+      {
+        ingested: [],
+        skipped: [],
+        errors: [{ lga: lgaParam ?? instrumentParam ?? "all", error: "No LEP XML found for request" }],
+      },
+      { status: 404 },
+    );
+  }
+
+  const ingested: string[] = [];
+  const skipped: string[] = [];
+  const errors: IngestError[] = [];
+  let totalClauses = 0;
+
+  for (const target of targets) {
+    const lga = getTargetLabel(target);
+    const xmlPath = target.config.xmlLocalPath;
+
+    try {
+      const existingClauseCount = await getCurrentClauseCount(target.config.slug);
+      if (existingClauseCount > 0 && !force) {
+        skipped.push(target.config.slug);
+        totalClauses += existingClauseCount;
         continue;
       }
 
-      console.log("[INGEST-LEP] Config ready", { xmlPath, lgaCode: target.details.lgaCode, slug: target.config.slug });
+      if (!xmlPath) {
+        throw new Error(`No XML path configured for ${target.config.slug}`);
+      }
 
-      const xmlDocument = await fs.readFile(xmlPath, "utf-8");
-      const { config } = await buildLepConfigFromFile(xmlPath, { xml: xmlDocument });
+      const xmlDocument = fs.readFileSync(xmlPath, "utf-8");
+      const { config } = buildLepConfigFromFileSync(xmlPath, { xml: xmlDocument });
       const parsedClauses = parseInstrumentDocument(config, xmlDocument, "xml");
 
-      console.log("[INGEST-LEP] Parsed clauses length", parsedClauses.length, {
-        lga: target.details.lgaName,
-        instrument: config.slug,
-      });
-
       if (!parsedClauses.length) {
-        failed.push(`No clauses parsed for ${config.slug}`);
-        continue;
+        throw new Error(`No clauses parsed for ${config.slug}`);
       }
 
       const result = await syncInstrumentFromDocument(config, xmlDocument, {
         parsedClauses,
         format: "xml",
-        forceReplace: true,
+        forceReplace: force || existingClauseCount === 0,
       });
 
       if (result.status === "ok") {
-        instrumentsProcessed += 1;
-        const clauseCount = await prisma.clause.count({ where: { instrumentId: result.instrument.id, isCurrent: true } });
-        totalClauses += clauseCount;
-        console.log("[INGEST-LEP] Sync complete", {
-          instrumentId: result.instrument.id,
-          clauseCount,
-          slug: config.slug,
+        const clauseCount = await prisma.clause.count({
+          where: { instrumentId: result.instrument.id, isCurrent: true },
         });
-      } else if (result.status === "error") {
-        const message = result.error?.message ?? `Unknown ingestion failure for ${config.slug}`;
-        failed.push(message);
-      } else {
-        const message = result.reason ?? `Ingestion skipped for ${config.slug}`;
-        failed.push(message);
+        totalClauses += clauseCount;
+        ingested.push(config.slug);
+        console.log("[INGEST-LEP] Sync complete", { lga, slug: config.slug, clauseCount });
+        continue;
       }
-    }
 
-    return NextResponse.json({ lga: normalizedLga ?? lgaParam, instrumentsProcessed, totalClauses, failed });
-  } catch (error) {
-    console.error("[INGEST-LEP] Error", error);
-    const details = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "LEP ingestion failed", details }, { status: 500 });
+      if (result.status === "error") {
+        throw result.error ?? new Error(`Unknown ingestion failure for ${config.slug}`);
+      }
+
+      skipped.push(config.slug);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("[INGEST-LEP] Target failed", { lga, slug: target.config.slug, error });
+      errors.push({ lga, error: message });
+    }
   }
+
+  return NextResponse.json({ ingested, skipped, errors, totalClauses });
 }
