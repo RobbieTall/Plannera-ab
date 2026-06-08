@@ -59,6 +59,7 @@ import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { formatTranscript } from "@/lib/chat-transcript";
 import { highlightText } from "@/lib/highlight-text";
+import { getRelativeTime } from "@/lib/relative-time";
 import { generateSuggestions } from "@/lib/suggestion-chips";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
@@ -534,6 +535,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const [chatSearch, setChatSearch] = useState("");
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -722,6 +724,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             id: `history-${projectKey}-${index}-${new Date(message.createdAt).getTime()}`,
             role: message.role,
             content: message.content,
+            createdAt: message.createdAt,
             timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             confidenceScore: message.confidenceScore ?? null,
           }));
@@ -1149,12 +1152,19 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     [projectKey, setSessionSignals]
   );
 
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const appendToolMessage = useCallback(
     (content: string, signals?: WorkspaceSessionSignals) => {
+      const createdAt = new Date().toISOString();
       const toolMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-tool`,
         role: "assistant",
         content,
+        createdAt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -1209,10 +1219,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         ...extractSessionSignalsFromText(trimmedInput, project.name),
         recentSource: sources[0]?.name ?? sessionSignals.recentSource,
       });
+      const createdAt = new Date().toISOString();
       const newMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}`,
         role: "user",
         content: trimmedInput,
+        createdAt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((previous) => {
@@ -1274,10 +1286,12 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
       const replyFallback = needsLocation
         ? "I can tailor this better with the site address, suburb, or zone (e.g. B4 Mixed Use)."
         : "I’ll keep looking for the right LEP/SEPP clauses—share any uploads or zones to sharpen the answer.";
+      const assistantCreatedAt = new Date().toISOString();
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
         content: data.reply ?? replyFallback,
+        createdAt: assistantCreatedAt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         sourceAttribution: data.sourceAttribution,
       };
@@ -1297,11 +1311,13 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
       });
     } catch (error) {
       console.error("Workspace chat send error", error);
+      const assistantCreatedAt = new Date().toISOString();
       const assistantMessage: WorkspaceMessage = {
         id: `msg-${Date.now()}-assistant`,
         role: "assistant",
         content:
           "I couldn’t retrieve the Sydney LEP or SEPP clauses right now. Please try again or add the council area and zone for a precise lookup.",
+        createdAt: assistantCreatedAt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((previous) => {
@@ -2572,7 +2588,9 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                           ) : null;
                         })()
                       : null}
-                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{message.timestamp}</p>
+                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                      {message.createdAt ? getRelativeTime(new Date(message.createdAt), now) : message.timestamp}
+                    </p>
                   </article>
                 ))
               )}

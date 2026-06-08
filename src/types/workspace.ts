@@ -7,6 +7,7 @@ export type WorkspaceMessage = {
   role: "assistant" | "user";
   content: string;
   timestamp: string;
+  createdAt?: string;
   sourceAttribution?: SourceAttribution;
   confidenceScore?: number | null;
 };
