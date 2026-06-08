@@ -33,7 +33,8 @@ describe("buildStatutoryContextBlock", () => {
         parentRef: null,
         depth: 2,
         bodyHtml: "",
-        bodyText: "Front setback is 4.5m and side setback is 1.5m for the tested control.",
+        bodyText:
+          "Front setback is 4.5m and side setback is 1.5m for the tested control.",
         topicTags: ["setbacks"],
         numericMeta: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -48,7 +49,8 @@ describe("buildStatutoryContextBlock", () => {
           {
             clauseKey: "4.3",
             title: "Height of buildings",
-            bodyText: "The height of a building on any land is not to exceed the maximum height shown for the land.",
+            bodyText:
+              "The height of a building on any land is not to exceed the maximum height shown for the land.",
           },
         ],
       },
@@ -62,13 +64,22 @@ describe("buildStatutoryContextBlock", () => {
     });
 
     expect(result.sourceTypes).toEqual(["cited"]);
-    expect(result.promptBlock).toContain("--- RETRIEVED PLANNING CONTROLS FOR BYRON ---");
-    expect(result.promptBlock).toContain("[Byron Local Environmental Plan 2014 4.3]: Height of buildings");
-    expect(result.promptBlock).toContain("[D1.2] Setbacks: Front setback is 4.5m");
+    expect(result.promptBlock).toContain(
+      "--- RETRIEVED PLANNING CONTROLS FOR BYRON ---",
+    );
+    expect(result.promptBlock).toContain(
+      "[Byron Local Environmental Plan 2014 4.3]: Height of buildings",
+    );
+    expect(result.promptBlock).toContain(
+      "[D1.2] Setbacks: Front setback is 4.5m",
+    );
   });
 
   it("formats empty results as unresolved without fabricating clauses", async () => {
-    const result = await buildStatutoryContextBlock({ lgaCode: "KEMPSEY", query: "parking" });
+    const result = await buildStatutoryContextBlock({
+      lgaCode: "KEMPSEY",
+      query: "parking",
+    });
 
     expect(result.dcpClauses).toEqual([]);
     expect(result.lepClauses).toEqual([]);
@@ -117,5 +128,59 @@ describe("buildStatutoryContextBlock", () => {
 
     expect(result.dcpClauses).toHaveLength(2);
     expect(result.lepClauses).toHaveLength(2);
+  });
+
+  it("uses the provided lgaCode when retrieving and formatting LEP clauses", async () => {
+    instrumentFindManyMock.mockResolvedValue([
+      {
+        id: "instrument-ballina",
+        name: "Ballina Local Environmental Plan 2012",
+        clauses: [
+          {
+            clauseKey: "4.4",
+            title: "Floor space ratio",
+            bodyText:
+              "The maximum floor space ratio for a building is not to exceed the floor space ratio shown for the land.",
+          },
+        ],
+      },
+    ]);
+
+    const result = await buildStatutoryContextBlock({
+      lgaCode: "ballina",
+      query: "floor space ratio",
+      maxLepClauses: 1,
+    });
+
+    expect(instrumentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: expect.arrayContaining([
+                expect.objectContaining({
+                  slug: expect.objectContaining({ contains: "ballina" }),
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(result.lepClauses).toEqual([
+      {
+        clauseKey: "4.4",
+        heading: "Floor space ratio",
+        value:
+          "The maximum floor space ratio for a building is not to exceed the floor space ratio shown for the land.",
+        instrumentName: "Ballina Local Environmental Plan 2012",
+      },
+    ]);
+    expect(result.promptBlock).toContain(
+      "--- RETRIEVED PLANNING CONTROLS FOR BALLINA ---",
+    );
+    expect(result.promptBlock).toContain(
+      "[Ballina Local Environmental Plan 2012 4.4]: Floor space ratio",
+    );
   });
 });
