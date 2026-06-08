@@ -105,6 +105,10 @@ Add a Copy transcript button to the chat panel that copies the full conversation
 
 After each assistant response, show 2-3 clickable question chips generated locally from the reply (no API call). Clicking chips pre-fills the input.
 
-## 16) Workspace chat search/filter
+## 16) Workspace chat search/filter — DONE ✓
 
 Add a search input above the chat history that filters displayed messages by keyword in real time, highlighting matched text. Shows message count when filter is active.
+
+## 17) Chat message timestamps
+
+Show relative time (e.g. "2 minutes ago", "just now") instead of HH:MM on assistant and user message bubbles, updating every minute via a useInterval hook.

@@ -58,6 +58,7 @@ import { useExperience } from "@/components/providers/experience-provider";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { formatTranscript } from "@/lib/chat-transcript";
+import { highlightText } from "@/lib/highlight-text";
 import { generateSuggestions } from "@/lib/suggestion-chips";
 import type { Project } from "@/lib/mock-data";
 import { setSiteFromCandidate, toPersistableSiteCandidate } from "@/lib/site-context-client";
@@ -533,6 +534,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
+  const [chatSearch, setChatSearch] = useState("");
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -604,6 +606,15 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         : "You've reached this workspace's document cap. Contact us to extend your plan."
     : null;
   const isDcpLinkAvailable = Boolean(dcpLink?.url);
+  const filteredMessages = useMemo(() => {
+    const query = chatSearch.trim().toLowerCase();
+
+    if (!query) {
+      return messages;
+    }
+
+    return messages.filter((message) => message.content.toLowerCase().includes(query));
+  }, [chatSearch, messages]);
   const documentCta =
     state.userTier === "guest"
       ? { href: "/signin", label: "Create a free account" }
@@ -2463,6 +2474,26 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
               <LgaCoverageStatusPanel lgaCode={siteContext?.lgaCode ?? undefined} lgaDisplayName={siteContext?.lgaName ?? undefined} />
               <ProjectNotificationsPanel projectId={projectKey} />
               <StaleArtefactsBanner projectId={projectKey} />
+              {messages.length > 0 ? (
+                <div className="mb-2">
+                  <label htmlFor="chat-search" className="sr-only">
+                    Search messages
+                  </label>
+                  <input
+                    id="chat-search"
+                    type="search"
+                    placeholder="Search messages..."
+                    value={chatSearch}
+                    onChange={(event) => setChatSearch(event.target.value)}
+                    className="mb-2 w-full rounded border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  {chatSearch.trim() !== "" ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {filteredMessages.length} of {messages.length} messages
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div
                 ref={chatScrollRef}
                 className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"
@@ -2489,7 +2520,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                   </div>
                 </div>
               ) : (
-                messages.map((message, index) => (
+                filteredMessages.map((message) => (
                   <article
                     key={message.id}
                     className={cn(
@@ -2499,7 +2530,20 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                         : "ml-auto border-blue-200 bg-blue-600/10 text-slate-900 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-white",
                     )}
                   >
-                    <p>{message.content}</p>
+                    <p>
+                      {highlightText(message.content, chatSearch).map((segment, segmentIndex) =>
+                        segment.match ? (
+                          <mark
+                            key={`${message.id}-${segmentIndex}`}
+                            className="rounded bg-yellow-200 px-0.5 dark:bg-yellow-700"
+                          >
+                            {segment.text}
+                          </mark>
+                        ) : (
+                          <span key={`${message.id}-${segmentIndex}`}>{segment.text}</span>
+                        ),
+                      )}
+                    </p>
                     {message.role === "assistant" && message.sourceAttribution ? (
                       <SourceConfidenceBadge
                         sourceAttribution={message.sourceAttribution}
@@ -2507,7 +2551,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                       />
                     ) : null}
                     {message.role === "assistant" ? <ChatConfidenceBadge score={message.confidenceScore} /> : null}
-                    {message.role === "assistant" && index === messages.length - 1
+                    {message.role === "assistant" && message.id === messages[messages.length - 1]?.id
                       ? (() => {
                           const suggestionChips = generateSuggestions(message.content);
 
