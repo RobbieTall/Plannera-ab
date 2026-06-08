@@ -101,6 +101,10 @@ Show a small confidence badge on each assistant chat bubble, sourced from the `c
 
 Add a Copy transcript button to the chat panel that copies the full conversation as markdown to the clipboard, including assistant confidence scores as footnotes.
 
-## 15) Smart follow-up suggestions
+## 15) Smart follow-up suggestions — DONE ✓
 
 After each assistant response, show 2-3 clickable question chips generated locally from the reply (no API call). Clicking chips pre-fills the input.
+
+## 16) Workspace chat search/filter
+
+Add a search input above the chat history that filters displayed messages by keyword in real time, highlighting matched text. Shows message count when filter is active.
