@@ -97,6 +97,10 @@ Show a small confidence badge on each assistant chat bubble, sourced from the `c
 - Amber for scores 0.4–0.69
 - Red for scores <0.4
 
-## 14) Workspace chat export
+## 14) Workspace chat export — DONE ✓
 
 Add a Copy transcript button to the chat panel that copies the full conversation as markdown to the clipboard, including assistant confidence scores as footnotes.
+
+## 15) Smart follow-up suggestions
+
+After each assistant response, show 2-3 clickable question chips generated locally from the reply (no API call). Clicking chips pre-fills the input.
