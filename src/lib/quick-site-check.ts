@@ -5,6 +5,7 @@ import { lookupLepInstruments } from "@/lib/lep/lep-search";
 import type { LepParseResult } from "@/lib/lep/types";
 import { resolveInstrumentsForSite, serializeSiteContext } from "@/lib/site-context";
 import type { QuickSiteCheckControl, QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { LepControlValue, QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 
 const truncate = (value: string | null | undefined, length = 220) => {
   if (!value) return null;
@@ -52,6 +53,7 @@ const buildControl = (
   value: string | null,
   clauseRef?: string | null,
   clauseText?: string | null,
+  confidence?: QuickSiteCheckControl["confidence"],
 ): QuickSiteCheckControl => {
   const detail = truncate(clauseText);
   const present = Boolean(value || detail);
@@ -70,11 +72,28 @@ const buildControl = (
     detail,
     source: value ? "LEP mapping" : detail ? "LEP clause" : null,
     interpretation,
+    confidence,
   } satisfies QuickSiteCheckControl;
+};
+
+const controlFromLepResult = (label: string, control: LepControlValue | null | undefined): QuickSiteCheckControl | null => {
+  if (!control?.value) return null;
+  return {
+    label,
+    value: control.value,
+    present: true,
+    source: "LEP clause database",
+    lepSource: true,
+    clauseRef: control.clauseRef,
+    detail: null,
+    interpretation: `${label} is cited as ${control.value} from LEP clause ${control.clauseRef}.`,
+    confidence: control.confidence,
+  };
 };
 
 export const buildQuickSiteCheckReport = async (
   project: Project & { siteContext: SiteContext | null },
+  lepResult?: QuickSiteCheckLepSuccess,
 ): Promise<QuickSiteCheckReport> => {
   const lepData = (project.lepData as LepParseResult | null | undefined) ?? null;
   const siteContext = serializeSiteContext(project.siteContext, project);
@@ -87,29 +106,46 @@ export const buildQuickSiteCheckReport = async (
     zoningCode: project.zoningCode ?? siteContext?.zoningCode ?? siteContext?.zone,
   });
 
-  const permissibility = lepZoneContext
+  const permissibility = lepResult?.permissibility
     ? {
+        zoneLabel: lepResult.zone ? `Zone ${lepResult.zone}` : zoneLabel,
+        permittedWithoutConsent: lepResult.permissibility.permittedWithoutConsent,
+        permittedWithConsent: lepResult.permissibility.permittedWithConsent,
+        prohibited: lepResult.permissibility.prohibited,
+        interpretation: "Extracted from ingested LEP clause rows in the database.",
+      }
+    : lepZoneContext
+      ? {
         zoneLabel: `${lepZoneContext.zone.zoneCode} – ${lepZoneContext.zone.zoneName}`,
         permittedWithoutConsent: lepZoneContext.zone.permittedWithoutConsent,
         permittedWithConsent: lepZoneContext.zone.permittedWithConsent,
         prohibited: lepZoneContext.zone.prohibited,
         interpretation: `Zone ${lepZoneContext.zone.zoneCode} generally permits ${formatList(lepZoneContext.zone.permittedWithoutConsent)} without consent and requires consent for ${formatList(lepZoneContext.zone.permittedWithConsent)}. Uses such as ${formatList(lepZoneContext.zone.prohibited)} are typically prohibited unless another instrument applies.`,
       }
-    : null;
+      : null;
 
   const instrumentMatch = resolveInstrumentsForSite(siteContext);
   const lepSearchLga = instrumentMatch.lgaCode ?? siteContext?.lgaName ?? null;
-  const lepLookupResult = lepSearchLga
-    ? await lookupLepInstruments({ lga: lepSearchLga, instrument: instrumentMatch.lepInstrumentSlug ?? undefined })
-    : null;
+  let lepLookupResult = null as Awaited<ReturnType<typeof lookupLepInstruments>> | null;
+  try {
+    lepLookupResult = lepSearchLga
+      ? await lookupLepInstruments({ lga: lepSearchLga, instrument: instrumentMatch.lepInstrumentSlug ?? undefined })
+      : null;
+  } catch (error) {
+    console.warn("[quick-site-check] LEP lookup failed", error);
+  }
 
   let lepInstrumentCandidate = lepLookupResult?.instruments?.[0] ?? null;
   if (!lepInstrumentCandidate?.clauses?.length && lepInstrumentCandidate) {
-    const detailedResult = await lookupLepInstruments({
-      lga: lepSearchLga!,
-      instrument: lepInstrumentCandidate.code,
-    });
-    lepInstrumentCandidate = detailedResult.instruments[0] ?? lepInstrumentCandidate;
+    try {
+      const detailedResult = await lookupLepInstruments({
+        lga: lepSearchLga!,
+        instrument: lepInstrumentCandidate.code,
+      });
+      lepInstrumentCandidate = detailedResult.instruments[0] ?? lepInstrumentCandidate;
+    } catch (error) {
+      console.warn("[quick-site-check] detailed LEP lookup failed", error);
+    }
   }
 
   const lepInstrument = lepData?.metadata
@@ -133,31 +169,37 @@ export const buildQuickSiteCheckReport = async (
     lepInstrumentCandidate?.clauses?.find((clause) => clause.ref === ref || clause.ref.startsWith(`${ref}`));
 
   const controls = {
-    heightOfBuilding: buildControl(
-      "Height of building",
-      mappedControls.heightOfBuilding ?? null,
-      findClause("4.3")?.ref ?? "4.3",
-      findClause("4.3")?.text ?? null,
-    ),
-    floorSpaceRatio: buildControl(
-      "Floor space ratio",
-      mappedControls.floorSpaceRatio ?? null,
-      findClause("4.4")?.ref ?? "4.4",
-      findClause("4.4")?.text ?? null,
-    ),
-    minimumLotSize: buildControl(
-      "Minimum lot size",
-      mappedControls.minimumLotSize ?? null,
-      findClause("4.1")?.ref ?? "4.1",
-      findClause("4.1")?.text ?? null,
-    ),
+    heightOfBuilding:
+      controlFromLepResult("Height of building", lepResult?.controls.heightOfBuilding) ??
+      buildControl(
+        "Height of building",
+        mappedControls.heightOfBuilding ?? null,
+        findClause("4.3")?.ref ?? "4.3",
+        findClause("4.3")?.text ?? null,
+      ),
+    floorSpaceRatio:
+      controlFromLepResult("Floor space ratio", lepResult?.controls.fsr) ??
+      buildControl(
+        "Floor space ratio",
+        mappedControls.floorSpaceRatio ?? null,
+        findClause("4.4")?.ref ?? "4.4",
+        findClause("4.4")?.text ?? null,
+      ),
+    minimumLotSize:
+      controlFromLepResult("Minimum lot size", lepResult?.controls.minLotSize) ??
+      buildControl(
+        "Minimum lot size",
+        mappedControls.minimumLotSize ?? null,
+        findClause("4.1")?.ref ?? "4.1",
+        findClause("4.1")?.text ?? null,
+      ),
   } satisfies QuickSiteCheckReport["controls"];
 
   const notes: string[] = [];
   if (!siteContext) {
     notes.push("Site context is missing; set a site to improve accuracy.");
   }
-  if (!lepZoneContext) {
+  if (!lepZoneContext && !lepResult?.permissibility) {
     notes.push("Zoning could not be matched to LEP data yet.");
   }
 

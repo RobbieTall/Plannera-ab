@@ -7,6 +7,7 @@ export type QuickSiteCheckControl = {
   clauseRef?: string | null;
   detail?: string | null;
   interpretation: string;
+  confidence?: "Cited" | "Inferred" | "Unavailable";
 };
 
 export type QuickSiteCheckPermissibility = {
