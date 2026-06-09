@@ -119,7 +119,7 @@ Wire the Quick Site Check result to show: zone name, permissibility table (what'
 
 Success signal: user enters any NSW address → sees real zone + land use table sourced from the matching LEP XML within 5 seconds.
 
-## 19) Workspace chat — grounded responses with clause citations
+## 19) Workspace chat — grounded responses with clause citations — DONE ✅
 
 Every assistant response to a planning question must cite at least one real LEP clause reference (e.g. "Byron LEP 2014 cl. 4.3") when LEP data is available for that LGA. Show a "Sources" section below each response listing the clauses used.
 

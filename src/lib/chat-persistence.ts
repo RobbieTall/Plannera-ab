@@ -10,6 +10,7 @@ type ChatMessageCreateManyInput = {
   content: string;
   confidenceScore?: number | null;
   confidenceBreakdown?: Record<string, unknown> | null;
+  lepSourceRefs?: string[] | null;
 };
 
 type ChatMessageWriter = {
@@ -22,6 +23,7 @@ type PersistWorkspaceChatExchangeParams = {
   incomingMessages: ChatCompletionMessageParam[];
   assistantReply: string | null | undefined;
   parseConfidence?: boolean;
+  lepSourceRefs?: string[] | null;
 };
 
 const isTextContent = (content: ChatCompletionMessageParam["content"]): content is string => typeof content === "string";
@@ -43,6 +45,7 @@ export const persistWorkspaceChatExchange = async ({
   incomingMessages,
   assistantReply,
   parseConfidence = false,
+  lepSourceRefs,
 }: PersistWorkspaceChatExchangeParams): Promise<void> => {
   if (!projectId) {
     return;
@@ -57,7 +60,12 @@ export const persistWorkspaceChatExchange = async ({
   }
 
   if (assistantContent) {
-    const assistantMessage: ChatMessageCreateManyInput = { projectId, role: "assistant", content: assistantContent };
+    const assistantMessage: ChatMessageCreateManyInput = {
+      projectId,
+      role: "assistant",
+      content: assistantContent,
+      ...(lepSourceRefs != null ? { lepSourceRefs } : {}),
+    };
 
     if (parseConfidence) {
       try {

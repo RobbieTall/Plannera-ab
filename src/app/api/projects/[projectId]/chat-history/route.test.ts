@@ -45,6 +45,7 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
         createdAt: new Date("2026-06-02T10:05:00.000Z"),
         confidenceScore: 0.7,
         confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
+        lepSourceRefs: ["cl. 4.3"],
       },
       {
         role: "user",
@@ -52,6 +53,7 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
         createdAt: new Date("2026-06-02T10:00:00.000Z"),
         confidenceScore: null,
         confidenceBreakdown: null,
+        lepSourceRefs: [],
       },
     ]);
 
@@ -76,6 +78,7 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
         createdAt: true,
         confidenceScore: true,
         confidenceBreakdown: true,
+        lepSourceRefs: true,
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -88,6 +91,7 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
           createdAt: "2026-06-02T10:00:00.000Z",
           confidenceScore: null,
           confidenceBreakdown: null,
+          lepSourceRefs: [],
         },
         {
           role: "assistant",
@@ -95,6 +99,7 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
           createdAt: "2026-06-02T10:05:00.000Z",
           confidenceScore: 0.7,
           confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
+          lepSourceRefs: ["cl. 4.3"],
         },
       ],
     });

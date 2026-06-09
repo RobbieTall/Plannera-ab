@@ -244,6 +244,7 @@ model ChatMessage {
   content             String
   confidenceScore     Float?
   confidenceBreakdown Json?
+  lepSourceRefs       String[] @default([])
   createdAt           DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

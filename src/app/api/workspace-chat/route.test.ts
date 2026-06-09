@@ -16,6 +16,7 @@ const {
   buildQuickSiteCheckLepMock,
   chatMessageCreateManyMock,
   projectFindUniqueMock,
+  instrumentFindManyMock,
   resolveSiteInstrumentsMock,
 } = vi.hoisted(() => ({
   getSiteContextForProjectMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   buildQuickSiteCheckLepMock: vi.fn(),
   chatMessageCreateManyMock: vi.fn(),
   projectFindUniqueMock: vi.fn(),
+  instrumentFindManyMock: vi.fn(),
   resolveSiteInstrumentsMock: vi.fn(),
 }));
 
@@ -44,6 +46,9 @@ vi.mock("@/lib/prisma", () => ({
     project: {
       findUnique: projectFindUniqueMock,
     },
+    instrument: {
+      findMany: instrumentFindManyMock,
+    },
     chatMessage: {
       createMany: chatMessageCreateManyMock,
     },
@@ -51,6 +56,9 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@prisma/client", () => ({
+  InstrumentType: {
+    LEP: "LEP",
+  },
   LgaCoverageMaturity: {
     NOT_STARTED: "NOT_STARTED",
     QUEUED: "QUEUED",
@@ -122,6 +130,7 @@ vi.mock("@/lib/statutory-context-builder", () => ({
 }));
 
 import { detectMessageTopic } from "./dcp-topic";
+import { buildLepClausePrompt, shouldSearchLepClauses } from "./lep-clause-grounding";
 import { POST } from "./route";
 
 describe("detectMessageTopic", () => {
@@ -133,6 +142,35 @@ describe("detectMessageTopic", () => {
     ["hello", null],
   ])("detects %s as %s", (message, expectedTopic) => {
     expect(detectMessageTopic(message)).toBe(expectedTopic);
+  });
+});
+
+
+describe("workspace-chat LEP clause prompt helpers", () => {
+  it("detects LEP clause search intent for planning questions", () => {
+    expect(shouldSearchLepClauses("can I build a secondary dwelling")).toBe(true);
+  });
+
+  it("does not search LEP clauses for non-planning acknowledgements", () => {
+    expect(shouldSearchLepClauses("thanks, that's helpful")).toBe(false);
+  });
+
+  it("returns an empty prompt for no LEP clauses", () => {
+    expect(buildLepClausePrompt([])).toBe("");
+  });
+
+  it("formats LEP clause refs and headings", () => {
+    const prompt = buildLepClausePrompt([
+      {
+        clauseNumber: "4.3",
+        heading: "Height of buildings",
+        zone: "RU5",
+        content: "The height of a building on any land is not to exceed the maximum height shown for the land.",
+      },
+    ]);
+
+    expect(prompt).toContain("cl. 4.3");
+    expect(prompt).toContain("Height of buildings");
   });
 });
 
@@ -179,6 +217,7 @@ describe("workspace-chat forced fallback", () => {
     });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
     projectFindUniqueMock.mockResolvedValue(null);
+    instrumentFindManyMock.mockResolvedValue([]);
     resolveSiteInstrumentsMock.mockResolvedValue({
       address: "3 Garruka Way, South West Rocks NSW",
       localGovernmentArea: "Kempsey Shire",
@@ -285,6 +324,7 @@ describe("workspace-chat forced fallback", () => {
     });
     chatMessageCreateManyMock.mockResolvedValue({ count: 2 });
     projectFindUniqueMock.mockResolvedValue(null);
+    instrumentFindManyMock.mockResolvedValue([]);
     resolveSiteInstrumentsMock.mockResolvedValue({
       address: "3 Garruka Way, South West Rocks NSW",
       localGovernmentArea: "Kempsey Shire",

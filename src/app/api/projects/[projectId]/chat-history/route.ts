@@ -27,6 +27,7 @@ export async function GET(_request: NextRequest, { params }: { params: { project
         createdAt: true,
         confidenceScore: true,
         confidenceBreakdown: true,
+        lepSourceRefs: true,
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -38,6 +39,7 @@ export async function GET(_request: NextRequest, { params }: { params: { project
       createdAt: message.createdAt.toISOString(),
       confidenceScore: message.confidenceScore,
       confidenceBreakdown: message.confidenceBreakdown,
+      lepSourceRefs: message.lepSourceRefs ?? [],
     }));
 
     return NextResponse.json({ messages });

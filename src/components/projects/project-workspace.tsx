@@ -120,6 +120,7 @@ type ServerChatHistoryMessage = {
   content: string;
   createdAt: string;
   confidenceScore?: number | null;
+  lepSourceRefs?: string[];
 };
 
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
@@ -535,6 +536,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
+  const [openLepSourcesByMessageId, setOpenLepSourcesByMessageId] = useState<Record<string, boolean>>({});
   const [now, setNow] = useState(() => new Date());
   const [chatSearch, setChatSearch] = useState("");
   const [input, setInput] = useState("");
@@ -727,6 +729,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
             createdAt: message.createdAt,
             timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             confidenceScore: message.confidenceScore ?? null,
+            lepSourceRefs: message.lepSourceRefs ?? [],
           }));
 
         setMessages(hydratedMessages);
@@ -1260,6 +1263,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         candidates?: SiteCandidate[];
         addressInput?: string;
         sourceAttribution?: WorkspaceMessage["sourceAttribution"];
+        lepSourceRefs?: string[];
       } = await response.json();
 
       if (data.siteContext) {
@@ -1294,6 +1298,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         createdAt: assistantCreatedAt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         sourceAttribution: data.sourceAttribution,
+        lepSourceRefs: data.lepSourceRefs ?? [],
       };
       applySessionSignals(
         deriveSignalsFromAssistantPayload({
@@ -2567,6 +2572,36 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                       />
                     ) : null}
                     {message.role === "assistant" ? <ChatConfidenceBadge score={message.confidenceScore} /> : null}
+                    {message.role === "assistant" && (message.lepSourceRefs?.length ?? 0) > 0 ? (
+                      <div className="mt-2 border-t border-slate-200/70 pt-2 dark:border-slate-700/70">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenLepSourcesByMessageId((previous) => ({
+                              ...previous,
+                              [message.id]: !previous[message.id],
+                            }))
+                          }
+                          className="flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          aria-expanded={openLepSourcesByMessageId[message.id] === true}
+                        >
+                          <span aria-hidden="true">{openLepSourcesByMessageId[message.id] ? "⌄" : "›"}</span>
+                          Sources ({message.lepSourceRefs?.length ?? 0})
+                        </button>
+                        {openLepSourcesByMessageId[message.id] ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(message.lepSourceRefs ?? []).map((ref) => (
+                              <span
+                                key={`${message.id}-${ref}`}
+                                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                              >
+                                {ref}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {message.role === "assistant" && message.id === messages[messages.length - 1]?.id
                       ? (() => {
                           const suggestionChips = generateSuggestions(message.content);
