@@ -3,6 +3,7 @@ import { type ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { z } from "zod";
 
 import {
+  InstrumentType,
   LgaCoverageMaturity,
   WorkspaceSourceType,
   type DCPClause,
@@ -54,6 +55,11 @@ import {
   type StatutoryContextBlock,
 } from "@/lib/statutory-context-builder";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
+import {
+  buildLepClausePrompt,
+  shouldSearchLepClauses,
+  type WorkspaceLepClause,
+} from "./lep-clause-grounding";
 
 const SYSTEM_PROMPT = `You are Plannera, an NSW planning assistant.
 Always read the user's question literally.
@@ -268,6 +274,55 @@ const buildDcpClausePrompt = (
     ? `${lgaLabel} Development Control Plan clauses`
     : "Development Control Plan clauses";
   return `${headingLabel}: Use these council DCP controls as the primary source before LEP or SEPP guidance.\n${lines.join("\n")}`;
+};
+
+type LepClauseDelegate = {
+  findMany: (args: {
+    where: { lga: string };
+    take: number;
+    orderBy: Array<{ clauseNumber: "asc" }>;
+  }) => Promise<WorkspaceLepClause[]>;
+};
+
+type PrismaWithOptionalLepClause = typeof prisma & { lepClause?: LepClauseDelegate };
+
+const findWorkspaceLepClauses = async (lga: string): Promise<WorkspaceLepClause[]> => {
+  const lepClauseDelegate = (prisma as PrismaWithOptionalLepClause).lepClause;
+
+  if (lepClauseDelegate) {
+    return lepClauseDelegate.findMany({
+      where: { lga },
+      take: 10,
+      orderBy: [{ clauseNumber: "asc" }],
+    });
+  }
+
+  const instrumentWhere = normalizeCouncilLgaCode(lga)
+    ? {
+        instrumentType: InstrumentType.LEP,
+        slug: { contains: normalizeCouncilLgaCode(lga)?.toLowerCase() },
+      }
+    : { instrumentType: InstrumentType.LEP };
+
+  const instruments = await prisma.instrument.findMany({
+    where: instrumentWhere,
+    select: {
+      clauses: {
+        where: { isCurrent: true },
+        select: { clauseKey: true, title: true, bodyText: true },
+        take: 10,
+        orderBy: { clauseKey: "asc" },
+      },
+    },
+    take: 1,
+  });
+
+  return (instruments[0]?.clauses ?? []).map((clause) => ({
+    clauseNumber: clause.clauseKey,
+    heading: clause.title,
+    zone: null,
+    content: clause.bodyText,
+  }));
 };
 
 const requestMessageSchema = z.object({
@@ -719,6 +774,9 @@ export async function POST(request: Request) {
     let statutoryContext: StatutoryContextBlock | null = null;
     let statutoryContextPrompt: string | null = null;
     let zoneSummaryPrompt: string | null = null;
+    let lepClausePrompt: string | null = null;
+    let availableLepSourceRefs: string[] = [];
+    let lepSourceRefsForPersist: string[] = [];
     let forcedFallbackReply: string | null = null;
     let sourceContext: WorkspaceSourceContext | null = null;
     let dcpContext: WorkspaceSourceContext | null = null;
@@ -792,6 +850,26 @@ Use the raw clause text above as the first source for local-control answers. For
             "[workspace-chat-warning] Failed to search DCP clauses",
             getErrorDetails(dcpError),
           );
+        }
+      }
+
+      const lepClauseLga = lgaName ?? canonicalLgaCode;
+      if (shouldSearchLepClauses(userMessage) && lepClauseLga) {
+        try {
+          const lepClauses = await findWorkspaceLepClauses(lepClauseLga);
+          if (lepClauses.length > 0) {
+            availableLepSourceRefs = [
+              ...new Set(
+                lepClauses
+                  .map((clause) => clause.clauseNumber?.trim())
+                  .filter((ref): ref is string => Boolean(ref))
+                  .map((ref) => `cl. ${ref.replace(/^cl\.\s*/i, "")}`),
+              ),
+            ];
+            lepClausePrompt = `${buildLepClausePrompt(lepClauses)}\n\nIMPORTANT: When LEP clause data is provided above, you MUST cite the specific clause reference (e.g. "Byron LEP 2014 cl. 4.3") in your response. Do not invent clause numbers that are not listed above.`;
+          }
+        } catch (err) {
+          console.error("[workspace-chat] LEP clause fetch failed — continuing without", err);
         }
       }
 
@@ -1070,6 +1148,10 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: dcpClausePrompt });
     }
 
+    if (lepClausePrompt) {
+      messages.push({ role: "system", content: lepClausePrompt });
+    }
+
     if (zoneSummaryPrompt) {
       messages.push({ role: "system", content: zoneSummaryPrompt });
     }
@@ -1201,7 +1283,7 @@ When the user asks about local controls, rely first on the council Development C
     }
 
     const modelWasCalled = !forcedFallbackReply;
-    const reply = forcedFallbackReply
+    let reply = forcedFallbackReply
       ? forcedFallbackReply
       : await (async () => {
           try {
@@ -1230,12 +1312,29 @@ When the user asks about local controls, rely first on the council Development C
       usedLepFallback,
     });
 
+    let citedRefs = [
+      ...new Set(
+        [...reply.matchAll(/cl\.\s*(\d+\.\d+(?:\.\d+)?)/gi)].map(
+          (match) => `cl. ${match[1]}`,
+        ),
+      ),
+    ];
+
+    if (availableLepSourceRefs.length > 0 && citedRefs.length === 0) {
+      reply = `${reply}\n\nSource: ${availableLepSourceRefs[0]}.`;
+      citedRefs = [availableLepSourceRefs[0]];
+    }
+
+    lepSourceRefsForPersist = citedRefs;
+
     await persistWorkspaceChatExchange({
       prisma,
       projectId: persistedProjectId,
       incomingMessages,
       assistantReply: reply,
       parseConfidence: true,
+      lepSourceRefs:
+        lepSourceRefsForPersist.length > 0 ? lepSourceRefsForPersist : null,
     });
 
     const sourceAttribution = buildSourceAttribution({
@@ -1259,6 +1358,7 @@ When the user asks about local controls, rely first on the council Development C
       coverageState: coverageStateForResponse,
       coverageNotice,
       sourceAttribution,
+      lepSourceRefs: lepSourceRefsForPersist,
     });
   } catch (error) {
     console.error("[workspace-chat-error]", getErrorDetails(error));

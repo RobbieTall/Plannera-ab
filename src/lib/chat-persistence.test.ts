@@ -74,6 +74,31 @@ describe("chat persistence", () => {
     });
   });
 
+
+  it("persists LEP source refs on assistant messages when provided", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+
+    await persistWorkspaceChatExchange({
+      prisma: { chatMessage: { createMany } },
+      projectId: "project-1",
+      incomingMessages: [{ role: "user", content: "Question" }],
+      assistantReply: "Byron LEP 2014 cl. 4.3 applies.",
+      lepSourceRefs: ["cl. 4.3"],
+    });
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        { projectId: "project-1", role: "user", content: "Question" },
+        {
+          projectId: "project-1",
+          role: "assistant",
+          content: "Byron LEP 2014 cl. 4.3 applies.",
+          lepSourceRefs: ["cl. 4.3"],
+        },
+      ],
+    });
+  });
+
   it("omits assistant confidence fields when confidence parsing is disabled", async () => {
     const createMany = vi.fn().mockResolvedValue({ count: 2 });
 

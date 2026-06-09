@@ -10,6 +10,7 @@ export type WorkspaceMessage = {
   createdAt?: string;
   sourceAttribution?: SourceAttribution;
   confidenceScore?: number | null;
+  lepSourceRefs?: string[];
 };
 
 export type WorkspaceSessionSignals = {
