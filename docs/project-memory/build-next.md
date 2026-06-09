@@ -125,7 +125,7 @@ Every assistant response to a planning question must cite at least one real LEP 
 
 Success signal: ask "can I build a secondary dwelling at [Byron Bay address]?" → response cites real Byron LEP clauses, not generic advice.
 
-## 20) SEE Builder — real first draft
+20) SEE Builder — real first draft — DONE ✅
 
 The generate-SEE endpoint exists. Wire it end-to-end: user clicks "Generate SEE" → sections stream in with real LEP/DCP grounding → completed SEE is saved as an artefact → user can copy full text or download as .txt. This is the first thing users will pay for.
 
