@@ -20,6 +20,8 @@ type QuickSiteCheckModalProps = {
 
 const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
 
+const formatControlConfidence = (confidence?: string) => confidence ?? "Unavailable";
+
 const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
   const heading = payload.zone
     ? `Quick Site Check (LEP only) for zone ${payload.zone}`
@@ -76,7 +78,21 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
     value: null,
     present: false,
     interpretation: "Not assessed in LEP-only quick site check.",
+    confidence: "Unavailable" as const,
   });
+
+  const citedControl = (label: string, control: QuickSiteCheckLepSuccess["controls"]["heightOfBuilding"]) => {
+    if (!control?.value) return placeholderControl(label);
+    return {
+      label,
+      value: control.value,
+      present: true,
+      lepSource: true,
+      clauseRef: control.clauseRef,
+      interpretation: `${label} extracted from LEP clause ${control.clauseRef}.`,
+      confidence: control.confidence,
+    };
+  };
 
   return {
     projectId,
@@ -91,17 +107,19 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
       lga: payload.lga,
       source: "ingestion",
     },
-    permissibility: {
-      zoneLabel: payload.zone ? `Zone ${payload.zone}` : null,
-      permittedWithoutConsent: payload.landUse.withoutConsent,
-      permittedWithConsent: payload.landUse.withConsent,
-      prohibited: payload.landUse.prohibited,
-      interpretation: "Extracted from LEP zone table (permitted uses and prohibitions).",
-    },
+    permissibility: payload.permissibility
+      ? {
+          zoneLabel: payload.zone ? `Zone ${payload.zone}` : null,
+          permittedWithoutConsent: payload.permissibility.permittedWithoutConsent,
+          permittedWithConsent: payload.permissibility.permittedWithConsent,
+          prohibited: payload.permissibility.prohibited,
+          interpretation: "Extracted from LEP zone table (permitted uses and prohibitions).",
+        }
+      : null,
     controls: {
-      heightOfBuilding: placeholderControl("Height of buildings"),
-      floorSpaceRatio: placeholderControl("Floor space ratio"),
-      minimumLotSize: placeholderControl("Minimum lot size"),
+      heightOfBuilding: citedControl("Height of buildings", payload.controls.heightOfBuilding),
+      floorSpaceRatio: citedControl("Floor space ratio", payload.controls.fsr),
+      minimumLotSize: citedControl("Minimum lot size", payload.controls.minLotSize),
     },
     notes: payload.objectives,
     nextSteps: [
@@ -126,6 +144,7 @@ export function QuickSiteCheckModal({
   const [result, setResult] = useState<QuickSiteCheckLepSuccess | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPermissibility, setShowPermissibility] = useState(false);
 
   const { requireAuth } = useAuthGuard();
 
@@ -160,6 +179,7 @@ export function QuickSiteCheckModal({
       }
 
       setResult(payload);
+      setShowPermissibility(false);
       setStatus("idle");
     } catch (err) {
       console.error("[quick-site-check-lep] modal error", err);
@@ -283,7 +303,68 @@ export function QuickSiteCheckModal({
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Land use table</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Controls</p>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              {([
+                { label: "Height of buildings", control: result.controls.heightOfBuilding },
+                { label: "Floor space ratio", control: result.controls.fsr },
+                { label: "Minimum lot size", control: result.controls.minLotSize },
+              ] as const).map(({ label, control }) => (
+                <div key={label} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{control?.value ?? "Unavailable"}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                    {formatControlConfidence(control?.confidence)}{control?.clauseRef ? ` • cl. ${control.clauseRef}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {result.permissibility ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
+              <button
+                type="button"
+                onClick={() => setShowPermissibility((current) => !current)}
+                className="flex w-full items-center justify-between text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
+              >
+                <span>Land use table</span>
+                <span className="text-xs text-slate-500 dark:text-slate-300">{showPermissibility ? "Hide" : "Show land use table"}</span>
+              </button>
+              {showPermissibility ? (
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Permitted without consent</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formatList(result.permissibility.permittedWithoutConsent).map((item) => (
+                        <span key={item} className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">Permitted with consent</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formatList(result.permissibility.permittedWithConsent).map((item) => (
+                        <span key={item} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-200">{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-300">Prohibited</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formatList(result.permissibility.prohibited).map((item) => (
+                        <span key={item} className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-200">{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!result.permissibility ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Land use table</p>
             <div className="mt-2 grid gap-3 md:grid-cols-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Permitted without consent</p>
@@ -309,8 +390,9 @@ export function QuickSiteCheckModal({
                   ))}
                 </ul>
               </div>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-3">
             {([

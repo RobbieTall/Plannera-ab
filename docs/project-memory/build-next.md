@@ -113,7 +113,7 @@ Add a search input above the chat history that filters displayed messages by key
 
 Show relative time (e.g. "2 minutes ago", "just now") instead of HH:MM on assistant and user message bubbles, updating every minute via a useInterval hook.
 
-## 18) Quick Site Check — make it the killer feature ← CURRENT PRIORITY
+## 18) Quick Site Check — make it the killer feature — DONE ✓
 
 Wire the Quick Site Check result to show: zone name, permissibility table (what's permitted/prohibited/consent required), key LEP controls (height, FSR, min lot size) — all sourced from real ingested LepClause data, not AI guessing. The check should take <5 seconds and show a confidence label (Cited/Inferred/Unavailable) on each data point.
 

@@ -1,3 +1,9 @@
+export type LepControlValue = {
+  value: string;
+  clauseRef: string;
+  confidence: "Cited" | "Inferred" | "Unavailable";
+};
+
 export type QuickSiteCheckLepClause = {
   part: "4" | "5" | "6";
   clauseNumber: string;
@@ -12,6 +18,18 @@ export type QuickSiteCheckLepSuccess = {
   lepName: string;
   zone: string | null;
   objectives: string[];
+  controls: {
+    heightOfBuilding: LepControlValue | null;
+    fsr: LepControlValue | null;
+    minLotSize: LepControlValue | null;
+    zoneObjectives: string[] | null;
+  };
+  permissibility: {
+    permittedWithoutConsent: string[];
+    permittedWithConsent: string[];
+    prohibited: string[];
+  } | null;
+  dataSource: "db_clauses" | "fallback";
   landUse: {
     withoutConsent: string[];
     withConsent: string[];

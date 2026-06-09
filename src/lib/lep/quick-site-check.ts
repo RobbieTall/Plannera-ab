@@ -2,6 +2,7 @@ import fs from "fs";
 import type { Clause, LepZoneLandUse, LepZoneObjective } from "@prisma/client";
 
 import type {
+  LepControlValue,
   QuickSiteCheckLepClause,
   QuickSiteCheckLepResponse,
   QuickSiteCheckLepSuccess,
@@ -110,6 +111,116 @@ const buildSnippet = (text: string | null | undefined) => {
   const snippet = sentences || normalized.slice(0, 250);
   return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
 };
+
+
+const findPart4ClauseByHeading = (clauses: ClauseSummary[], headingRegex: RegExp, fallbackClauseRef: string) => {
+  return (
+    clauses.find((clause) => headingRegex.test(clause.title ?? "")) ??
+    clauses.find((clause) => parseClauseNumber(clause).startsWith(fallbackClauseRef)) ??
+    clauses.find((clause) => headingRegex.test(`${clause.title ?? ""}\n${clause.bodyText ?? ""}`)) ??
+    null
+  );
+};
+
+const extractTextNearZone = (text: string, zoneCode: string | null) => {
+  const cleaned = cleanXmlLikeString(text).replace(/\r\n/g, "\n");
+  if (!zoneCode) return cleaned;
+  const zoneRegex = new RegExp(`\\b${zoneCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
+  const index = lines.findIndex((line) => zoneRegex.test(line));
+  if (index === -1) return cleaned;
+  return lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 4)).join("\n");
+};
+
+const buildControlValue = (
+  clauses: ClauseSummary[],
+  zoneCode: string | null,
+  headingRegex: RegExp,
+  valueRegex: RegExp,
+  fallbackClauseRef: string,
+): LepControlValue | null => {
+  try {
+    const clause = findPart4ClauseByHeading(clauses, headingRegex, fallbackClauseRef);
+    if (!clause) return null;
+    const zoneText = extractTextNearZone(clause.bodyText ?? "", zoneCode);
+    const zoneMatch = zoneText.match(valueRegex);
+    const fallbackMatch = cleanXmlLikeString(clause.bodyText).match(valueRegex);
+    const match = zoneMatch ?? fallbackMatch;
+    if (!match?.[1]) return null;
+    return {
+      value: match[1].replace(/\s+/g, "").replace(/m2\b/i, "m²"),
+      clauseRef: parseClauseNumber(clause) || fallbackClauseRef,
+      confidence: "Cited",
+    };
+  } catch (error) {
+    console.error("[quick-site-check-lep] Control extraction failed", { fallbackClauseRef, error });
+    return null;
+  }
+};
+
+
+const splitLandUseItems = (value: string | null | undefined) => {
+  if (!value) return [] as string[];
+  return value
+    .split(/\n|;|,(?=\s*[A-Z])/)
+    .map((item) => item.replace(/^[-•*\d.)\s]+/, "").trim())
+    .filter(Boolean);
+};
+
+const extractNamedSectionItems = (text: string, heading: RegExp, nextHeadings: RegExp[]) => {
+  const lines = cleanXmlLikeString(text).replace(/\r\n/g, "\n").split("\n");
+  const start = lines.findIndex((line) => heading.test(line.trim().replace(/:$/, "")));
+  if (start === -1) return [] as string[];
+  const collected: string[] = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (nextHeadings.some((regex) => regex.test(line.replace(/:$/, "")))) break;
+    collected.push(line);
+  }
+  return splitLandUseItems(collected.join("\n"));
+};
+
+const extractLandUseFromClauses = (clauses: ClauseSummary[], zoneCode: string | null) => {
+  try {
+    const clause = findLandUseTableClause(clauses, zoneCode) ?? clauses.find(isClauseTwoThree) ?? null;
+    if (!clause) return null;
+    const cleaned = cleanXmlLikeString(clause.bodyText);
+    const zoneBlock = extractZoneBlockFromClause(cleaned, zoneCode)?.block ?? cleaned;
+    const objectiveItems = extractNamedSectionItems(zoneBlock, /^objectives? of zone/i, [
+      /^permitted without consent/i,
+      /^permitted with consent/i,
+      /^prohibited/i,
+      /^zone\s+[A-Z]/i,
+    ]);
+    const permittedWithoutConsent = extractNamedSectionItems(zoneBlock, /^permitted without consent/i, [
+      /^permitted with consent/i,
+      /^prohibited/i,
+      /^zone\s+[A-Z]/i,
+    ]);
+    const permittedWithConsent = extractNamedSectionItems(zoneBlock, /^permitted with consent/i, [
+      /^permitted without consent/i,
+      /^prohibited/i,
+      /^zone\s+[A-Z]/i,
+    ]);
+    const prohibited = extractNamedSectionItems(zoneBlock, /^prohibited/i, [
+      /^permitted without consent/i,
+      /^permitted with consent/i,
+      /^zone\s+[A-Z]/i,
+    ]);
+    if (!objectiveItems.length && !permittedWithoutConsent.length && !permittedWithConsent.length && !prohibited.length) {
+      return null;
+    }
+    return { objectiveItems, permittedWithoutConsent, permittedWithConsent, prohibited };
+  } catch (error) {
+    console.error("[quick-site-check-lep] Land use extraction failed", { zoneCode, error });
+    return null;
+  }
+};
+
+const hasRealLandUse = (landUse: ZoneSummary["landUse"]) =>
+  [...landUse.withoutConsent, ...landUse.withConsent, ...landUse.prohibited].some(
+    (item) => item && !/^No zone-specific/i.test(item),
+  );
 
 const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary, zoneCode: string | null) => {
   const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`.toLowerCase();
@@ -1223,6 +1334,61 @@ export const buildQuickSiteCheckLep = async (
       }
     }
 
+
+
+    const directLandUse = extractLandUseFromClauses(allClauses, zoneCode);
+    if (directLandUse) {
+      if (directLandUse.objectiveItems.length) zoneSummary.objectives = directLandUse.objectiveItems;
+      if (
+        directLandUse.permittedWithoutConsent.length ||
+        directLandUse.permittedWithConsent.length ||
+        directLandUse.prohibited.length
+      ) {
+        zoneSummary.landUse = {
+          withoutConsent: directLandUse.permittedWithoutConsent,
+          withConsent: directLandUse.permittedWithConsent,
+          prohibited: directLandUse.prohibited,
+        };
+      }
+    }
+
+    const heightOfBuilding = buildControlValue(
+      partBuckets["4"],
+      zoneCode,
+      /height of buildings?|building height/i,
+      /(\d+(?:\.\d+)?\s*m)\b/i,
+      "4.3",
+    );
+    const fsr = buildControlValue(
+      partBuckets["4"],
+      zoneCode,
+      /floor space ratio|fsr/i,
+      /(\d+(?:\.\d+)?\s*:\s*1)/i,
+      "4.4",
+    );
+    const minLotSize = buildControlValue(
+      partBuckets["4"],
+      zoneCode,
+      /minimum lot size|lot size/i,
+      /(\d+(?:\.\d+)?\s*(?:m²|m2|sqm|square metres?|ha))/i,
+      "4.1",
+    );
+    const realLandUseFound = hasRealLandUse(zoneSummary.landUse);
+    const permissibility = realLandUseFound
+      ? {
+          permittedWithoutConsent: zoneSummary.landUse.withoutConsent,
+          permittedWithConsent: zoneSummary.landUse.withConsent,
+          prohibited: zoneSummary.landUse.prohibited,
+        }
+      : null;
+    const controls = {
+      heightOfBuilding,
+      fsr,
+      minLotSize,
+      zoneObjectives: zoneSummary.objectives.length ? zoneSummary.objectives : null,
+    };
+    const dataSource = allClauses.length ? "db_clauses" : "fallback";
+
     const debugInfo: QuickSiteCheckLepSuccess["debug"] | undefined = options.debug
       ? {
           zoneHeadingMatch: zoneSummary.debug.headingMatch,
@@ -1285,6 +1451,9 @@ export const buildQuickSiteCheckLep = async (
       lepName: lepInstrument.name,
       zone: zoneCode,
       objectives: zoneSummary.objectives,
+      controls,
+      permissibility,
+      dataSource,
       landUse: {
         withoutConsent: zoneSummary.landUse.withoutConsent,
         withConsent: zoneSummary.landUse.withConsent,
