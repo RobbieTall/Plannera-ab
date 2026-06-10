@@ -131,6 +131,6 @@ The generate-SEE endpoint exists. Wire it end-to-end: user clicks "Generate SEE"
 
 Success signal: clicking Generate SEE produces a full structured Statement of Environmental Effects with real clause citations for a Byron Bay or Ballina property.
 
-## 21) README and product docs — keep current (DONE in this PR)
+## 21) README and product docs — keep current — DONE
 
 ## 22) Message reactions — low priority, do after 18-20 are solid.

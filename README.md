@@ -1,88 +1,78 @@
 # Plannera
 
-Plannera is an AI-powered NSW planning intelligence platform for property owners, planners, consultants, designers, and small developers who need fast, source-aware planning clarity before they commit time or money.
+Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
-The product is built around a simple loop:
+## Features
 
-1. **Address entry** — the user starts with a NSW property address.
-2. **Quick Site Check** — Plannera resolves the site and returns real LEP zone and permissibility intelligence.
-3. **Grounded workspace chat** — the assistant answers planning questions using retrieved LEP clauses and available DCP material.
-4. **SEE artefact builder** — Plannera drafts Statement of Environmental Effects content from the project context and statutory sources.
-5. **Export** — users copy or export grounded outputs for review and further project work.
+### Quick Site Check
+Real LEP zone identification, permissibility table (permitted / prohibited / consent required), and key development standards (height limit, FSR, minimum lot size) — sourced from ingested LEP clause data, not AI guessing. Each data point carries a **Cited**, **Inferred**, or **Unavailable** confidence label. Results in under 5 seconds.
+
+### Workspace Chat
+Every assistant response cites the relevant LEP clause (e.g. "Byron LEP 2014 cl. 4.3") when LEP data is available. A "Sources (n)" section appears below each bubble. Each response carries a **confidence badge** (green for score >= 0.7, amber for 0.4-0.69, red for < 0.4).
+
+Additional chat features:
+- **Smart follow-up chips** — 2-3 clickable question suggestions generated locally after each reply (no API call)
+- **Search/filter** — real-time keyword filter with highlighted matches and message count
+- **Relative timestamps** — "2 minutes ago", "just now", updating every minute
+- **Transcript export** — copy full conversation as markdown to clipboard
+- **Persistent history** — messages survive page refresh; New thread button starts fresh without deleting history
+
+### SEE Builder
+User clicks **Generate SEE** to generate a Statement of Environmental Effects via POST /api/artefacts/generate-see with real LEP + DCP grounding. Sections reveal progressively (~400ms each). Completed SEE can be:
+- Copied to clipboard (full structured plain text)
+- Downloaded as .txt (filename: see-[address].txt)
+- Regenerated at any time
+
+### Project Workspace Intelligence
+A persistent sidebar card shows: site address and zone, LGA coverage maturity level, artefact freshness (last generated, stale count), and confidence breakdown from the most recent chat session.
+
+### LGA Coverage Tracking
+Real-time polling shows LGA data preparation progress. When an LGA reaches SEARCHABLE_READY, a persistent dismissible in-app notification is surfaced in the workspace. A stale-artefacts banner prompts regeneration when coverage improves.
+
+## Confidence model
+Every output carries one of three labels: **Cited** (grounded in retrieved LEP/DCP clause text), **Inferred** (reasoned from planning context — requires professional verification), or **Unavailable** (data not yet reliable for this location). This label appears on Quick Site Check data points and as confidence badges on chat responses.
 
 ## Tech stack
-
-- **Next.js 14 App Router**
-- **TypeScript**
-- **Tailwind CSS**
-- **NextAuth** for authentication
-- **Prisma** with **Neon PostgreSQL**
-- **OpenAI** for planning assistant and document-generation workflows
+- Next.js 14 App Router
+- TypeScript
+- Tailwind CSS
+- NextAuth (magic-link email authentication)
+- Prisma with Neon PostgreSQL
+- OpenAI for planning assistant and SEE generation workflows
 
 ## Planning data pipeline
+Plannera bundles 160+ NSW LEP XML fixtures in data/nsw/xml/ covering all NSW LGAs in the bundled corpus.
 
-Plannera bundles 160+ NSW LEP XML fixtures in `data/nsw/xml/`, covering all NSW LGAs represented by the local XML corpus.
-
-LEP ingestion is handled by the admin endpoint:
-
-```http
+Ingest LEP data:
 POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET[&lga=LGACODE][&force=true]
-```
 
-The ingestion pipeline parses the bundled LEP XML files and stores current LEP provisions in the Prisma `Clause` records for LEP instruments. DCP provisions are stored in the `DCPClause` table and are retrieved separately for local development-control grounding.
-
-To inspect current LEP database coverage:
-
-```http
+Check coverage:
 GET /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET
-```
-
-The GET response returns:
-
-```json
-{ "lepClauseCount": 0, "lgasCovered": [] }
-```
-
-## LGA coverage
-
-Plannera’s NSW LEP coverage is fixture-backed across the bundled NSW XML set in `data/nsw/xml/`. Use the ingest endpoint above to seed LEP data into the connected database before relying on Quick Site Check or workspace-chat clause grounding in an environment.
+Returns: { "lepClauseCount": 0, "lgasCovered": [] }
 
 ## Environment variables
 
-Required for a production-like deployment:
+Required:
+- DATABASE_URL — PostgreSQL connection string (Prisma/Neon)
+- NEXTAUTH_URL — public base URL for NextAuth callbacks
+- NEXTAUTH_SECRET — signing secret for NextAuth cookies
+- EMAIL_SERVER_HOST, EMAIL_SERVER_PORT, EMAIL_SERVER_USER, EMAIL_SERVER_PASSWORD, EMAIL_FROM — SMTP for magic-link email
+- OPENAI_API_KEY — OpenAI API key
+- INGEST_ADMIN_SECRET — shared secret for LEP ingest endpoints
 
-- `DATABASE_URL` — PostgreSQL connection string for Prisma/Neon.
-- `NEXTAUTH_URL` — public base URL for NextAuth callbacks.
-- `NEXTAUTH_SECRET` — secret for signing NextAuth cookies and tokens.
-- `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_FROM` — SMTP configuration for magic-link email.
-- `OPENAI_API_KEY` — OpenAI API key for assistant and generation workflows.
-- `INGEST_ADMIN_SECRET` — shared secret protecting LEP ingestion endpoints.
-
-Optional integrations:
-
-- `GOOGLE_MAPS_API_KEY` — optional address/geocoding support.
-- `NSW_PROPERTY_API_*` — optional NSW property API configuration when live property feeds are enabled.
-
-## Available scripts
-
-```bash
-npm run dev
-npm run build
-npm run lint
-npm test
-```
-
-Additional data and operational scripts exist for ingestion, NSW data checks, and smoke tests, but the commands above are the core development/build checks.
+Optional:
+- GOOGLE_MAPS_API_KEY — address/geocoding support
+- NSW_PROPERTY_API_* — NSW property API configuration
 
 ## Local development
 
-Install dependencies and start the app:
-
-```bash
 npm install
 npm run dev
-```
 
-The app runs at [http://localhost:3000](http://localhost:3000).
+App runs at http://localhost:3000. Before testing LEP-grounded features, set DATABASE_URL and run the ingest endpoint with INGEST_ADMIN_SECRET.
 
-Before testing LEP-grounded features against a database, ensure `DATABASE_URL` is set and run the LEP ingestion endpoint with `INGEST_ADMIN_SECRET`.
+## Available scripts
+- npm run dev — Start development server
+- npm run build — Production build
+- npm run lint — ESLint check
+- npm test — Run vitest test suite
