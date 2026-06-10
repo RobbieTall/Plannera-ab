@@ -40,20 +40,24 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
     projectFindFirstMock.mockResolvedValue({ id: "project-1" });
     chatMessageFindManyMock.mockResolvedValue([
       {
+        id: "message-2",
         role: "assistant",
         content: "Second",
         createdAt: new Date("2026-06-02T10:05:00.000Z"),
         confidenceScore: 0.7,
         confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
         lepSourceRefs: ["cl. 4.3"],
+        reactions: { "👍": 1 },
       },
       {
+        id: "message-1",
         role: "user",
         content: "First",
         createdAt: new Date("2026-06-02T10:00:00.000Z"),
         confidenceScore: null,
         confidenceBreakdown: null,
         lepSourceRefs: [],
+        reactions: null,
       },
     ]);
 
@@ -73,12 +77,14 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
     expect(chatMessageFindManyMock).toHaveBeenCalledWith({
       where: { projectId: "project-1" },
       select: {
+        id: true,
         role: true,
         content: true,
         createdAt: true,
         confidenceScore: true,
         confidenceBreakdown: true,
         lepSourceRefs: true,
+        reactions: true,
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -86,20 +92,24 @@ describe("GET /api/projects/[projectId]/chat-history", () => {
     expect(payload).toEqual({
       messages: [
         {
+          id: "message-1",
           role: "user",
           content: "First",
           createdAt: "2026-06-02T10:00:00.000Z",
           confidenceScore: null,
           confidenceBreakdown: null,
           lepSourceRefs: [],
+          reactions: {},
         },
         {
+          id: "message-2",
           role: "assistant",
           content: "Second",
           createdAt: "2026-06-02T10:05:00.000Z",
           confidenceScore: 0.7,
           confidenceBreakdown: { citedClauses: 2, hedgingPhrases: 0, unresolvedGaps: 0 },
           lepSourceRefs: ["cl. 4.3"],
+          reactions: { "👍": 1 },
         },
       ],
     });

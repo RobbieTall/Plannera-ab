@@ -11,6 +11,7 @@ export type WorkspaceMessage = {
   sourceAttribution?: SourceAttribution;
   confidenceScore?: number | null;
   lepSourceRefs?: string[];
+  reactions?: Record<string, number>;
 };
 
 export type WorkspaceSessionSignals = {

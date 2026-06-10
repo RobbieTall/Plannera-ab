@@ -1337,6 +1337,15 @@ When the user asks about local controls, rely first on the council Development C
         lepSourceRefsForPersist.length > 0 ? lepSourceRefsForPersist : null,
     });
 
+    const persistedAssistantMessage =
+      persistedProjectId && "findFirst" in prisma.chatMessage
+        ? await prisma.chatMessage.findFirst({
+            where: { projectId: persistedProjectId, role: "assistant", content: reply },
+            select: { id: true },
+            orderBy: { createdAt: "desc" },
+          })
+        : null;
+
     const sourceAttribution = buildSourceAttribution({
       clauses,
       dcpClauses,
@@ -1349,6 +1358,7 @@ When the user asks about local controls, rely first on the council Development C
 
     return NextResponse.json({
       reply,
+      assistantMessageId: persistedAssistantMessage?.id ?? null,
       lga: fallbackLga,
       zone: siteContextSummary?.zone ?? null,
       projectName,

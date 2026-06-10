@@ -44,6 +44,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
+import { MessageReactionBar } from "@/components/projects/message-reaction-bar";
 import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
 import { QuickSiteCheckPanel } from "@/components/projects/quick-site-check-panel";
 import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge";
@@ -120,11 +121,13 @@ type ServerArtefactRecord = {
 };
 
 type ServerChatHistoryMessage = {
+  id: string;
   role: string;
   content: string;
   createdAt: string;
   confidenceScore?: number | null;
   lepSourceRefs?: string[];
+  reactions?: Record<string, number> | null;
 };
 
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
@@ -540,6 +543,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [sources, setSources] = useState<WorkspaceSource[]>([]);
   const [sourceFilter, setSourceFilter] = useState<WorkspaceSourceType | "all">("all");
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
+  const [messageReactions, setMessageReactions] = useState<Record<string, Record<string, number>>>({});
   const [openLepSourcesByMessageId, setOpenLepSourcesByMessageId] = useState<Record<string, boolean>>({});
   const [now, setNow] = useState(() => new Date());
   const [chatSearch, setChatSearch] = useState("");
@@ -727,17 +731,25 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
           .filter((message): message is ServerChatHistoryMessage & { role: WorkspaceMessage["role"] } =>
             message.role === "user" || message.role === "assistant",
           )
-          .map((message, index): WorkspaceMessage => ({
-            id: `history-${projectKey}-${index}-${new Date(message.createdAt).getTime()}`,
+          .map((message): WorkspaceMessage => ({
+            id: message.id,
             role: message.role,
             content: message.content,
             createdAt: message.createdAt,
             timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             confidenceScore: message.confidenceScore ?? null,
             lepSourceRefs: message.lepSourceRefs ?? [],
+            reactions: (message.reactions as Record<string, number>) ?? {},
           }));
 
         setMessages(hydratedMessages);
+        const initReactions: Record<string, Record<string, number>> = {};
+        hydratedMessages.forEach((message) => {
+          if (message.reactions && Object.keys(message.reactions).length > 0) {
+            initReactions[message.id] = message.reactions;
+          }
+        });
+        setMessageReactions(initReactions);
         saveChatHistory(projectKey, hydratedMessages);
       } catch (error) {
         console.error("[workspace] Failed to load chat history", error);
@@ -1269,6 +1281,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         addressInput?: string;
         sourceAttribution?: WorkspaceMessage["sourceAttribution"];
         lepSourceRefs?: string[];
+        assistantMessageId?: string | null;
       } = await response.json();
 
       if (data.siteContext) {
@@ -1297,7 +1310,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         : "I’ll keep looking for the right LEP/SEPP clauses—share any uploads or zones to sharpen the answer.";
       const assistantCreatedAt = new Date().toISOString();
       const assistantMessage: WorkspaceMessage = {
-        id: `msg-${Date.now()}-assistant`,
+        id: data.assistantMessageId ?? `msg-${Date.now()}-assistant`,
         role: "assistant",
         content: data.reply ?? replyFallback,
         createdAt: assistantCreatedAt,
@@ -1394,6 +1407,33 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
+
+  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    setMessageReactions((prev) => {
+      const current = prev[messageId] ?? {};
+      const updated = { ...current };
+      if (updated[emoji]) {
+        delete updated[emoji];
+      } else {
+        updated[emoji] = 1;
+      }
+      return { ...prev, [messageId]: updated };
+    });
+
+    try {
+      const res = await fetch(`/api/workspace-chat/${messageId}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res.ok) {
+        const data: { reactions?: Record<string, number> } = await res.json();
+        setMessageReactions((prev) => ({ ...prev, [messageId]: data.reactions ?? {} }));
+      }
+    } catch {
+      // Optimistic update stands; reactions are non-critical feedback.
+    }
+  }, []);
 
   const saveChatArtefact = useCallback(() => {
     const timestampLabel = new Date().toLocaleString();
@@ -2634,6 +2674,13 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                     <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
                       {message.createdAt ? getRelativeTime(new Date(message.createdAt), now) : message.timestamp}
                     </p>
+                    {message.role === "assistant" ? (
+                      <MessageReactionBar
+                        messageId={message.id}
+                        reactions={messageReactions[message.id] ?? message.reactions ?? {}}
+                        onToggle={toggleReaction}
+                      />
+                    ) : null}
                   </article>
                 ))
               )}
