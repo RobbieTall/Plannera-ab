@@ -23,7 +23,23 @@ export type WorkspaceSessionSignals = {
   lastIntent?: string;
 };
 
-export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note";
+export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note" | "feasibility";
+
+export type FeasibilityItem = {
+  label: string;
+  verdict: "proceed" | "caution" | "redesign" | "blocked" | "unresolved";
+  detail: string;
+  confidence: "cited" | "inferred" | "unavailable";
+  source?: string;
+};
+
+export type FeasibilityContent = {
+  developmentType: string;
+  overallVerdict: "proceed" | "caution" | "redesign" | "blocked" | "unresolved";
+  summary: string;
+  items: FeasibilityItem[];
+  generatedAt: string;
+};
 
 export type WorkspacePreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
@@ -68,11 +84,14 @@ export type WorkspaceArtefact = {
   title: string;
   owner: string;
   updatedAt: string;
+  createdAt?: string;
   type: WorkspaceArtefactType;
   noteType?: string;
   metadata?: string;
   messages?: WorkspaceMessage[];
   preSeeMemo?: WorkspacePreSeePlanningMemoContent;
+  content?: FeasibilityContent;
+  staleAt?: string;
 };
 
 export type WorkspaceNoteCategory = "Note" | "Meeting minutes" | "Observation" | "Idea";

@@ -13,10 +13,12 @@ import { serializeSiteContext } from "@/lib/site-context";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
+import { callModel } from "@/lib/modelRouter";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { FeasibilityContent } from "@/types/workspace";
 
 type PrismaClientArtefact = Pick<PrismaClient["artefact"], "create" | "findMany">;
 type PrismaClientProject = Pick<PrismaClient["project"], "findFirst" | "findUnique">;
@@ -608,6 +610,102 @@ export async function createQuickSiteCheckArtefact({
   });
 }
 
+
+const feasibilityItemSchema = z.object({
+  label: z.string().trim().min(1),
+  verdict: z.enum(["proceed", "caution", "redesign", "blocked", "unresolved"]),
+  detail: z.string().trim().min(1),
+  confidence: z.enum(["cited", "inferred", "unavailable"]),
+  source: z.string().trim().min(1).optional(),
+});
+
+const feasibilityContentSchema = z.object({
+  developmentType: z.string().trim().min(1),
+  overallVerdict: z.enum(["proceed", "caution", "redesign", "blocked", "unresolved"]),
+  summary: z.string().trim().min(1),
+  items: z.array(feasibilityItemSchema).min(1),
+  generatedAt: z.string().trim().min(1),
+});
+
+const fallbackFeasibilityContent = (
+  developmentType: string,
+  siteContext: { lga?: string; zone?: string },
+  address: string,
+  reason?: string,
+): FeasibilityContent => ({
+  developmentType,
+  overallVerdict: "unresolved",
+  summary: [
+    `Feasibility for ${developmentType} at ${address} could not be confirmed from available retrieved planning data.`,
+    siteContext.zone ? `Known zone: ${siteContext.zone}.` : "Zone was not available in the workspace context.",
+    reason ? `Reason: ${reason}.` : "Confirm LEP permissibility, development standards and site constraints before proceeding.",
+  ].join(" "),
+  items: [
+    {
+      label: "Land use permissibility",
+      verdict: "unresolved",
+      detail: "Retrieved LEP permissibility data was unavailable or insufficient for a reliable go/no-go finding.",
+      confidence: "unavailable",
+    },
+    {
+      label: "Height, FSR and lot size standards",
+      verdict: "unresolved",
+      detail: "Development standards could not be verified from the retrieved controls for this assessment.",
+      confidence: "unavailable",
+    },
+    {
+      label: "Decision guidance",
+      verdict: "unresolved",
+      detail: "Treat this as a hold point: obtain professional planning review before proceeding, redesigning, delaying or walking away.",
+      confidence: "unavailable",
+    },
+  ],
+  generatedAt: new Date().toISOString(),
+});
+
+const parseFeasibilityModelJson = (raw: string, developmentType: string): FeasibilityContent | null => {
+  try {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch?.[0] ?? raw);
+    const result = feasibilityContentSchema.safeParse(parsed);
+    if (!result.success) {
+      console.warn("[feasibility] Model returned invalid feasibility JSON", result.error.issues);
+      return null;
+    }
+
+    return {
+      ...result.data,
+      developmentType: result.data.developmentType || developmentType,
+      generatedAt: result.data.generatedAt || new Date().toISOString(),
+      items: result.data.items.map((item) => ({
+        ...item,
+        source: item.confidence === "cited" ? item.source : item.source || undefined,
+      })),
+    } satisfies FeasibilityContent;
+  } catch (error) {
+    console.warn("[feasibility] Unable to parse feasibility model JSON", error);
+    return null;
+  }
+};
+
+const buildFeasibilityPrompt = (params: {
+  address: string;
+  developmentType: string;
+  siteContext: { lga?: string; zone?: string };
+  statutoryPromptBlock: string;
+}) => [
+  `Address: ${params.address}`,
+  `Development type: ${params.developmentType}`,
+  `LGA: ${params.siteContext.lga || "Not supplied"}`,
+  `Zone: ${params.siteContext.zone || "Not supplied"}`,
+  "",
+  params.statutoryPromptBlock,
+  "",
+  "Return JSON only with this exact shape:",
+  '{"developmentType":"string","overallVerdict":"proceed|caution|redesign|blocked|unresolved","summary":"string","items":[{"label":"string","verdict":"proceed|caution|redesign|blocked|unresolved","detail":"string","confidence":"cited|inferred|unavailable","source":"optional string"}],"generatedAt":"ISO timestamp"}',
+  "Use cited confidence only when the retrieved LEP/DCP text supports the item. Use unavailable where data is missing. Do not invent clause references.",
+].join("\n");
+
 const generateSeeArtefactSchema = z.object({
   projectId: z.string().trim().min(1, "projectId is required"),
   title: z.string().trim().max(200).optional(),
@@ -840,6 +938,112 @@ export async function createPreSeePlanningMemoArtefact({
   });
 
   return { artefact, content };
+}
+
+
+type FeasibilityDeps = {
+  prisma: ArtefactDependencies["prisma"];
+  buildStatutoryContextBlock: typeof buildStatutoryContextBlock;
+  callModel: typeof callModel;
+};
+
+const defaultFeasibilityDeps: FeasibilityDeps = {
+  prisma,
+  buildStatutoryContextBlock,
+  callModel,
+};
+
+export async function createFeasibilityArtefact(
+  projectId: string,
+  address: string,
+  developmentType: string,
+  siteContext: { lga?: string; zone?: string },
+  userId?: string,
+  deps: FeasibilityDeps = defaultFeasibilityDeps,
+): Promise<{ artefactId: string; content: FeasibilityContent }> {
+  const normalizedSiteContext = {
+    lga: siteContext?.lga?.trim() || undefined,
+    zone: siteContext?.zone?.trim() || undefined,
+  };
+
+  let content = fallbackFeasibilityContent(developmentType, normalizedSiteContext, address);
+  let project: Awaited<ReturnType<typeof findProjectByExternalId>> | null = null;
+
+  try {
+    project = await findProjectByExternalId(deps.prisma as unknown as PrismaClient, projectId);
+  } catch (error) {
+    console.warn("[feasibility] Project lookup failed; returning fallback content", error);
+    return { artefactId: "", content: fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "Project lookup failed") };
+  }
+
+  if (!project) {
+    return { artefactId: "", content: fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "Project was not found") };
+  }
+
+  let statutoryPromptBlock = "No LEP or DCP clauses were retrieved for this feasibility assessment.";
+
+  try {
+    if (normalizedSiteContext.lga) {
+      const statutoryContext = await deps.buildStatutoryContextBlock({
+        lgaCode: normalizedSiteContext.lga,
+        query: [developmentType, normalizedSiteContext.zone, "permissibility height floor space ratio minimum lot size"].filter(Boolean).join(" "),
+        maxDcpClauses: 3,
+        maxLepClauses: 5,
+      });
+      statutoryPromptBlock = statutoryContext.promptBlock;
+    }
+  } catch (error) {
+    console.warn("[feasibility] Statutory context lookup failed; continuing with fallback context", error);
+    statutoryPromptBlock = "Retrieved planning controls were unavailable because the LEP/DCP lookup failed.";
+  }
+
+  try {
+    const raw = await deps.callModel(
+      "planning_chat",
+      [
+        {
+          role: "system",
+          content:
+            "You are a NSW planning expert. Return ONLY valid JSON matching FeasibilityContent. Base findings on retrieved LEP/DCP snippets where available and do not invent citations.",
+        },
+        {
+          role: "user",
+          content: buildFeasibilityPrompt({
+            address,
+            developmentType,
+            siteContext: normalizedSiteContext,
+            statutoryPromptBlock,
+          }),
+        },
+      ],
+      { maxTokens: 900, temperature: 0 },
+    );
+    content = parseFeasibilityModelJson(raw, developmentType) ?? fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "The model response was not valid JSON");
+  } catch (error) {
+    console.warn("[feasibility] OpenAI feasibility generation failed; using fallback content", error);
+    content = fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "AI generation was unavailable");
+  }
+
+  try {
+    const artefact = await deps.prisma.artefact.create({
+      data: {
+        projectId: project.id,
+        createdById: userId,
+        type: "feasibility" as ArtefactType,
+        title: `Feasibility: ${developmentType}`,
+        source: address,
+        overlays: [],
+        notes: content.summary,
+        payload: content,
+        capturedAt: new Date(content.generatedAt),
+      },
+    });
+
+    return { artefactId: artefact.id, content };
+  } catch (error) {
+    console.warn("[feasibility] Failed to persist feasibility artefact; returning generated content", error);
+    return { artefactId: "", content };
+  }
 }
 
 export async function listProjectArtefacts(projectId: string, userId: string, deps = { prisma }) {
