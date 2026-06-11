@@ -134,3 +134,9 @@ Success signal: clicking Generate SEE produces a full structured Statement of En
 ## 21) README and product docs — keep current — DONE
 
 ## 22) Message reactions — low priority, do after 18-20 are solid.
+
+## 23) Basic Feasibility Panel — DONE ✅
+
+Convert Quick Site Check / SEE groundwork into a paying Basic Feasibility feature: users can select a development type, generate a cited go/no-go assessment, and review per-item confidence labels with LEP/DCP source awareness.
+
+**Success signal:** user opens the Feasibility tab, selects a development type, clicks Assess feasibility, and sees an overall Proceed/Caution/Redesign/Blocked/Unresolved verdict with cited/inferred/unavailable item badges.

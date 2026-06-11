@@ -53,6 +53,7 @@ import { ProjectNotificationsPanel } from "@/components/projects/project-notific
 import { ProjectIntelligenceCard } from "@/components/projects/project-intelligence-card";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
+import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
 import { StaleArtefactsBanner } from "@/components/projects/stale-artefacts-banner";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -73,6 +74,8 @@ import { cn } from "@/lib/utils";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type {
   UserTier,
+  FeasibilityContent,
+  FeasibilityItem,
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspaceNoteCategory,
@@ -118,6 +121,7 @@ type ServerArtefactRecord = {
   createdAt?: string;
   updatedAt?: string;
   capturedAt?: string | null;
+  staleAt?: string | null;
 };
 
 type ServerChatHistoryMessage = {
@@ -212,6 +216,7 @@ const sourceIcons: Record<WorkspaceSourceType, React.ComponentType<React.SVGProp
 };
 
 const artefactBadges: Record<string, string> = {
+  feasibility: "text-emerald-700 bg-emerald-50 border-emerald-200",
   summary: "text-emerald-700 bg-emerald-50 border-emerald-200",
   brief: "text-blue-700 bg-blue-50 border-blue-200",
   report: "text-amber-700 bg-amber-50 border-amber-200",
@@ -415,6 +420,57 @@ const normalisePreSeeMemoContent = (value: unknown): WorkspacePreSeePlanningMemo
   };
 };
 
+
+const isFeasibilityVerdict = (value: unknown): value is FeasibilityContent["overallVerdict"] =>
+  value === "proceed" || value === "caution" || value === "redesign" || value === "blocked" || value === "unresolved";
+
+const isFeasibilityConfidence = (value: unknown): value is FeasibilityContent["items"][number]["confidence"] =>
+  value === "cited" || value === "inferred" || value === "unavailable";
+
+const normaliseFeasibilityContent = (value: unknown): FeasibilityContent | null => {
+  const parsedValue = coerceRecord(value);
+  if (!parsedValue) return null;
+
+  const developmentType = readString(parsedValue.developmentType);
+  const overallVerdict = isFeasibilityVerdict(parsedValue.overallVerdict) ? parsedValue.overallVerdict : null;
+  const summary = readString(parsedValue.summary);
+  const generatedAt = readString(parsedValue.generatedAt, new Date().toISOString());
+  const rawItems = Array.isArray(parsedValue.items) ? parsedValue.items : [];
+
+  if (!developmentType || !overallVerdict || !summary) return null;
+
+  const items: FeasibilityItem[] = rawItems
+    .map((item): FeasibilityItem | null => {
+      const entry = coerceRecord(item);
+      if (!entry) return null;
+      const verdict = isFeasibilityVerdict(entry.verdict) ? entry.verdict : "unresolved";
+      const confidence = isFeasibilityConfidence(entry.confidence) ? entry.confidence : "unavailable";
+      return {
+        label: readString(entry.label, "Assessment item"),
+        verdict,
+        detail: readString(entry.detail, "No detail was saved for this feasibility item."),
+        confidence,
+        source: readString(entry.source) || undefined,
+      } satisfies FeasibilityContent["items"][number];
+    })
+    .filter((item): item is FeasibilityItem => Boolean(item));
+
+  return {
+    developmentType,
+    overallVerdict,
+    summary,
+    items: items.length ? items : [
+      {
+        label: "Assessment",
+        verdict: "unresolved",
+        detail: "No saved feasibility checklist items were available.",
+        confidence: "unavailable",
+      },
+    ],
+    generatedAt,
+  };
+};
+
 const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
   const normalizedTitle = normaliseMemoLabel(artefact.title);
   const normalizedNoteType = artefact.noteType ? normaliseMemoLabel(artefact.noteType) : "";
@@ -461,6 +517,27 @@ const mapServerPreSeeMemoArtefact = (artefact: ServerArtefactRecord): WorkspaceA
     preSeeMemo: preSeeMemo ?? undefined,
   };
 };
+
+
+const mapServerFeasibilityArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null => {
+  const content = normaliseFeasibilityContent(artefact.payload);
+  if (!content) return null;
+
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: formatMemoDate(content.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt ?? new Date().toISOString()),
+    type: "feasibility",
+    noteType: "Basic Feasibility",
+    metadata: `${content.developmentType} · ${content.overallVerdict}`,
+    content,
+    staleAt: artefact.staleAt ?? undefined,
+  };
+};
+
+const mapServerWorkspaceArtefact = (artefact: ServerArtefactRecord): WorkspaceArtefact | null =>
+  artefact.type === "feasibility" ? mapServerFeasibilityArtefact(artefact) : mapServerPreSeeMemoArtefact(artefact);
 
 const findMatchingServerMemoArtefact = (artefact: WorkspaceArtefact, serverArtefacts: ServerArtefactRecord[]) => {
   const normalizedTitle = normaliseMemoLabel(artefact.title);
@@ -562,6 +639,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
   const [serverLimitReached, setServerLimitReached] = useState(false);
   const [isMapsToolsModalOpen, setIsMapsToolsModalOpen] = useState(false);
   const [isQuickSiteCheckOpen, setIsQuickSiteCheckOpen] = useState(false);
+  const [activeCoreFeatureTab, setActiveCoreFeatureTab] = useState<"quick-site-check" | "see" | "feasibility">("quick-site-check");
   const [upgradeModal, setUpgradeModal] = useState<null | "documents" | "tools">(null);
   const [toolContext, setToolContext] = useState<string | null>(null);
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -784,7 +862,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         const data = (await response.json().catch(() => [])) as ServerArtefactRecord[];
         if (cancelled) return;
 
-        setServerArtefacts(data.map(mapServerPreSeeMemoArtefact).filter((artefact): artefact is WorkspaceArtefact => Boolean(artefact)));
+        setServerArtefacts(data.map(mapServerWorkspaceArtefact).filter((artefact): artefact is WorkspaceArtefact => Boolean(artefact)));
         setHasLoadedServerArtefacts(true);
       } catch (error) {
         console.error("Failed to load project artefacts", error);
@@ -1983,6 +2061,10 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
     return Array.from(merged.values());
   }, [experienceArtefacts, hasLoadedServerArtefacts, serverArtefacts]);
   const hasSeeArtefact = artefacts.some((artefact) => isPreSeeMemoArtefact(artefact));
+  const latestFeasibilityContent = useMemo(() => {
+    const feasibilityArtefact = artefacts.find((artefact) => artefact.type === "feasibility" && normaliseFeasibilityContent(artefact.content));
+    return feasibilityArtefact ? normaliseFeasibilityContent(feasibilityArtefact.content) : null;
+  }, [artefacts]);
 
   const handleOpenPreSeeMemo = useCallback(
     async (artefact: WorkspaceArtefact) => {
@@ -2002,7 +2084,7 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
         }
 
         const mappedServerArtefacts = data
-          .map(mapServerPreSeeMemoArtefact)
+          .map(mapServerWorkspaceArtefact)
           .filter((entry): entry is WorkspaceArtefact => Boolean(entry));
         setServerArtefacts(mappedServerArtefacts);
         setHasLoadedServerArtefacts(true);
@@ -2785,6 +2867,37 @@ export function ProjectWorkspace({ project, initialPrompt, initialAddress }: Pro
                     Pro access
                   </span>
                 </header>
+                <div className="mt-4 flex flex-wrap gap-2 border-b border-slate-100 pb-3 dark:border-slate-800">
+                  {[
+                    { id: "quick-site-check" as const, label: "Quick Site Check" },
+                    { id: "see" as const, label: "SEE" },
+                    { id: "feasibility" as const, label: "Feasibility" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveCoreFeatureTab(tab.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                        activeCoreFeatureTab === tab.id
+                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-500/10 dark:text-blue-200"
+                          : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500",
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {activeCoreFeatureTab === "feasibility" ? (
+                  <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-800/50">
+                    <FeasibilityPanel
+                      projectId={projectKey}
+                      address={siteContext?.formattedAddress ?? initialInlineAddress ?? project.location ?? project.name}
+                      siteContext={{ lga: siteContext?.lgaCode ?? sessionSignals?.lga ?? undefined, zone: siteContext?.zone ?? zoningLabel ?? undefined }}
+                      existingContent={latestFeasibilityContent}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-4 grid grid-cols-2 gap-3 pr-1">
                   <QuickSiteCheckPanel onClick={() => setIsQuickSiteCheckOpen(true)} />
                   <button
