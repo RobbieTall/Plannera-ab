@@ -22,24 +22,28 @@ export async function GET(_request: NextRequest, { params }: { params: { project
     const newestMessages = await prisma.chatMessage.findMany({
       where: { projectId: project.id },
       select: {
+        id: true,
         role: true,
         content: true,
         createdAt: true,
         confidenceScore: true,
         confidenceBreakdown: true,
         lepSourceRefs: true,
+        reactions: true,
       },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
     const messages = newestMessages.reverse().map((message) => ({
+      id: message.id,
       role: message.role,
       content: message.content,
       createdAt: message.createdAt.toISOString(),
       confidenceScore: message.confidenceScore,
       confidenceBreakdown: message.confidenceBreakdown,
       lepSourceRefs: message.lepSourceRefs ?? [],
+      reactions: message.reactions ?? {},
     }));
 
     return NextResponse.json({ messages });
