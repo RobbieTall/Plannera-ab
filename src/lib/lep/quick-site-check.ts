@@ -1,6 +1,7 @@
 import fs from "fs";
 import type { Clause, LepZoneLandUse, LepZoneObjective } from "@prisma/client";
 
+import type { LepParseResult, LepZoneUses } from "@/lib/lep/types";
 import type {
   LepControlValue,
   QuickSiteCheckLepClause,
@@ -25,6 +26,38 @@ import {
 } from "./zone-utils";
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
+
+const normaliseLepString = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+
+const parseProjectLepData = (value: unknown): LepParseResult | null => {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return parsed && typeof parsed === "object" ? (parsed as LepParseResult) : null;
+    } catch {
+      return null;
+    }
+  }
+  return typeof value === "object" ? (value as LepParseResult) : null;
+};
+
+const findLepDataZone = (lepData: LepParseResult | null, zoneCode: string | null): LepZoneUses | null => {
+  if (!lepData?.zones || !zoneCode) return null;
+  return lepData.zones.find((zone) => toZoneCode(zone.zoneCode) === zoneCode || toZoneCode(zone.zoneName) === zoneCode) ?? null;
+};
+
+const hasFallbackObjectives = (objectives: string[], zoneCode: string | null) => {
+  const notFoundReason = zoneCode
+    ? `No zone-specific objectives found for zone ${zoneCode}.`
+    : "No zone-specific objectives found.";
+  return !objectives.length || (objectives.length === 1 && objectives[0] === notFoundReason);
+};
+
+const buildLepDataControlValue = (value: string | null | undefined, clauseRef: string): LepControlValue | null => {
+  const normalised = normaliseLepString(value);
+  return normalised ? { value: normalised, clauseRef, confidence: "Cited" } : null;
+};
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
   "4": [
@@ -830,6 +863,7 @@ export const buildQuickSiteCheckLep = async (
       return { ok: false, message: "Project not found" } satisfies QuickSiteCheckLepResponse;
     }
 
+    const projectLepData = parseProjectLepData(project.lepData);
     const siteContext = await prisma.siteContext.findUnique({ where: { projectId: project.id } });
     const siteSummary = serializeSiteContext(siteContext, project);
 
@@ -845,6 +879,7 @@ export const buildQuickSiteCheckLep = async (
       null;
 
     const zoneCode = toZoneCode(zone);
+    const lepDataZone = findLepDataZone(projectLepData, zoneCode);
     errorContext.zone = zoneCode;
 
     if (!lga) {
@@ -1352,6 +1387,30 @@ export const buildQuickSiteCheckLep = async (
       }
     }
 
+    if (lepDataZone) {
+      const lepObjectives = lepDataZone.zoneObjectives?.map((objective) => objective.trim()).filter(Boolean) ?? [];
+      if (lepObjectives.length && hasFallbackObjectives(zoneSummary.objectives, zoneCode)) {
+        zoneSummary.objectives = lepObjectives;
+        zoneSummary.debug.zoneObjectiveSource = "ingested";
+        zoneSummary.debug.objectivesCount = lepObjectives.length;
+      }
+
+      const lepLandUse = {
+        withoutConsent: lepDataZone.permittedWithoutConsent?.map((item) => item.trim()).filter(Boolean) ?? [],
+        withConsent: lepDataZone.permittedWithConsent?.map((item) => item.trim()).filter(Boolean) ?? [],
+        prohibited: lepDataZone.prohibited?.map((item) => item.trim()).filter(Boolean) ?? [],
+      };
+      if (hasRealLandUse(lepLandUse) && !hasRealLandUse(zoneSummary.landUse)) {
+        zoneSummary.landUse = lepLandUse;
+        zoneSummary.debug.landUseSource = "ingested";
+        zoneSummary.debug.landUseCounts = {
+          withoutConsent: lepLandUse.withoutConsent.length,
+          withConsent: lepLandUse.withConsent.length,
+          prohibited: lepLandUse.prohibited.length,
+        };
+      }
+    }
+
     const heightOfBuilding = buildControlValue(
       partBuckets["4"],
       zoneCode,
@@ -1373,6 +1432,10 @@ export const buildQuickSiteCheckLep = async (
       /(\d+(?:\.\d+)?\s*(?:m²|m2|sqm|square metres?|ha))/i,
       "4.1",
     );
+    const lepDataControls = projectLepData?.controls;
+    const heightOfBuildingFromLepData = buildLepDataControlValue(lepDataControls?.heightOfBuilding, "4.3");
+    const fsrFromLepData = buildLepDataControlValue(lepDataControls?.floorSpaceRatio, "4.4");
+    const minLotSizeFromLepData = buildLepDataControlValue(lepDataControls?.minimumLotSize, "4.1");
     const realLandUseFound = hasRealLandUse(zoneSummary.landUse);
     const permissibility = realLandUseFound
       ? {
@@ -1382,9 +1445,9 @@ export const buildQuickSiteCheckLep = async (
         }
       : null;
     const controls = {
-      heightOfBuilding,
-      fsr,
-      minLotSize,
+      heightOfBuilding: heightOfBuilding ?? heightOfBuildingFromLepData,
+      fsr: fsr ?? fsrFromLepData,
+      minLotSize: minLotSize ?? minLotSizeFromLepData,
       zoneObjectives: zoneSummary.objectives.length ? zoneSummary.objectives : null,
     };
     const dataSource = allClauses.length ? "db_clauses" : "fallback";
