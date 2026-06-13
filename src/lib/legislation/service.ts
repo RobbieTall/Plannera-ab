@@ -181,6 +181,39 @@ const buildSearchWhere = (
   };
 };
 
+const CLAUSE_WRITE_BATCH_SIZE = 25;
+
+const chunk = <T>(items: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const createClause = (
+  tx: Prisma.TransactionClient,
+  instrumentId: string,
+  clause: ParsedClause,
+  retrievedAt: Date,
+  version: number,
+) =>
+  tx.clause.create({
+    data: {
+      instrumentId,
+      clauseKey: clause.clauseKey,
+      title: clause.title,
+      bodyHtml: clause.bodyHtml,
+      bodyText: clause.bodyText,
+      hierarchyPath: clause.hierarchyPath,
+      version,
+      isCurrent: true,
+      retrievedAt,
+      contentHash: clause.contentHash,
+      searchIndex: { create: { bodyText: clause.bodyText } },
+    },
+  });
+
 const ingestParsedClauses = async (
   config: InstrumentConfigType,
   parsedClauses: ParsedClause[],
@@ -194,28 +227,30 @@ const ingestParsedClauses = async (
   let added = 0;
 
   if (options?.forceReplace) {
-    await prisma.$transaction(async (tx) => {
-      await tx.clause.deleteMany({ where: { instrumentId: instrument.id } });
+    await prisma.clause.deleteMany({ where: { instrumentId: instrument.id } });
 
-      for (const clause of uniqueClauses) {
-        await tx.clause.create({
-          data: {
-            instrumentId: instrument.id,
-            clauseKey: clause.clauseKey,
-            title: clause.title,
-            bodyHtml: clause.bodyHtml,
-            bodyText: clause.bodyText,
-            hierarchyPath: clause.hierarchyPath,
-            version: 1,
-            isCurrent: true,
-            retrievedAt,
-            contentHash: clause.contentHash,
-            searchIndex: { create: { bodyText: clause.bodyText } },
-          },
-        });
-        added += 1;
-      }
-    });
+    for (const clauseBatch of chunk(uniqueClauses, CLAUSE_WRITE_BATCH_SIZE)) {
+      await prisma.$transaction(
+        clauseBatch.map((clause) =>
+          prisma.clause.create({
+            data: {
+              instrumentId: instrument.id,
+              clauseKey: clause.clauseKey,
+              title: clause.title,
+              bodyHtml: clause.bodyHtml,
+              bodyText: clause.bodyText,
+              hierarchyPath: clause.hierarchyPath,
+              version: 1,
+              isCurrent: true,
+              retrievedAt,
+              contentHash: clause.contentHash,
+              searchIndex: { create: { bodyText: clause.bodyText } },
+            },
+          }),
+        ),
+      );
+      added += clauseBatch.length;
+    }
 
     const updatedInstrument = await prisma.instrument.update({
       where: { id: instrument.id },
@@ -232,68 +267,48 @@ const ingestParsedClauses = async (
   const currentClauses = await prisma.clause.findMany({
     where: { instrumentId: instrument.id, isCurrent: true },
   });
+  const currentByKey = new Map(currentClauses.map((clause) => [clause.clauseKey, clause]));
 
-  await prisma.$transaction(async (tx) => {
-    for (const clause of uniqueClauses) {
-      const existing = currentClauses.find((record) => record.clauseKey === clause.clauseKey);
-      if (!existing) {
-        await tx.clause.create({
-          data: {
-            instrumentId: instrument.id,
-            clauseKey: clause.clauseKey,
-            title: clause.title,
-            bodyHtml: clause.bodyHtml,
-            bodyText: clause.bodyText,
-            hierarchyPath: clause.hierarchyPath,
-            version: 1,
-            isCurrent: true,
-            retrievedAt,
-            contentHash: clause.contentHash,
-            searchIndex: { create: { bodyText: clause.bodyText } },
-          },
-        });
-        added += 1;
-        continue;
-      }
-
-      if (existing.contentHash === clause.contentHash) {
-        continue;
-      }
-
-      await tx.clause.update({
-        where: { id: existing.id },
-        data: { isCurrent: false, effectiveTo: retrievedAt },
-      });
-
-      await tx.clause.create({
-        data: {
-          instrumentId: instrument.id,
-          clauseKey: clause.clauseKey,
-          title: clause.title,
-          bodyHtml: clause.bodyHtml,
-          bodyText: clause.bodyText,
-          hierarchyPath: clause.hierarchyPath,
-          version: existing.version + 1,
-          isCurrent: true,
-          retrievedAt,
-          contentHash: clause.contentHash,
-          searchIndex: { create: { bodyText: clause.bodyText } },
-        },
-      });
-      updated += 1;
+  const writes = uniqueClauses.flatMap((clause) => {
+    const existing = currentByKey.get(clause.clauseKey);
+    if (!existing) {
+      added += 1;
+      return [{ kind: "create" as const, clause, version: 1 }];
     }
 
-    const parsedKeys = new Set(uniqueClauses.map((clause) => clause.clauseKey));
-    const removedClauses = currentClauses.filter((clause) => !parsedKeys.has(clause.clauseKey));
-    await Promise.all(
-      removedClauses.map((clause) =>
-        tx.clause.update({
-          where: { id: clause.id },
-          data: { isCurrent: false, effectiveTo: retrievedAt },
-        }),
-      ),
-    );
+    if (existing.contentHash === clause.contentHash) {
+      return [];
+    }
+
+    updated += 1;
+    return [
+      { kind: "retire" as const, id: existing.id },
+      { kind: "create" as const, clause, version: existing.version + 1 },
+    ];
   });
+
+  const parsedKeys = new Set(uniqueClauses.map((clause) => clause.clauseKey));
+  for (const clause of currentClauses) {
+    if (!parsedKeys.has(clause.clauseKey)) {
+      writes.push({ kind: "retire" as const, id: clause.id });
+    }
+  }
+
+  for (const writeBatch of chunk(writes, CLAUSE_WRITE_BATCH_SIZE)) {
+    await prisma.$transaction(async (tx) => {
+      for (const write of writeBatch) {
+        if (write.kind === "retire") {
+          await tx.clause.update({
+            where: { id: write.id },
+            data: { isCurrent: false, effectiveTo: retrievedAt },
+          });
+          continue;
+        }
+
+        await createClause(tx, instrument.id, write.clause, retrievedAt, write.version);
+      }
+    });
+  }
 
   const updatedInstrument = await prisma.instrument.update({
     where: { id: instrument.id },
