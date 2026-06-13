@@ -9,6 +9,7 @@ import {
 } from "@/lib/lep/nsw-lep-registry";
 import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
 import { parseInstrumentDocument } from "@/lib/legislation/parser";
+import { parseNswLepXml } from "@/lib/lep/nsw-lep-parser";
 import { syncInstrumentFromDocument } from "@/lib/legislation/service";
 import { prisma } from "@/lib/prisma";
 
@@ -49,6 +50,33 @@ const getCurrentClauseCount = async (slug: string) => {
   });
 
   return instrument?._count.clauses ?? 0;
+};
+
+const backfillProjectLepData = async (lga: string, xmlDocument: string) => {
+  const parsed = parseNswLepXml(xmlDocument);
+  const projects = await prisma.project.findMany({
+    where: {
+      zoningCode: { not: null },
+      siteContext: {
+        OR: [
+          { lgaCode: { equals: lga, mode: "insensitive" } },
+          { lgaName: { contains: lga, mode: "insensitive" } },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  let updated = 0;
+  for (const project of projects) {
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { lepData: parsed },
+    });
+    updated += 1;
+  }
+
+  return updated;
 };
 
 const getIngestTargets = (url: URL) => {
@@ -195,8 +223,9 @@ export async function POST(request: Request) {
           where: { instrumentId: result.instrument.id, isCurrent: true },
         });
         totalClauses += clauseCount;
+        const backfilledProjects = await backfillProjectLepData(lga, xmlDocument);
         ingested.push(config.slug);
-        console.log("[INGEST-LEP] Sync complete", { lga, slug: config.slug, clauseCount });
+        console.log("[INGEST-LEP] Sync complete", { lga, slug: config.slug, clauseCount, backfilledProjects });
         continue;
       }
 

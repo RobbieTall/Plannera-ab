@@ -13,7 +13,14 @@ export type LepInstrumentMetadata = {
   instrumentType: string;
 };
 
+export type LepMappedControls = {
+  heightOfBuilding?: string | null;
+  floorSpaceRatio?: string | null;
+  minimumLotSize?: string | null;
+};
+
 export type LepParseResult = {
   metadata: LepInstrumentMetadata;
   zones: LepZoneUses[];
+  controls?: LepMappedControls;
 };
