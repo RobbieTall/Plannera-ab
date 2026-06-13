@@ -20,7 +20,14 @@ type RootLayoutProps = {
 };
 
 export default async function RootLayout({ children }: RootLayoutProps) {
-  const session = await getServerSession(authOptions);
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    // next-auth can throw "Cookies can only be modified in a Server Action"
+    // during SSR when refreshing session tokens. Fall back to null session.
+    session = null;
+  }
   const planSource = session?.user?.plan ?? session?.user?.subscriptionTier ?? null;
   const normalizedPlan = typeof planSource === "string" ? planSource.toLowerCase() : null;
   const paidPlanValues = new Set(["pro", "professional", "paid", "premium", "day_pass", "day-pass", "daypass"]);
