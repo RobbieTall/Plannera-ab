@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { getSessionContext } from "@/lib/getSessionContext";
@@ -15,7 +16,14 @@ export type UserContext = {
  */
 export const getUserContext = async (): Promise<UserContext> => {
   const sessionContext = getSessionContext();
-  const authSession = await getServerSession(authOptions);
+  let authSession: Session | null = null;
+  try {
+    authSession = await getServerSession(authOptions);
+  } catch {
+    // getServerSession can attempt to refresh cookies during SSR. In Server Components,
+    // cookie mutation is not allowed, so fall back to a guest context instead of crashing.
+    authSession = null;
+  }
 
   const userId = authSession?.user?.id ?? sessionContext.userId ?? null;
 
