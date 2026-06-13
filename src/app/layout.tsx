@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import "./globals.css";
 
 import { authOptions } from "@/lib/auth";
@@ -42,9 +42,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body className="min-h-screen antialiased flex flex-col">
         <ThemeProvider>
           <AuthSessionProvider session={session}>
-            <AuthGuardProvider>
-              <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
-            </AuthGuardProvider>
+            <Suspense fallback={null}>
+              <AuthGuardProvider>
+                <ExperienceProvider initialTier={initialTier}>{children}</ExperienceProvider>
+              </AuthGuardProvider>
+            </Suspense>
           </AuthSessionProvider>
         </ThemeProvider>
       </body>
