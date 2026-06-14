@@ -316,8 +316,8 @@ const LGA_MAPS: LgaMapInfo[] = [
   },
   {
     lgaName: "Kempsey Shire Council",
-    platform: "none",
-    primaryMapUrl: null,
+    platform: "nsw_spatial_viewer" as LgaMapInfo["platform"],
+    primaryMapUrl: "https://www.planningportal.nsw.gov.au/spatialviewer/#/find-a-property/address",
     notes:
       "No unified council GIS; use NSW Planning Portal Spatial Viewer for zoning and overlays.",
     nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",
@@ -699,8 +699,8 @@ const LGA_MAPS: LgaMapInfo[] = [
   },
   {
     lgaName: "Kempsey",
-    platform: "none",
-    primaryMapUrl: null,
+    platform: "nsw_spatial_viewer" as LgaMapInfo["platform"],
+    primaryMapUrl: "https://www.planningportal.nsw.gov.au/spatialviewer/#/find-a-property/address",
     notes:
       "No unified council GIS; use NSW Planning Portal Spatial Viewer for zoning and overlays.",
     nswSpatialViewerUrl: "https://pp.planningportal.nsw.gov.au/spatialviewer/#/find-a-property",

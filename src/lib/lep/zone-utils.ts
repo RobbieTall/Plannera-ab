@@ -193,7 +193,7 @@ export const extractZoneBlockFromLandUseXml = (
 ): LandUseTableExtraction | null => {
   if (!xml || !zoneCode) return null;
 
-  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[_\-.\s]*${zoneCode}[^\"]*"[^>]*>`, "i");
+  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[-_.\\s]*${zoneCode}[^\"]*"[^>]*>`, "i");
   const startMatch = startRegex.exec(xml);
   if (!startMatch || typeof startMatch.index !== "number") return null;
 
@@ -266,7 +266,7 @@ export const extractZoneFromXmlClausegroup = (
 ): LandUseClausegroupExtraction | null => {
   if (!xml || !zoneCode) return null;
 
-  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[_\\-\\.\\s\u2013]*${zoneCode}[^\"]*"[^>]*>`, "i");
+  const startRegex = new RegExp(`<level[^>]+id="[^"]*Zone[-_. \\s\u2013]*${zoneCode}[^\"]*"[^>]*>`, "i");
   const startMatch = startRegex.exec(xml);
   if (!startMatch || typeof startMatch.index !== "number") return null;
 
