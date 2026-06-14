@@ -29,7 +29,12 @@ export const getSessionContext = (): RequestSession => {
   const serialized = serializeSession(anonymousSession);
 
   // When sign-in is introduced, we can attach the authenticated userId here.
-  cookieStore.set(serialized.name, serialized.value, serialized.attributes);
+  try {
+    cookieStore.set(serialized.name, serialized.value, serialized.attributes);
+  } catch {
+    // cookieStore.set is not allowed in Server Components during SSR.
+    // The session will still be returned; the cookie just won't be persisted this request.
+  }
 
   return {
     sessionId: anonymousSession.id,
