@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { listProjectsForUser } from "@/lib/projects";
@@ -16,7 +17,12 @@ export const metadata: Metadata = {
 };
 
 const requireUserId = async () => {
-  const session = await getServerSession(authOptions);
+  let session: Session | null = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
 
   if (!session?.user?.id) {
     redirect("/");

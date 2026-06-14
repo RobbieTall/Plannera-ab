@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { LogOut } from "lucide-react";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 
 import { MainNavigation } from "@/components/navigation/main-navigation";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -16,7 +17,12 @@ interface AuthenticatedAppLayoutProps {
 }
 
 export async function AuthenticatedAppLayout({ children, requireSession = true }: AuthenticatedAppLayoutProps) {
-  const session = await getServerSession(authOptions);
+  let session: Session | null = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
   const isAuthenticated = Boolean(session?.user?.email);
 
   if (requireSession && !isAuthenticated) {
