@@ -6,6 +6,8 @@ import { claimProjectForUser, claimSessionProjectsForUser, getProjectForRequeste
 import type { Project as PrismaProject } from "@prisma/client";
 import type { Project } from "@/lib/mock-data";
 
+export const dynamic = "force-dynamic";
+
 interface WorkspacePageProps {
   params: { id: string };
   searchParams?: { prompt?: string; initialAddress?: string };

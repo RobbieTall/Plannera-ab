@@ -16,6 +16,7 @@ import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
 import { callModel } from "@/lib/modelRouter";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { FeasibilityContent } from "@/types/workspace";
@@ -128,7 +129,12 @@ export class ArtefactAccessError extends Error {
 }
 
 export async function requireSessionUser() {
-  const session = await getServerSession(authOptions);
+  let session: Session | null = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
   const userId = session?.user?.id as string | undefined;
 
   if (userId) {
