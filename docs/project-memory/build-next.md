@@ -152,7 +152,7 @@ Wire Kempsey Shire Council DCP 2013 into the council DCP ingestion pipeline:
 
 Success signal: workspace chat for a Kempsey address cites real DCP section numbers and control values (setbacks, heights, parking) rather than falling back to inferred guidance.
 
-## 25) SEPP Exempt and Complying Development Codes 2008 — Register in instruments.json — TODO
+## 25) SEPP Exempt and Complying Development Codes 2008 — Register in instruments.json — ✅ DONE
 
 The XML file `data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml` exists in the repo but is NOT registered in `src/lib/legislation/instruments.json`. This SEPP governs the CDC (Complying Development Certificate) pathway — one of the most commonly cited instruments for residential development.
 
@@ -166,6 +166,8 @@ Add an entry to `instruments.json`:
 - xml_local_path: `data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml`
 
 Success signal: `npm run ingest:sepps` picks up and ingests this SEPP; CDC pathway questions in workspace chat cite it.
+
+✅ DONE: The SEPP is now registered in `src/lib/legislation/instruments.json` and will be picked up by `npm run ingest:sepps`.
 
 ## 26) EPA Act 1979 and EPA Regulation 2021 XML files — Commit to repo — TODO
 
