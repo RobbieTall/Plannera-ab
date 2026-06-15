@@ -179,7 +179,7 @@ Until these are committed, `ingest:legislation` will fail or skip these instrume
 
 Success signal: `npm run ingest:legislation` ingests EPA Act and Regulation clauses without errors; chat can cite EPA Act sections (e.g. s4.15 assessment matters).
 
-## 27) Production DB Ingest Health Check endpoint — TODO
+## 27) Production DB Ingest Health Check endpoint — ✅ DONE
 
 Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN_SECRET` that returns a JSON summary of what is ingested in the production DB:
 - For each instrument in `instruments.json`: name, slug, instrumentType, clauseCount, lastIngestedAt (or null if not yet ingested)
