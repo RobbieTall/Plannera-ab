@@ -121,19 +121,6 @@
     "xml_local_path": "data/nsw/xml/SEPP-Resources-and-Energy-2021.xml"
   },
   {
-    "slug": "sepp-exempt-complying-2008",
-    "name": "State Environmental Planning Policy (Exempt and Complying Development Codes) 2008",
-    "shortName": "SEPP Exempt and Complying 2008",
-    "instrumentType": "SEPP",
-    "jurisdiction": "NSW",
-    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2008-572",
-    "clausePrefix": "SEPP_EXEMPT_COMPLYING_2008",
-    "alwaysApplicable": true,
-    "topics": ["complying development", "exempt development"],
-    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2008-572",
-    "xml_local_path": "data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml"
-  },
-  {
     "slug": "sepp-transport-infrastructure-2021",
     "name": "State Environmental Planning Policy (Transport and Infrastructure) 2021",
     "shortName": "SEPP Transport 2021",
@@ -197,6 +184,19 @@
     "topics": ["precincts", "planning"],
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-728",
     "xml_local_path": "data/nsw/xml/SEPP-Precincts—Western Parkland City-2021.xml"
+  },
+  {
+    "slug": "sepp-exempt-complying-2008",
+    "name": "State Environmental Planning Policy (Exempt and Complying Development Codes) 2008",
+    "shortName": "SEPP Exempt & Complying 2008",
+    "instrumentType": "SEPP",
+    "jurisdiction": "NSW",
+    "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2008-0572",
+    "clausePrefix": "SEPP_EXEMPT_COMPLYING_2008",
+    "alwaysApplicable": true,
+    "topics": ["complying development", "exempt development", "CDC", "housing", "alterations"],
+    "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2008-0572",
+    "xml_local_path": "data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml"
   },
   {
     "slug": "ballina-lep-2012",
