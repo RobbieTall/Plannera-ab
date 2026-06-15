@@ -15,6 +15,10 @@ const DEFAULT_DCP_LINKS: Record<string, { name: string; url: string }> = {
     name: "Byron Shire Development Control Plan 2014",
     url: "/dcp/byron-dcp-2014-d1-b4.html",
   },
+  KEMPSEY: {
+    name: "Kempsey Development Control Plan 2013",
+    url: "/dcp/kempsey-dcp-2013.html",
+  },
 };
 
 const toAbsoluteUrl = (url: string) => {

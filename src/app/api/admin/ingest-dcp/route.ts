@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { ingestCouncilDcp } from "@/lib/dcp/council-dcp-ingestion";
 import { ingestByronDcp } from "@/lib/dcp/byron-ingestion";
 
-const accessToken = process.env.ADMIN_ACCESS_TOKEN;
+const getAccessToken = () => process.env.ADMIN_ACCESS_TOKEN || process.env.INGEST_ADMIN_SECRET;
+const SUPPORTED_DCP_LGAS = new Set(["BYRON", "KEMPSEY"]);
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
-  const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
+  const token = url.searchParams.get("token") ?? url.searchParams.get("secret") ?? request.headers.get("x-admin-token");
+  const accessToken = getAccessToken();
   const lgaCode = (url.searchParams.get("lgaCode") || url.searchParams.get("lga") || "").toUpperCase();
 
   if (!accessToken) {
@@ -20,6 +22,10 @@ export async function POST(request: Request) {
 
   if (!lgaCode) {
     return NextResponse.json({ ok: false, error: "lga_required" }, { status: 400 });
+  }
+
+  if (!SUPPORTED_DCP_LGAS.has(lgaCode)) {
+    return NextResponse.json({ ok: false, error: "unsupported_lga", lga: lgaCode }, { status: 400 });
   }
 
   try {

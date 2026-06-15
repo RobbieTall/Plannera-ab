@@ -141,10 +141,11 @@ Convert Quick Site Check / SEE groundwork into a paying Basic Feasibility featur
 
 **Success signal:** user opens the Feasibility tab, selects a development type, clicks Assess feasibility, and sees an overall Proceed/Caution/Redesign/Blocked/Unresolved verdict with cited/inferred/unavailable item badges.
 
-## 24) Kempsey DCP Ingestion — TODO
+## 24) Kempsey DCP Ingestion — PARTIAL
 
 Wire Kempsey Shire Council DCP 2013 into the council DCP ingestion pipeline:
-- Download Kempsey DCP 2013 HTML from https://www.kempsey.nsw.gov.au/development-regulation/development-control-plan and bundle relevant chapters under `public/dcp/kempsey-dcp-2013-[chapter].html`
+- Code is wired and placeholder file is in place; real DCP HTML download is pending.
+- Developer action required: download Kempsey DCP 2013 HTML and replace `public/dcp/kempsey-dcp-2013.html`, then call `POST /api/admin/ingest-council-dcp?lga=KEMPSEY`
 - Add `KEMPSEY` entry to `DEFAULT_DCP_LINKS` in `src/lib/dcp/council-dcp-ingestion.ts`
 - Add a Kempsey-specific ingestion helper analogous to `byron-ingestion.ts` if the HTML structure differs
 - Wire into the admin DCP ingest API so `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` triggers ingestion
