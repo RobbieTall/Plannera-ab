@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 
 import instruments from "./instruments.json";
@@ -15,15 +16,25 @@ const normaliseInstrument = (config: InstrumentConfigInput): InstrumentConfig =>
   const rawXmlLocalPath = config.xmlLocalPath ?? config.xml_local_path;
   const xmlUrl = config.xmlUrl ?? config.xml_url;
   const allowLocalFixtures = process.env.LEP_LOCAL_FIXTURES === "true";
-  const xmlLocalPath =
+  const configuredXmlLocalPath =
     config.instrumentType === "LEP" && !allowLocalFixtures ? undefined : rawXmlLocalPath;
+  const resolvedXmlLocalPath = configuredXmlLocalPath
+    ? path.resolve(projectRoot, configuredXmlLocalPath)
+    : undefined;
+  const resolvedFixtureFile = config.fixtureFile
+    ? path.resolve(projectRoot, config.fixtureFile)
+    : undefined;
+  const xmlLocalPath =
+    resolvedXmlLocalPath && fs.existsSync(resolvedXmlLocalPath)
+      ? resolvedXmlLocalPath
+      : resolvedFixtureFile;
 
   return {
     ...config,
     xmlUrl,
-    xmlLocalPath: xmlLocalPath ? path.resolve(projectRoot, xmlLocalPath) : undefined,
+    xmlLocalPath,
     jurisdiction: config.jurisdiction ?? "NSW",
-    fixtureFile: config.fixtureFile ? path.resolve(projectRoot, config.fixtureFile) : undefined,
+    fixtureFile: resolvedFixtureFile,
   };
 };
 

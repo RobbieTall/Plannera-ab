@@ -92,6 +92,18 @@ const loadFetcherModule = () => {
   return fetcherModulePromise;
 };
 
+const skipInstrumentWithoutSource = (config: InstrumentConfigType): SyncSkipResult => {
+  console.warn(`[legislation] Skipping ${config.slug}: no source file or URL configured`);
+  return {
+    status: "skipped",
+    config,
+    reason: "no source",
+    added: 0,
+    updated: 0,
+    parsedClauses: 0,
+  };
+};
+
 const buildSnippet = (bodyText: string, query?: string) => {
   if (!query) {
     return bodyText.slice(0, 280);
@@ -328,6 +340,11 @@ export const ingestInstrument = async (slug: string) => {
     throw new Error(`Unknown instrument slug: ${slug}`);
   }
 
+  if (!config.xmlLocalPath && !config.xmlUrl) {
+    skipInstrumentWithoutSource(config);
+    return { status: "skipped" as const, reason: "no source", clauseCount: 0 };
+  }
+
   const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
     loadParserModule(),
     loadFetcherModule(),
@@ -341,6 +358,10 @@ export const ingestInstrument = async (slug: string) => {
 };
 
 const syncInstrumentInternal = async (config: InstrumentConfigType): Promise<SyncResult> => {
+  if (!config.xmlLocalPath && !config.xmlUrl) {
+    return skipInstrumentWithoutSource(config);
+  }
+
   const [{ parseInstrumentDocument }, { fetchInstrumentXml }] = await Promise.all([
     loadParserModule(),
     loadFetcherModule(),

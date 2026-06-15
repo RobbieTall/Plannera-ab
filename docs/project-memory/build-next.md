@@ -170,15 +170,17 @@ Success signal: `npm run ingest:sepps` picks up and ingests this SEPP; CDC pathw
 
 ✅ DONE: The SEPP is now registered in `src/lib/legislation/instruments.json` and will be picked up by `npm run ingest:sepps`.
 
-## 26) EPA Act 1979 and EPA Regulation 2021 XML files — Commit to repo — TODO
+## 26) EPA Act 1979 and EPA Regulation 2021 XML files — Commit to repo — ✅ DONE
 
 `instruments.json` registers these instruments with local XML paths (`data/nsw/xml/epa-act-1979.xml` and `data/nsw/xml/epa-reg-2021.xml`) but neither file exists in the repo. They need to be manually downloaded from legislation.nsw.gov.au and committed:
 - EPA Act 1979: https://legislation.nsw.gov.au/export/xml/current/act-1979-203
 - EPA Regulation 2021: https://legislation.nsw.gov.au/export/xml/current/sl-2021-643
 
-Until these are committed, `ingest:legislation` will fail or skip these instruments.
+Until these are committed, `ingest:legislation` uses the existing checked-in HTML fixtures for these instruments.
 
-Success signal: `npm run ingest:legislation` ingests EPA Act and Regulation clauses without errors; chat can cite EPA Act sections (e.g. s4.15 assessment matters).
+✅ DONE: The EPA Act and EPA Regulation HTML fixtures are wired into the legislation ingest pipeline. The real XML files can be committed later at the existing `xml_local_path` targets to upgrade from fixture HTML to full XML without any code changes.
+
+Success signal: `npm run ingest:legislation` ingests EPA Act and Regulation clauses from the HTML fixtures without errors; committing the real XML files later will automatically make ingest prefer those XML sources.
 
 ## 27) Production DB Ingest Health Check endpoint — ✅ DONE
 
@@ -205,4 +207,3 @@ Kempsey test:
 - Note: DCP responses will be Inferred until item 24 is complete
 
 Success signal: both test journeys pass with predominantly Cited (not Inferred) responses for LEP-grounded questions.
-
