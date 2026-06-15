@@ -50,6 +50,30 @@ Check coverage:
 GET /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET
 Returns: { "lepClauseCount": 0, "lgasCovered": [] }
 
+## Live Test LGAs
+
+Byron Shire (Byron Bay) and Kempsey Shire are the two production test LGAs for Plannera. All features — Quick Site Check, Workspace Chat, SEE Builder, and Basic Feasibility — must work end-to-end with real, cited planning controls for these two councils before auth and paywall features are enabled.
+
+**Byron Shire**
+- LEP: Byron LEP 2014 (`data/nsw/xml/Byron-lep-2014.xml`) — registered in `instruments.json` as `byron-lep-2014`
+- DCP: Byron Shire DCP 2014 — bundled in `public/dcp/byron-dcp-2014-d1-b4.html`, wired in `council-dcp-ingestion.ts`
+- SEPPs: All NSW 2021 SEPPs apply state-wide via `DEFAULT_SEPP_SLUGS`
+- Coverage status: LEP + DCP ingested; SEPP ingestion required in production DB
+
+**Kempsey Shire**
+- LEP: Kempsey LEP 2013 (`data/nsw/xml/Kempsey-lep-2013.xml`) — registered in `instruments.json` as `kempsey-lep-2013`
+- DCP: Kempsey DCP 2013 — NOT YET WIRED (see build-next.md item 24)
+- SEPPs: All NSW 2021 SEPPs apply state-wide via `DEFAULT_SEPP_SLUGS`
+- Coverage status: LEP ingestion required; DCP ingestion not yet implemented; SEPP ingestion required
+
+**To activate both LGAs in production, run:**
+```bash
+npm run ingest:legislation   # ingests all LEPs including Byron + Kempsey
+npm run ingest:sepps         # ingests all NSW SEPPs (state-wide, applies to both LGAs)
+```
+Then trigger the council DCP ingest via the admin API for Byron:
+`POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
+
 ## Environment variables
 
 Required:

@@ -74,3 +74,22 @@ A compact register of active product/architecture decisions.
 **Decision:** Surface a compact Project Intelligence card in the workspace sidebar as the primary at-a-glance summary of site context, LGA coverage maturity, artefact freshness and answer confidence mix. Keep the card read-only for this slice and derive it from existing workspace state and APIs rather than adding new persistence.
 
 **Reference:** `docs/project-memory/build-next.md`
+
+## DR-011 — Byron and Kempsey as Production Test LGAs
+
+Status: Active
+
+Decision: Byron Shire and Kempsey Shire are the two designated production test LGAs for Plannera's initial live customer release. All core features (Quick Site Check, Workspace Chat, SEE Builder, Basic Feasibility) must function with real, cited planning controls for these two councils before auth, paywall, or broader LGA expansion is enabled. Byron is the primary test LGA (LEP + DCP + SEPPs wired). Kempsey is the secondary test LGA (LEP + SEPPs wired; DCP pending item 24).
+
+Rationale: These two LGAs represent different coastal NSW planning contexts — Byron is a high-demand lifestyle/development market; Kempsey is a regional council without a proprietary GIS platform. Together they validate the full feature set across different data availability profiles.
+
+Reference: docs/project-memory/build-next.md items 24–28
+
+## DR-012 — No Auth/Paywall Until Both Test LGAs Are Fully Functional
+
+Status: Active
+
+Decision: Authentication (magic-link email), user accounts, and any paywall or subscription features must not be enabled in production until Quick Site Check, Workspace Chat, SEE Builder, and Basic Feasibility all produce predominantly Cited (not Inferred) responses for Byron Bay and Kempsey addresses. The product must work before it is closed off.
+
+Reference: docs/project-memory/build-next.md item 28
+
