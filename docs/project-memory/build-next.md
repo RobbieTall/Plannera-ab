@@ -140,3 +140,66 @@ Success signal: clicking Generate SEE produces a full structured Statement of En
 Convert Quick Site Check / SEE groundwork into a paying Basic Feasibility feature: users can select a development type, generate a cited go/no-go assessment, and review per-item confidence labels with LEP/DCP source awareness.
 
 **Success signal:** user opens the Feasibility tab, selects a development type, clicks Assess feasibility, and sees an overall Proceed/Caution/Redesign/Blocked/Unresolved verdict with cited/inferred/unavailable item badges.
+
+## 24) Kempsey DCP Ingestion — TODO
+
+Wire Kempsey Shire Council DCP 2013 into the council DCP ingestion pipeline:
+- Download Kempsey DCP 2013 HTML from https://www.kempsey.nsw.gov.au/development-regulation/development-control-plan and bundle relevant chapters under `public/dcp/kempsey-dcp-2013-[chapter].html`
+- Add `KEMPSEY` entry to `DEFAULT_DCP_LINKS` in `src/lib/dcp/council-dcp-ingestion.ts`
+- Add a Kempsey-specific ingestion helper analogous to `byron-ingestion.ts` if the HTML structure differs
+- Wire into the admin DCP ingest API so `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` triggers ingestion
+- Confirm `hasCouncilDcp: true` for KEMPSEY after ingestion
+
+Success signal: workspace chat for a Kempsey address cites real DCP section numbers and control values (setbacks, heights, parking) rather than falling back to inferred guidance.
+
+## 25) SEPP Exempt and Complying Development Codes 2008 — Register in instruments.json — TODO
+
+The XML file `data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml` exists in the repo but is NOT registered in `src/lib/legislation/instruments.json`. This SEPP governs the CDC (Complying Development Certificate) pathway — one of the most commonly cited instruments for residential development.
+
+Add an entry to `instruments.json`:
+- slug: `sepp-exempt-complying-2008`
+- name: `State Environmental Planning Policy (Exempt and Complying Development Codes) 2008`
+- shortName: `SEPP Exempt & Complying 2008`
+- instrumentType: `SEPP`
+- alwaysApplicable: true
+- topics: `["complying development", "exempt development", "CDC", "housing"]`
+- xml_local_path: `data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml`
+
+Success signal: `npm run ingest:sepps` picks up and ingests this SEPP; CDC pathway questions in workspace chat cite it.
+
+## 26) EPA Act 1979 and EPA Regulation 2021 XML files — Commit to repo — TODO
+
+`instruments.json` registers these instruments with local XML paths (`data/nsw/xml/epa-act-1979.xml` and `data/nsw/xml/epa-reg-2021.xml`) but neither file exists in the repo. They need to be manually downloaded from legislation.nsw.gov.au and committed:
+- EPA Act 1979: https://legislation.nsw.gov.au/export/xml/current/act-1979-203
+- EPA Regulation 2021: https://legislation.nsw.gov.au/export/xml/current/sl-2021-643
+
+Until these are committed, `ingest:legislation` will fail or skip these instruments.
+
+Success signal: `npm run ingest:legislation` ingests EPA Act and Regulation clauses without errors; chat can cite EPA Act sections (e.g. s4.15 assessment matters).
+
+## 27) Production DB Ingest Health Check endpoint — TODO
+
+Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN_SECRET` that returns a JSON summary of what is ingested in the production DB:
+- For each instrument in `instruments.json`: name, slug, instrumentType, clauseCount, lastIngestedAt (or null if not yet ingested)
+- For each LGA with a council DCP registered: lgaCode, chunkCount, lastIngestedAt
+- Overall totals
+
+Success signal: hitting the endpoint against the production Vercel deployment shows Byron LEP, Kempsey LEP, and all SEPPs with non-zero clause counts, confirming the DB is live.
+
+## 28) Byron + Kempsey end-to-end live test — TODO
+
+Before enabling auth/paywall, manually verify the following user journeys work end-to-end on production (plannera-ab.vercel.app):
+
+Byron Bay test:
+- Enter "45 Broken Head Road, Byron Bay NSW 2481" → Quick Site Check returns real zone (RU2/R2/E3), permissibility table, height limit and FSR from Byron LEP 2014 clauses (Cited confidence)
+- Open workspace, ask "Can I build a secondary dwelling here?" → response cites Byron LEP 2014 cl. 4.21 and SEPP Housing 2021 (Cited)
+- Ask about setbacks → response cites Byron DCP 2014 chapter reference (Cited)
+- Generate SEE → produces structured document with real LEP/DCP clause citations
+
+Kempsey test:
+- Enter a Kempsey address → Quick Site Check returns real zone from Kempsey LEP 2013 (Cited)
+- Workspace chat cites Kempsey LEP 2013 and relevant SEPPs
+- Note: DCP responses will be Inferred until item 24 is complete
+
+Success signal: both test journeys pass with predominantly Cited (not Inferred) responses for LEP-grounded questions.
+
