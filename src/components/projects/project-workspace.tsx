@@ -2871,8 +2871,8 @@ export function ProjectWorkspace({
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-col rounded-[1.5rem] border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+            <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   Chat
@@ -2906,7 +2906,7 @@ export function ProjectWorkspace({
                 </button>
               </div>
             </header>
-            <div className="flex min-h-[70vh] h-[calc(100svh-180px)] max-h-[calc(100svh-150px)] flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 xl:min-h-0 xl:h-full xl:max-h-none xl:overflow-hidden">
+            <div className="flex min-h-[70vh] h-[calc(100svh-180px)] max-h-[calc(100svh-150px)] flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-5 sm:py-5 xl:min-h-0 xl:h-full xl:max-h-none">
               {siteSelection ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                   <div className="flex items-start justify-between gap-3">
@@ -3089,9 +3089,9 @@ export function ProjectWorkspace({
                   initialValue={initialInlineAddress}
                 />
               ) : null}
-              <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                 {messages.length > 0 ? (
-                  <div className="mb-2">
+                  <div className="mb-2 shrink-0">
                     <label htmlFor="chat-search" className="sr-only">
                       Search messages
                     </label>

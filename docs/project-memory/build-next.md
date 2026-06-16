@@ -211,3 +211,9 @@ Success signal: both test journeys pass with predominantly Cited (not Inferred) 
 ## 30) Unify admin endpoint auth — ✅ DONE (2026-06-16)
 
 All admin API routes now use the shared `isAuthorized` helper so `ADMIN_ACCESS_TOKEN`, `INGEST_ADMIN_SECRET`, and `ADMIN_SECRET` are checked in one consistent order.
+
+## 29) Fix chat messages flex layout — ✅ DONE (2026-06-16)
+
+Restore the chat panel flex-height chain so the messages scroll container can expand between the fixed header/search area and the fixed input composer without collapsing to height 0.
+
+Success signal: workspace chat messages are visible and the messages area scrolls within the chat panel.
