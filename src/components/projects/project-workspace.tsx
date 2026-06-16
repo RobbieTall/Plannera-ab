@@ -2725,7 +2725,7 @@ export function ProjectWorkspace({
         ) : null}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto xl:overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid flex-1 min-h-0 items-stretch gap-4 overflow-hidden xl:grid-cols-[280px_minmax(0,1fr)_340px]">
           <section className="flex flex-col rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
@@ -2906,7 +2906,7 @@ export function ProjectWorkspace({
                 </button>
               </div>
             </header>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-5 sm:py-5">
+            <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
               {siteSelection ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-slate-700 transition-colors dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50">
                   <div className="flex items-start justify-between gap-3">
