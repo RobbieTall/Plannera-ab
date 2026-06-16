@@ -3089,7 +3089,7 @@ export function ProjectWorkspace({
                   initialValue={initialInlineAddress}
                 />
               ) : null}
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+              <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                 {messages.length > 0 ? (
                   <div className="mb-2 shrink-0">
                     <label htmlFor="chat-search" className="sr-only">
@@ -3112,7 +3112,7 @@ export function ProjectWorkspace({
                 ) : null}
                 <div
                   ref={chatScrollRef}
-                  className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pr-2"
+                  className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto pb-48 pr-2"
                   aria-live="polite"
                 >
                   {messages.length === 0 ? (
@@ -3269,7 +3269,7 @@ export function ProjectWorkspace({
                 </div>
                 <form
                   onSubmit={handleSubmit}
-                  className="shrink-0 rounded-[1.25rem] border border-slate-200 bg-white/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-sm backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900"
+                  className="absolute bottom-0 left-0 right-0 rounded-[1.25rem] border border-slate-200 bg-white/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-sm backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900"
                 >
                   <label htmlFor="chat-input" className="sr-only">
                     Ask the workspace
