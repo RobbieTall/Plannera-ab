@@ -1,23 +1,20 @@
 import { NextResponse } from "next/server";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { ingestCouncilDcp } from "@/lib/dcp/council-dcp-ingestion";
 import { ingestByronDcp } from "@/lib/dcp/byron-ingestion";
 
-const getAccessToken = () => process.env.ADMIN_ACCESS_TOKEN || process.env.INGEST_ADMIN_SECRET;
 const SUPPORTED_DCP_LGAS = new Set(["BYRON", "KEMPSEY"]);
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? url.searchParams.get("secret") ?? request.headers.get("x-admin-token");
-  const accessToken = getAccessToken();
   const lgaCode = (url.searchParams.get("lgaCode") || url.searchParams.get("lga") || "").toUpperCase();
 
-  if (!accessToken) {
-    return NextResponse.json({ ok: false, error: "admin_token_missing" }, { status: 401 });
-  }
+  const secret = token;
 
-  if (!token || token !== accessToken) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!isAuthorized(secret)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   if (!lgaCode) {

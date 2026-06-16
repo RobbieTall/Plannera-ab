@@ -207,3 +207,7 @@ Kempsey test:
 - Note: DCP responses will be Inferred until item 24 is complete
 
 Success signal: both test journeys pass with predominantly Cited (not Inferred) responses for LEP-grounded questions.
+
+## 30) Unify admin endpoint auth — ✅ DONE (2026-06-16)
+
+All admin API routes now use the shared `isAuthorized` helper so `ADMIN_ACCESS_TOKEN`, `INGEST_ADMIN_SECRET`, and `ADMIN_SECRET` are checked in one consistent order.

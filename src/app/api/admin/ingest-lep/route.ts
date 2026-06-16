@@ -1,6 +1,7 @@
 import fs from "fs";
 import { NextResponse } from "next/server";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { buildLepConfigFromFileSync } from "@/lib/lep/lep-ingest-files";
 import {
   findLocalNswLepBySlug,
@@ -17,7 +18,6 @@ export const dynamic = "force-dynamic";
 
 type IngestError = { lga: string; error: string };
 
-const getAdminSecret = () => process.env.ADMIN_SECRET ?? process.env.INGEST_ADMIN_SECRET;
 
 const getProvidedSecret = (request: Request, url: URL) => {
   const authorization = request.headers.get("authorization");
@@ -32,11 +32,6 @@ const getProvidedSecret = (request: Request, url: URL) => {
   );
 };
 
-const requireAdmin = (request: Request, url: URL) => {
-  const adminSecret = getAdminSecret();
-  const providedSecret = getProvidedSecret(request, url);
-  return Boolean(adminSecret && providedSecret === adminSecret);
-};
 
 const getTargetLabel = (target: ReturnType<typeof listLocalNswLepPreparations>[number]) =>
   target.details.canonicalLga ?? target.details.lgaCode ?? target.details.lgaName ?? target.config.slug;
@@ -95,8 +90,10 @@ const getIngestTargets = (url: URL) => {
 export async function GET(request: Request) {
   const url = new URL(request.url);
 
-  if (!requireAdmin(request, url)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const secret = getProvidedSecret(request, url);
+
+  if (!isAuthorized(secret)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   if (!process.env.DATABASE_URL) {
@@ -154,8 +151,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const url = new URL(request.url);
 
-  if (!requireAdmin(request, url)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const secret = getProvidedSecret(request, url);
+
+  if (!isAuthorized(secret)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   if (!process.env.DATABASE_URL) {

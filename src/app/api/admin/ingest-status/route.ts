@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { WorkspaceSourceType } from "@prisma/client";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const secret = url.searchParams.get("secret");
 
-  if (!process.env.INGEST_ADMIN_SECRET || secret !== process.env.INGEST_ADMIN_SECRET) {
+  if (!isAuthorized(secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { authOptions } from "@/lib/auth";
 import { INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import { syncAllInstruments, type SyncResult } from "@/lib/legislation/service";
@@ -27,14 +28,11 @@ const getProvidedSecret = (request: Request, url: URL) => {
   );
 };
 
-const hasSecretAccess = (providedSecret: string | null) => {
-  const configuredSecret =
-    process.env.ADMIN_SECRET ?? process.env.INGEST_ADMIN_SECRET ?? process.env.ADMIN_ACCESS_TOKEN;
-  return Boolean(configuredSecret && providedSecret && providedSecret === configuredSecret);
-};
 
-const isAuthorized = async (request: Request, url: URL) => {
-  if (hasSecretAccess(getProvidedSecret(request, url))) {
+const isRequestAuthorized = async (request: Request, url: URL) => {
+  const secret = getProvidedSecret(request, url);
+
+  if (isAuthorized(secret)) {
     return true;
   }
 
@@ -88,7 +86,7 @@ const buildSummary = (results: SyncResult[]) => ({
 export async function POST(request: Request) {
   const url = new URL(request.url);
 
-  if (!(await isAuthorized(request, url))) {
+  if (!(await isRequestAuthorized(request, url))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

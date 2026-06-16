@@ -2,21 +2,18 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { getByronDcpCoverage } from "@/lib/dcp/byron-ingestion";
-
-const accessToken = process.env.ADMIN_ACCESS_TOKEN;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
   const lga = (url.searchParams.get("lga") || "").toUpperCase();
 
-  if (!accessToken) {
-    return NextResponse.json({ ok: false, error: "admin_token_missing" }, { status: 401 });
-  }
+  const secret = token;
 
-  if (!token || token !== accessToken) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!isAuthorized(secret)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   if (!lga) {

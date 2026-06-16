@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 
 import { WorkspaceSourceType } from "@prisma/client";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 
-const accessToken = process.env.ADMIN_ACCESS_TOKEN;
 const COUNCIL_DCP_TYPES: WorkspaceSourceType[] = [
   WorkspaceSourceType.council_dcp,
   WorkspaceSourceType.dcp,
@@ -19,11 +19,9 @@ export async function GET(request: Request) {
     const token = url.searchParams.get("token") ?? request.headers.get("x-admin-token");
     const lgaCode = url.searchParams.get("lgaCode");
 
-    if (!accessToken) {
-      return NextResponse.json({ error: "admin_token_missing" }, { status: 401 });
-    }
+    const secret = token;
 
-    if (!token || token !== accessToken) {
+    if (!isAuthorized(secret)) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
