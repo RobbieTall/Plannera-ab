@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { isAuthorized } from "@/lib/admin-auth";
 import { getLepContextForProject } from "@/lib/lep/lep-context";
-
-const SECRET = "Plannera-LEP-2025!";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const secret = url.searchParams.get("secret");
-  if (secret !== SECRET) {
+  if (!isAuthorized(secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

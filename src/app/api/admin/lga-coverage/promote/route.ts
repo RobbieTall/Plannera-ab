@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { isAuthorized } from "@/lib/admin-auth";
+
 import { promoteMaturity } from "@/lib/lga-coverage-qa";
 
 export const dynamic = "force-dynamic";
@@ -17,16 +19,13 @@ const getProvidedSecret = (request: Request, url: URL) => {
   );
 };
 
-const hasSecretAccess = (providedSecret: string | null) => {
-  const configuredSecret =
-    process.env.ADMIN_SECRET ?? process.env.INGEST_ADMIN_SECRET ?? process.env.ADMIN_ACCESS_TOKEN;
-  return Boolean(configuredSecret && providedSecret && providedSecret === configuredSecret);
-};
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
 
-  if (!hasSecretAccess(getProvidedSecret(request, url))) {
+  const secret = getProvidedSecret(request, url);
+
+  if (!isAuthorized(secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
