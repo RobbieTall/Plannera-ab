@@ -212,8 +212,8 @@ Success signal: both test journeys pass with predominantly Cited (not Inferred) 
 
 All admin API routes now use the shared `isAuthorized` helper so `ADMIN_ACCESS_TOKEN`, `INGEST_ADMIN_SECRET`, and `ADMIN_SECRET` are checked in one consistent order.
 
-## 29) Fix chat messages flex layout — ✅ DONE (2026-06-16)
+## 29) Fix chat messages flex layout — ✅ DONE (2026-06-16, revised)
 
-Restore the chat panel flex-height chain so the messages scroll container can expand between the fixed header/search area and the fixed input composer without collapsing to height 0.
+Restore the chat panel flex-height chain with a pure flex layout: the three-column workspace grid now clips overflow, the chat body no longer uses fixed viewport `min-height`/`height`/`max-height` calculations, and the input composer is a normal `shrink-0` flex child instead of a sticky element. This lets the messages scroll container take the remaining flex space between the search area and composer without collapsing to height 0.
 
 Success signal: workspace chat messages are visible and the messages area scrolls within the chat panel.
