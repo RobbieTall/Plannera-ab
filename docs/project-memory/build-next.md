@@ -207,3 +207,9 @@ Kempsey test:
 - Note: DCP responses will be Inferred until item 24 is complete
 
 Success signal: both test journeys pass with predominantly Cited (not Inferred) responses for LEP-grounded questions.
+
+## 29) Fix chat messages flex layout — ✅ DONE (2026-06-16)
+
+Restore the chat panel flex-height chain so the messages scroll container can expand between the fixed header/search area and the fixed input composer without collapsing to height 0.
+
+Success signal: workspace chat messages are visible and the messages area scrolls within the chat panel.
