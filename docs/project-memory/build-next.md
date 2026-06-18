@@ -217,3 +217,9 @@ All admin API routes now use the shared `isAuthorized` helper so `ADMIN_ACCESS_T
 Restore the chat panel flex-height chain with a pure flex layout: the three-column workspace grid now clips overflow, the chat body no longer uses fixed viewport `min-height`/`height`/`max-height` calculations, and the input composer is a normal `shrink-0` flex child instead of a sticky element. This lets the messages scroll container take the remaining flex space between the search area and composer without collapsing to height 0.
 
 Success signal: workspace chat messages are visible and the messages area scrolls within the chat panel.
+
+## 31) Move legislation fixtures into src so Vercel bundles them — ✅ DONE (2026-06-18)
+
+Moved checked-in legislation HTML fixtures from `scripts/fixtures/legislation/` into `src/lib/legislation/fixtures/` and updated `instruments.json` fixture paths to point at the bundled `src` copies.
+
+Success signal: Vercel serverless ingest can resolve fixture files from the project-root-relative paths without `ENOENT` when `scripts/` is not included in the bundle.

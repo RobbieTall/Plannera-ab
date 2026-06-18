@@ -9,7 +9,7 @@
     "clausePrefix": "EPA_ACT_1979",
     "status": "in_force",
     "topics": ["consent authority", "development applications"],
-    "fixtureFile": "scripts/fixtures/legislation/epa-act-1979.html",
+    "fixtureFile": "src/lib/legislation/fixtures/epa-act-1979.html",
     "notes": "Core enabling Act for NSW planning system",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/act-1979-203",
     "xml_local_path": "data/nsw/xml/epa-act-1979.xml"
@@ -24,7 +24,7 @@
     "clausePrefix": "EPA_REG_2021",
     "status": "in_force",
     "topics": ["lodgment", "certificates"],
-    "fixtureFile": "scripts/fixtures/legislation/epa-reg-2021.html",
+    "fixtureFile": "src/lib/legislation/fixtures/epa-reg-2021.html",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/sl-2021-643",
     "xml_local_path": "data/nsw/xml/epa-reg-2021.xml"
   },
@@ -38,7 +38,7 @@
     "clausePrefix": "SEPP_HOUSING_2021",
     "alwaysApplicable": true,
     "topics": ["housing", "secondary dwelling", "dual occupancy"],
-    "fixtureFile": "scripts/fixtures/legislation/sepp-housing-2021.html",
+    "fixtureFile": "src/lib/legislation/fixtures/sepp-housing-2021.html",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2021-697",
     "xml_local_path": "data/nsw/xml/SEPP-Housing-2021.xml"
   },
@@ -207,7 +207,7 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-540",
     "clausePrefix": "BALLINA_LEP_2012",
     "topics": ["height", "floor space ratio", "coastal"],
-    "fixtureFile": "scripts/fixtures/legislation/ballina-lep-2012.html",
+    "fixtureFile": "src/lib/legislation/fixtures/ballina-lep-2012.html",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-540",
     "xml_local_path": "data/nsw/xml/ballina-lep-2012.xml"
   },
@@ -294,7 +294,7 @@
     "sourceUrl": "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2012-636",
     "clausePrefix": "SYDNEY_LEP_2012",
     "topics": ["height", "floor space ratio", "zoning"],
-    "fixtureFile": "scripts/fixtures/legislation/city-of-sydney-lep-2012.html",
+    "fixtureFile": "src/lib/legislation/fixtures/city-of-sydney-lep-2012.html",
     "xml_url": "https://legislation.nsw.gov.au/export/xml/current/epi-2012-636",
     "xml_local_path": "data/nsw/xml/city-of-sydney-lep-2012.xml"
   },
