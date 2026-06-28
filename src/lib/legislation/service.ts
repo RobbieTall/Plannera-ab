@@ -307,19 +307,22 @@ const ingestParsedClauses = async (
   }
 
   for (const writeBatch of chunk(writes, CLAUSE_WRITE_BATCH_SIZE)) {
-    await prisma.$transaction(async (tx) => {
-      for (const write of writeBatch) {
-        if (write.kind === "retire") {
-          await tx.clause.update({
-            where: { id: write.id },
-            data: { isCurrent: false, effectiveTo: retrievedAt },
-          });
-          continue;
-        }
+    await prisma.$transaction(
+      async (tx) => {
+        for (const write of writeBatch) {
+          if (write.kind === "retire") {
+            await tx.clause.update({
+              where: { id: write.id },
+              data: { isCurrent: false, effectiveTo: retrievedAt },
+            });
+            continue;
+          }
 
-        await createClause(tx, instrument.id, write.clause, retrievedAt, write.version);
-      }
-    });
+          await createClause(tx, instrument.id, write.clause, retrievedAt, write.version);
+        }
+      },
+      { timeout: 60_000 },
+    );
   }
 
   const updatedInstrument = await prisma.instrument.update({

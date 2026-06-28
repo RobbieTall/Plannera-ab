@@ -4,6 +4,7 @@ const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     instrument: { findMany: vi.fn() },
     workspaceSourceChunk: { groupBy: vi.fn() },
+    dCPClause: { groupBy: vi.fn() },
   },
 }));
 
@@ -64,6 +65,7 @@ describe("GET /api/admin/ingest-status", () => {
     expect(await wrongResponse.json()).toEqual({ error: "unauthorized" });
     expect(prismaMock.instrument.findMany).not.toHaveBeenCalled();
     expect(prismaMock.workspaceSourceChunk.groupBy).not.toHaveBeenCalled();
+    expect(prismaMock.dCPClause.groupBy).not.toHaveBeenCalled();
   });
 
   it("returns 200 with the ingest status shape when secret matches", async () => {
@@ -77,7 +79,7 @@ describe("GET /api/admin/ingest-status", () => {
         clauses: [{ createdAt: new Date("2026-01-02T03:04:05.000Z") }],
       },
     ]);
-    prismaMock.workspaceSourceChunk.groupBy.mockResolvedValue([
+    prismaMock.dCPClause.groupBy.mockResolvedValue([
       {
         lgaCode: "BYRON",
         _count: { _all: 3 },
@@ -93,6 +95,12 @@ describe("GET /api/admin/ingest-status", () => {
     expect(prismaMock.instrument.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { slug: { in: ["byron-lep-2014", "kempsey-lep-2013", "sepp-housing-2021", "sepp-empty"] } },
+      }),
+    );
+    expect(prismaMock.dCPClause.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ["lgaCode"],
+        where: { lgaCode: { not: "" } },
       }),
     );
     expect(payload.instruments).toEqual([
@@ -146,7 +154,7 @@ describe("GET /api/admin/ingest-status", () => {
       { slug: "sepp-housing-2021", name: "Housing SEPP", shortName: "Housing", instrumentType: "SEPP", _count: { clauses: 5 }, clauses: [] },
       { slug: "sepp-empty", name: "Empty SEPP", shortName: "Empty", instrumentType: "SEPP", _count: { clauses: 0 }, clauses: [] },
     ]);
-    prismaMock.workspaceSourceChunk.groupBy.mockResolvedValue([
+    prismaMock.dCPClause.groupBy.mockResolvedValue([
       { lgaCode: "BYRON", _count: { _all: 7 }, _max: { createdAt: null } },
       { lgaCode: "KEMPSEY", _count: { _all: 11 }, _max: { createdAt: new Date("2026-02-01T00:00:00.000Z") } },
     ]);

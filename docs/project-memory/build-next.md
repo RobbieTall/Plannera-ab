@@ -235,3 +235,9 @@ Success signal: Vercel serverless ingest can resolve fixture files from `/var/ta
 ## 33) Production ingestion runner script — ✅ DONE (2026-06-28)
 
 Added `scripts/ingest-production.sh` and `npm run ingest:production` to run all production legislation/DCP ingestion endpoints and print the final ingest-status summary.
+
+## 34) Fix ingest transaction timeout + DCP status mismatch — ✅ DONE (2026-06-28)
+
+Raised legislation clause-write transaction timeouts to 60 seconds so large XML instruments can ingest without Prisma's default 5 second interactive transaction expiry, and confirmed the admin ingest route targets a single instrument with `slug=`.
+
+Updated ingest-status council DCP counts to read from the DCP clause table used by the Byron DCP ingest, so `summary.byronDcpChunks` reflects the 143 stored Byron DCP clauses instead of unrelated workspace source chunks.
