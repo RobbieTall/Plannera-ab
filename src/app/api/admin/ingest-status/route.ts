@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { WorkspaceSourceType } from "@prisma/client";
-
 import { isAuthorized } from "@/lib/admin-auth";
 import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import { prisma } from "@/lib/prisma";
@@ -41,12 +39,9 @@ export async function GET(request: Request) {
       },
       orderBy: { slug: "asc" },
     }),
-    prisma.workspaceSourceChunk.groupBy({
+    prisma.dCPClause.groupBy({
       by: ["lgaCode"],
-      where: {
-        sourceType: WorkspaceSourceType.council_dcp,
-        lgaCode: { not: null },
-      },
+      where: { lgaCode: { not: "" } },
       _count: { _all: true },
       _max: { createdAt: true },
       orderBy: { lgaCode: "asc" },
