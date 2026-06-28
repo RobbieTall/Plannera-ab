@@ -8,6 +8,34 @@ const { prismaMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
+vi.mock("@/lib/legislation/config", () => ({
+  ALL_INSTRUMENT_CONFIG: [
+    {
+      slug: "byron-lep-2014",
+      name: "Byron Local Environmental Plan 2014",
+      shortName: "Byron LEP 2014",
+      instrumentType: "LEP",
+    },
+    {
+      slug: "kempsey-lep-2013",
+      name: "Kempsey Local Environmental Plan 2013",
+      shortName: "Kempsey LEP 2013",
+      instrumentType: "LEP",
+    },
+    {
+      slug: "sepp-housing-2021",
+      name: "Housing SEPP",
+      shortName: "Housing",
+      instrumentType: "SEPP",
+    },
+    {
+      slug: "sepp-empty",
+      name: "Empty SEPP",
+      shortName: "Empty",
+      instrumentType: "SEPP",
+    },
+  ],
+}));
 
 import { GET } from "./route";
 
@@ -62,6 +90,11 @@ describe("GET /api/admin/ingest-status", () => {
 
     expect(response.status).toBe(200);
     expect(payload.generatedAt).toEqual(expect.any(String));
+    expect(prismaMock.instrument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { slug: { in: ["byron-lep-2014", "kempsey-lep-2013", "sepp-housing-2021", "sepp-empty"] } },
+      }),
+    );
     expect(payload.instruments).toEqual([
       {
         slug: "byron-lep-2014",
@@ -71,6 +104,30 @@ describe("GET /api/admin/ingest-status", () => {
         clauseCount: 2,
         lastIngestedAt: "2026-01-02T03:04:05.000Z",
       },
+      {
+        slug: "kempsey-lep-2013",
+        name: "Kempsey Local Environmental Plan 2013",
+        shortName: "Kempsey LEP 2013",
+        instrumentType: "LEP",
+        clauseCount: 0,
+        lastIngestedAt: null,
+      },
+      {
+        slug: "sepp-housing-2021",
+        name: "Housing SEPP",
+        shortName: "Housing",
+        instrumentType: "SEPP",
+        clauseCount: 0,
+        lastIngestedAt: null,
+      },
+      {
+        slug: "sepp-empty",
+        name: "Empty SEPP",
+        shortName: "Empty",
+        instrumentType: "SEPP",
+        clauseCount: 0,
+        lastIngestedAt: null,
+      },
     ]);
     expect(payload.councilDcp).toEqual([
       {
@@ -79,7 +136,7 @@ describe("GET /api/admin/ingest-status", () => {
         lastIngestedAt: "2026-01-03T03:04:05.000Z",
       },
     ]);
-    expect(payload.summary).toMatchObject({ totalInstruments: 1, totalClauses: 2, totalDcpChunks: 3 });
+    expect(payload.summary).toMatchObject({ totalInstruments: 4, totalClauses: 2, totalDcpChunks: 3 });
   });
 
   it("computes summary fields correctly from mock data", async () => {

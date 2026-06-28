@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { WorkspaceSourceType } from "@prisma/client";
 
 import { isAuthorized } from "@/lib/admin-auth";
+import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
 
   const [instruments, dcpGroups] = await Promise.all([
     prisma.instrument.findMany({
+      where: { slug: { in: ALL_INSTRUMENT_CONFIG.map((instrument) => instrument.slug) } },
       select: {
         slug: true,
         name: true,
@@ -51,14 +53,20 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  const instrumentStatuses = instruments.map((instrument) => ({
-    slug: instrument.slug,
-    name: instrument.name,
-    shortName: instrument.shortName,
-    instrumentType: instrument.instrumentType,
-    clauseCount: instrument._count.clauses,
-    lastIngestedAt: toIsoOrNull(instrument.clauses[0]?.createdAt),
-  }));
+  const instrumentRecordsBySlug = new Map(instruments.map((instrument) => [instrument.slug, instrument]));
+
+  const instrumentStatuses = ALL_INSTRUMENT_CONFIG.map((config) => {
+    const instrument = instrumentRecordsBySlug.get(config.slug);
+
+    return {
+      slug: config.slug,
+      name: instrument?.name ?? config.name,
+      shortName: instrument?.shortName ?? config.shortName ?? null,
+      instrumentType: instrument?.instrumentType ?? config.instrumentType,
+      clauseCount: instrument?._count.clauses ?? 0,
+      lastIngestedAt: toIsoOrNull(instrument?.clauses[0]?.createdAt),
+    };
+  });
 
   const councilDcp = dcpGroups.map((group) => ({
     lgaCode: group.lgaCode ?? "",
