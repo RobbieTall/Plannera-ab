@@ -203,15 +203,22 @@ const chunk = <T>(items: T[], size: number): T[][] => {
   return chunks;
 };
 
-const createClause = (
+const upsertClause = (
   tx: Prisma.TransactionClient,
   instrumentId: string,
   clause: ParsedClause,
   retrievedAt: Date,
   version: number,
 ) =>
-  tx.clause.create({
-    data: {
+  tx.clause.upsert({
+    where: {
+      instrumentId_clauseKey_version: {
+        instrumentId,
+        clauseKey: clause.clauseKey,
+        version,
+      },
+    },
+    create: {
       instrumentId,
       clauseKey: clause.clauseKey,
       title: clause.title,
@@ -220,9 +227,26 @@ const createClause = (
       hierarchyPath: clause.hierarchyPath,
       version,
       isCurrent: true,
+      effectiveTo: null,
       retrievedAt,
       contentHash: clause.contentHash,
       searchIndex: { create: { bodyText: clause.bodyText } },
+    },
+    update: {
+      title: clause.title,
+      bodyHtml: clause.bodyHtml,
+      bodyText: clause.bodyText,
+      hierarchyPath: clause.hierarchyPath,
+      isCurrent: true,
+      effectiveTo: null,
+      retrievedAt,
+      contentHash: clause.contentHash,
+      searchIndex: {
+        upsert: {
+          create: { bodyText: clause.bodyText },
+          update: { bodyText: clause.bodyText },
+        },
+      },
     },
   });
 
@@ -244,21 +268,7 @@ const ingestParsedClauses = async (
     for (const clauseBatch of chunk(uniqueClauses, CLAUSE_WRITE_BATCH_SIZE)) {
       await prisma.$transaction(
         clauseBatch.map((clause) =>
-          prisma.clause.create({
-            data: {
-              instrumentId: instrument.id,
-              clauseKey: clause.clauseKey,
-              title: clause.title,
-              bodyHtml: clause.bodyHtml,
-              bodyText: clause.bodyText,
-              hierarchyPath: clause.hierarchyPath,
-              version: 1,
-              isCurrent: true,
-              retrievedAt,
-              contentHash: clause.contentHash,
-              searchIndex: { create: { bodyText: clause.bodyText } },
-            },
-          }),
+          upsertClause(prisma, instrument.id, clause, retrievedAt, 1),
         ),
       );
       added += clauseBatch.length;
@@ -318,7 +328,7 @@ const ingestParsedClauses = async (
             continue;
           }
 
-          await createClause(tx, instrument.id, write.clause, retrievedAt, write.version);
+          await upsertClause(tx, instrument.id, write.clause, retrievedAt, write.version);
         }
       },
       { timeout: 60_000 },
