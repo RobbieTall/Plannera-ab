@@ -284,9 +284,13 @@ type LepClauseDelegate = {
   }) => Promise<WorkspaceLepClause[]>;
 };
 
-type PrismaWithOptionalLepClause = typeof prisma & { lepClause?: LepClauseDelegate };
+type PrismaWithOptionalLepClause = typeof prisma & {
+  lepClause?: LepClauseDelegate;
+};
 
-const findWorkspaceLepClauses = async (lga: string): Promise<WorkspaceLepClause[]> => {
+const findWorkspaceLepClauses = async (
+  lga: string,
+): Promise<WorkspaceLepClause[]> => {
   const lepClauseDelegate = (prisma as PrismaWithOptionalLepClause).lepClause;
 
   if (lepClauseDelegate) {
@@ -807,7 +811,7 @@ export async function POST(request: Request) {
           });
           statutoryContextPrompt = `${statutoryContext.promptBlock}
 
-Use the raw clause text above as the first source for local-control answers. For any cited item, quote the relevant clause text first and cite the clause number plus instrument/source type. If the block says no clause was found for the user's topic, use the required no-specific-clause fallback wording instead of inventing a clause.`;
+Use the raw clause text above as the first source for local-control and state-level answers. For any cited item, quote the relevant clause text first and cite the clause number plus instrument/source type. Cite SEPP clauses with the SEPP short name and clause reference (for example "SEPP Housing 2021 cl. 4.3" or "SEPP Resilience 2021 cl. 5.21"). If the block says no clause was found for the user's topic, use the required no-specific-clause fallback wording instead of inventing a clause.`;
         } catch (statutoryError) {
           console.warn(
             "[workspace-chat-warning] Failed to build statutory context",
@@ -869,7 +873,10 @@ Use the raw clause text above as the first source for local-control answers. For
             lepClausePrompt = `${buildLepClausePrompt(lepClauses)}\n\nIMPORTANT: When LEP clause data is provided above, you MUST cite the specific clause reference (e.g. "Byron LEP 2014 cl. 4.3") in your response. Do not invent clause numbers that are not listed above.`;
           }
         } catch (err) {
-          console.error("[workspace-chat] LEP clause fetch failed — continuing without", err);
+          console.error(
+            "[workspace-chat] LEP clause fetch failed — continuing without",
+            err,
+          );
         }
       }
 
@@ -1258,6 +1265,7 @@ When the user asks about local controls, rely first on the council Development C
               sourceTypes: statutoryContext.sourceTypes,
               lepClauseCount: statutoryContext.lepClauses.length,
               dcpClauseCount: statutoryContext.dcpClauses.length,
+              seppClauseCount: statutoryContext.seppClauses.length,
               promptPreview: statutoryContext.promptBlock.slice(0, 1200),
             }
           : null,
@@ -1314,11 +1322,23 @@ When the user asks about local controls, rely first on the council Development C
 
     let citedRefs = [
       ...new Set(
-        [...reply.matchAll(/cl\.\s*(\d+\.\d+(?:\.\d+)?)/gi)].map(
-          (match) => `cl. ${match[1]}`,
-        ),
+        [
+          ...reply.matchAll(
+            /((?:SEPP\s+[A-Za-z &()]+\s+\d{4}|[A-Z][A-Za-z ]+\s+LEP\s+\d{4})\s+cl\.\s*\d+(?:\.\d+)*(?:[A-Z])?)/gi,
+          ),
+        ].map((match) => match[1].replace(/\s+/g, " ").trim()),
       ),
     ];
+
+    if (citedRefs.length === 0) {
+      citedRefs = [
+        ...new Set(
+          [...reply.matchAll(/cl\.\s*(\d+\.\d+(?:\.\d+)?)/gi)].map(
+            (match) => `cl. ${match[1]}`,
+          ),
+        ),
+      ];
+    }
 
     if (availableLepSourceRefs.length > 0 && citedRefs.length === 0) {
       reply = `${reply}\n\nSource: ${availableLepSourceRefs[0]}.`;
@@ -1340,7 +1360,11 @@ When the user asks about local controls, rely first on the council Development C
     const persistedAssistantMessage =
       persistedProjectId && "findFirst" in prisma.chatMessage
         ? await prisma.chatMessage.findFirst({
-            where: { projectId: persistedProjectId, role: "assistant", content: reply },
+            where: {
+              projectId: persistedProjectId,
+              role: "assistant",
+              content: reply,
+            },
             select: { id: true },
             orderBy: { createdAt: "desc" },
           })
