@@ -195,7 +195,7 @@ Success signal: hitting the endpoint against the production Vercel deployment sh
 
 Before enabling auth/paywall, manually verify the following user journeys work end-to-end on production (plannera-ab.vercel.app):
 
-Note: Before starting the manual test journeys, run all automated production ingestions via `scripts/ingest-production.sh` with `BASE_URL` and `INGEST_ADMIN_SECRET` set.
+Note: Before starting the manual test journeys, run all automated production ingestions via `scripts/ingest-production.sh` with `BASE_URL` and `INGEST_ADMIN_SECRET` set; the updated runner now ingests all registered SEPPs before Byron DCP and the final status check, so SEPP clause counts should be non-zero before testing workspace chat.
 
 Byron Bay test:
 - Enter "45 Broken Head Road, Byron Bay NSW 2481" → Quick Site Check returns real zone (RU2/R2/E3), permissibility table, height limit and FSR from Byron LEP 2014 clauses (Cited confidence)
@@ -245,3 +245,8 @@ Updated ingest-status council DCP counts to read from the DCP clause table used 
 ## 35) Fix unique constraint on clause re-ingest + EPA Act ENOENT — ✅ DONE (2026-06-28)
 
 Legislation clause writes now upsert on `(instrumentId, clauseKey, version)` so retrying a partially completed SEPP ingest is idempotent, and EPA Act/Regulation fixture files are present under `src/lib/legislation/fixtures/` as clearly labelled placeholders to avoid Vercel `ENOENT` without fabricating clause content.
+
+## 36) Wire SEPPs into production runner + workspace chat citations — ✅ DONE (2026-06-29)
+
+Production ingest now runs each registered SEPP slug via the admin legislation endpoint, and workspace statutory context retrieves top relevant always-applicable SEPP clauses alongside LEP/DCP clauses so chat can cite SEPP Housing 2021 and SEPP Resilience 2021 in live answers.
+

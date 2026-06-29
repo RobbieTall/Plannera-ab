@@ -3,6 +3,7 @@ import { InstrumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { searchDcpClauses } from "@/lib/dcp/search";
 import { buildLepInstrumentFilter } from "@/lib/lep/lep-search";
+import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
 
 export type StatutorySourceType = "cited" | "inferred" | "unresolved";
 
@@ -19,17 +20,26 @@ export type StatutoryLepClause = {
   instrumentName?: string;
 };
 
+export type StatutorySeppClause = StatutoryLepClause;
+
 export type StatutoryContextBlock = {
   dcpClauses: StatutoryDcpClause[];
   lepClauses: StatutoryLepClause[];
+  seppClauses: StatutorySeppClause[];
   promptBlock: string;
   sourceTypes: StatutorySourceType[];
 };
 
 const DEFAULT_DCP_CLAUSE_LIMIT = 5;
 const DEFAULT_LEP_CLAUSE_LIMIT = 3;
+const DEFAULT_SEPP_CLAUSE_LIMIT = 5;
 const DCP_PROMPT_EXCERPT_LENGTH = 300;
 const LEP_PROMPT_EXCERPT_LENGTH = 600;
+const SEPP_PROMPT_EXCERPT_LENGTH = 600;
+const ALWAYS_APPLICABLE_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter(
+  (config) =>
+    config.instrumentType === InstrumentType.SEPP && config.alwaysApplicable,
+).map((config) => config.slug);
 
 const truncateForPrompt = (value: string, maxLength: number) => {
   const compacted = value.replace(/\s+/g, " ").trim();
@@ -53,12 +63,13 @@ const scoreText = (queryTokens: string[], text: string) => {
 };
 
 const buildEmptyPromptBlock = (lgaCode: string) =>
-  `--- RETRIEVED PLANNING CONTROLS FOR ${lgaCode.toUpperCase()} ---\nLEP PROVISIONS:\nNo LEP clauses were found for this query in the retrieved planning controls.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---`;
+  `--- RETRIEVED PLANNING CONTROLS FOR ${lgaCode.toUpperCase()} ---\nLEP PROVISIONS:\nNo LEP clauses were found for this query in the retrieved planning controls.\nSEPP PROVISIONS:\nNo SEPP clauses were found for this query in the retrieved planning controls.\nDCP PROVISIONS:\nNo DCP clauses were found for this query in the retrieved planning controls.\n--- END RETRIEVED PLANNING CONTROLS ---`;
 
 const formatPromptBlock = (params: {
   lgaCode: string;
   dcpClauses: StatutoryDcpClause[];
   lepClauses: StatutoryLepClause[];
+  seppClauses: StatutorySeppClause[];
 }) => {
   const lepLines = params.lepClauses.length
     ? params.lepClauses.map((clause) => {
@@ -69,6 +80,17 @@ const formatPromptBlock = (params: {
       })
     : [
         "No LEP clauses were found for this query in the retrieved planning controls.",
+      ];
+
+  const seppLines = params.seppClauses.length
+    ? params.seppClauses.map((clause) => {
+        const instrument = clause.instrumentName
+          ? `${clause.instrumentName} `
+          : "";
+        return `- [${instrument}${clause.clauseKey}]: ${clause.heading} — ${truncateForPrompt(clause.value, SEPP_PROMPT_EXCERPT_LENGTH)}`;
+      })
+    : [
+        "No SEPP clauses were found for this query in the retrieved planning controls.",
       ];
 
   const dcpLines = params.dcpClauses.length
@@ -84,6 +106,8 @@ const formatPromptBlock = (params: {
     `--- RETRIEVED PLANNING CONTROLS FOR ${params.lgaCode.toUpperCase()} ---`,
     "LEP PROVISIONS:",
     ...lepLines,
+    "SEPP PROVISIONS:",
+    ...seppLines,
     "DCP PROVISIONS:",
     ...dcpLines,
     "--- END RETRIEVED PLANNING CONTROLS ---",
@@ -138,32 +162,94 @@ const findLepClauses = async (params: {
     });
 };
 
+const findSeppClauses = async (params: {
+  query: string;
+  limit: number;
+}): Promise<StatutorySeppClause[]> => {
+  if (!ALWAYS_APPLICABLE_SEPP_SLUGS.length) return [];
+
+  const instruments = await prisma.instrument.findMany({
+    where: {
+      instrumentType: InstrumentType.SEPP,
+      slug: { in: ALWAYS_APPLICABLE_SEPP_SLUGS },
+    },
+    select: {
+      id: true,
+      name: true,
+      shortName: true,
+      clauses: {
+        where: { isCurrent: true },
+        select: { clauseKey: true, title: true, bodyText: true },
+        take: Math.max(params.limit * 10, params.limit),
+      },
+    },
+  });
+
+  const queryTokens = tokenize(params.query);
+  return instruments
+    .flatMap((instrument) =>
+      instrument.clauses.map((clause) => ({
+        clauseKey: clause.clauseKey,
+        heading: clause.title?.trim() || clause.clauseKey,
+        value: clause.bodyText,
+        instrumentName: instrument.shortName || instrument.name,
+        score: scoreText(
+          queryTokens,
+          `${instrument.shortName ?? instrument.name} ${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`,
+        ),
+      })),
+    )
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const instrumentCompare = (a.instrumentName ?? "").localeCompare(
+        b.instrumentName ?? "",
+      );
+      if (instrumentCompare !== 0) return instrumentCompare;
+      return a.clauseKey.localeCompare(b.clauseKey, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+    })
+    .slice(0, params.limit)
+    .map(({ score, ...clause }) => {
+      void score;
+      return clause;
+    });
+};
+
 export async function buildStatutoryContextBlock(params: {
   lgaCode: string;
   query: string;
   maxDcpClauses?: number;
   maxLepClauses?: number;
+  maxSeppClauses?: number;
 }): Promise<StatutoryContextBlock> {
   const lgaCode = params.lgaCode.trim().toUpperCase();
   const query = params.query.trim();
   const maxDcpClauses = params.maxDcpClauses ?? DEFAULT_DCP_CLAUSE_LIMIT;
   const maxLepClauses = params.maxLepClauses ?? DEFAULT_LEP_CLAUSE_LIMIT;
+  const maxSeppClauses = params.maxSeppClauses ?? DEFAULT_SEPP_CLAUSE_LIMIT;
 
   if (!lgaCode || !query) {
     return {
       dcpClauses: [],
       lepClauses: [],
+      seppClauses: [],
       promptBlock: buildEmptyPromptBlock(lgaCode || "UNKNOWN LGA"),
       sourceTypes: ["unresolved"],
     };
   }
 
-  const [dcpResults, lepClauses] = await Promise.all([
+  const [dcpResults, lepClauses, seppClauses] = await Promise.all([
     searchDcpClauses({ query, lgaCode, limit: maxDcpClauses }),
     findLepClauses({ lgaCode, query, limit: maxLepClauses }),
+    findSeppClauses({ query, limit: maxSeppClauses }),
   ]);
 
-  console.log("[statutory-context] lepClauses found:", lepClauses.length);
+  console.log("[statutory-context] clauses found:", {
+    lep: lepClauses.length,
+    sepp: seppClauses.length,
+  });
 
   const dcpClauses = dcpResults.slice(0, maxDcpClauses).map((clause) => ({
     clauseNumber: clause.ref?.trim() || clause.id,
@@ -176,12 +262,20 @@ export async function buildStatutoryContextBlock(params: {
   }));
 
   const sourceTypes: StatutorySourceType[] =
-    dcpClauses.length || lepClauses.length ? ["cited"] : ["unresolved"];
+    dcpClauses.length || lepClauses.length || seppClauses.length
+      ? ["cited"]
+      : ["unresolved"];
 
   return {
     dcpClauses,
     lepClauses,
-    promptBlock: formatPromptBlock({ lgaCode, dcpClauses, lepClauses }),
+    seppClauses,
+    promptBlock: formatPromptBlock({
+      lgaCode,
+      dcpClauses,
+      lepClauses,
+      seppClauses,
+    }),
     sourceTypes,
   };
 }
