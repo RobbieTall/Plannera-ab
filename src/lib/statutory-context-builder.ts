@@ -3,7 +3,7 @@ import { InstrumentType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { searchDcpClauses } from "@/lib/dcp/search";
 import { buildLepInstrumentFilter } from "@/lib/lep/lep-search";
-import { ALL_INSTRUMENT_CONFIG } from "@/lib/legislation/config";
+import instruments from "@/lib/legislation/instruments.json";
 
 export type StatutorySourceType = "cited" | "inferred" | "unresolved";
 
@@ -36,11 +36,6 @@ const DEFAULT_SEPP_CLAUSE_LIMIT = 5;
 const DCP_PROMPT_EXCERPT_LENGTH = 300;
 const LEP_PROMPT_EXCERPT_LENGTH = 600;
 const SEPP_PROMPT_EXCERPT_LENGTH = 600;
-const ALWAYS_APPLICABLE_SEPP_SLUGS = ALL_INSTRUMENT_CONFIG.filter(
-  (config) =>
-    config.instrumentType === InstrumentType.SEPP && config.alwaysApplicable,
-).map((config) => config.slug);
-
 const truncateForPrompt = (value: string, maxLength: number) => {
   const compacted = value.replace(/\s+/g, " ").trim();
   if (compacted.length <= maxLength) return compacted;
@@ -166,12 +161,19 @@ const findSeppClauses = async (params: {
   query: string;
   limit: number;
 }): Promise<StatutorySeppClause[]> => {
-  if (!ALWAYS_APPLICABLE_SEPP_SLUGS.length) return [];
+  const alwaysApplicableSeppSlugs = instruments
+    .filter(
+      (instrument) =>
+        instrument.instrumentType === "SEPP" && instrument.alwaysApplicable,
+    )
+    .map((instrument) => instrument.slug);
 
-  const instruments = await prisma.instrument.findMany({
+  if (!alwaysApplicableSeppSlugs.length) return [];
+
+  const seppInstruments = await prisma.instrument.findMany({
     where: {
       instrumentType: InstrumentType.SEPP,
-      slug: { in: ALWAYS_APPLICABLE_SEPP_SLUGS },
+      slug: { in: alwaysApplicableSeppSlugs },
     },
     select: {
       id: true,
@@ -186,7 +188,7 @@ const findSeppClauses = async (params: {
   });
 
   const queryTokens = tokenize(params.query);
-  return instruments
+  return seppInstruments
     .flatMap((instrument) =>
       instrument.clauses.map((clause) => ({
         clauseKey: clause.clauseKey,
