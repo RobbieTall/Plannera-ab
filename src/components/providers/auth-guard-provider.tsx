@@ -15,6 +15,8 @@ import {
 
 import { SignInModal } from "@/components/SignInModal";
 
+export const AUTH_BYPASS_ACTIVE = process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true";
+
 export type PendingAuthAction = () => void | Promise<void>;
 
 interface AuthGuardContextValue {
@@ -35,7 +37,7 @@ export function AuthGuardProvider({ children }: { children: ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const pendingActionRef = useRef<PendingAuthAction | null>(null);
 
-  const isAuthenticated = status === "authenticated" && Boolean(session?.user);
+  const isAuthenticated = AUTH_BYPASS_ACTIVE ? true : status === "authenticated" && Boolean(session?.user);
 
   const callbackUrl = useMemo(() => {
     const search = searchParams.toString();
@@ -77,6 +79,11 @@ export function AuthGuardProvider({ children }: { children: ReactNode }) {
 
   const requireAuth = useCallback(
     (action: PendingAuthAction) => {
+      if (AUTH_BYPASS_ACTIVE) {
+        void Promise.resolve(action());
+        return;
+      }
+
       if (isAuthenticated) {
         void Promise.resolve(action());
         return;
