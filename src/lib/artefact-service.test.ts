@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 
 vi.mock("next/headers", () => ({
@@ -24,8 +24,23 @@ vi.mock("@/lib/prisma", () => ({
 import {
   buildDcpSectionPromptBlock,
   loadDcpClausesForSections,
+  requireSessionUser,
 } from "@/lib/artefact-service";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { getServerSession } from "next-auth";
+
+
+const originalAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED;
+const getServerSessionMock = vi.mocked(getServerSession);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  if (originalAuthEnabled === undefined) {
+    delete process.env.NEXT_PUBLIC_AUTH_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = originalAuthEnabled;
+  }
+});
 
 const makeClause = (
   overrides: Partial<ScoredDcpClause> = {},
@@ -49,6 +64,29 @@ const makeClause = (
     score: 42,
     ...overrides,
   }) as ScoredDcpClause;
+
+
+describe("requireSessionUser", () => {
+  it("returns a dev bypass user when auth is not explicitly enabled", async () => {
+    delete process.env.NEXT_PUBLIC_AUTH_ENABLED;
+
+    await expect(requireSessionUser()).resolves.toEqual({
+      userId: "dev-bypass-user",
+    });
+    expect(getServerSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("requires a real session when auth is explicitly enabled", async () => {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = "true";
+    getServerSessionMock.mockResolvedValueOnce(null);
+
+    await expect(requireSessionUser()).rejects.toMatchObject({
+      message: "Authentication required",
+      status: 401,
+    });
+    expect(getServerSessionMock).toHaveBeenCalled();
+  });
+});
 
 describe("buildDcpSectionPromptBlock", () => {
   it("formats DCP clauses as inline DCP sources with source titles", () => {

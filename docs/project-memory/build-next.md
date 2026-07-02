@@ -260,6 +260,12 @@ Note: To re-enable auth in production, set `NEXT_PUBLIC_AUTH_ENABLED=true` in Ve
 
 Success signal: workspace actions such as Generate SEE run immediately while the flag is unset or not `true`, and the sign-in gate returns after setting the flag to `true` and redeploying.
 
+## 37b) Server API auth bypass for pre-launch testing — ✅ DONE (2026-07-02)
+
+Updated the server-side artefact session requirement to return a deterministic `dev-bypass-user` when `NEXT_PUBLIC_AUTH_ENABLED` is unset or not exactly `true`, so authenticated API routes follow the same pre-launch bypass as the client sign-in gate.
+
+Success signal: Generate SEE, Generate Feasibility, workspace chat, and other routes using `requireSessionUser()` no longer return 401 solely because no NextAuth session exists while the bypass flag is inactive.
+
 ## 38) Kempsey DCP 2026 PDF part ingestion — DONE ✅ (updated 2026-07-02)
 
 Kempsey DCP ingestion now uses DCP 2026 PDF Parts B and D because council retired the DCP 2013 HTML chapter pages and assesses new DAs lodged after 1 July 2026 against DCP 2026. The ingest skips individual failed PDF fetch/parse attempts after a 30 second timeout and stores successful PDF text chunks as searchable DCP clauses under `KEMPSEY_DCP_2026`.
