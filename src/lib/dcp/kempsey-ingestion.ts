@@ -184,10 +184,12 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
   }
 
   await db.$transaction(async (tx) => {
+    const ingestedAt = new Date();
+
     await tx.dCPClause.deleteMany({
       where: { lgaCode: LGA_CODE, instrumentSlug: SOURCE },
     });
-    await tx.dCPClause.createMany({
+    const dcpInsert = await tx.dCPClause.createMany({
       data: clauses.map((clause) => ({
         lgaCode: LGA_CODE,
         instrumentSlug: SOURCE,
@@ -215,19 +217,21 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         },
       })),
     });
-    await tx.lgaCoverageState.upsert({
-      where: { lgaCode: LGA_CODE },
-      update: {
-        state: LgaCoverageMaturity.SEARCHABLE_READY,
-        lastPreparedAt: new Date(),
-        errorMessage: null,
-      },
-      create: {
-        lgaCode: LGA_CODE,
-        state: LgaCoverageMaturity.SEARCHABLE_READY,
-        lastPreparedAt: new Date(),
-      },
-    });
+    if (dcpInsert.count > 0) {
+      await tx.lgaCoverageState.upsert({
+        where: { lgaCode: LGA_CODE },
+        update: {
+          state: LgaCoverageMaturity.SEARCHABLE_READY,
+          lastPreparedAt: ingestedAt,
+          errorMessage: null,
+        },
+        create: {
+          lgaCode: LGA_CODE,
+          state: LgaCoverageMaturity.SEARCHABLE_READY,
+          lastPreparedAt: ingestedAt,
+        },
+      });
+    }
   });
 
   return {
