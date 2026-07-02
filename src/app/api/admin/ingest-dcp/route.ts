@@ -8,8 +8,15 @@ const SUPPORTED_DCP_LGAS = new Set(["BYRON", "KEMPSEY"]);
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
-  const token = url.searchParams.get("token") ?? url.searchParams.get("secret") ?? request.headers.get("x-admin-token");
-  const lgaCode = (url.searchParams.get("lgaCode") || url.searchParams.get("lga") || "").toUpperCase();
+  const token =
+    url.searchParams.get("token") ??
+    url.searchParams.get("secret") ??
+    request.headers.get("x-admin-token");
+  const lgaCode = (
+    url.searchParams.get("lgaCode") ||
+    url.searchParams.get("lga") ||
+    ""
+  ).toUpperCase();
 
   const secret = token;
 
@@ -18,15 +25,28 @@ export async function POST(request: Request) {
   }
 
   if (!lgaCode) {
-    return NextResponse.json({ ok: false, error: "lga_required" }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "lga_required" },
+      { status: 400 },
+    );
   }
 
   if (!SUPPORTED_DCP_LGAS.has(lgaCode)) {
-    return NextResponse.json({ ok: false, error: "unsupported_lga", lga: lgaCode }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "unsupported_lga", lga: lgaCode },
+      { status: 400 },
+    );
   }
 
   try {
-    const result = lgaCode === "BYRON" ? await ingestByronDcp() : await ingestCouncilDcp(lgaCode);
+    const result =
+      lgaCode === "BYRON"
+        ? await ingestByronDcp()
+        : await ingestCouncilDcp(lgaCode);
+
+    if ("chaptersIngested" in result) {
+      return NextResponse.json(result);
+    }
 
     if ("lga" in result) {
       return NextResponse.json({
@@ -34,7 +54,12 @@ export async function POST(request: Request) {
         lga: result.lga,
         clauseCount: result.clauseCount,
         dcpClauseCount: result.dcpClauseCount,
-        chunkCount: lgaCode === "BYRON" ? 0 : "chunkCount" in result ? result.chunkCount : 0,
+        chunkCount:
+          lgaCode === "BYRON"
+            ? 0
+            : "chunkCount" in result
+              ? result.chunkCount
+              : 0,
         tableCount: "tableCount" in result ? result.tableCount : 0,
       });
     }
