@@ -6,25 +6,29 @@ import pdfParse from "pdf-parse";
 import { WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { indexWorkspaceChunks, indexWorkspaceSource, storeExternalFileAsUpload } from "@/lib/source-indexing";
+import {
+  indexWorkspaceChunks,
+  indexWorkspaceSource,
+  storeExternalFileAsUpload,
+} from "@/lib/source-indexing";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { parseCouncilDcpHtml } from "@/lib/dcp/html-chunker";
+import { ingestKempseyDcp } from "@/lib/dcp/kempsey-ingestion";
 
 const DEFAULT_DCP_LINKS: Record<string, { name: string; url: string }> = {
   BYRON: {
     name: "Byron Shire Development Control Plan 2014",
     url: "/dcp/byron-dcp-2014-d1-b4.html",
   },
-  KEMPSEY: {
-    name: "Kempsey Development Control Plan 2013",
-    url: "/dcp/kempsey-dcp-2013.html",
-  },
 };
 
 const toAbsoluteUrl = (url: string) => {
   if (url.startsWith("http")) return url;
   const baseUrl =
-    process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
   try {
     return new URL(url, baseUrl).toString();
   } catch {
@@ -42,7 +46,10 @@ const extractTextFromPdf = async (filePath: string) => {
 
 const extractFromHtml = (html: string) => {
   const withoutScripts = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
-  const withoutStyles = withoutScripts.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  const withoutStyles = withoutScripts.replace(
+    /<style[^>]*>[\s\S]*?<\/style>/gi,
+    "",
+  );
   const bodyMatch = withoutStyles.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : withoutStyles;
   const text = bodyContent
@@ -58,18 +65,24 @@ const extractFromHtml = (html: string) => {
 
 export const ingestCouncilDcp = async (lgaCode: string) => {
   const canonicalLgaCode = normalizeCouncilLgaCode(lgaCode);
+  if (canonicalLgaCode === "KEMPSEY") {
+    return ingestKempseyDcp(prisma);
+  }
+
   if (!canonicalLgaCode) {
     throw new Error(`Invalid LGA code: ${lgaCode}`);
   }
 
   const link =
-    (await prisma.developmentControlPlanLink.findFirst({ where: { lgaCode: canonicalLgaCode } })) ||
-    DEFAULT_DCP_LINKS[canonicalLgaCode];
+    (await prisma.developmentControlPlanLink.findFirst({
+      where: { lgaCode: canonicalLgaCode },
+    })) || DEFAULT_DCP_LINKS[canonicalLgaCode];
   if (!link) {
     throw new Error(`No DCP link configured for LGA ${canonicalLgaCode}`);
   }
 
-  const isRemote = link.url.startsWith("http://") || link.url.startsWith("https://");
+  const isRemote =
+    link.url.startsWith("http://") || link.url.startsWith("https://");
   const url = isRemote ? toAbsoluteUrl(link.url) : link.url;
   let contentType = "";
   let extractedText: string | null = null;
@@ -83,7 +96,9 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
   if (isRemote) {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch DCP for ${canonicalLgaCode} (status ${response.status})`);
+      throw new Error(
+        `Failed to fetch DCP for ${canonicalLgaCode} (status ${response.status})`,
+      );
     }
 
     contentType = response.headers.get("content-type") || "";
@@ -91,7 +106,9 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
 
     if (contentType.includes("pdf")) {
       const arrayBuffer = await response.arrayBuffer();
-      const file = new File([arrayBuffer], fileName, { type: contentType || "application/pdf" });
+      const file = new File([arrayBuffer], fileName, {
+        type: contentType || "application/pdf",
+      });
       const saved = await storeExternalFileAsUpload({ file, fileName });
       storagePath = saved.path;
       publicUrl = saved.url;
@@ -103,8 +120,13 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
       const parsed = parseCouncilDcpHtml(html, link.name);
       extractedText = parsed.plainText || extractFromHtml(html);
       structuredChunks = parsed.chunks;
-      const file = new File([html], `${fileName || canonicalLgaCode}.html`, { type: contentType || "text/html" });
-      const saved = await storeExternalFileAsUpload({ file, fileName: `${fileName || canonicalLgaCode}.html` });
+      const file = new File([html], `${fileName || canonicalLgaCode}.html`, {
+        type: contentType || "text/html",
+      });
+      const saved = await storeExternalFileAsUpload({
+        file,
+        fileName: `${fileName || canonicalLgaCode}.html`,
+      });
       storagePath = saved.path;
       publicUrl = saved.url;
       mimeType = saved.mimeType;
@@ -115,7 +137,8 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     const filePath = join(publicDir, url.replace(/^\//, ""));
     const buffer = await readFile(filePath);
     const extension = extname(filePath).toLowerCase();
-    fileName = basename(filePath) || `${canonicalLgaCode}-dcp${extension || ".html"}`;
+    fileName =
+      basename(filePath) || `${canonicalLgaCode}-dcp${extension || ".html"}`;
 
     if (extension === ".pdf") {
       const file = new File([buffer], fileName, { type: "application/pdf" });
@@ -131,8 +154,13 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
       const parsed = parseCouncilDcpHtml(html, link.name);
       extractedText = parsed.plainText || extractFromHtml(html);
       structuredChunks = parsed.chunks;
-      const file = new File([html], `${fileName || canonicalLgaCode}.html`, { type: "text/html" });
-      const saved = await storeExternalFileAsUpload({ file, fileName: `${fileName || canonicalLgaCode}.html` });
+      const file = new File([html], `${fileName || canonicalLgaCode}.html`, {
+        type: "text/html",
+      });
+      const saved = await storeExternalFileAsUpload({
+        file,
+        fileName: `${fileName || canonicalLgaCode}.html`,
+      });
       storagePath = saved.path;
       publicUrl = saved.url;
       mimeType = saved.mimeType;
@@ -175,32 +203,43 @@ export const ingestCouncilDcp = async (lgaCode: string) => {
     });
 
     const existingCouncilDcpChunks = await tx.workspaceSourceChunk.count({
-      where: { councilDocumentId: councilDocument.id, sourceType: WorkspaceSourceType.council_dcp },
+      where: {
+        councilDocumentId: councilDocument.id,
+        sourceType: WorkspaceSourceType.council_dcp,
+      },
     });
 
     await tx.workspaceSourceChunk.deleteMany({
-      where: { councilDocumentId: councilDocument.id, sourceType: WorkspaceSourceType.council_dcp },
+      where: {
+        councilDocumentId: councilDocument.id,
+        sourceType: WorkspaceSourceType.council_dcp,
+      },
     });
 
-    const createdChunks = structuredChunks && structuredChunks.length > 0
-      ? await indexWorkspaceChunks({
-          chunks: structuredChunks,
-          lgaCode: canonicalLgaCode,
-          councilDocumentId: councilDocument.id,
-          sourceType: WorkspaceSourceType.council_dcp,
-          metadata: { sourceUrl: link.url },
-          prismaClient: tx,
-        })
-      : await indexWorkspaceSource({
-          text: extractedText,
-          lgaCode: canonicalLgaCode,
-          councilDocumentId: councilDocument.id,
-          sourceType: WorkspaceSourceType.council_dcp,
-          metadata: { heading: link.name, sourceUrl: link.url },
-          prismaClient: tx,
-        });
+    const createdChunks =
+      structuredChunks && structuredChunks.length > 0
+        ? await indexWorkspaceChunks({
+            chunks: structuredChunks,
+            lgaCode: canonicalLgaCode,
+            councilDocumentId: councilDocument.id,
+            sourceType: WorkspaceSourceType.council_dcp,
+            metadata: { sourceUrl: link.url },
+            prismaClient: tx,
+          })
+        : await indexWorkspaceSource({
+            text: extractedText,
+            lgaCode: canonicalLgaCode,
+            councilDocumentId: councilDocument.id,
+            sourceType: WorkspaceSourceType.council_dcp,
+            metadata: { heading: link.name, sourceUrl: link.url },
+            prismaClient: tx,
+          });
 
-    return { created: createdChunks.created, councilDocumentId: councilDocument.id, existingCouncilDcpChunks };
+    return {
+      created: createdChunks.created,
+      councilDocumentId: councilDocument.id,
+      existingCouncilDcpChunks,
+    };
   });
 
   if (process.env.NODE_ENV !== "production") {

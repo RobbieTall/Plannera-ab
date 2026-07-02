@@ -141,15 +141,9 @@ Convert Quick Site Check / SEE groundwork into a paying Basic Feasibility featur
 
 **Success signal:** user opens the Feasibility tab, selects a development type, clicks Assess feasibility, and sees an overall Proceed/Caution/Redesign/Blocked/Unresolved verdict with cited/inferred/unavailable item badges.
 
-## 24) Kempsey DCP Ingestion — PARTIAL
+## 24) Kempsey DCP Ingestion — DONE ✅
 
-Wire Kempsey Shire Council DCP 2013 into the council DCP ingestion pipeline:
-- Code is wired and placeholder file is in place; real DCP HTML download is pending.
-- Developer action required: download Kempsey DCP 2013 HTML and replace `public/dcp/kempsey-dcp-2013.html`, then call `POST /api/admin/ingest-council-dcp?lga=KEMPSEY`
-- Add `KEMPSEY` entry to `DEFAULT_DCP_LINKS` in `src/lib/dcp/council-dcp-ingestion.ts`
-- Add a Kempsey-specific ingestion helper analogous to `byron-ingestion.ts` if the HTML structure differs
-- Wire into the admin DCP ingest API so `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` triggers ingestion
-- Confirm `hasCouncilDcp: true` for KEMPSEY after ingestion
+Kempsey Shire Council DCP 2013 is wired into the council DCP ingestion pipeline via live chapter fetches from `kempsey.nsw.gov.au`. The admin endpoint `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` now fetches the priority DCP chapter HTML pages at ingest time, strips page chrome, chunks by heading, stores searchable `DCPClause` rows under `KEMPSEY_DCP_2013`, and marks Kempsey coverage searchable after a successful ingest.
 
 Success signal: workspace chat for a Kempsey address cites real DCP section numbers and control values (setbacks, heights, parking) rather than falling back to inferred guidance.
 
@@ -259,3 +253,7 @@ Added `NEXT_PUBLIC_AUTH_ENABLED=false` as the default example setting and wired 
 Note: To re-enable auth in production, set `NEXT_PUBLIC_AUTH_ENABLED=true` in Vercel environment variables and redeploy.
 
 Success signal: workspace actions such as Generate SEE run immediately while the flag is unset or not `true`, and the sign-in gate returns after setting the flag to `true` and redeploying.
+
+## 38) Kempsey DCP 2013 live chapter ingestion — DONE ✅
+
+Kempsey DCP 2013 priority chapters are ingested via live server-side chapter fetches from `kempsey.nsw.gov.au`, replacing the old empty placeholder-file workflow. The ingest skips individual failed chapter fetches after a 10 second timeout and stores successful chapter chunks as searchable DCP clauses.
