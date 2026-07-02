@@ -51,12 +51,12 @@ const makeClause = (
   }) as ScoredDcpClause;
 
 describe("buildDcpSectionPromptBlock", () => {
-  it("formats DCP clauses with ref and title", () => {
+  it("formats DCP clauses as inline DCP sources with source titles", () => {
     const block = buildDcpSectionPromptBlock([makeClause()], "Setbacks");
 
     expect(block).toBe(
-      "## Relevant DCP Clauses for Setbacks\n" +
-        "- [D1.2] Setbacks: Front setbacks must be compatible with the streetscape and side setbacks must protect amenity.",
+      "## Retrieved DCP source text for Setbacks\n" +
+        "DCP Source — [Setbacks]: Front setbacks must be compatible with the streetscape and side setbacks must protect amenity.",
     );
   });
 

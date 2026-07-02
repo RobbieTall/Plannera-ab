@@ -257,6 +257,18 @@ const readNullableString = (value: unknown) =>
   typeof value === "string" ? value : null;
 const readNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : 0;
+const normaliseCitations = (value: unknown) => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((citation) => {
+      const citationRecord = coerceRecord(citation);
+      const type = citationRecord.type === "LEP" || citationRecord.type === "DCP" ? citationRecord.type : null;
+      const ref = readString(citationRecord.ref);
+      return type && ref ? { ref, type } : null;
+    })
+    .filter((citation): citation is { ref: string; type: "LEP" | "DCP" } => Boolean(citation));
+};
 
 const parsePossibleJson = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -341,6 +353,7 @@ const normaliseAssessments = (
         itemRecord.assessment,
         "Assessment details were not saved with this memo.",
       ),
+      citations: normaliseCitations(itemRecord.citations),
     };
   });
 };

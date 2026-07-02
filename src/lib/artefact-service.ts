@@ -393,11 +393,11 @@ export const buildDcpSectionPromptBlock = (clauses: ScoredDcpClause[], sectionLa
   if (!clauses.length) return "";
 
   const clauseLines = clauses.map((clause) => {
-    const ref = clause.ref ?? clause.headingPath.join(" > ");
-    return `- [${ref}] ${clause.title}: ${clause.bodyText.substring(0, 400)}`;
+    const sourceTitle = clause.title || clause.ref || clause.headingPath.join(" > ") || "Untitled DCP clause";
+    return `DCP Source — [${sourceTitle}]: ${clause.bodyText.substring(0, 400)}`;
   });
 
-  return [`## Relevant DCP Clauses for ${sectionLabel}`, ...clauseLines].join("\n");
+  return [`## Retrieved DCP source text for ${sectionLabel}`, ...clauseLines].join("\n");
 };
 
 export const loadDcpClausesForSections = async (
@@ -718,6 +718,11 @@ const generateSeeArtefactSchema = z.object({
   proposedWorksSummary: z.string().trim().max(4000).optional(),
 });
 
+export type SeeSourceCitation = {
+  ref: string;
+  type: "LEP" | "DCP";
+};
+
 export type PreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
   generatedAt: string;
@@ -760,14 +765,37 @@ export type PreSeePlanningMemoContent = {
   consistencyAssessment: Array<{
     topic: string;
     assessment: string;
+    citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
 };
 
-const buildControlAssessment = (label: string, interpretation: string) => ({
+const buildControlAssessment = (
+  label: string,
+  interpretation: string,
+  citations: SeeSourceCitation[] = [],
+) => ({
   topic: label,
   assessment: interpretation,
+  citations,
 });
+
+const buildLepCitationRef = (instrumentName: string | null | undefined, clauseRef: string | null | undefined) => {
+  if (!instrumentName || !clauseRef) return null;
+  return `${instrumentName} cl. ${clauseRef}`;
+};
+
+const buildDcpCitationRef = (clause: ScoredDcpClause) => clause.title || clause.ref || clause.headingPath.join(" > ");
+
+const uniqueCitations = (citations: SeeSourceCitation[]) => {
+  const seen = new Set<string>();
+  return citations.filter((citation) => {
+    const key = `${citation.type}:${citation.ref}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 type PreSeePlanningMemoDeps = {
   prisma: ArtefactDependencies["prisma"];
@@ -821,6 +849,7 @@ export async function createPreSeePlanningMemoArtefact({
   const lepEnrichment = await loadLepEnrichmentForProject(projectWithContext, deps);
   const quickSiteCheck = applyRealLepEnrichmentToReport(quickSiteCheckFallback, lepEnrichment);
   const preSeeLepPromptBlock = buildPreSeeLepPromptBlock(lepEnrichment, quickSiteCheck);
+  const lepInstrumentName = quickSiteCheck.lepInstrument?.name ?? null;
   const lgaCode = normalizeCouncilLgaCode(quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaCode);
   const controlsQuery = [
     proposedWorksSummary,
@@ -862,15 +891,53 @@ export async function createPreSeePlanningMemoArtefact({
     zoneLabel: quickSiteCheck.site.zoneLabel ?? null,
   };
 
+  const availableLepClauseRefs = new Set((lepEnrichment.lepContext?.clauses ?? []).map((clause) => clause.ref));
+  const dcpControlCitations = uniqueCitations(
+    dcpClauses
+      .map((clause) => buildDcpCitationRef(clause))
+      .filter((ref): ref is string => Boolean(ref))
+      .map((ref) => ({ ref, type: "DCP" as const })),
+  );
+  const citationForControl = (clauseRef: string | null | undefined) => {
+    if (!clauseRef || !availableLepClauseRefs.has(clauseRef)) return [];
+    const ref = buildLepCitationRef(lepInstrumentName, clauseRef);
+    return ref ? [{ ref, type: "LEP" as const }] : [];
+  };
+
   const controlAssessments = [
     buildControlAssessment(
       "Land use permissibility",
       quickSiteCheck.permissibility?.interpretation ??
         "Permissibility could not be confirmed from the available LEP data. Confirm the land use against the LEP before relying on this memo.",
+      uniqueCitations([
+        ...citationForControl("2.3"),
+        ...dcpControlCitations.slice(0, 2),
+      ]),
     ),
-    buildControlAssessment("Height of building", quickSiteCheck.controls.heightOfBuilding.interpretation),
-    buildControlAssessment("Floor space ratio", quickSiteCheck.controls.floorSpaceRatio.interpretation),
-    buildControlAssessment("Minimum lot size", quickSiteCheck.controls.minimumLotSize.interpretation),
+    buildControlAssessment(
+      "Height of building",
+      quickSiteCheck.controls.heightOfBuilding.interpretation,
+      uniqueCitations([
+        ...citationForControl(quickSiteCheck.controls.heightOfBuilding.clauseRef),
+        ...dcpControlCitations.slice(0, 2),
+      ]),
+    ),
+    buildControlAssessment(
+      "Floor space ratio",
+      quickSiteCheck.controls.floorSpaceRatio.interpretation,
+      uniqueCitations([
+        ...citationForControl(quickSiteCheck.controls.floorSpaceRatio.clauseRef),
+        ...dcpControlCitations.slice(0, 2),
+      ]),
+    ),
+    buildControlAssessment(
+      "Minimum lot size",
+      quickSiteCheck.controls.minimumLotSize.interpretation,
+      uniqueCitations([
+        ...citationForControl(quickSiteCheck.controls.minimumLotSize.clauseRef),
+        ...dcpControlCitations.slice(0, 2),
+      ]),
+    ),
   ];
 
   const content: PreSeePlanningMemoContent = {
@@ -917,6 +984,10 @@ export async function createPreSeePlanningMemoArtefact({
           : null,
       groundingInstructions: [
         "Base all LEP and DCP references on the retrieved clause text provided below. Do not invent clause numbers or policy references.",
+        "Each SEE section must cite the specific DCP source title exactly as provided in the retrieved `DCP Source — [title]: [chunk text]` line whenever that DCP chunk is used.",
+        "When using retrieved LEP material, cite the LEP instrument and clause number in the form `<Instrument Name> cl. <clause number>` (for example, `Byron LEP 2014 cl. 4.3`).",
+        "Do not quote generic control numbers (for example, a typical setback or parking rate) unless that number appears verbatim in a retrieved DCP chunk, LEP clause, quick-site-check control, or statutory-context excerpt.",
+        "Every SEE section JSON object must include a `citations` array listing each cited source as `{ ref: string, type: \"LEP\" | \"DCP\" }`; leave it empty only where no retrieved source supports that section.",
         "Development Description, Site Context, LEP Compliance, DCP Compliance and Conclusion must cite retrieved clause text where available.",
         "Use retrieved LEP zone, FSR and height controls from the quick site check/statutory context; if a value is missing, say it was not found in retrieved data.",
       ],
