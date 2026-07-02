@@ -141,11 +141,11 @@ Convert Quick Site Check / SEE groundwork into a paying Basic Feasibility featur
 
 **Success signal:** user opens the Feasibility tab, selects a development type, clicks Assess feasibility, and sees an overall Proceed/Caution/Redesign/Blocked/Unresolved verdict with cited/inferred/unavailable item badges.
 
-## 24) Kempsey DCP Ingestion — DONE ✅
+## 24) Kempsey DCP Ingestion — DONE ✅ (updated 2026-07-02)
 
-Kempsey Shire Council DCP 2013 is wired into the council DCP ingestion pipeline via live chapter fetches from `kempsey.nsw.gov.au`. The admin endpoint `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` now fetches the priority DCP chapter HTML pages at ingest time, strips page chrome, chunks by heading, stores searchable `DCPClause` rows under `KEMPSEY_DCP_2013`, and marks Kempsey coverage searchable after a successful ingest.
+Kempsey Shire Council DCP ingestion now uses the DCP 2026 PDF parts published by council, not the retired DCP 2013 live HTML chapter pages. The admin endpoint `POST /api/admin/ingest-council-dcp?lga=KEMPSEY` fetches Part B and Part D PDFs at ingest time, extracts PDF text, chunks by section/paragraph boundaries, stores searchable `DCPClause` rows under `KEMPSEY_DCP_2026`, and marks Kempsey coverage searchable after a successful ingest.
 
-Success signal: workspace chat for a Kempsey address cites real DCP section numbers and control values (setbacks, heights, parking) rather than falling back to inferred guidance.
+Success signal: workspace chat for a Kempsey address cites real DCP 2026 section content and control values (setbacks, heights, parking) rather than falling back to inferred guidance.
 
 ## 25) SEPP Exempt and Complying Development Codes 2008 — Register in instruments.json — ✅ DONE
 
@@ -254,6 +254,12 @@ Note: To re-enable auth in production, set `NEXT_PUBLIC_AUTH_ENABLED=true` in Ve
 
 Success signal: workspace actions such as Generate SEE run immediately while the flag is unset or not `true`, and the sign-in gate returns after setting the flag to `true` and redeploying.
 
-## 38) Kempsey DCP 2013 live chapter ingestion — DONE ✅
+## 38) Kempsey DCP 2026 PDF part ingestion — DONE ✅ (updated 2026-07-02)
 
-Kempsey DCP 2013 priority chapters are ingested via live server-side chapter fetches from `kempsey.nsw.gov.au`, replacing the old empty placeholder-file workflow. The ingest skips individual failed chapter fetches after a 10 second timeout and stores successful chapter chunks as searchable DCP clauses.
+Kempsey DCP ingestion now uses DCP 2026 PDF Parts B and D because council retired the DCP 2013 HTML chapter pages and assesses new DAs lodged after 1 July 2026 against DCP 2026. The ingest skips individual failed PDF fetch/parse attempts after a 30 second timeout and stores successful PDF text chunks as searchable DCP clauses under `KEMPSEY_DCP_2026`.
+
+## Decision Register
+
+### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
+
+Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

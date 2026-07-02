@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         ? await ingestByronDcp()
         : await ingestCouncilDcp(lgaCode);
 
-    if ("chaptersIngested" in result) {
+    if ("chaptersIngested" in result || "partsIngested" in result) {
       return NextResponse.json(result);
     }
 

@@ -1,153 +1,186 @@
 import { createHash } from "node:crypto";
 
 import { LgaCoverageMaturity, type PrismaClient } from "@prisma/client";
-import { parse, type HTMLElement } from "node-html-parser";
+import pdfParse from "pdf-parse";
 
 import { prisma as defaultPrisma } from "@/lib/prisma";
-import { parseDcpDocument } from "./parser";
 
-export const KEMPSEY_DCP_CHAPTERS = [
+export const KEMPSEY_DCP_2026_PARTS = [
   {
-    slug: "kdcp-c01-residential-development-urban-areas",
-    title: "C1 Residential Development - Urban Areas",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-c01-residential-development-urban-areas",
+    slug: "part-b-shire-wide-requirements",
+    title: "Part B - Shire-wide requirements",
+    url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-b-shire-wide-requirements-kempsey-shire-council-development-control-plan-2026.pdf",
   },
   {
-    slug: "kdcp-b02-parking-access-and-traffic-management",
-    title: "B2 Parking, Access and Traffic Management",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-b02-parking-access-and-traffic-management",
-  },
-  {
-    slug: "kdcp-b09-landscaping",
-    title: "B9 Landscaping",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-b09-landscaping",
-  },
-  {
-    slug: "kdcp-b01-subdivision",
-    title: "B1 Subdivision",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-b01-subdivision",
-  },
-  {
-    slug: "kdcp-b07-flood-hazard-area-management",
-    title: "B7 Flood Hazard Area Management",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-b07-flood-hazard-area-management",
-  },
-  {
-    slug: "kdcp-e02-dual-occupancy-in-rural-areas",
-    title: "E2 Dual Occupancy in Rural Areas",
-    url: "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan-2013/kdcp-e02-dual-occupancy-in-rural-areas",
+    slug: "part-d-development-requirements",
+    title: "Part D - Development requirements",
+    url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-d-development-requirements-kempsey-shire-council-development-control-plan-2026.pdf",
   },
 ] as const;
 
 const LGA_CODE = "KEMPSEY";
-const SOURCE = "KEMPSEY_DCP_2013";
-const FETCH_TIMEOUT_MS = 10_000;
-
-type KempseyChapter = (typeof KEMPSEY_DCP_CHAPTERS)[number];
-type DbClient = PrismaClient;
+const SOURCE = "KEMPSEY_DCP_2026";
+const FETCH_TIMEOUT_MS = 30_000;
+const TARGET_CHUNK_LENGTH = 800;
+const MAX_CHUNK_LENGTH = 1_200;
+const MIN_CHUNK_LENGTH = 250;
 
 const hashContent = (content: string) =>
   createHash("sha256").update(content).digest("hex");
 
-const chapterRefFor = (chapter: KempseyChapter) => {
-  const match = chapter.title.match(/^([A-Z])(\d+)/);
-  if (!match) return chapter.title.split(" ")[0] ?? chapter.slug;
-  return `${match[1]}${Number(match[2])}`;
+type KempseyDcpPart = (typeof KEMPSEY_DCP_2026_PARTS)[number];
+type DbClient = PrismaClient;
+
+const chapterRefFor = (part: KempseyDcpPart) => {
+  const partMatch = part.title.match(/^Part\s+([A-Z])/i);
+  return partMatch ? `Part ${partMatch[1].toUpperCase()}` : part.title;
 };
 
-const extractMainContentHtml = (html: string) => {
-  const root = parse(html);
-  root
-    .querySelectorAll(
-      "script, style, nav, header, footer, noscript, svg, form, aside",
-    )
-    .forEach((element) => element.remove());
-  const main =
-    root.querySelector("main") ||
-    root.querySelector("[role='main']") ||
-    root.querySelector("article") ||
-    root.querySelector("#content") ||
-    root.querySelector(".content") ||
-    root.querySelector(".main-content") ||
-    root.querySelector("body") ||
-    root;
-  return (main as HTMLElement).innerHTML;
-};
+const normalizePdfText = (text: string) =>
+  text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 
-const fetchChapterHtml = async (chapter: KempseyChapter) => {
+const fetchPdfBytes = async (part: KempseyDcpPart) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   try {
-    const response = await fetch(chapter.url, {
+    const response = await fetch(part.url, {
       signal: controller.signal,
       headers: {
-        "user-agent": "Plannera DCP ingestion (+https://plannera.com.au)",
+        accept: "application/pdf,*/*;q=0.8",
+        "user-agent":
+          "Mozilla/5.0 (compatible; Plannera DCP ingestion; +https://plannera.com.au)",
       },
     });
+
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
+    return Buffer.from(await response.arrayBuffer());
   } finally {
     clearTimeout(timeout);
   }
 };
 
+const extractPdfText = async (buffer: Buffer) => {
+  const parsed = await pdfParse(buffer);
+  return normalizePdfText(parsed.text ?? "");
+};
+
+const isLikelyHeading = (line: string) => {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.length > 140) return false;
+  return (
+    /^\d+(?:\.\d+)*\s+\S/.test(trimmed) ||
+    /^Part\s+[A-Z]\b/i.test(trimmed) ||
+    /^Section\s+\d+/i.test(trimmed) ||
+    /^[A-Z][A-Z0-9 /,&()'’\-]+$/.test(trimmed)
+  );
+};
+
+const splitOversizedChunk = (chunk: string) => {
+  if (chunk.length <= MAX_CHUNK_LENGTH) return [chunk];
+
+  const sentences = chunk.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const sentence of sentences) {
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (next.length > TARGET_CHUNK_LENGTH && current.length >= MIN_CHUNK_LENGTH) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length ? chunks : [chunk];
+};
+
+const splitTextIntoChunks = (text: string) => {
+  const paragraphs = text
+    .split(/\n{2,}|(?=\n\d+(?:\.\d+)*\s+\S)/)
+    .map((paragraph) => paragraph.replace(/\n/g, " ").trim())
+    .filter(Boolean);
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const paragraph of paragraphs) {
+    const paragraphStartsNewSection = isLikelyHeading(paragraph);
+    const next = current ? `${current}\n\n${paragraph}` : paragraph;
+
+    if (
+      current &&
+      (next.length > TARGET_CHUNK_LENGTH || paragraphStartsNewSection) &&
+      current.length >= MIN_CHUNK_LENGTH
+    ) {
+      chunks.push(...splitOversizedChunk(current.trim()));
+      current = paragraph;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current.trim()) chunks.push(...splitOversizedChunk(current.trim()));
+  return chunks;
+};
+
+const sectionTitleFor = (chunk: string, fallback: string) => {
+  const firstLine = chunk.split("\n").find((line) => line.trim())?.trim();
+  if (!firstLine) return fallback;
+  return firstLine.length > 160 ? `${firstLine.slice(0, 157)}...` : firstLine;
+};
+
 export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
-  const parsedChapters = [] as Array<{
-    chapter: KempseyChapter;
+  const parsedParts = [] as Array<{
+    part: KempseyDcpPart;
     chapterRef: string;
-    clauses: ReturnType<typeof parseDcpDocument>["clauses"];
-    tableCount: number;
+    chunks: string[];
   }>;
 
-  for (const chapter of KEMPSEY_DCP_CHAPTERS) {
+  for (const part of KEMPSEY_DCP_2026_PARTS) {
     try {
-      const html = await fetchChapterHtml(chapter);
-      const chapterRef = chapterRefFor(chapter);
-      const contentHtml = extractMainContentHtml(html);
-      const parsed = parseDcpDocument(contentHtml, {
-        documentTitle: `Kempsey DCP 2013 ${chapter.title}`,
-        maxClauseLength: 4_000,
-      });
-      if (!parsed.clauses.length) {
-        console.warn("[kempsey-dcp] No chunks parsed for chapter", {
-          chapter: chapter.title,
-          url: chapter.url,
+      const buffer = await fetchPdfBytes(part);
+      const text = await extractPdfText(buffer);
+      const chunks = splitTextIntoChunks(text);
+
+      if (!chunks.length) {
+        console.warn("[kempsey-dcp] No chunks parsed for PDF part", {
+          part: part.title,
+          url: part.url,
         });
         continue;
       }
-      parsedChapters.push({
-        chapter,
-        chapterRef,
-        clauses: parsed.clauses,
-        tableCount: parsed.tableCount,
-      });
+
+      parsedParts.push({ part, chapterRef: chapterRefFor(part), chunks });
     } catch (error) {
-      console.warn("[kempsey-dcp] Skipping chapter after fetch/parse failure", {
-        chapter: chapter.title,
-        url: chapter.url,
+      console.warn("[kempsey-dcp] Skipping PDF part after fetch/parse failure", {
+        part: part.title,
+        url: part.url,
         error: error instanceof Error ? error.message : "unknown",
       });
     }
   }
 
-  const clauses = parsedChapters.flatMap(
-    ({ chapter, chapterRef, clauses: chapterClauses }) =>
-      chapterClauses.map((clause, index) => ({
-        ...clause,
-        chapter,
-        chapterRef,
-        ref: clause.ref
-          ? `${chapterRef}.${clause.ref}`
-          : `${chapterRef}-${index + 1}`,
-        headingPath: [
-          chapter.title,
-          ...clause.headingPath.filter((heading) => heading !== chapter.title),
-        ],
-      })),
+  const clauses = parsedParts.flatMap(({ part, chapterRef, chunks }) =>
+    chunks.map((chunk, index) => ({
+      part,
+      chapterRef,
+      ref: `${chapterRef}-${index + 1}`,
+      title: sectionTitleFor(chunk, part.title),
+      content: chunk,
+      index,
+    })),
   );
 
   if (!clauses.length) {
-    throw new Error("No Kempsey DCP chapters could be fetched and parsed");
+    throw new Error("No Kempsey DCP 2026 PDF parts could be fetched and parsed");
   }
 
   await db.$transaction(async (tx) => {
@@ -159,23 +192,26 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         lgaCode: LGA_CODE,
         instrumentSlug: SOURCE,
         ref: clause.ref,
-        title:
-          clause.title ?? clause.headingPath.at(-1) ?? clause.chapter.title,
-        headingPath: clause.headingPath,
-        parentRef: clause.parentRef
-          ? `${clause.chapterRef}.${clause.parentRef}`
-          : clause.chapterRef,
-        depth: clause.depth,
-        bodyHtml: clause.bodyHtml,
+        title: clause.title,
+        headingPath: [clause.part.title, clause.title],
+        parentRef: clause.chapterRef,
+        depth: 2,
+        bodyHtml: `<p>${clause.content
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n{2,}/g, "</p><p>")}</p>`,
         bodyText:
-          `Kempsey DCP 2013 ${clause.chapterRef} ${clause.title ?? ""}\n\n${clause.bodyText}`.trim(),
-        topicTags: clause.topicTags,
+          `Kempsey DCP 2026 ${clause.chapterRef} ${clause.title}\n\n${clause.content}`.trim(),
+        topicTags: [],
         numericMeta: {
-          ...(clause.numericMeta ?? {}),
-          sourceUrl: clause.chapter.url,
+          sourceUrl: clause.part.url,
           source: SOURCE,
           chapterRef: clause.chapterRef,
-          contentHash: hashContent(`${clause.chapter.url}:${clause.bodyText}`),
+          sectionTitle: clause.title,
+          partSlug: clause.part.slug,
+          chunkIndex: clause.index,
+          contentHash: hashContent(`${clause.part.url}:${clause.content}`),
         },
       })),
     });
@@ -195,14 +231,11 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
   });
 
   return {
+    ok: true as const,
     status: "ok" as const,
     lga: LGA_CODE,
     source: SOURCE,
-    chaptersIngested: parsedChapters.length,
+    partsIngested: parsedParts.length,
     totalChunks: clauses.length,
-    tableCount: parsedChapters.reduce(
-      (sum, chapter) => sum + chapter.tableCount,
-      0,
-    ),
   };
 };
