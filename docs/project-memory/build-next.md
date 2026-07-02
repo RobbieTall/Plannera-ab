@@ -2,6 +2,12 @@
 
 This is the active sequence for what to build next so direction is never lost.
 
+## Item A — SEE output quality — DONE ✅
+
+Strengthened SEE generation grounding so retrieved DCP chunks are injected as inline `DCP Source — [title]: [chunk text]` evidence, SEE section instructions require exact DCP source titles and LEP clause-number citations, generic control numbers are prohibited unless present in retrieved text, and section JSON can carry `citations` entries for each cited LEP/DCP source.
+
+**Success signal:** generated SEE/pre-SEE section output can list real citation objects such as `{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }` and DCP source-title citations instead of generic planning advice.
+
 ## 1) Just-in-Time LGA Activation Core — DONE ✓
 
 - Implement LGA coverage-state persistence.

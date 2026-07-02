@@ -41,6 +41,11 @@ export type FeasibilityContent = {
   generatedAt: string;
 };
 
+export type SeeSourceCitation = {
+  ref: string;
+  type: "LEP" | "DCP";
+};
+
 export type WorkspacePreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
   generatedAt: string;
@@ -75,6 +80,7 @@ export type WorkspacePreSeePlanningMemoContent = {
   consistencyAssessment: Array<{
     topic: string;
     assessment: string;
+    citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
 };

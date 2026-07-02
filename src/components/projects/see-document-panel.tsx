@@ -72,6 +72,9 @@ function buildPlainText(c: WorkspacePreSeePlanningMemoContent): string {
     for (const item of c.consistencyAssessment) {
       lines.push(`${item.topic}:`);
       lines.push(`  ${item.assessment}`);
+      if (item.citations?.length) {
+        lines.push(`  Sources: ${item.citations.map((citation) => `${citation.ref} (${citation.type})`).join("; ")}`);
+      }
     }
     lines.push("");
   }
@@ -295,6 +298,11 @@ export function SeeDocumentPanel({
             >
               <p className="font-semibold text-white">{item.topic}</p>
               <p className="mt-0.5 text-slate-300">{item.assessment}</p>
+              {item.citations?.length ? (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Sources: {item.citations.map((citation) => `${citation.ref} (${citation.type})`).join("; ")}
+                </p>
+              ) : null}
             </div>
           ))}
         </section>
