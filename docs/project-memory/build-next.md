@@ -272,6 +272,12 @@ Updated artefact project access checks so the deterministic `dev-bypass-user` cr
 
 Success signal: Generate SEE and other artefact routes no longer return 403 solely because the bypass user does not own the selected project.
 
+## 37d) Dev bypass artefact creator FK handling — ✅ DONE (2026-07-03)
+
+Updated artefact creation helpers to write `createdById: null` when the deterministic `dev-bypass-user` is active, avoiding Postgres foreign-key violations because the bypass identity is not persisted as a User row.
+
+Success signal: Generate SEE, pre-SEE planning memo generation, feasibility artefacts, Quick Site Check artefacts, and map snapshots can create artefacts during pre-launch bypass mode without failing on the `createdById` foreign key.
+
 ## 38) Kempsey DCP 2026 PDF part ingestion — DONE ✅ (updated 2026-07-02)
 
 Kempsey DCP ingestion now uses DCP 2026 PDF Parts B and D because council retired the DCP 2013 HTML chapter pages and assesses new DAs lodged after 1 July 2026 against DCP 2026. The ingest skips individual failed PDF fetch/parse attempts after a 30 second timeout and stores successful PDF text chunks as searchable DCP clauses under `KEMPSEY_DCP_2026`.
