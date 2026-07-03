@@ -22,7 +22,9 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import {
+  DEV_BYPASS_USER_ID,
   buildDcpSectionPromptBlock,
+  createMapSnapshotArtefact,
   loadDcpClausesForSections,
   requireSessionUser,
 } from "@/lib/artefact-service";
@@ -85,6 +87,53 @@ describe("requireSessionUser", () => {
       status: 401,
     });
     expect(getServerSessionMock).toHaveBeenCalled();
+  });
+});
+
+
+describe("dev bypass project access", () => {
+  it("looks up projects by ID only for the dev bypass user", async () => {
+    const project = { id: "project-db-id", publicId: "project-public-id" };
+    const artefact = { id: "artefact-id" };
+    const projectFindFirst = vi
+      .fn()
+      .mockResolvedValueOnce(project)
+      .mockResolvedValueOnce({ id: project.id });
+    const artefactCreate = vi.fn().mockResolvedValueOnce(artefact);
+    const saveFile = vi.fn().mockResolvedValueOnce({ url: "/uploads/map.png" });
+    const formData = new FormData();
+    formData.set("file", new File(["image"], "map.png", { type: "image/png" }));
+    formData.set("projectId", project.publicId);
+    formData.set("title", "Map snapshot");
+    formData.set("source", "Planning portal");
+
+    await expect(
+      createMapSnapshotArtefact({
+        formData,
+        projectId: project.publicId,
+        userId: DEV_BYPASS_USER_ID,
+        deps: {
+          prisma: {
+            project: { findFirst: projectFindFirst, findUnique: vi.fn() },
+            artefact: { create: artefactCreate, findMany: vi.fn() },
+          },
+          saveFile,
+        },
+      }),
+    ).resolves.toBe(artefact);
+
+    expect(projectFindFirst).toHaveBeenNthCalledWith(1, {
+      where: { OR: [{ publicId: project.publicId }, { id: project.publicId }] },
+    });
+    expect(projectFindFirst).toHaveBeenNthCalledWith(2, {
+      where: { id: project.id },
+      select: { id: true },
+    });
+    expect(artefactCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ projectId: project.id }),
+      }),
+    );
   });
 });
 

@@ -21,6 +21,8 @@ import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { FeasibilityContent } from "@/types/workspace";
 
+export const DEV_BYPASS_USER_ID = "dev-bypass-user";
+
 type PrismaClientArtefact = Pick<PrismaClient["artefact"], "create" | "findMany">;
 type PrismaClientProject = Pick<PrismaClient["project"], "findFirst" | "findUnique">;
 type PrismaClientLgaCoverageState = Pick<PrismaClient["lgaCoverageState"], "findUnique">;
@@ -130,7 +132,7 @@ export class ArtefactAccessError extends Error {
 
 export async function requireSessionUser() {
   if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") {
-    return { userId: "dev-bypass-user" };
+    return { userId: DEV_BYPASS_USER_ID };
   }
 
   let session: Session | null = null;
@@ -205,10 +207,13 @@ async function assertProjectAccess(
   }
 
   const hasAccess = await prismaClient.project.findFirst({
-    where: {
-      id: project.id,
-      OR: [{ createdById: userId }, { userId }, { collaborators: { some: { userId } } }],
-    },
+    where:
+      userId === DEV_BYPASS_USER_ID
+        ? { id: project.id }
+        : {
+            id: project.id,
+            OR: [{ createdById: userId }, { userId }, { collaborators: { some: { userId } } }],
+          },
     select: { id: true },
   });
 
