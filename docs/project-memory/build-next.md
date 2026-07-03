@@ -266,6 +266,12 @@ Updated the server-side artefact session requirement to return a deterministic `
 
 Success signal: Generate SEE, Generate Feasibility, workspace chat, and other routes using `requireSessionUser()` no longer return 401 solely because no NextAuth session exists while the bypass flag is inactive.
 
+## 37c) Dev bypass project ownership lookup — ✅ DONE (2026-07-03)
+
+Updated artefact project access checks so the deterministic `dev-bypass-user` created while `NEXT_PUBLIC_AUTH_ENABLED` is unset or not exactly `true` can resolve projects by ID without applying owner/collaborator filters.
+
+Success signal: Generate SEE and other artefact routes no longer return 403 solely because the bypass user does not own the selected project.
+
 ## 38) Kempsey DCP 2026 PDF part ingestion — DONE ✅ (updated 2026-07-02)
 
 Kempsey DCP ingestion now uses DCP 2026 PDF Parts B and D because council retired the DCP 2013 HTML chapter pages and assesses new DAs lodged after 1 July 2026 against DCP 2026. The ingest skips individual failed PDF fetch/parse attempts after a 30 second timeout and stores successful PDF text chunks as searchable DCP clauses under `KEMPSEY_DCP_2026`.
