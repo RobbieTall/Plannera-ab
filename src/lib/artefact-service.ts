@@ -493,7 +493,7 @@ export async function createMapSnapshotArtefact({
   return deps.prisma.artefact.create({
     data: {
       projectId: project.id,
-      createdById: userId,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
       type: "map_snapshot" as ArtefactType,
       title: payload.title,
       source: payload.source,
@@ -613,7 +613,7 @@ export async function createQuickSiteCheckArtefact({
   return deps.prisma.artefact.create({
     data: {
       projectId: project.id,
-      createdById: userId,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
       type: "quick_site_check" as ArtefactType,
       title,
       source,
@@ -1012,7 +1012,7 @@ export async function createPreSeePlanningMemoArtefact({
   const artefact = await deps.prisma.artefact.create({
     data: {
       projectId: project.id,
-      createdById: userId,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
       type: "pre_see_planning_memo" as ArtefactType,
       title: title || `Pre-SEE planning memo — ${siteDescription.address ?? project.title}`,
       source: siteDescription.address ?? "Pre-SEE planning memo",
@@ -1114,7 +1114,7 @@ export async function createFeasibilityArtefact(
     const artefact = await deps.prisma.artefact.create({
       data: {
         projectId: project.id,
-        createdById: userId,
+        createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
         type: "feasibility" as ArtefactType,
         title: `Feasibility: ${developmentType}`,
         source: address,
