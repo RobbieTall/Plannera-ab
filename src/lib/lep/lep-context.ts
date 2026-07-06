@@ -25,6 +25,15 @@ export type LepContextResolution = {
 const MAX_LEP_CLAUSES = 20;
 const MAX_CLAUSE_TEXT = 400;
 const PRIORITY_KEYWORDS = ["acid sulfate soils", "acid sulphate soils"];
+const DEVELOPMENT_STANDARD_REFS = ["4.1", "4.3", "4.4"];
+const DEVELOPMENT_STANDARD_KEYWORDS = [
+  "minimum subdivision lot size",
+  "minimum lot size",
+  "height of buildings",
+  "height of building",
+  "floor space ratio",
+  "fsr",
+];
 
 const truncateText = (value: string) =>
   value.length > MAX_CLAUSE_TEXT ? `${value.slice(0, MAX_CLAUSE_TEXT)}…` : value;
@@ -38,13 +47,22 @@ const prioritiseClauses = <T extends { ref: string; title: string | null; text: 
     first.ref.localeCompare(second.ref, undefined, { numeric: true, sensitivity: "base" }),
   );
 
+  const developmentStandardMatches = sorted.filter((clause) => {
+    const title = normalise(clause.title);
+    const text = normalise(clause.text);
+    return (
+      DEVELOPMENT_STANDARD_REFS.some((ref) => clause.ref === ref || clause.ref.startsWith(`${ref} `)) ||
+      DEVELOPMENT_STANDARD_KEYWORDS.some((keyword) => title.includes(keyword) || text.includes(keyword))
+    );
+  });
+
   const keywordMatches = sorted.filter((clause) =>
     PRIORITY_KEYWORDS.some((keyword) =>
       normalise(clause.title).includes(keyword) || normalise(clause.text).includes(keyword),
     ),
   );
 
-  const ordered = [...keywordMatches, ...sorted];
+  const ordered = [...developmentStandardMatches, ...keywordMatches, ...sorted];
   const deduped: T[] = [];
   const seen = new Set<string>();
 
