@@ -53,6 +53,10 @@ import { useExperience } from "@/components/providers/experience-provider";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { formatTranscript } from "@/lib/chat-transcript";
+import {
+  buildCommercialNextAction,
+  type CommercialReadinessStatus,
+} from "@/lib/commercial-next-action";
 import { highlightText } from "@/lib/highlight-text";
 import { getRelativeTime } from "@/lib/relative-time";
 import { generateSuggestions } from "@/lib/suggestion-chips";
@@ -665,6 +669,19 @@ function OutputSection({
     </section>
   );
 }
+
+const readinessStatusClasses: Record<CommercialReadinessStatus, string> = {
+  Confirmed:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  Likely:
+    "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
+  "Needs Input":
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+  "Needs Expert Review":
+    "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-200",
+  Unavailable:
+    "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+};
 
 export function ProjectWorkspace({
   project,
@@ -2597,6 +2614,47 @@ export function ProjectWorkspace({
     );
   }, [artefacts]);
   const hasSiteContext = Boolean(siteContext);
+  const commercialNextAction = useMemo(
+    () =>
+      buildCommercialNextAction({
+        hasSiteContext,
+        lgaName: siteContext?.lgaName ?? sessionSignals.lga,
+        lgaCode: siteContext?.lgaCode ?? sessionSignals.lga,
+        zoneLabel: zoningLabel,
+        coverageMaturity: lgaCoverageMaturity,
+        hasQuickSiteCheck: Boolean(latestQuickSiteCheckArtefact),
+        hasSee: Boolean(latestSeeContent),
+      }),
+    [
+      hasSiteContext,
+      latestQuickSiteCheckArtefact,
+      latestSeeContent,
+      lgaCoverageMaturity,
+      sessionSignals.lga,
+      siteContext?.lgaCode,
+      siteContext?.lgaName,
+      zoningLabel,
+    ],
+  );
+  const handleCommercialPrimaryAction = useCallback(() => {
+    if (commercialNextAction.primaryAction === "set_site") {
+      siteSearchInputRef.current?.focus();
+      showToast("Enter and confirm a Byron or Kempsey address to continue");
+      return;
+    }
+
+    if (commercialNextAction.primaryAction === "run_quick_site_check") {
+      setIsQuickSiteCheckOpen(true);
+      return;
+    }
+
+    if (commercialNextAction.primaryAction === "generate_see") {
+      handleGeneratePreSeeMemo();
+      return;
+    }
+
+    showToast("Use the SEE panel Copy or Download button, then request review");
+  }, [commercialNextAction.primaryAction, handleGeneratePreSeeMemo, showToast]);
   const activeStaleArtefact = staleArtefactTypes[0];
   const activeNotification = notifications[0];
   const outputStatusKind =
@@ -3413,6 +3471,67 @@ export function ProjectWorkspace({
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5">
+                <section className="border-b border-slate-100 py-5 dark:border-slate-800">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-200">
+                      Byron/Kempsey commercial path
+                    </p>
+                    <h2 className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                      {commercialNextAction.heading}
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      {commercialNextAction.description}
+                    </p>
+                    <div className="mt-3 grid gap-2">
+                      {commercialNextAction.items.map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-xl border border-white/70 bg-white/70 p-2.5 text-xs dark:border-slate-700/70 dark:bg-slate-900/50"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-800 dark:text-slate-100">
+                              {item.label}
+                            </span>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                readinessStatusClasses[item.status],
+                              )}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">
+                            {item.detail}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCommercialPrimaryAction}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                      >
+                        {commercialNextAction.primaryLabel}
+                        <Sparkles className="h-3 w-3" />
+                      </button>
+                      {commercialNextAction.secondaryLabel ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            showToast(
+                              "Review requests are the next paid workflow; use the SEE export for now",
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+                        >
+                          {commercialNextAction.secondaryLabel}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </section>
                 <OutputSection
                   title="Quick Site Check"
                   action={
