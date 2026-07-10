@@ -1131,6 +1131,105 @@ export async function createFeasibilityArtefact(
   }
 }
 
+export async function createExpertReviewRequestArtefact({
+  body,
+  userId,
+}: {
+  body: unknown;
+  userId: string;
+}, deps = { prisma }) {
+  const parsed = z.object({ projectId: z.string().trim().min(1) }).safeParse(body);
+  if (!parsed.success) {
+    throw new ArtefactValidationError(parsed.error.issues[0]?.message ?? "Invalid review request payload");
+  }
+
+  const project = await assertProjectAccess(deps.prisma, parsed.data.projectId, userId);
+  const existingArtefacts = await deps.prisma.artefact.findMany({
+    where: { projectId: project.id, type: { in: ["quick_site_check", "pre_see_planning_memo"] as ArtefactType[] } },
+    orderBy: { createdAt: "desc" },
+  });
+  const quickSiteCheck = existingArtefacts.find((artefact) => artefact.type === "quick_site_check");
+  const seeMemo = existingArtefacts.find((artefact) => artefact.type === "pre_see_planning_memo");
+
+  if (!quickSiteCheck || !seeMemo) {
+    throw new ArtefactValidationError("Run and save a Quick Site Check and SEE draft before requesting expert review");
+  }
+
+  const qsc = quickSiteCheck.payload as QuickSiteCheckReport | null;
+  const see = seeMemo.payload as import("@/types/workspace").WorkspacePreSeePlanningMemoContent | null;
+  const controls = qsc?.controls ? Object.values(qsc.controls) : [];
+  const citedSources = new Map<string, { ref: string; type: "LEP" | "DCP" }>();
+  controls.forEach((control) => {
+    if (control.clauseRef) citedSources.set(control.clauseRef, { ref: control.clauseRef, type: "LEP" });
+  });
+  see?.consistencyAssessment?.forEach((item) =>
+    item.citations?.forEach((citation) => citedSources.set(`${citation.type}:${citation.ref}`, citation)),
+  );
+  see?.applicableControls?.dcpClauses?.forEach((clause) => {
+    if (clause.ref) citedSources.set(`DCP:${clause.ref}`, { ref: clause.ref, type: "DCP" });
+  });
+
+  const confidenceGaps = [
+    ...controls.filter((control) => control.confidence !== "Cited").map((control) => `${control.label}: ${control.interpretation}`),
+    ...(see?.limitations ?? []),
+  ].filter(Boolean);
+  const missingInputs = [
+    !qsc?.site?.address && "Confirmed street address",
+    !qsc?.site?.zoneLabel && "Confirmed zoning layer",
+    !see?.proposedWorksSummary && "Proposed works summary",
+    citedSources.size === 0 && "Cited LEP/DCP sources",
+  ].filter((item): item is string => Boolean(item));
+  const assumptions = [
+    see?.proposedWorksSummary ? `Proposed works: ${see.proposedWorksSummary}` : null,
+    qsc?.permissibility?.interpretation ?? null,
+    "Planner to verify currency of council controls before lodgement advice.",
+  ].filter((item): item is string => Boolean(item));
+
+  const generatedAt = new Date().toISOString();
+  const payload: import("@/types/workspace").ReviewRequestContent = {
+    requestType: "expert_review_request",
+    generatedAt,
+    projectId: project.id,
+    site: {
+      address: qsc?.site?.address ?? see?.siteDescription?.address ?? project.address ?? null,
+      lga: qsc?.site?.lga ?? see?.siteDescription?.lga ?? null,
+      zoneLabel: qsc?.site?.zoneLabel ?? see?.siteDescription?.zoneLabel ?? project.zoning ?? project.zoningName ?? null,
+    },
+    packageSummary: "Expert review package assembled from the saved Quick Site Check and SEE draft for planner handoff.",
+    includedArtefacts: [quickSiteCheck, seeMemo].map((artefact) => ({
+      type: artefact.type as "quick_site_check" | "pre_see_planning_memo",
+      id: artefact.id,
+      title: artefact.title,
+      generatedAt: artefact.capturedAt?.toISOString() ?? artefact.createdAt.toISOString(),
+    })),
+    citedSources: Array.from(citedSources.values()),
+    confidenceGaps: confidenceGaps.length ? confidenceGaps : ["No explicit confidence gaps were found; planner should still verify assumptions."],
+    missingInputs: missingInputs.length ? missingInputs : ["No obvious missing inputs detected by Plannera."],
+    assumptions,
+    recommendedReviewScope: [
+      "Confirm permissibility pathway and consent requirements.",
+      "Check LEP/DCP citations against current council instruments.",
+      "Review SEE limitations, assumptions and any inferred controls before paid export or lodgement use.",
+    ],
+  };
+
+  const artefact = await deps.prisma.artefact.create({
+    data: {
+      projectId: project.id,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
+      type: "review_request" as ArtefactType,
+      title: `Expert review request — ${payload.site.address ?? project.title}`,
+      source: payload.site.address ?? "Expert review request",
+      overlays: [],
+      notes: `${payload.includedArtefacts.length} artefacts · ${payload.citedSources.length} cited sources · ${payload.confidenceGaps.length} review gaps`,
+      payload,
+      capturedAt: new Date(generatedAt),
+    },
+  });
+
+  return { artefact, content: payload };
+}
+
 export async function listProjectArtefacts(projectId: string, userId: string, deps = { prisma }) {
   const project = await assertProjectAccess(deps.prisma, projectId, userId);
 

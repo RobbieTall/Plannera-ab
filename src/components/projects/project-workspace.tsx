@@ -76,6 +76,7 @@ import type {
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspacePreSeePlanningMemoContent,
+  ReviewRequestContent,
   WorkspaceSessionSignals,
   WorkspaceSource,
   WorkspaceSourceType,
@@ -505,6 +506,14 @@ const normaliseFeasibilityContent = (
   };
 };
 
+const normaliseReviewRequestContent = (value: unknown): ReviewRequestContent | null => {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<ReviewRequestContent>;
+  return candidate.requestType === "expert_review_request" && Array.isArray(candidate.includedArtefacts)
+    ? (candidate as ReviewRequestContent)
+    : null;
+};
+
 const isPreSeeMemoArtefact = (artefact: WorkspaceArtefact) => {
   const normalizedTitle = normaliseMemoLabel(artefact.title);
   const normalizedNoteType = artefact.noteType
@@ -585,12 +594,38 @@ const mapServerFeasibilityArtefact = (
   };
 };
 
+
+const mapServerReviewRequestArtefact = (
+  artefact: ServerArtefactRecord,
+): WorkspaceArtefact | null => {
+  const reviewRequest = normaliseReviewRequestContent(artefact.payload);
+  if (!reviewRequest) return null;
+
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: formatMemoDate(
+      reviewRequest.generatedAt ??
+        artefact.capturedAt ??
+        artefact.updatedAt ??
+        artefact.createdAt ??
+        new Date().toISOString(),
+    ),
+    type: "review_request",
+    noteType: "Expert review request",
+    metadata: `${reviewRequest.includedArtefacts.length} artefacts · ${reviewRequest.citedSources.length} cited sources`,
+    reviewRequest,
+  };
+};
+
 const mapServerWorkspaceArtefact = (
   artefact: ServerArtefactRecord,
-): WorkspaceArtefact | null =>
-  artefact.type === "feasibility"
-    ? mapServerFeasibilityArtefact(artefact)
-    : mapServerPreSeeMemoArtefact(artefact);
+): WorkspaceArtefact | null => {
+  if (artefact.type === "feasibility") return mapServerFeasibilityArtefact(artefact);
+  if (artefact.type === "review_request") return mapServerReviewRequestArtefact(artefact);
+  return mapServerPreSeeMemoArtefact(artefact);
+};
 
 function extractSessionSignalsFromText(
   message: string,
@@ -754,6 +789,7 @@ export function ProjectWorkspace({
   >(null);
   const [, setIsGeneratingPreSeeMemo] = useState(false);
   const [isGeneratingSee, setIsGeneratingSee] = useState(false);
+  const [isRequestingReview, setIsRequestingReview] = useState(false);
   const [serverArtefacts, setServerArtefacts] = useState<WorkspaceArtefact[]>(
     [],
   );
@@ -2636,6 +2672,51 @@ export function ProjectWorkspace({
       zoningLabel,
     ],
   );
+
+  const handleRequestExpertReview = useCallback(async () => {
+    if (!isAuthenticated) {
+      showToast("Sign in, then request expert review", "error");
+      openAuthModal();
+      return;
+    }
+
+    setIsRequestingReview(true);
+    try {
+      const response = await fetch("/api/artefacts/request-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ projectId: projectKey }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        artefactId?: string;
+        content?: ReviewRequestContent;
+        error?: string;
+      };
+
+      if (!response.ok || !data.artefactId || !data.content) {
+        throw new Error(data.error ?? "Unable to create expert review request");
+      }
+
+      addArtefact(projectKey, {
+        id: data.artefactId,
+        title: `Expert review request${data.content.site.address ? ` — ${data.content.site.address}` : ""}`,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "review_request",
+        noteType: "Expert review request",
+        metadata: `${data.content.includedArtefacts.length} artefacts · ${data.content.citedSources.length} cited sources · ${data.content.confidenceGaps.length} review gaps`,
+        reviewRequest: data.content,
+      });
+      showToast("Expert review package saved as an artefact");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create expert review request";
+      showToast(message, "error");
+    } finally {
+      setIsRequestingReview(false);
+    }
+  }, [addArtefact, isAuthenticated, openAuthModal, projectKey, showToast]);
+
   const handleCommercialPrimaryAction = useCallback(() => {
     if (commercialNextAction.primaryAction === "set_site") {
       siteSearchInputRef.current?.focus();
@@ -2653,7 +2734,7 @@ export function ProjectWorkspace({
       return;
     }
 
-    showToast("Use the SEE panel Copy or Download button, then request review");
+    showToast("Use the SEE panel Copy or Download button, or request expert review");
   }, [commercialNextAction.primaryAction, handleGeneratePreSeeMemo, showToast]);
   const activeStaleArtefact = staleArtefactTypes[0];
   const activeNotification = notifications[0];
@@ -3519,14 +3600,11 @@ export function ProjectWorkspace({
                       {commercialNextAction.secondaryLabel ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            showToast(
-                              "Review requests are the next paid workflow; use the SEE export for now",
-                            )
-                          }
+                          onClick={() => void handleRequestExpertReview()}
+                          disabled={isRequestingReview}
                           className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                         >
-                          {commercialNextAction.secondaryLabel}
+                          {isRequestingReview ? "Packaging review…" : commercialNextAction.secondaryLabel}
                         </button>
                       ) : null}
                     </div>

@@ -325,6 +325,7 @@ enum ArtefactType {
   quick_site_check
   pre_see_planning_memo
   feasibility
+  review_request
 }
 
 model Instrument {

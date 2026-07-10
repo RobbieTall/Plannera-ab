@@ -23,7 +23,7 @@ export type WorkspaceSessionSignals = {
   lastIntent?: string;
 };
 
-export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note" | "feasibility";
+export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note" | "feasibility" | "review_request";
 
 export type FeasibilityItem = {
   label: string;
@@ -44,6 +44,30 @@ export type FeasibilityContent = {
 export type SeeSourceCitation = {
   ref: string;
   type: "LEP" | "DCP";
+};
+
+
+export type ReviewRequestContent = {
+  requestType: "expert_review_request";
+  generatedAt: string;
+  projectId: string;
+  site: {
+    address: string | null;
+    lga: string | null;
+    zoneLabel: string | null;
+  };
+  packageSummary: string;
+  includedArtefacts: Array<{
+    type: "quick_site_check" | "pre_see_planning_memo";
+    id: string;
+    title: string;
+    generatedAt: string | null;
+  }>;
+  citedSources: SeeSourceCitation[];
+  confidenceGaps: string[];
+  missingInputs: string[];
+  assumptions: string[];
+  recommendedReviewScope: string[];
 };
 
 export type WorkspacePreSeePlanningMemoContent = {
@@ -97,6 +121,7 @@ export type WorkspaceArtefact = {
   messages?: WorkspaceMessage[];
   preSeeMemo?: WorkspacePreSeePlanningMemoContent;
   content?: FeasibilityContent;
+  reviewRequest?: ReviewRequestContent;
   staleAt?: string;
 };
 
