@@ -302,6 +302,12 @@ Commercial value: users now see a clear path from address resolution to saved si
 
 Success signal: after setting a Byron or Kempsey site, the workspace tells the user the next commercial action and updates from Quick Site Check → Generate SEE → Download SEE / Request expert review as artefacts are saved.
 
-## 39) Make Request expert review a real workflow — TODO
+## 39) Make Request expert review a real workflow — DONE ✅ (2026-07-10)
 
-Replace the current review guidance CTA with a real commercial workflow that packages the project address, Quick Site Check, SEE draft, cited sources, confidence gaps, missing inputs, and assumptions into a review request artefact or lead-capture handoff for planner review.
+Replaced the placeholder review CTA with a working expert review request workflow. Once a project has a saved Quick Site Check and SEE draft, the Byron/Kempsey commercial card can now package the project address, LGA, zone, source citations, confidence gaps, missing inputs, assumptions, and review scope into a persisted `review_request` artefact for planner handoff.
+
+Success signal: clicking Request expert review after Quick Site Check + SEE saves an expert review package artefact instead of showing placeholder guidance.
+
+## 40) Paid export/review conversion gate — TODO
+
+Add the smallest billing-aware gate around SEE download and expert review request submission so users can preview readiness, then choose paid export or planner review without changing the underlying artefact generation flow.
