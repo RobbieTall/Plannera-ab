@@ -265,7 +265,7 @@ const isRealLepResponse = (
   response: Awaited<ReturnType<typeof buildQuickSiteCheckLep>> | null,
 ): response is Extract<Awaited<ReturnType<typeof buildQuickSiteCheckLep>>, { ok: true }> => Boolean(response?.ok);
 
-const findLepClause = (clauses: LepClauseContext[], refs: string[], keywords: string[]) => {
+export const findLepClause = (clauses: LepClauseContext[], refs: string[], keywords: string[]) => {
   const byRef = clauses.find((clause) => refs.some((ref) => clause.ref === ref || clause.ref.startsWith(`${ref}`)));
   if (byRef) return byRef;
 
@@ -276,7 +276,7 @@ const findLepClause = (clauses: LepClauseContext[], refs: string[], keywords: st
   });
 };
 
-const extractNumericControlValue = (clause: LepClauseContext | null) => {
+export const extractNumericControlValue = (clause: LepClauseContext | null) => {
   if (!clause) return null;
   const text = `${clause.title ?? ""} ${clause.text}`;
   const patterns = [
@@ -300,20 +300,19 @@ const withRealLepControl = (
   if (!clause) return { ...control, lepSource: false };
 
   const parsedValue = extractNumericControlValue(clause);
-  const value = parsedValue ?? control.value;
+  if (!parsedValue) return { ...control, lepSource: false };
+
   const clauseTitle = clause.title ? `${clause.ref}: ${clause.title}` : clause.ref;
 
   return {
     ...control,
-    value,
-    present: Boolean(value || clause.text),
+    value: parsedValue,
+    present: true,
     clauseRef: clause.ref,
     detail: truncatePromptText(clause.text),
     source: "lep",
     lepSource: true,
-    interpretation: value
-      ? `${control.label} is ${value} based on retrieved LEP clause ${clauseTitle}. Verify the mapped value against the official LEP map before lodgement.`
-      : `${control.label} is addressed in retrieved LEP clause ${clauseTitle}, but no numeric mapped value was extracted. Verify the LEP map before lodgement.`,
+    interpretation: `${control.label} is ${parsedValue} based on retrieved LEP clause ${clauseTitle}. Verify the mapped value against the official LEP map before lodgement.`,
   } satisfies QuickSiteCheckReport["controls"][keyof QuickSiteCheckReport["controls"]];
 };
 

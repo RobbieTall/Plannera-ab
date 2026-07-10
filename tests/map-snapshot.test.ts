@@ -410,3 +410,106 @@ test("creates a pre_see_planning_memo artefact with structured content", async (
   assert.equal(content.applicableControls.dcpClauses[0].ref, "D1.1");
   assert.equal(content.applicableControls.sourceExcerpts[0].heading, "Chapter D1");
 });
+
+test("pre SEE key development standards use retrieved LEP values and citations", async () => {
+  const prisma = new MockPrisma({ "proj-39": ["user-39"] });
+  const quickSiteCheck: QuickSiteCheckReport = {
+    projectId: "proj-39",
+    generatedAt: new Date().toISOString(),
+    site: { address: "1 Jonson St, Byron Bay NSW", lga: "Byron", zoneCode: "R2", zoneLabel: "R2 – Low Density Residential" },
+    lepInstrument: { name: "Byron LEP 2014", code: "byron-lep-2014", lga: "Byron", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: null, present: false, interpretation: "No mapped height of building found yet. Check the LEP map layer or council GIS before progressing." },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No mapped floor space ratio found yet. Check the LEP map layer or council GIS before progressing." },
+      minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No mapped minimum lot size found yet. Check the LEP map layer or council GIS before progressing." },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const { content } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-39", proposedWorksSummary: "Dwelling alterations." },
+    userId: "user-39",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => quickSiteCheck,
+      getDCPContext: async () => [],
+      getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }),
+      getLepContextForProject: async () => ({
+        lepContext: {
+          lga: "Byron",
+          instrumentName: "Byron LEP 2014",
+          instrumentCode: "byron-lep-2014",
+          clauses: [
+            { ref: "4.3", title: "Height of buildings", text: "The maximum height of a building on the land is 9 m." },
+            { ref: "4.4", title: "Floor space ratio", text: "The maximum floor space ratio for a building on the land is 0.5:1." },
+            { ref: "4.1", title: "Minimum subdivision lot size", text: "The minimum lot size for this land is 600 m2." },
+          ],
+        },
+        rawLga: "Byron",
+        normalisedLga: "BYRON",
+        instruments: [],
+        chosenInstrumentId: "lep-1",
+        lepClauseCount: 3,
+        usedFallback: false,
+      }),
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP map API data" }),
+    },
+  });
+
+  const height = content.consistencyAssessment.find((item) => item.topic === "Height of building");
+  const fsr = content.consistencyAssessment.find((item) => item.topic === "Floor space ratio");
+  const lotSize = content.consistencyAssessment.find((item) => item.topic === "Minimum lot size");
+
+  assert.match(height?.assessment ?? "", /9 m/);
+  assert.deepEqual(height?.citations, [{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }]);
+  assert.match(fsr?.assessment ?? "", /0.5:1/);
+  assert.deepEqual(fsr?.citations, [{ ref: "Byron LEP 2014 cl. 4.4", type: "LEP" }]);
+  assert.match(lotSize?.assessment ?? "", /600 m2/);
+  assert.deepEqual(lotSize?.citations, [{ ref: "Byron LEP 2014 cl. 4.1", type: "LEP" }]);
+});
+
+test("pre SEE key development standards preserve fallback when LEP clause has no numeric control", async () => {
+  const prisma = new MockPrisma({ "proj-40": ["user-40"] });
+  const fallback = "No mapped height of building found yet. Check the LEP map layer or council GIS before progressing.";
+  const quickSiteCheck: QuickSiteCheckReport = {
+    projectId: "proj-40",
+    generatedAt: new Date().toISOString(),
+    site: { address: "1 Test St, Byron Bay NSW", lga: "Byron", zoneCode: "R2" },
+    lepInstrument: { name: "Byron LEP 2014", code: "byron-lep-2014", lga: "Byron", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: null, present: false, interpretation: fallback },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No mapped floor space ratio found yet. Check the LEP map layer or council GIS before progressing." },
+      minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No mapped minimum lot size found yet. Check the LEP map layer or council GIS before progressing." },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const { content } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-40", proposedWorksSummary: "Dwelling alterations." },
+    userId: "user-40",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => quickSiteCheck,
+      getDCPContext: async () => [],
+      getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }),
+      getLepContextForProject: async () => ({
+        lepContext: { lga: "Byron", instrumentName: "Byron LEP 2014", instrumentCode: "byron-lep-2014", clauses: [{ ref: "4.3", title: "Height of buildings", text: "The maximum height is shown on the Height of Buildings Map." }] },
+        rawLga: "Byron",
+        normalisedLga: "BYRON",
+        instruments: [],
+        chosenInstrumentId: "lep-1",
+        lepClauseCount: 1,
+        usedFallback: false,
+      }),
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP map API data" }),
+    },
+  });
+
+  const height = content.consistencyAssessment.find((item) => item.topic === "Height of building");
+  assert.equal(height?.assessment, fallback);
+  assert.deepEqual(height?.citations, []);
+});
