@@ -1,0 +1,136 @@
+export type CommercialReadinessStatus =
+  | "Confirmed"
+  | "Likely"
+  | "Needs Input"
+  | "Needs Expert Review"
+  | "Unavailable";
+
+export type CommercialNextActionInput = {
+  hasSiteContext: boolean;
+  lgaName?: string | null;
+  lgaCode?: string | null;
+  zoneLabel?: string | null;
+  coverageMaturity?: string | null;
+  hasQuickSiteCheck: boolean;
+  hasSee: boolean;
+};
+
+export type CommercialReadinessItem = {
+  label: string;
+  status: CommercialReadinessStatus;
+  detail: string;
+};
+
+export type CommercialNextAction = {
+  heading: string;
+  description: string;
+  primaryAction: "set_site" | "run_quick_site_check" | "generate_see" | "export_or_review";
+  primaryLabel: string;
+  secondaryLabel?: string;
+  items: CommercialReadinessItem[];
+};
+
+const TARGET_LGA_PATTERN = /\b(byron|kempsey)\b/i;
+
+const isTargetLga = (lgaName?: string | null, lgaCode?: string | null) =>
+  TARGET_LGA_PATTERN.test(`${lgaName ?? ""} ${lgaCode ?? ""}`);
+
+const isSearchableCoverage = (coverageMaturity?: string | null) =>
+  ["SEARCHABLE_READY", "STRUCTURED_PARTIAL", "VERIFIED"].includes(
+    coverageMaturity ?? "",
+  );
+
+export function buildCommercialNextAction({
+  hasSiteContext,
+  lgaName,
+  lgaCode,
+  zoneLabel,
+  coverageMaturity,
+  hasQuickSiteCheck,
+  hasSee,
+}: CommercialNextActionInput): CommercialNextAction {
+  const targetLga = isTargetLga(lgaName, lgaCode);
+  const searchableCoverage = isSearchableCoverage(coverageMaturity);
+  const lgaDetail = targetLga
+    ? `${lgaName ?? lgaCode} is one of the launch LGAs.`
+    : hasSiteContext
+      ? "This commercial workflow is tuned for Byron and Kempsey first."
+      : "Enter a Byron or Kempsey address to start the launch workflow.";
+
+  const items: CommercialReadinessItem[] = [
+    {
+      label: "Site and LGA",
+      status: hasSiteContext ? (targetLga ? "Confirmed" : "Needs Expert Review") : "Needs Input",
+      detail: hasSiteContext ? lgaDetail : "No confirmed site address yet.",
+    },
+    {
+      label: "LEP / zone intelligence",
+      status: zoneLabel && targetLga ? "Confirmed" : zoneLabel ? "Likely" : "Unavailable",
+      detail: zoneLabel
+        ? `Current workspace zone: ${zoneLabel}.`
+        : "No resolved zoning is available in the workspace yet.",
+    },
+    {
+      label: "Local planning sources",
+      status: searchableCoverage ? "Confirmed" : targetLga ? "Likely" : "Needs Expert Review",
+      detail: searchableCoverage
+        ? "Local LEP/DCP source coverage is searchable for workspace outputs."
+        : targetLga
+          ? "Launch LGA detected; run outputs and review citations for source coverage."
+          : "Outside the launch LGAs, confirm local source coverage before relying on outputs.",
+    },
+    {
+      label: "Saved Quick Site Check",
+      status: hasQuickSiteCheck ? "Confirmed" : hasSiteContext ? "Needs Input" : "Unavailable",
+      detail: hasQuickSiteCheck
+        ? "A Quick Site Check artefact is saved in this workspace."
+        : "Run and save a Quick Site Check before drafting paid documentation.",
+    },
+    {
+      label: "SEE-ready artefact",
+      status: hasSee ? "Confirmed" : hasQuickSiteCheck ? "Needs Input" : "Unavailable",
+      detail: hasSee
+        ? "A SEE draft is saved and ready to copy, download, or review."
+        : "Generate a SEE once the site check is saved and assumptions are clear.",
+    },
+  ];
+
+  if (!hasSiteContext) {
+    return {
+      heading: "Start the Byron/Kempsey paid workflow",
+      description: "Resolve the address first so Plannera can identify the LGA, zone and available planning intelligence.",
+      primaryAction: "set_site",
+      primaryLabel: "Set a Byron or Kempsey site",
+      items,
+    };
+  }
+
+  if (!hasQuickSiteCheck) {
+    return {
+      heading: "Next commercial step: prove the site intelligence",
+      description: "Run a cited Quick Site Check before asking the user to pay for a SEE or professional review.",
+      primaryAction: "run_quick_site_check",
+      primaryLabel: "Run Quick Site Check",
+      items,
+    };
+  }
+
+  if (!hasSee) {
+    return {
+      heading: "Next commercial step: generate the SEE draft",
+      description: "Use the saved site check, LEP/DCP context and known assumptions to create an exportable artefact.",
+      primaryAction: "generate_see",
+      primaryLabel: "Generate SEE",
+      items,
+    };
+  }
+
+  return {
+    heading: "Ready for paid export or expert review",
+    description: "The workspace now has the core artefacts a Byron/Kempsey user needs to continue commercially.",
+    primaryAction: "export_or_review",
+    primaryLabel: "Download SEE",
+    secondaryLabel: "Request expert review",
+    items,
+  };
+}
