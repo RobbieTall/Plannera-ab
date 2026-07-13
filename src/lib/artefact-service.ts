@@ -1140,14 +1140,15 @@ export async function createExpertReviewRequestArtefact({
 }: {
   body: unknown;
   userId: string;
-}, deps = { prisma }) {
+}, deps: { prisma: unknown } = { prisma }) {
   const parsed = z.object({ projectId: z.string().trim().min(1) }).safeParse(body);
   if (!parsed.success) {
     throw new ArtefactValidationError(parsed.error.issues[0]?.message ?? "Invalid review request payload");
   }
 
-  const project = await assertProjectAccess(deps.prisma, parsed.data.projectId, userId);
-  const existingArtefacts = await deps.prisma.artefact.findMany({
+  const prismaClient = deps.prisma as ArtefactDependencies["prisma"];
+  const project = await assertProjectAccess(prismaClient, parsed.data.projectId, userId);
+  const existingArtefacts = await prismaClient.artefact.findMany({
     where: { projectId: project.id, type: { in: ["quick_site_check", "pre_see_planning_memo"] as ArtefactType[] } },
     orderBy: { createdAt: "desc" },
   });
@@ -1216,7 +1217,7 @@ export async function createExpertReviewRequestArtefact({
     ],
   };
 
-  const artefact = await deps.prisma.artefact.create({
+  const artefact = await prismaClient.artefact.create({
     data: {
       projectId: project.id,
       createdById: userId === DEV_BYPASS_USER_ID ? null : userId,

@@ -8,7 +8,6 @@ Strengthened SEE generation grounding so retrieved DCP chunks are injected as in
 
 **Success signal:** generated SEE/pre-SEE section output can list real citation objects such as `{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }` and DCP source-title citations instead of generic planning advice.
 
-
 ## Item B — Kempsey zone-aware commercial clause retrieval — DONE ✅
 
 Fixed non-Byron statutory retrieval so confirmed site zoning is passed into LEP/DCP clause search and commercial-zoned Kempsey sites prioritise E2 Commercial Centre material while suppressing unrelated rural/residential-only clauses unless the user explicitly asks about those zones. Added regression coverage for an E2 Kempsey commercial setbacks/height query.
@@ -144,7 +143,7 @@ Every assistant response to a planning question must cite at least one real LEP 
 
 Success signal: ask "can I build a secondary dwelling at [Byron Bay address]?" → response cites real Byron LEP clauses, not generic advice.
 
-20) SEE Builder — real first draft — DONE ✅
+20. SEE Builder — real first draft — DONE ✅
 
 The generate-SEE endpoint exists. Wire it end-to-end: user clicks "Generate SEE" → sections stream in with real LEP/DCP grounding → completed SEE is saved as an artefact → user can copy full text or download as .txt. This is the first thing users will pay for.
 
@@ -171,6 +170,7 @@ Success signal: workspace chat for a Kempsey address cites real DCP 2026 section
 The XML file `data/nsw/xml/SEPP-Exempt and Complying Development Codes-2008.xml` exists in the repo but is NOT registered in `src/lib/legislation/instruments.json`. This SEPP governs the CDC (Complying Development Certificate) pathway — one of the most commonly cited instruments for residential development.
 
 Add an entry to `instruments.json`:
+
 - slug: `sepp-exempt-complying-2008`
 - name: `State Environmental Planning Policy (Exempt and Complying Development Codes) 2008`
 - shortName: `SEPP Exempt & Complying 2008`
@@ -186,6 +186,7 @@ Success signal: `npm run ingest:sepps` picks up and ingests this SEPP; CDC pathw
 ## 26) EPA Act 1979 and EPA Regulation 2021 XML files — Commit to repo — ✅ DONE
 
 `instruments.json` registers these instruments with local XML paths (`data/nsw/xml/epa-act-1979.xml` and `data/nsw/xml/epa-reg-2021.xml`) but neither file exists in the repo. They need to be manually downloaded from legislation.nsw.gov.au and committed:
+
 - EPA Act 1979: https://legislation.nsw.gov.au/export/xml/current/act-1979-203
 - EPA Regulation 2021: https://legislation.nsw.gov.au/export/xml/current/sl-2021-643
 
@@ -198,6 +199,7 @@ Success signal: `npm run ingest:legislation` ingests EPA Act and Regulation clau
 ## 27) Production DB Ingest Health Check endpoint — ✅ DONE
 
 Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN_SECRET` that returns a JSON summary of what is ingested in the production DB:
+
 - For each instrument in `instruments.json`: name, slug, instrumentType, clauseCount, lastIngestedAt (or null if not yet ingested)
 - For each LGA with a council DCP registered: lgaCode, chunkCount, lastIngestedAt
 - Overall totals
@@ -211,12 +213,14 @@ Before enabling auth/paywall, manually verify the following user journeys work e
 Note: Before starting the manual test journeys, run all automated production ingestions via `scripts/ingest-production.sh` with `BASE_URL` and `INGEST_ADMIN_SECRET` set; the updated runner now ingests all registered SEPPs before Byron DCP and the final status check, so SEPP clause counts should be non-zero before testing workspace chat.
 
 Byron Bay test:
+
 - Enter "45 Broken Head Road, Byron Bay NSW 2481" → Quick Site Check returns real zone (RU2/R2/E3), permissibility table, height limit and FSR from Byron LEP 2014 clauses (Cited confidence)
 - Open workspace, ask "Can I build a secondary dwelling here?" → response cites Byron LEP 2014 cl. 4.21 and SEPP Housing 2021 (Cited)
 - Ask about setbacks → response cites Byron DCP 2014 chapter reference (Cited)
 - Generate SEE → produces structured document with real LEP/DCP clause citations
 
 Kempsey test:
+
 - Enter a Kempsey address → Quick Site Check returns real zone from Kempsey LEP 2013 (Cited)
 - Workspace chat cites Kempsey LEP 2013 and relevant SEPPs
 - Note: DCP responses will be Inferred until item 24 is complete
@@ -262,8 +266,6 @@ Legislation clause writes now upsert on `(instrumentId, clauseKey, version)` so 
 ## 36) Wire SEPPs into production runner + workspace chat citations — ✅ DONE (2026-06-29)
 
 Production ingest now runs each registered SEPP slug via the admin legislation endpoint, and workspace statutory context retrieves top relevant always-applicable SEPP clauses alongside LEP/DCP clauses so chat can cite SEPP Housing 2021 and SEPP Resilience 2021 in live answers.
-
-
 
 ## 37) Remove auth gate for pre-launch testing — ✅ DONE (2026-06-29)
 
@@ -339,8 +341,6 @@ Success signal: after clicking Request expert review from a Byron/Kempsey projec
 
 Add a non-billing handoff control on the Expert Review Request card so users can copy the packaged review request summary, gaps, assumptions, and review scope to the clipboard or download it as a plain-text file for planner/email sharing.
 
-
-
 ## 44) Kempsey workspace-chat DCP/setback grounding — DONE ✅ (2026-07-13)
 
 Fixed the remaining workspace-chat DCP-topic path for Kempsey setback questions. Topic-keyed DCP retrieval now passes the confirmed site zone into `getDCPContext`, so non-Byron LGAs such as Kempsey can use the same zone-aware clause filtering as statutory retrieval. Workspace chat also treats retrieved DCP clauses or council DCP chunks as searchable local evidence for response coverage, preventing stale “Local controls preparing” notices when the DCP table has ingested searchable clauses even if the LGA coverage-state row is still queued.
@@ -358,3 +358,16 @@ Fix should make LEP/DCP clause retrieval (Quick Site Check, workspace chat, and 
 Success signal: asking a Kempsey E2 Commercial Centre site about setback or height requirements returns clauses that are actually applicable to a commercial zone (not rural/residential-only clauses), with citations, and the same zone-relevant filtering applies to Quick Site Check and SEE grounding.
 
 Reference: DR-011, DR-012, DR-013 — this directly affects whether Kempsey is producing predominantly Cited (not Inferred or zone-irrelevant) responses required before auth/paywall can be enabled, and is prioritised above item 42 per explicit direction to get grounding quality right before further feature work.
+
+## 45) Kempsey workspace-chat DCP/setback fallback and coverage-state third attempt — DONE ✅ (2026-07-13)
+
+Fixed the response-generation side of the Kempsey workspace-chat side-setback bug after PR #272 and PR #273 did not fully resolve the live production failure. This is the third attempt at this specific Kempsey setback bug: retrieval was already improved by PR #273, but workspace chat still treated retrieved council DCP chunks as insufficient for coverage-state purposes, still allowed stale “Local controls preparing” messaging when only chunk evidence was present, and could still fall back to unrelated LEP source attribution such as `KEMP_2013_1`.
+
+Changes made in this attempt:
+
+- Coverage-state computation now treats retrieved council DCP chunks as searchable local DCP evidence, not only structured DCP clauses or the broad source-context flag.
+- Setback evidence detection now recognises nil/zero side-setback controls as specific numeric-equivalent DCP evidence, so commercial DCP tables that express boundary setbacks as “Nil” are not incorrectly treated as missing numeric evidence.
+- Workspace chat can deterministically answer a narrow side-setback question from retrieved DCP evidence when the excerpt itself states the value, including `Nil`/`0 m`, instead of sending the user through the “I can’t confirm…” fallback.
+- LEP fallback source attribution is no longer appended to DCP-grounded fallback/deterministic replies when DCP evidence was retrieved, preventing unrelated rural LEP references from being shown for Kempsey E2 Commercial Centre setback questions.
+
+Success signal: for 32 Smith St, Kempsey NSW 2440 (E2 Commercial Centre), asking “What is the minimum side setback for this site?” or equivalent side-setback phrasings should return a DCP-grounded value when the retrieved D4 Business & Commercial Development excerpt states one (including nil/0 m), should not show “Local controls preparing — Kempsey Shire”, and should not cite `KEMP_2013_1`. If a retrieved DCP excerpt does not specify the requested setback, the answer should say that honestly without stale coverage messaging or unrelated LEP source attribution.
