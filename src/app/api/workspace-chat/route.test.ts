@@ -130,7 +130,10 @@ vi.mock("@/lib/statutory-context-builder", () => ({
 }));
 
 import { detectMessageTopic } from "./dcp-topic";
-import { buildLepClausePrompt, shouldSearchLepClauses } from "./lep-clause-grounding";
+import {
+  buildLepClausePrompt,
+  shouldSearchLepClauses,
+} from "./lep-clause-grounding";
 import { POST } from "./route";
 
 describe("detectMessageTopic", () => {
@@ -145,10 +148,11 @@ describe("detectMessageTopic", () => {
   });
 });
 
-
 describe("workspace-chat LEP clause prompt helpers", () => {
   it("detects LEP clause search intent for planning questions", () => {
-    expect(shouldSearchLepClauses("can I build a secondary dwelling")).toBe(true);
+    expect(shouldSearchLepClauses("can I build a secondary dwelling")).toBe(
+      true,
+    );
   });
 
   it("does not search LEP clauses for non-planning acknowledgements", () => {
@@ -165,7 +169,8 @@ describe("workspace-chat LEP clause prompt helpers", () => {
         clauseNumber: "4.3",
         heading: "Height of buildings",
         zone: "RU5",
-        content: "The height of a building on any land is not to exceed the maximum height shown for the land.",
+        content:
+          "The height of a building on any land is not to exceed the maximum height shown for the land.",
       },
     ]);
 
@@ -576,11 +581,14 @@ describe("workspace-chat forced fallback", () => {
         ref: "KEMPSEY_DCP_2026_D2.5",
         title: "Commercial Centre setbacks",
         headingPath: ["Part D", "E2 Commercial Centre", "Setbacks"],
-        bodyText: "Setbacks in the E2 Commercial Centre zone include a minimum side setback of 0m where built to the boundary.",
+        bodyText:
+          "Setbacks in the E2 Commercial Centre zone include a minimum side setback of 0m where built to the boundary.",
       },
     ]);
     lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
-    callModelMock.mockResolvedValue("Use the E2 Commercial Centre DCP setback controls.");
+    callModelMock.mockResolvedValue(
+      "Use the E2 Commercial Centre DCP setback controls.",
+    );
 
     const response = await POST(
       new Request("http://localhost/api/workspace-chat", {
@@ -607,6 +615,83 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.coverageState).toBe("SEARCHABLE_READY");
     expect(payload.coverageNotice ?? undefined).toBeUndefined();
     expect(payload.reply).toContain("E2 Commercial Centre");
+  });
+
+  it("treats retrieved Kempsey DCP chunks as searchable evidence and does not append unrelated LEP fallback sources", async () => {
+    getSiteContextForProjectMock.mockResolvedValue({
+      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      lgaCode: "KEMPSEY",
+      lgaName: "Kempsey Shire",
+      zone: "E2 Commercial Centre",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+    });
+    findProjectByExternalIdMock.mockResolvedValue({
+      id: "db-1",
+      publicId: "proj-1",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+      zoningSource: "test",
+      lepData: null,
+      dcpData: null,
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "KEMPSEY",
+      hasCouncilDcp: false,
+      perSourceTotals: { council_dcp: 1 },
+      councilDcpSampleHeadings: ["D4 BUSINESS AND COMMERCIAL DEVELOPMENT"],
+      chunks: [
+        {
+          id: "kempsey-d4-side-setback",
+          lgaCode: "KEMPSEY",
+          sourceType: "council_dcp",
+          heading: "D4 BUSINESS AND COMMERCIAL DEVELOPMENT",
+          content:
+            "Part D - Development Requirements: Business & Commercial Development. E2 Commercial Centre side setback: Nil where built to the boundary.",
+          metadata: {},
+        },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([]);
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [],
+      lepClauses: [
+        {
+          clauseNumber: "KEMP_2013_1",
+          heading: "Rural boundary setbacks",
+          body: "This unrelated rural clause applies to RU1 land.",
+        },
+      ],
+      seppClauses: [],
+      sourceTypes: ["LEP"],
+      promptBlock:
+        "--- RETRIEVED PLANNING CONTROLS FOR KEMPSEY ---\nLEP PROVISIONS:\n- [cl. KEMP_2013_1] Rural boundary setbacks.\nDCP PROVISIONS:\nNo DCP clauses were found.\n--- END RETRIEVED PLANNING CONTROLS ---",
+    });
+    lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
+
+    const response = await POST(
+      new Request("http://localhost/api/workspace-chat", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: "proj-1",
+          message: "What is the minimum side setback for this site?",
+        }),
+      }),
+    );
+    const payload = (await response.json()) as {
+      reply: string;
+      coverageState: string;
+      coverageNotice?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(queueLgaPreparationMock).not.toHaveBeenCalled();
+    expect(payload.coverageState).toBe("SEARCHABLE_READY");
+    expect(payload.coverageNotice ?? undefined).toBeUndefined();
+    expect(payload.reply).toContain("minimum side setback of 0 m (nil)");
+    expect(payload.reply).toContain("D4 BUSINESS AND COMMERCIAL DEVELOPMENT");
+    expect(payload.reply).not.toContain("KEMP_2013_1");
+    expect(payload.reply).not.toContain("Local controls preparing");
   });
 
   it("injects a coverage notice, queues preparation, and still calls the model for preparing LGAs", async () => {

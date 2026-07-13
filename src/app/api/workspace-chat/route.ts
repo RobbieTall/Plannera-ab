@@ -227,7 +227,8 @@ const hasSetbackEvidence = (text: string) => {
   const hasSetbackWord = /(setback|set back)/.test(normalized);
   const hasNumericMeasure =
     /\b\d+(?:\.\d+)?\s*m\b/.test(normalized) ||
-    /\b45\s*degrees?\b/.test(normalized);
+    /\b45\s*degrees?\b/.test(normalized) ||
+    /\b(nil|zero)\b/.test(normalized);
   const hasBoundaryContext =
     /\bfront\b/.test(normalized) ||
     /\bside\b/.test(normalized) ||
@@ -235,6 +236,68 @@ const hasSetbackEvidence = (text: string) => {
     /\bboundar(y|ies)\b/.test(normalized) ||
     /\bbuilding envelope\b/.test(normalized);
   return hasSetbackWord && hasNumericMeasure && hasBoundaryContext;
+};
+
+const extractSideSetbackValue = (text: string) => {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const patterns = [
+    /(?:minimum\s+)?side\s+setback[^.\n;]{0,80}?(?<value>\d+(?:\.\d+)?)\s*m\b/i,
+    /side[^.\n;:]{0,30}?setback[^.\n;]{0,80}?(?<value>nil|zero)\b/i,
+    /side[^.\n;:]{0,80}?(?<value>nil|zero|\d+(?:\.\d+)?\s*m)\b[^.\n;:]{0,30}?setback/i,
+  ];
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    const rawValue = match?.groups?.value?.trim();
+    if (!rawValue) continue;
+    if (/^(nil|zero)$/i.test(rawValue)) return "0 m (nil)";
+    if (/m$/i.test(rawValue)) return rawValue.replace(/\s*m$/i, " m");
+    return `${rawValue} m`;
+  }
+  return null;
+};
+
+const buildSpecificSetbackReply = (params: {
+  userMessage: string;
+  lgaLabel: string;
+  dcpClauses: DCPClause[];
+  dcpChunks: WorkspaceSourceContext["chunks"];
+}) => {
+  if (
+    !/\bside\b/i.test(params.userMessage) ||
+    /\bfront\b|\brear\b|dual occupanc/i.test(params.userMessage) ||
+    !SETBACK_QUERY_REGEX.test(params.userMessage)
+  ) {
+    return null;
+  }
+
+  const evidence = [
+    ...params.dcpClauses.map((clause) => ({
+      label:
+        [
+          clause.ref,
+          [...(clause.headingPath ?? []), clause.title]
+            .filter(Boolean)
+            .join(" > "),
+        ]
+          .filter(Boolean)
+          .join(" — ") || "retrieved DCP excerpt",
+      text: [clause.headingPath?.join(" "), clause.title, clause.bodyText]
+        .filter(Boolean)
+        .join(" "),
+    })),
+    ...params.dcpChunks.map((chunk) => ({
+      label: chunk.heading || "retrieved DCP excerpt",
+      text: [chunk.heading, chunk.content].filter(Boolean).join(" "),
+    })),
+  ];
+
+  for (const item of evidence) {
+    const value = extractSideSetbackValue(item.text);
+    if (!value) continue;
+    return `The retrieved ${params.lgaLabel} DCP evidence states a minimum side setback of ${value}. Source: ${item.label}.`;
+  }
+
+  return null;
 };
 const buildEvidenceGapGuidance = (params: {
   lgaLabel: string;
@@ -788,10 +851,12 @@ export async function POST(request: Request) {
     const lgaCode =
       projectAddressLgaCode ?? siteContextSummary?.lgaCode ?? null;
     const lgaName = siteContextSummary?.lgaName ?? fallbackLga;
-    const siteZoneForRetrieval = [
-      siteContextSummary?.zoningCode,
-      siteContextSummary?.zoningName,
-    ].filter(Boolean).join(" – ") || siteContextSummary?.zone || null;
+    const siteZoneForRetrieval =
+      [siteContextSummary?.zoningCode, siteContextSummary?.zoningName]
+        .filter(Boolean)
+        .join(" – ") ||
+      siteContextSummary?.zone ||
+      null;
     try {
       sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
@@ -834,7 +899,9 @@ Use the raw clause text above as the first source for local-control and state-le
             ? TOPIC_DCP_QUERIES[detectedDcpTopic]
             : null;
           dcpClauses = topicQuery
-            ? await getDCPContext(canonicalLgaCode, topicQuery, { siteZone: siteZoneForRetrieval })
+            ? await getDCPContext(canonicalLgaCode, topicQuery, {
+                siteZone: siteZoneForRetrieval,
+              })
             : statutoryContext?.dcpClauses.length
               ? statutoryContext.dcpClauses.map((clause) => ({
                   id: clause.clauseNumber,
@@ -853,7 +920,9 @@ Use the raw clause text above as the first source for local-control and state-le
                   updatedAt: new Date(0),
                   score: 0,
                 }))
-              : await getDCPContext(canonicalLgaCode, retrievalQuery, { siteZone: siteZoneForRetrieval });
+              : await getDCPContext(canonicalLgaCode, retrievalQuery, {
+                  siteZone: siteZoneForRetrieval,
+                });
         } catch (dcpError) {
           console.warn(
             "[workspace-chat-warning] Failed to search DCP clauses",
@@ -999,7 +1068,10 @@ Use the raw clause text above as the first source for local-control and state-le
         ? (coverageRecord?.state ?? LgaCoverageMaturity.NOT_STARTED)
         : null;
       const hasSearchableLocalDcpEvidence =
-        canonicalLgaCode && (hasDcpClauses || (sourceContext?.hasCouncilDcp ?? false));
+        canonicalLgaCode &&
+        (hasDcpClauses ||
+          hasDcpChunks ||
+          (sourceContext?.hasCouncilDcp ?? false));
       const coverageState = hasSearchableLocalDcpEvidence
         ? LgaCoverageMaturity.SEARCHABLE_READY
         : storedCoverageState;
@@ -1074,7 +1146,15 @@ Use the raw clause text above as the first source for local-control and state-le
           .map((chunk) => chunk.heading)
           .filter((heading): heading is string => Boolean(heading))
           .slice(0, 5);
-        if (missingSetbackEvidence || missingDualOccEvidence) {
+        const specificSetbackReply = buildSpecificSetbackReply({
+          userMessage,
+          lgaLabel: lgaLabel ?? canonicalLgaCode,
+          dcpClauses,
+          dcpChunks: dcpChunks ?? [],
+        });
+        if (specificSetbackReply) {
+          forcedFallbackReply = specificSetbackReply;
+        } else if (missingSetbackEvidence || missingDualOccEvidence) {
           forcedFallbackReply = buildEvidenceGapGuidance({
             lgaLabel: lgaLabel ?? canonicalLgaCode,
             dualOccQuestion,
@@ -1350,7 +1430,13 @@ When the user asks about local controls, rely first on the council Development C
       ];
     }
 
-    if (availableLepSourceRefs.length > 0 && citedRefs.length === 0) {
+    if (
+      availableLepSourceRefs.length > 0 &&
+      citedRefs.length === 0 &&
+      !forcedFallbackReply &&
+      usedDcpChunksForAttribution.length === 0 &&
+      dcpClauses.length === 0
+    ) {
       reply = `${reply}\n\nSource: ${availableLepSourceRefs[0]}.`;
       citedRefs = [availableLepSourceRefs[0]];
     }
