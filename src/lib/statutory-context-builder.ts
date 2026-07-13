@@ -43,7 +43,7 @@ const truncateForPrompt = (value: string, maxLength: number) => {
 };
 
 const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
-const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre"];
+const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre", "tourist", "visitor", "hotel", "motel", "serviced apartment"];
 const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "dual occupancy", "secondary dwelling", "bed and breakfast"];
 
 const normalizeZone = (zone?: string | null) => {
@@ -74,8 +74,11 @@ const zoneRelevance = (params: { query: string; text: string; siteZone?: string 
   let score = 0;
   if (matchesSiteCode) score += 35;
   if (matchesSiteName) score += 25;
-  if ((site.code === "E2" || site.name.includes("commercial")) && COMMERCIAL_ZONE_TERMS.some((term) => text.includes(term))) score += 18;
-  if ((site.code === "E2" || site.name.includes("commercial")) && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => text.includes(term))) score -= 35;
+  const isCommercialOrTourist = site.code === "E2" || site.code === "SP3" || site.name.includes("commercial") || site.name.includes("tourist");
+  if (isCommercialOrTourist && COMMERCIAL_ZONE_TERMS.some((term) => text.includes(term))) score += 18;
+  if (isCommercialOrTourist && !matchesSiteCode && !matchesSiteName && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => text.includes(term))) {
+    return { score: -80, exclude: true };
+  }
   return { score, exclude: false };
 };
 
