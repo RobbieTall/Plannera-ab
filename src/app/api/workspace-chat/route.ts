@@ -834,7 +834,7 @@ Use the raw clause text above as the first source for local-control and state-le
             ? TOPIC_DCP_QUERIES[detectedDcpTopic]
             : null;
           dcpClauses = topicQuery
-            ? await getDCPContext(canonicalLgaCode, topicQuery)
+            ? await getDCPContext(canonicalLgaCode, topicQuery, { siteZone: siteZoneForRetrieval })
             : statutoryContext?.dcpClauses.length
               ? statutoryContext.dcpClauses.map((clause) => ({
                   id: clause.clauseNumber,
@@ -853,7 +853,7 @@ Use the raw clause text above as the first source for local-control and state-le
                   updatedAt: new Date(0),
                   score: 0,
                 }))
-              : await getDCPContext(canonicalLgaCode, retrievalQuery);
+              : await getDCPContext(canonicalLgaCode, retrievalQuery, { siteZone: siteZoneForRetrieval });
         } catch (dcpError) {
           console.warn(
             "[workspace-chat-warning] Failed to search DCP clauses",
@@ -995,9 +995,14 @@ Use the raw clause text above as the first source for local-control and state-le
             select: { state: true },
           })
         : null;
-      const coverageState = canonicalLgaCode
+      const storedCoverageState = canonicalLgaCode
         ? (coverageRecord?.state ?? LgaCoverageMaturity.NOT_STARTED)
         : null;
+      const hasSearchableLocalDcpEvidence =
+        canonicalLgaCode && (hasDcpClauses || (sourceContext?.hasCouncilDcp ?? false));
+      const coverageState = hasSearchableLocalDcpEvidence
+        ? LgaCoverageMaturity.SEARCHABLE_READY
+        : storedCoverageState;
       coverageStateForResponse = coverageState;
       if (lgaLabel) {
         coverageConfidencePrompt = buildCoverageConfidencePrompt(
