@@ -14,9 +14,11 @@ Fixed non-Byron statutory retrieval so confirmed site zoning is passed into LEP/
 
 **Success signal:** Workspace Chat and Quick Site Check grounding for a confirmed E2 Commercial Centre Kempsey site returns commercial-zone LEP/DCP excerpts and avoids stale rural boundary setback, dual occupancy, bed and breakfast, and secondary dwelling provisions.
 
-## Item C — Next TODO: structured Kempsey control extraction
+## Item C — structured Kempsey control extraction — DONE ✅ (2026-07-13)
 
-Extract and verify Kempsey E2 mapped height, FSR, parking, active frontage/built-form, and core setback controls into deterministic Quick Site Check fields so retrieved commercial clauses become structured controls instead of only prompt-grounding excerpts.
+Extended non-Byron Quick Site Check structured extraction for Kempsey E2 Commercial Centre so mapped LEP height/FSR values and DCP-backed setback, parking, and active frontage/built-form controls can be promoted into deterministic controls with real LEP clause or Kempsey DCP source citations. Missing DCP controls are now explicitly marked `Unavailable` instead of inferred when retrieved Kempsey text does not contain a numeric/explicit E2 value.
+
+Regression coverage now verifies cited Kempsey E2 height, FSR, setback, and active frontage extraction from representative LEP/DCP rows plus an unavailable parking case where the DCP excerpt contains no explicit numeric E2 rate. Byron ingestion and Byron LEP structured-control logic were left untouched.
 
 **Success signal:** Quick Site Check for a Kempsey E2 Commercial Centre site shows cited structured values where the ingested LEP/DCP text contains them and explicitly marks missing controls unavailable rather than inferring them.
 

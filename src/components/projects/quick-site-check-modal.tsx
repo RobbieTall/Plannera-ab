@@ -309,12 +309,15 @@ export function QuickSiteCheckModal({
                 { label: "Height of buildings", control: result.controls.heightOfBuilding },
                 { label: "Floor space ratio", control: result.controls.fsr },
                 { label: "Minimum lot size", control: result.controls.minLotSize },
-              ] as const).map(({ label, control }) => (
+                { label: "Setback", control: result.controls.setback },
+                { label: "Parking", control: result.controls.parking },
+                { label: "Active frontage / built form", control: result.controls.activeFrontageBuiltForm },
+              ] as const).filter(({ control }) => control != null).map(({ label, control }) => (
                 <div key={label} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{control?.value ?? "Unavailable"}</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{control?.value || "Unavailable"}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
-                    {formatControlConfidence(control?.confidence)}{control?.clauseRef ? ` • cl. ${control.clauseRef}` : ""}
+                    {formatControlConfidence(control?.confidence)}{control?.sourceRef ? ` • ${control.sourceRef}` : control?.clauseRef ? ` • cl. ${control.clauseRef}` : ""}
                   </p>
                 </div>
               ))}

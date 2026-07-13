@@ -1,6 +1,7 @@
 export type LepControlValue = {
   value: string;
   clauseRef: string;
+  sourceRef?: string;
   confidence: "Cited" | "Inferred" | "Unavailable";
 };
 
@@ -23,6 +24,9 @@ export type QuickSiteCheckLepSuccess = {
     fsr: LepControlValue | null;
     minLotSize: LepControlValue | null;
     zoneObjectives: string[] | null;
+    setback?: LepControlValue | null;
+    parking?: LepControlValue | null;
+    activeFrontageBuiltForm?: LepControlValue | null;
   };
   permissibility: {
     permittedWithoutConsent: string[];
