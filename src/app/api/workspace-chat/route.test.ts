@@ -300,6 +300,7 @@ describe("workspace-chat forced fallback", () => {
     expect(getDCPContextMock).toHaveBeenCalledWith(
       "BYRON",
       "setback building line street side rear boundary frontage",
+      { siteZone: "R1" },
     );
     expect(callModelMock).toHaveBeenCalledTimes(1);
     expect(payload.reply).toContain("4.5m");
@@ -543,6 +544,69 @@ describe("workspace-chat forced fallback", () => {
       limit: 12,
     });
     expect(callModelMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses zone-aware DCP retrieval and suppresses stale preparing notice for searchable Kempsey DCP", async () => {
+    getSiteContextForProjectMock.mockResolvedValue({
+      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      lgaCode: "KEMPSEY",
+      lgaName: "Kempsey Shire",
+      zone: "E2 Commercial Centre",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+    });
+    findProjectByExternalIdMock.mockResolvedValue({
+      id: "db-1",
+      publicId: "proj-1",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+      zoningSource: "test",
+      lepData: null,
+      dcpData: null,
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "KEMPSEY",
+      hasCouncilDcp: false,
+      perSourceTotals: {},
+      councilDcpSampleHeadings: [],
+      chunks: [],
+    });
+    getDCPContextMock.mockResolvedValue([
+      {
+        ref: "KEMPSEY_DCP_2026_D2.5",
+        title: "Commercial Centre setbacks",
+        headingPath: ["Part D", "E2 Commercial Centre", "Setbacks"],
+        bodyText: "Setbacks in the E2 Commercial Centre zone include a minimum side setback of 0m where built to the boundary.",
+      },
+    ]);
+    lgaCoverageFindUniqueMock.mockResolvedValue({ state: "QUEUED" });
+    callModelMock.mockResolvedValue("Use the E2 Commercial Centre DCP setback controls.");
+
+    const response = await POST(
+      new Request("http://localhost/api/workspace-chat", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: "proj-1",
+          message: "What is the minimum side setback for this site?",
+        }),
+      }),
+    );
+    const payload = (await response.json()) as {
+      reply: string;
+      coverageState: string;
+      coverageNotice?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(getDCPContextMock).toHaveBeenCalledWith(
+      "KEMPSEY",
+      "setback building line street side rear boundary frontage",
+      { siteZone: "E2 – Commercial Centre" },
+    );
+    expect(queueLgaPreparationMock).not.toHaveBeenCalled();
+    expect(payload.coverageState).toBe("SEARCHABLE_READY");
+    expect(payload.coverageNotice ?? undefined).toBeUndefined();
+    expect(payload.reply).toContain("E2 Commercial Centre");
   });
 
   it("injects a coverage notice, queues preparation, and still calls the model for preparing LGAs", async () => {

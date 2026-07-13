@@ -340,6 +340,13 @@ Success signal: after clicking Request expert review from a Byron/Kempsey projec
 Add a non-billing handoff control on the Expert Review Request card so users can copy the packaged review request summary, gaps, assumptions, and review scope to the clipboard or download it as a plain-text file for planner/email sharing.
 
 
+
+## 44) Kempsey workspace-chat DCP/setback grounding — DONE ✅ (2026-07-13)
+
+Fixed the remaining workspace-chat DCP-topic path for Kempsey setback questions. Topic-keyed DCP retrieval now passes the confirmed site zone into `getDCPContext`, so non-Byron LGAs such as Kempsey can use the same zone-aware clause filtering as statutory retrieval. Workspace chat also treats retrieved DCP clauses or council DCP chunks as searchable local evidence for response coverage, preventing stale “Local controls preparing” notices when the DCP table has ingested searchable clauses even if the LGA coverage-state row is still queued.
+
+Success signal: asking workspace chat “What is the minimum side setback for this site?” for 32 Smith St, Kempsey NSW 2440 (E2 Commercial Centre) retrieves E2-relevant Kempsey DCP evidence, avoids rural/residential-only stale clauses such as KEMP_2013_1, and does not show a “Local controls preparing — Kempsey Shire” notice.
+
 ## 43) Zone-aware LEP/DCP retrieval (grounding bug) — TODO — HIGH PRIORITY (found 2026-07-13)
 
 Live production testing on 2026-07-13 found that Kempsey LEP/DCP clause retrieval is not filtering by the site's confirmed zone/land-use type. For a Kempsey site confirmed as E2 Commercial Centre, both Quick Site Check and workspace chat surfaced rural/residential-specific clauses (for example secondary dwellings in a rural zone, dwelling house provisions in specified RU1 zones, and dual occupancy street-frontage setbacks) instead of commercial-zone-relevant controls. A workspace chat question asking for commercial setback and height requirements returned only generic keyword-matched excerpts and explicitly stated it could not confirm any numeric answer, citing cl. KEMP_2013_1.
