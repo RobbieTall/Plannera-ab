@@ -8,6 +8,19 @@ Strengthened SEE generation grounding so retrieved DCP chunks are injected as in
 
 **Success signal:** generated SEE/pre-SEE section output can list real citation objects such as `{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }` and DCP source-title citations instead of generic planning advice.
 
+
+## Item B — Kempsey zone-aware commercial clause retrieval — DONE ✅
+
+Fixed non-Byron statutory retrieval so confirmed site zoning is passed into LEP/DCP clause search and commercial-zoned Kempsey sites prioritise E2 Commercial Centre material while suppressing unrelated rural/residential-only clauses unless the user explicitly asks about those zones. Added regression coverage for an E2 Kempsey commercial setbacks/height query.
+
+**Success signal:** Workspace Chat and Quick Site Check grounding for a confirmed E2 Commercial Centre Kempsey site returns commercial-zone LEP/DCP excerpts and avoids stale rural boundary setback, dual occupancy, bed and breakfast, and secondary dwelling provisions.
+
+## Item C — Next TODO: structured Kempsey control extraction
+
+Extract and verify Kempsey E2 mapped height, FSR, parking, active frontage/built-form, and core setback controls into deterministic Quick Site Check fields so retrieved commercial clauses become structured controls instead of only prompt-grounding excerpts.
+
+**Success signal:** Quick Site Check for a Kempsey E2 Commercial Centre site shows cited structured values where the ingested LEP/DCP text contains them and explicitly marks missing controls unavailable rather than inferring them.
+
 ## 1) Just-in-Time LGA Activation Core — DONE ✓
 
 - Implement LGA coverage-state persistence.

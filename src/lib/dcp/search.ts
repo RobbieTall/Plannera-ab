@@ -6,6 +6,67 @@ import type { DCPClause } from "@prisma/client";
 export type ScoredDcpClause = DCPClause & { score: number };
 
 const DEFAULT_LGA = "BYRON";
+const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
+
+const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre"];
+const RURAL_RESIDENTIAL_ONLY_TERMS = [
+  "rural zone",
+  "rural zones",
+  "rural land",
+  "rural boundary",
+  "residential zone",
+  "residential zones",
+  "dual occupancy",
+  "secondary dwelling",
+  "bed and breakfast",
+];
+
+const zoneParts = (zone?: string | null) => {
+  const value = zone?.trim() ?? "";
+  const code = value.match(NSW_ZONE_CODE_PATTERN)?.[0]?.toUpperCase() ?? null;
+  const name = value
+    .replace(NSW_ZONE_CODE_PATTERN, " ")
+    .replace(/[–—-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  return { code, name };
+};
+
+const explicitZoneCodes = (text: string) =>
+  Array.from(new Set((text.match(NSW_ZONE_CODE_PATTERN) ?? []).map((zone) => zone.toUpperCase())));
+
+const queryTargetsUnrelatedZone = (queryText: string, unrelatedZones: string[]) => {
+  const lowerQuery = queryText.toLowerCase();
+  return unrelatedZones.some((zone) => lowerQuery.includes(zone.toLowerCase()));
+};
+
+const zoneRelevanceScore = (params: { queryText: string; content: string; siteZone?: string | null }) => {
+  const site = zoneParts(params.siteZone);
+  if (!site.code && !site.name) return { score: 0, exclude: false };
+
+  const content = params.content.toLowerCase();
+  const zones = explicitZoneCodes(params.content);
+  const unrelatedExplicitZones = site.code ? zones.filter((zone) => zone !== site.code) : zones;
+  const matchesSiteCode = Boolean(site.code && zones.includes(site.code));
+  const matchesSiteName = Boolean(site.name && content.includes(site.name));
+  const queryAsksAboutUnrelated = queryTargetsUnrelatedZone(params.queryText, unrelatedExplicitZones);
+
+  if (unrelatedExplicitZones.length && !matchesSiteCode && !matchesSiteName && !queryAsksAboutUnrelated) {
+    return { score: -60, exclude: true };
+  }
+
+  let score = 0;
+  if (matchesSiteCode) score += 35;
+  if (matchesSiteName) score += 25;
+  if ((site.code === "E2" || site.name.includes("commercial")) && COMMERCIAL_ZONE_TERMS.some((term) => content.includes(term))) {
+    score += 18;
+  }
+  if ((site.code === "E2" || site.name.includes("commercial")) && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => content.includes(term))) {
+    score -= 35;
+  }
+  return { score, exclude: false };
+};
 
 const tokenize = (text: string) =>
   text
@@ -54,6 +115,7 @@ export const searchDcpClauses = async (params: {
   query: string;
   lgaCode?: string;
   limit?: number;
+  siteZone?: string | null;
 }): Promise<ScoredDcpClause[]> => {
   const queryText = params.query.trim();
   if (!queryText) return [];
@@ -79,10 +141,16 @@ export const searchDcpClauses = async (params: {
       const topicMatch = matchingTopics.length ? 12 + matchingTopics.length * 4 : 0;
       const numericScore = numericOverlapScore(queryNumeric.numbers, toNumericMeta(clause.numericMeta)?.numbers || []);
       const depthScore = headingDepthScore(clause.depth);
-      const score = baseKeyword + topicMatch + numericScore + depthScore;
+      const zoneScore = zoneRelevanceScore({
+        queryText,
+        siteZone: params.siteZone,
+        content: `${headingText} ${clause.title ?? ""} ${clause.bodyText}`,
+      });
+      const score = baseKeyword + topicMatch + numericScore + depthScore + zoneScore.score;
 
-      return { ...clause, score };
+      return { ...clause, score, excludedByZone: zoneScore.exclude };
     })
+    .filter((clause) => !(clause as ScoredDcpClause & { excludedByZone?: boolean }).excludedByZone)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       if (a.ref && b.ref && a.ref !== b.ref) return a.ref.localeCompare(b.ref);

@@ -183,4 +183,81 @@ describe("buildStatutoryContextBlock", () => {
       "[Ballina Local Environmental Plan 2012 4.4]: Floor space ratio",
     );
   });
+
+  it("prioritises commercial-zone clauses and excludes unrelated rural/residential-only provisions", async () => {
+    const baseClause = {
+      lgaCode: "KEMPSEY",
+      instrumentSlug: "kempsey-dcp-2013",
+      parentRef: null,
+      depth: 2,
+      bodyHtml: "",
+      topicTags: ["setbacks"],
+      numericMeta: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+
+    dcpFindManyMock.mockResolvedValue([
+      {
+        ...baseClause,
+        id: "commercial-dcp",
+        ref: "KEMP-DCP-E2",
+        title: "Commercial centre built form and setbacks",
+        headingPath: ["Commercial development", "E2 Commercial Centre setbacks"],
+        bodyText: "Controls for land in Zone E2 Commercial Centre include street activation, shopfront built form and commercial setback guidance.",
+      },
+      {
+        ...baseClause,
+        id: "rural-dcp",
+        ref: "KEMP-DCP-RU1",
+        title: "Rural boundary setbacks",
+        headingPath: ["Rural development", "RU1 rural boundary setbacks"],
+        bodyText: "This rural boundary setback control applies to land in Zone RU1 Primary Production and rural zones only.",
+      },
+      {
+        ...baseClause,
+        id: "residential-dcp",
+        ref: "KEMP-DCP-R1",
+        title: "Dual occupancy and secondary dwellings",
+        headingPath: ["Residential development", "R1 dual occupancy"],
+        bodyText: "Dual occupancy, bed and breakfast accommodation and secondary dwelling provisions apply in Zone R1 residential zones only.",
+      },
+    ]);
+    instrumentFindManyMock.mockResolvedValueOnce([
+      {
+        id: "instrument-kempsey",
+        name: "Kempsey Local Environmental Plan 2013",
+        clauses: [
+          {
+            clauseKey: "2.3-E2",
+            title: "Zone E2 Commercial Centre",
+            bodyText: "Zone E2 Commercial Centre objectives support commercial premises, retail and business uses in the commercial centre.",
+          },
+          {
+            clauseKey: "KEMP_2013_1",
+            title: "Rural and residential accommodation controls",
+            bodyText: "This clause applies to rural zones RU1 and residential zone R1 for rural boundary setbacks, dual occupancy and secondary dwellings.",
+          },
+        ],
+      },
+    ]);
+    instrumentFindManyMock.mockResolvedValueOnce([]);
+
+    const result = await buildStatutoryContextBlock({
+      lgaCode: "KEMPSEY",
+      query: "commercial setbacks and height limits",
+      siteZone: "E2 – Commercial Centre",
+      maxDcpClauses: 3,
+      maxLepClauses: 2,
+    });
+
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("KEMP-DCP-E2");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("KEMP-DCP-RU1");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("KEMP-DCP-R1");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("2.3-E2");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("KEMP_2013_1");
+    expect(result.promptBlock).toContain("Zone E2 Commercial Centre");
+    expect(result.promptBlock).not.toContain("rural boundary setbacks, dual occupancy");
+  });
+
 });

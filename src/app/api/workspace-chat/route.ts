@@ -788,6 +788,10 @@ export async function POST(request: Request) {
     const lgaCode =
       projectAddressLgaCode ?? siteContextSummary?.lgaCode ?? null;
     const lgaName = siteContextSummary?.lgaName ?? fallbackLga;
+    const siteZoneForRetrieval = [
+      siteContextSummary?.zoningCode,
+      siteContextSummary?.zoningName,
+    ].filter(Boolean).join(" – ") || siteContextSummary?.zone || null;
     try {
       sourceContext = await getWorkspaceSourceContext({
         projectId: projectId ?? null,
@@ -808,6 +812,7 @@ export async function POST(request: Request) {
             query: retrievalQuery,
             maxDcpClauses: 5,
             maxLepClauses: 3,
+            siteZone: siteZoneForRetrieval,
           });
           statutoryContextPrompt = `${statutoryContext.promptBlock}
 

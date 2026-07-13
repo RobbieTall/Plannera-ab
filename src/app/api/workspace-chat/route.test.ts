@@ -641,6 +641,7 @@ describe("workspace-chat forced fallback", () => {
       query: "What height control applies to this site?",
       maxDcpClauses: 5,
       maxLepClauses: 3,
+      siteZone: "R1",
     });
     expect(callModelMock).toHaveBeenCalledTimes(1);
     const messages = callModelMock.mock.calls[0]?.[1] as Array<{
