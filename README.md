@@ -100,4 +100,6 @@ App runs at http://localhost:3000. Before testing LEP-grounded features, set DAT
 - npm run dev — Start development server
 - npm run build — Production build
 - npm run lint — ESLint check
-- npm test — Run vitest test suite
+- npm test — Run the full compatible test suite (Node runner + Vitest)
+- npm run test:node — Run Node test-runner tests under tests/*.test.ts
+- npm run test:vitest — Run the Vitest suite (src tests and compatible React tests)

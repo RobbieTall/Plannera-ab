@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
-import { buildCommercialNextAction } from "@/lib/commercial-next-action";
+import { buildCommercialNextAction } from "../src/lib/commercial-next-action";
 
 describe("buildCommercialNextAction", () => {
   it("asks for a Byron or Kempsey site before outputs", () => {
@@ -10,8 +11,8 @@ describe("buildCommercialNextAction", () => {
       hasSee: false,
     });
 
-    expect(result.primaryAction).toBe("set_site");
-    expect(result.items[0]).toMatchObject({ status: "Needs Input" });
+    assert.equal(result.primaryAction, "set_site");
+    assert.equal(result.items[0]?.status, "Needs Input");
   });
 
   it("prioritises a saved Quick Site Check after a target LGA site is set", () => {
@@ -24,8 +25,8 @@ describe("buildCommercialNextAction", () => {
       hasSee: false,
     });
 
-    expect(result.primaryAction).toBe("run_quick_site_check");
-    expect(result.items.map((item) => item.status)).toContain("Confirmed");
+    assert.equal(result.primaryAction, "run_quick_site_check");
+    assert.ok(result.items.map((item) => item.status).includes("Confirmed"));
   });
 
   it("moves to SEE generation after Quick Site Check exists", () => {
@@ -38,7 +39,7 @@ describe("buildCommercialNextAction", () => {
       hasSee: false,
     });
 
-    expect(result.primaryAction).toBe("generate_see");
+    assert.equal(result.primaryAction, "generate_see");
   });
 
   it("recommends export or review once SEE exists", () => {
@@ -51,7 +52,7 @@ describe("buildCommercialNextAction", () => {
       hasSee: true,
     });
 
-    expect(result.primaryAction).toBe("export_or_review");
-    expect(result.primaryLabel).toBe("Download SEE");
+    assert.equal(result.primaryAction, "export_or_review");
+    assert.equal(result.primaryLabel, "Download SEE");
   });
 });
