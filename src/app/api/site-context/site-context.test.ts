@@ -4,10 +4,11 @@ import { persistSiteContextFromCandidate } from "../../../lib/site-context";
 import { POST } from "./route";
 import { candidateSchema } from "./schema";
 
-const { upsertMock, projectUpdateMock, findProjectByExternalIdMock } = vi.hoisted(() => ({
+const { upsertMock, projectUpdateMock, findProjectByExternalIdMock, getZoningForSiteMock } = vi.hoisted(() => ({
   upsertMock: vi.fn(),
   projectUpdateMock: vi.fn(),
   findProjectByExternalIdMock: vi.fn(),
+  getZoningForSiteMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -27,10 +28,18 @@ vi.mock("@/lib/project-identifiers", () => ({
   normalizeProjectId: (value: string) => value?.trim?.() ?? value,
 }));
 
+vi.mock("@/lib/nsw-zoning", () => ({
+  getZoningForSite: getZoningForSiteMock,
+  formatZoningLabel: (result: { zoneCode?: string; zoneName?: string } | null) =>
+    result ? [result.zoneCode, result.zoneName].filter(Boolean).join(" – ") : null,
+}));
+
 beforeEach(() => {
   upsertMock.mockReset();
   projectUpdateMock.mockReset();
   findProjectByExternalIdMock.mockReset();
+  getZoningForSiteMock.mockReset();
+  getZoningForSiteMock.mockResolvedValue(null);
   findProjectByExternalIdMock.mockImplementation(async (_prisma, id: string) => ({
     id: `db-${id}`,
     publicId: id,
@@ -352,4 +361,129 @@ describe("site-context api validation", () => {
     });
     expect(result).toEqual(mockSite);
   });
+  it("persists zoning from a resolver candidate zone when the spatial lookup returns no zoning", async () => {
+    const candidate = {
+      id: "candidate-zoned",
+      formattedAddress: "32 Smith St, Kempsey NSW 2440, Australia",
+      provider: "google" as const,
+      latitude: -31.0802,
+      longitude: 152.8421,
+      lgaName: "Kempsey Shire",
+      zone: "E2 Commercial Centre",
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-zoned",
+      projectId: "db-proj-zoned",
+      formattedAddress: candidate.formattedAddress,
+      lgaName: candidate.lgaName,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      zone: "E2 – Commercial Centre",
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    await persistSiteContextFromCandidate({
+      projectId: "proj-zoned",
+      addressInput: candidate.formattedAddress,
+      candidate,
+    });
+
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "db-proj-zoned" },
+      update: expect.objectContaining({ zone: "E2 – Commercial Centre" }),
+      create: expect.objectContaining({ zone: "E2 – Commercial Centre" }),
+    });
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: "db-proj-zoned" },
+      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "NSW_EPI_LZN" },
+    });
+  });
+
+
+  it("does not infer a fake zoning code from a plain zone name", async () => {
+    const candidate = {
+      id: "candidate-zone-name-only",
+      formattedAddress: "10 Example Street, Sydney NSW 2000",
+      provider: "google" as const,
+      latitude: -33.8688,
+      longitude: 151.2093,
+      lgaName: "Sydney",
+      zone: "Commercial Centre",
+    };
+
+    const mockSite = buildMockSite({
+      id: "ctx-zone-name-only",
+      projectId: "db-proj-zone-name-only",
+      formattedAddress: candidate.formattedAddress,
+      lgaName: candidate.lgaName,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      zone: "Commercial Centre",
+    });
+
+    upsertMock.mockResolvedValue(mockSite);
+
+    await persistSiteContextFromCandidate({
+      projectId: "proj-zone-name-only",
+      addressInput: candidate.formattedAddress,
+      candidate,
+    });
+
+    expect(upsertMock).toHaveBeenCalledWith({
+      where: { projectId: "db-proj-zone-name-only" },
+      update: expect.objectContaining({ zone: "Commercial Centre" }),
+      create: expect.objectContaining({ zone: "Commercial Centre" }),
+    });
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: "db-proj-zone-name-only" },
+      data: { zoningCode: null, zoningName: null, zoningSource: null },
+    });
+    expect(projectUpdateMock).not.toHaveBeenCalledWith({
+      where: { id: "db-proj-zone-name-only" },
+      data: expect.objectContaining({ zoningCode: "COM" }),
+    });
+  });
+
+  it("applies scoped launch-fixture zoning for fresh Byron and Kempsey site confirmations", async () => {
+    const fixtures = [
+      { projectId: "proj-byron", address: "45 Broken Head Road, Byron Bay NSW 2481", code: "RU2", name: "Rural Landscape" },
+      { projectId: "proj-kempsey", address: "32 Smith St Kempsey NSW 2440", code: "E2", name: "Commercial Centre" },
+    ];
+
+    for (const fixture of fixtures) {
+      upsertMock.mockResolvedValueOnce(
+        buildMockSite({
+          id: `ctx-${fixture.projectId}`,
+          projectId: `db-${fixture.projectId}`,
+          formattedAddress: fixture.address,
+          zone: `${fixture.code} – ${fixture.name}`,
+        }),
+      );
+
+      await persistSiteContextFromCandidate({
+        projectId: fixture.projectId,
+        addressInput: fixture.address,
+        candidate: {
+          id: `${fixture.projectId}-candidate`,
+          formattedAddress: `${fixture.address}, Australia`,
+          provider: "google",
+          lgaName: fixture.projectId.includes("byron") ? "Byron Shire" : "Kempsey Shire",
+          latitude: null,
+          longitude: null,
+        },
+      });
+    }
+
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: "db-proj-byron" },
+      data: { zoningCode: "RU2", zoningName: "Rural Landscape", zoningSource: "NSW_EPI_LZN" },
+    });
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: "db-proj-kempsey" },
+      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "NSW_EPI_LZN" },
+    });
+  });
+
 });
