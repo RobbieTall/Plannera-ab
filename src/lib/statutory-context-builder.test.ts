@@ -248,7 +248,7 @@ describe("buildStatutoryContextBlock", () => {
       query: "commercial setbacks and height limits",
       siteZone: "E2 – Commercial Centre",
       maxDcpClauses: 3,
-      maxLepClauses: 2,
+      maxLepClauses: 3,
     });
 
     expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("KEMP-DCP-E2");
@@ -258,6 +258,95 @@ describe("buildStatutoryContextBlock", () => {
     expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("KEMP_2013_1");
     expect(result.promptBlock).toContain("Zone E2 Commercial Centre");
     expect(result.promptBlock).not.toContain("rural boundary setbacks, dual occupancy");
+  });
+
+  it("excludes rural/residential-only provisions for Byron SP3 tourist sites", async () => {
+    const baseClause = {
+      lgaCode: "BYRON",
+      instrumentSlug: "byron-dcp-2014",
+      parentRef: null,
+      depth: 2,
+      bodyHtml: "",
+      topicTags: ["permissibility"],
+      numericMeta: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+
+    dcpFindManyMock.mockResolvedValue([
+      {
+        ...baseClause,
+        id: "tourist-dcp",
+        ref: "BYRON-SP3",
+        title: "Tourist and visitor accommodation",
+        headingPath: ["Chapter D", "SP3 Tourist"],
+        bodyText: "Controls for Zone SP3 Tourist support tourist and visitor accommodation and related built form.",
+      },
+      {
+        ...baseClause,
+        id: "tourist-mixed-use",
+        ref: "BYRON-SP3-MIXED",
+        title: "SP3 Tourist secondary dwelling prohibition",
+        headingPath: ["Chapter D", "SP3 Tourist"],
+        bodyText: "Zone SP3 Tourist controls state secondary dwelling is prohibited; the exact trigger term must not exclude a current-zone clause.",
+      },
+      {
+        ...baseClause,
+        id: "rural-secondary",
+        ref: "BYRON-RU2-SECONDARY",
+        title: "Rural secondary dwellings",
+        headingPath: ["Rural development"],
+        bodyText: "Secondary dwelling provisions apply to rural land in Zone RU2 Rural Landscape only.",
+      },
+      {
+        ...baseClause,
+        id: "residential-dual",
+        ref: "BYRON-R2-DUAL",
+        title: "Residential dual occupancy",
+        headingPath: ["Residential development"],
+        bodyText: "Dual occupancy provisions apply in residential zones only.",
+      },
+    ]);
+    instrumentFindManyMock.mockResolvedValueOnce([
+      {
+        id: "instrument-byron",
+        name: "Byron Local Environmental Plan 2014",
+        clauses: [
+          {
+            clauseKey: "2.3-SP3",
+            title: "Zone SP3 Tourist",
+            bodyText: "Zone SP3 Tourist objectives support tourist and visitor accommodation.",
+          },
+          {
+            clauseKey: "4.3-SP3",
+            title: "Height of buildings",
+            bodyText: "The height controls apply to Zone SP3 Tourist, business areas and some residential zone edge conditions; residential zone wording does not make this clause residential-only.",
+          },
+          {
+            clauseKey: "4.2A",
+            title: "Rural subdivision",
+            bodyText: "This clause applies to rural zones RU1 and RU2 for rural subdivision only.",
+          },
+        ],
+      },
+    ]);
+    instrumentFindManyMock.mockResolvedValueOnce([]);
+
+    const result = await buildStatutoryContextBlock({
+      lgaCode: "BYRON",
+      query: "secondary dwelling tourist accommodation",
+      siteZone: "SP3 – Tourist",
+      maxDcpClauses: 3,
+      maxLepClauses: 3,
+    });
+
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("BYRON-SP3");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("BYRON-SP3-MIXED");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("BYRON-RU2-SECONDARY");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("BYRON-R2-DUAL");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("2.3-SP3");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("4.3-SP3");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("4.2A");
   });
 
 });

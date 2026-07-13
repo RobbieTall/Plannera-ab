@@ -109,6 +109,23 @@ describe("buildQuickSiteCheckLep", () => {
     expect(result.controls.parking).toEqual({ value: "", clauseRef: "", sourceRef: "Kempsey DCP 2026 parking controls", confidence: "Unavailable" });
   });
 
+
+  it("preserves SP3 clauses that explicitly include the current zone despite exclusion trigger terms", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Byron", zoningCode: "SP3" });
+    mocks.prisma.clause.findMany.mockResolvedValue([
+      clause("2.3", "Zone objectives and Land Use Table", "Zone SP3 Tourist\nObjectives of zone\nTo provide tourist accommodation.\nPermitted with consent\nTourist and visitor accommodation", ["Part 2"]),
+      clause("4.3-SP3", "Height of buildings", "Zone SP3 Tourist height controls mention secondary dwelling prohibitions but apply to SP3 Tourist land."),
+      clause("4.2A", "Rural subdivision", "Secondary dwelling provisions apply to rural land in Zone RU2 Rural Landscape only."),
+    ]);
+
+    const result = await buildQuickSiteCheckLep("project-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.part4.map((item) => item.clauseNumber)).toContain("4.3-SP3");
+    expect(result.part4.map((item) => item.clauseNumber)).not.toContain("4.2A");
+  });
+
   it("gracefully returns null controls when clauses are missing", async () => {
     mocks.prisma.clause.findMany.mockResolvedValue([
       clause("2.3", "Zone objectives and Land Use Table", "Zone R2\nObjectives of zone\nTo provide housing.", ["Part 2"]),

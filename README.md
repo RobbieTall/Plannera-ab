@@ -52,7 +52,7 @@ Returns: { "lepClauseCount": 0, "lgasCovered": [] }
 
 ## Live Test LGAs
 
-Byron Shire (Byron Bay) and Kempsey Shire are the two production test LGAs for Plannera. All features — Quick Site Check, Workspace Chat, SEE Builder, and Basic Feasibility — must work end-to-end with real, cited planning controls for these two councils before auth and paywall features are enabled.
+Byron Shire (Byron Bay) and Kempsey Shire are the two production test LGAs for Plannera. All features — Quick Site Check, Workspace Chat, SEE Builder, and Basic Feasibility — must work end-to-end with real, cited, site-relevant planning controls for these two councils before auth and paywall features are enabled. Saved artefacts alone do not mean the workspace is commercially ready; readiness depends on current-site, quality-valid evidence and successful artefact generation.
 
 **Byron Shire**
 - LEP: Byron LEP 2014 (`data/nsw/xml/Byron-lep-2014.xml`) — registered in `instruments.json` as `byron-lep-2014`

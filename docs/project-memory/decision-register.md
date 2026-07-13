@@ -101,3 +101,11 @@ Status: Active
 Decision: Following live production testing on 2026-07-13 that found Kempsey LEP/DCP retrieval surfacing zone-irrelevant (rural/residential) clauses for a confirmed E2 Commercial Centre site, fixing zone-aware LEP/DCP retrieval takes priority over new feature work, including build-next.md item 42 (review request copy/download handoff). Item 40 (paid export/review gate) remains out of scope. This reinforces DR-011/DR-012: Kempsey must produce predominantly Cited, zone-relevant responses before any auth/paywall work proceeds.
 
 Reference: docs/project-memory/build-next.md item 43
+
+## DR-014 — Commercial Readiness Requires Evidence Quality
+
+Status: Active
+
+Decision: Commercial readiness is evidence/quality-based, never artefact-existence-based. A saved Quick Site Check, SEE, feasibility result, or review artefact only advances the Byron/Kempsey commercial path when it is scoped to the current site and contains relevant cited or otherwise quality-valid controls. Empty, zone-irrelevant, stale, or failed outputs remain useful project history, but must not trigger “ready for paid export or expert review” messaging.
+
+Reference: docs/project-memory/build-next.md item 28 follow-up

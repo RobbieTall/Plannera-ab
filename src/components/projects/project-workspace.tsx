@@ -521,6 +521,27 @@ const normaliseQuickSiteCheckReport = (value: unknown): QuickSiteCheckReport | n
   return parsedValue as QuickSiteCheckReport;
 };
 
+
+const hasCitedQuickSiteCheckEvidence = (report: QuickSiteCheckReport | null) => {
+  if (!report) return false;
+  const controls = Object.values(report.controls ?? {});
+  const citedControls = controls.filter((control) => control?.lepSource || Boolean(control?.clauseRef));
+  const hasResolvedZone = Boolean(report.site?.zoneCode || report.site?.zoneName || report.site?.zoneLabel);
+  const hasApplicablePermissibility = Boolean(report.permissibility?.interpretation?.trim());
+  return hasResolvedZone && (hasApplicablePermissibility || citedControls.length > 0);
+};
+
+const hasQualitySeeEvidence = (memo: WorkspacePreSeePlanningMemoContent | null) => {
+  if (!memo) return false;
+  const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
+  const assessmentCitations = memo.consistencyAssessment.flatMap((item) => item.citations ?? []);
+  const hasRetrievedEvidence =
+    assessmentCitations.length > 0 ||
+    (memo.applicableControls.dcpClauses ?? []).some((clause) => clause.bodyText.trim().length > 0) ||
+    (memo.applicableControls.sourceExcerpts ?? []).some((excerpt) => excerpt.content.trim().length > 0);
+  return hasSiteZone && hasRetrievedEvidence;
+};
+
 const normaliseReviewRequestContent = (value: unknown): ReviewRequestContent | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<ReviewRequestContent>;
@@ -1397,6 +1418,7 @@ export function ProjectWorkspace({
     }
 
     const attemptAutoSiteSelection = async () => {
+      setIsConfirmingSite(true);
       try {
         const response = await fetch("/api/site-context/search", {
           method: "POST",
@@ -1421,6 +1443,7 @@ export function ProjectWorkspace({
             addressInput: trimmedInitialAddress,
           });
           setSiteContext(siteContextPayload ?? null);
+          router.refresh();
           setSiteSelection(null);
           setSiteSelectionError(null);
           return;
@@ -1446,6 +1469,7 @@ export function ProjectWorkspace({
           } = await manualResponse.json();
           if (manualResponse.ok) {
             setSiteContext(manualData.siteContext ?? null);
+            router.refresh();
             setSiteSelection(null);
             setSiteSelectionError(null);
             return;
@@ -1469,6 +1493,8 @@ export function ProjectWorkspace({
           candidates: [],
         });
         setSiteSearchQuery(trimmedInitialAddress);
+      } finally {
+        setIsConfirmingSite(false);
       }
     };
 
@@ -1476,6 +1502,7 @@ export function ProjectWorkspace({
   }, [
     initialInlineAddress,
     projectKey,
+    router,
     sessionSignals.lga,
     siteContext,
     siteContextLoaded,
@@ -2891,6 +2918,8 @@ export function ProjectWorkspace({
     () => normaliseReviewRequestContent(latestReviewRequestArtefact?.reviewRequest),
     [latestReviewRequestArtefact],
   );
+  const hasQualityQuickSiteCheck = hasCitedQuickSiteCheckEvidence(normaliseQuickSiteCheckReport(latestQuickSiteCheckArtefact?.quickSiteCheck));
+  const hasQualitySee = hasQualitySeeEvidence(latestSeeContent);
   const hasSiteContext = Boolean(siteContext);
   const commercialNextAction = useMemo(
     () =>
@@ -2902,9 +2931,13 @@ export function ProjectWorkspace({
         coverageMaturity: lgaCoverageMaturity,
         hasQuickSiteCheck: Boolean(latestQuickSiteCheckArtefact),
         hasSee: Boolean(latestSeeContent),
+        hasQualityQuickSiteCheck,
+        hasQualitySee,
       }),
     [
       hasSiteContext,
+      hasQualityQuickSiteCheck,
+      hasQualitySee,
       latestQuickSiteCheckArtefact,
       latestSeeContent,
       lgaCoverageMaturity,
@@ -3072,14 +3105,14 @@ export function ProjectWorkspace({
       <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin className="h-4 w-4 text-slate-500" />
-          <span>{siteContext?.formattedAddress ?? "No site set"}</span>
+          <span>{siteContext?.formattedAddress ?? (initialInlineAddress && !siteContextLoaded ? "Confirming site…" : "No site set")}</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
           <Layers3 className="h-3.5 w-3.5" />
           {zoningLabel ? (
             <span>Zoning: {zoningLabel}</span>
           ) : (
-            <span>Zoning: Not available</span>
+            <span>{initialInlineAddress && (!siteContextLoaded || isConfirmingSite) ? "Zoning: Confirming…" : "Zoning: Not available"}</span>
           )}
         </div>
         {siteContext?.councilMap?.url ? (

@@ -986,6 +986,9 @@ Use the raw clause text above as the first source for local-control and state-le
       const hasDcpClauses = dcpClauses.length > 0;
       const hasDcpChunks = (dcpChunks?.length ?? 0) > 0;
       const hasLepClauses = (statutoryContext?.lepClauses.length ?? 0) > 0;
+      const isLaunchLgaWithSearchableEvidence =
+        Boolean(canonicalLgaCode && /^(BYRON|KEMPSEY)$/i.test(canonicalLgaCode)) &&
+        (hasLepClauses || hasDcpClauses || hasDcpChunks);
 
       if (
         isByronLga &&
@@ -1208,8 +1211,10 @@ When the user asks about local controls, rely first on the council Development C
           forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel ?? "this LGA"} yet because no council DCP/LEP excerpts are available in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. If you need exact numbers now, check the official council LEP/DCP documents or contact council planning; once local controls are ingested here, I can give clause-based figures with citations.`;
         }
       } else if (lgaLabel) {
-        councilDcpPrompt = `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
-        if (controlsRelatedQuestion && !hasLepClauses) {
+        councilDcpPrompt = isLaunchLgaWithSearchableEvidence
+          ? `This is a launch LGA with searchable planning evidence. Do not say local planning controls are being prepared. Answer only from retrieved LEP/DCP/SEPP excerpts; if no applicable source supports the specific question, say the applicable source was not retrieved for this site and keep the result unresolved.`
+          : `This workspace does not yet have the council DCP ingested for ${lgaLabel}. State that local controls are still being prepared and that exact local numeric requirements cannot be confirmed yet. Do not provide specific numeric controls (for example setbacks, POS areas, heights, or parking rates) from memory; keep guidance high-level only and direct the user to official council LEP/DCP sources for exact figures.`;
+        if (controlsRelatedQuestion && !hasLepClauses && !isLaunchLgaWithSearchableEvidence) {
           forcedFallbackReply = `I can’t confirm local numeric controls for ${lgaLabel} yet because council controls are still being prepared in this workspace. I won’t provide indicative setback, parking, height, or POS figures from memory. Please use the official council LEP/DCP documents for exact current numbers, and then ask again here once ingestion completes for clause-based answers.`;
         }
       }
