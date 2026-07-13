@@ -339,9 +339,11 @@ Commercial value: Byron/Kempsey users no longer lose the review package behind a
 
 Success signal: after clicking Request expert review from a Byron/Kempsey project with a saved Quick Site Check and SEE draft, the Outputs panel shows an Expert Review Request card that can be reopened to inspect the packaged review assumptions and scope.
 
-## 42) Review request copy/download handoff — TODO
+## 42) Review request copy/download handoff — DONE ✅ (2026-07-13)
 
-Add a non-billing handoff control on the Expert Review Request card so users can copy the packaged review request summary, gaps, assumptions, and review scope to the clipboard or download it as a plain-text file for planner/email sharing.
+Added non-billing Copy and Download .txt actions to the saved Expert Review Request card in the workspace Outputs panel. The handoff uses a shared formatter for clean plain-text planner/email sharing, including site address, LGA, zone, included/source artefacts, source citation count and labels, confidence gaps, missing inputs, assumptions, recommended planner review scope, and generated/requested timestamp when available. Missing optional fields are omitted cleanly so the export does not show broken empty headings or null/undefined values.
+
+Success signal: after a Byron or Kempsey project saves an Expert Review Request artefact, the Outputs card can copy or download a clean planner handoff without adding billing, payment, paywall, subscription, account-tier, or auth-gating logic.
 
 ## 44) Kempsey workspace-chat DCP/setback grounding — DONE ✅ (2026-07-13)
 
