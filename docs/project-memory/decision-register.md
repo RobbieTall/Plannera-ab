@@ -93,3 +93,11 @@ Decision: Authentication (magic-link email), user accounts, and any paywall or s
 
 Reference: docs/project-memory/build-next.md item 28
 
+
+## DR-013 — Correctness Before New Features: Zone-Aware Retrieval Priority
+
+Status: Active
+
+Decision: Following live production testing on 2026-07-13 that found Kempsey LEP/DCP retrieval surfacing zone-irrelevant (rural/residential) clauses for a confirmed E2 Commercial Centre site, fixing zone-aware LEP/DCP retrieval takes priority over new feature work, including build-next.md item 42 (review request copy/download handoff). Item 40 (paid export/review gate) remains out of scope. This reinforces DR-011/DR-012: Kempsey must produce predominantly Cited, zone-relevant responses before any auth/paywall work proceeds.
+
+Reference: docs/project-memory/build-next.md item 43
