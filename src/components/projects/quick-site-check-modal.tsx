@@ -14,7 +14,7 @@ type QuickSiteCheckModalProps = {
   onClose: () => void;
   projectId: string;
   onInsertToChat?: (message: string, signals?: WorkspaceSessionSignals) => void;
-  onArtefactSaved?: (title: string, summary: string) => void;
+  onArtefactSaved?: (title: string, summary: string, report: QuickSiteCheckReport) => void;
   onToast?: (message: string, variant?: "success" | "error") => void;
 };
 
@@ -120,6 +120,9 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
       heightOfBuilding: citedControl("Height of buildings", payload.controls.heightOfBuilding),
       floorSpaceRatio: citedControl("Floor space ratio", payload.controls.fsr),
       minimumLotSize: citedControl("Minimum lot size", payload.controls.minLotSize),
+      setback: citedControl("Setback", payload.controls.setback ?? null),
+      parking: citedControl("Parking", payload.controls.parking ?? null),
+      activeFrontageBuiltForm: citedControl("Active frontage / built form", payload.controls.activeFrontageBuiltForm ?? null),
     },
     notes: payload.objectives,
     nextSteps: [
@@ -230,7 +233,7 @@ export function QuickSiteCheckModal({
           throw new Error(data.error ?? "Unable to save artefact");
         }
 
-        onArtefactSaved?.(title, summary);
+        onArtefactSaved?.(title, summary, report);
         onToast?.("Saved Quick Site Check as artefact");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unable to save artefact";

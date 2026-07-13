@@ -1,4 +1,5 @@
 import type { SourceAttribution } from "@/lib/workspace-chat";
+import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 export type UserTier = "guest" | "free" | "pro";
 
@@ -122,6 +123,9 @@ export type WorkspaceArtefact = {
   preSeeMemo?: WorkspacePreSeePlanningMemoContent;
   content?: FeasibilityContent;
   reviewRequest?: ReviewRequestContent;
+  quickSiteCheck?: QuickSiteCheckReport;
+  isCurrentSite?: boolean;
+  staleReason?: string;
   staleAt?: string;
 };
 

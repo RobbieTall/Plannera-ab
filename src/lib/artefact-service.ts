@@ -107,7 +107,7 @@ const quickSiteCheckReportSchema = z
       heightOfBuilding: quickSiteCheckControlSchema,
       floorSpaceRatio: quickSiteCheckControlSchema,
       minimumLotSize: quickSiteCheckControlSchema,
-    }),
+    }).passthrough(),
     notes: z.array(z.string()),
     nextSteps: z.array(z.string()),
   })
@@ -294,7 +294,7 @@ export const extractNumericControlValue = (clause: LepClauseContext | null) => {
 };
 
 const withRealLepControl = (
-  control: QuickSiteCheckReport["controls"][keyof QuickSiteCheckReport["controls"]],
+  control: QuickSiteCheckReport["controls"]["heightOfBuilding"],
   clause: LepClauseContext | null,
 ) => {
   if (!clause) return { ...control, lepSource: false };
@@ -357,6 +357,7 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
         }
       : report.permissibility ?? null,
     controls: {
+      ...report.controls,
       heightOfBuilding: withRealLepControl(report.controls.heightOfBuilding, heightClause ?? null),
       floorSpaceRatio: withRealLepControl(report.controls.floorSpaceRatio, fsrClause ?? null),
       minimumLotSize: withRealLepControl(report.controls.minimumLotSize, lotSizeClause ?? null),

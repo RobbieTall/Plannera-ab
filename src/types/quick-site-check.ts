@@ -40,6 +40,9 @@ export type QuickSiteCheckReport = {
     heightOfBuilding: QuickSiteCheckControl;
     floorSpaceRatio: QuickSiteCheckControl;
     minimumLotSize: QuickSiteCheckControl;
+    setback?: QuickSiteCheckControl;
+    parking?: QuickSiteCheckControl;
+    activeFrontageBuiltForm?: QuickSiteCheckControl;
   };
   notes: string[];
   nextSteps: string[];
