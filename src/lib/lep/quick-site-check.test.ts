@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     lepZoneObjective: { findMany: vi.fn() },
     lepZoneLandUse: { findMany: vi.fn() },
     clause: { findMany: vi.fn() },
+    dCPClause: { findMany: vi.fn() },
   },
   findProjectByExternalId: vi.fn(),
 }));
@@ -43,6 +44,7 @@ describe("buildQuickSiteCheckLep", () => {
     mocks.prisma.instrument.findFirst.mockResolvedValue({ id: "instrument-1", name: "Byron LEP 2014", slug: "byron-lep-2014" });
     mocks.prisma.lepZoneObjective.findMany.mockResolvedValue([]);
     mocks.prisma.lepZoneLandUse.findMany.mockResolvedValue([]);
+    mocks.prisma.dCPClause.findMany.mockResolvedValue([]);
   });
 
   it("extracts cited Part 4 controls from ingested clause rows", async () => {
@@ -63,6 +65,48 @@ describe("buildQuickSiteCheckLep", () => {
     expect(result.landUse.withConsent).toContain("Dwelling houses");
     expect(result.permissibility?.permittedWithConsent).toContain("Dwelling houses");
     expect(result.dataSource).toBe("db_clauses");
+    expect(result.controls.setback).toBeNull();
+  });
+
+
+  it("extracts cited Kempsey E2 commercial controls from LEP and DCP rows and marks missing controls unavailable", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Kempsey", zoningCode: "E2" });
+    mocks.prisma.instrument.findFirst.mockResolvedValue({ id: "instrument-1", name: "Kempsey LEP 2013", slug: "kempsey-lep-2013" });
+    mocks.prisma.clause.findMany.mockResolvedValue([
+      clause("2.3", "Zone objectives and Land Use Table", "Zone E2 Commercial Centre\nObjectives of zone\nTo strengthen commercial centres.\nPermitted with consent\nCommercial premises", ["Part 2"]),
+      clause("4.3", "Height of buildings", "Zone E2 11m\nZone R1 8.5m"),
+      clause("4.4", "Floor space ratio", "Zone E2 2:1\nZone R1 0.75:1"),
+    ]);
+    mocks.prisma.dCPClause.findMany.mockResolvedValue([
+      {
+        ref: "Part D Commercial Centres",
+        title: "Kempsey CBD built form and setbacks",
+        headingPath: ["Part D", "Commercial Centres", "Setbacks"],
+        bodyText: "For Zone E2 Commercial Centre development, the street setback is 0m to reinforce the main street edge.",
+      },
+      {
+        ref: "Part D Active Frontages",
+        title: "Active frontages",
+        headingPath: ["Part D", "Commercial Centres", "Active frontages"],
+        bodyText: "In the E2 Commercial Centre, active frontage must be provided to the primary street frontage.",
+      },
+      {
+        ref: "Part B Parking",
+        title: "Parking objectives",
+        headingPath: ["Part B", "Parking"],
+        bodyText: "Parking is to be safe and accessible for commercial development, but this excerpt does not set a numeric E2 rate.",
+      },
+    ]);
+
+    const result = await buildQuickSiteCheckLep("project-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.controls.heightOfBuilding).toEqual({ value: "11m", clauseRef: "4.3", confidence: "Cited" });
+    expect(result.controls.fsr).toEqual({ value: "2:1", clauseRef: "4.4", confidence: "Cited" });
+    expect(result.controls.setback).toMatchObject({ value: "0m", confidence: "Cited", sourceRef: "Kempsey DCP 2026 Part D > Commercial Centres > Setbacks" });
+    expect(result.controls.activeFrontageBuiltForm).toMatchObject({ confidence: "Cited", sourceRef: "Kempsey DCP 2026 Part D > Commercial Centres > Active frontages" });
+    expect(result.controls.parking).toEqual({ value: "", clauseRef: "", sourceRef: "Kempsey DCP 2026 parking controls", confidence: "Unavailable" });
   });
 
   it("gracefully returns null controls when clauses are missing", async () => {

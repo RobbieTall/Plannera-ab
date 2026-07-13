@@ -192,6 +192,88 @@ const buildControlValue = (
 };
 
 
+const unavailableControl = (sourceRef?: string): LepControlValue => ({
+  value: "",
+  clauseRef: "",
+  sourceRef,
+  confidence: "Unavailable",
+});
+
+type DcpControlTopic = "setback" | "parking" | "activeFrontageBuiltForm";
+
+const dcpControlConfig: Record<DcpControlTopic, { heading: RegExp; value: RegExp; fallbackSource: string }> = {
+  setback: {
+    heading: /setbacks?|building line|built form/i,
+    value: /(?:setback|building line)[^\n.;:]{0,80}?((?:\d+(?:\.\d+)?\s*m|nil|zero))\b/i,
+    fallbackSource: "Kempsey DCP 2026 setback controls",
+  },
+  parking: {
+    heading: /parking|car spaces?|vehicle/i,
+    value: /(\d+(?:\.\d+)?\s*(?:car )?(?:spaces?|space)\s*(?:per|\/|for)\s*[^\n.;]+)/i,
+    fallbackSource: "Kempsey DCP 2026 parking controls",
+  },
+  activeFrontageBuiltForm: {
+    heading: /active frontage|built form|shopfront|street frontage|commercial centre/i,
+    value: /((?:active frontage|built form|shopfront|street frontage)[^\n.;]{0,120}(?:must|shall|is to|are to)[^\n.;]+)/i,
+    fallbackSource: "Kempsey DCP 2026 active frontage/built-form controls",
+  },
+};
+
+const dcpSourceRef = (clause: { ref?: string | null; title?: string | null; headingPath?: string[] | null }, fallback: string) => {
+  const heading = clause.headingPath?.filter(Boolean).join(" > ") || clause.title || clause.ref || fallback;
+  return heading.includes("Kempsey DCP") ? heading : `Kempsey DCP 2026 ${heading}`;
+};
+
+const extractDcpControl = (
+  clauses: Array<{ ref?: string | null; title?: string | null; headingPath?: string[] | null; bodyText: string }>,
+  zoneCode: string | null,
+  topic: DcpControlTopic,
+): LepControlValue => {
+  const config = dcpControlConfig[topic];
+  const escapedZone = zoneCode?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const zonePattern = escapedZone ? new RegExp(`\\b${escapedZone}\\b`, "i") : null;
+  const candidates = clauses.filter((clause) => {
+    const haystack = `${clause.ref ?? ""} ${clause.title ?? ""} ${(clause.headingPath ?? []).join(" ")} ${clause.bodyText}`;
+    return config.heading.test(haystack) && (!zonePattern || zonePattern.test(haystack) || /commercial centre/i.test(haystack));
+  });
+  for (const clause of candidates) {
+    const cleaned = cleanXmlLikeString(clause.bodyText).replace(/\s+/g, " ").trim();
+    const match = cleaned.match(config.value);
+    if (match?.[1] && /\d|must|shall|is to|are to/i.test(match[1])) {
+      return {
+        value: match[1].replace(/\s+/g, " ").trim(),
+        clauseRef: clause.ref || clause.title || config.fallbackSource,
+        sourceRef: dcpSourceRef(clause, config.fallbackSource),
+        confidence: "Cited",
+      };
+    }
+  }
+  return unavailableControl(config.fallbackSource);
+};
+
+const extractKempseyDcpControls = async (lga: string | null, zoneCode: string | null) => {
+  if (!lga || !/kempsey/i.test(lga) || zoneCode !== "E2") {
+    return { setback: null, parking: null, activeFrontageBuiltForm: null };
+  }
+  const clauses = await prisma.dCPClause.findMany({
+    where: { lgaCode: "KEMPSEY" },
+    orderBy: [{ ref: "asc" }],
+    select: { ref: true, title: true, headingPath: true, bodyText: true },
+  });
+  if (!clauses.length) {
+    return {
+      setback: unavailableControl("Kempsey DCP 2026 setback controls"),
+      parking: unavailableControl("Kempsey DCP 2026 parking controls"),
+      activeFrontageBuiltForm: unavailableControl("Kempsey DCP 2026 active frontage/built-form controls"),
+    };
+  }
+  return {
+    setback: extractDcpControl(clauses, zoneCode, "setback"),
+    parking: extractDcpControl(clauses, zoneCode, "parking"),
+    activeFrontageBuiltForm: extractDcpControl(clauses, zoneCode, "activeFrontageBuiltForm"),
+  };
+};
+
 const splitLandUseItems = (value: string | null | undefined) => {
   if (!value) return [] as string[];
   return value
@@ -1436,6 +1518,7 @@ export const buildQuickSiteCheckLep = async (
     const heightOfBuildingFromLepData = buildLepDataControlValue(lepDataControls?.heightOfBuilding, "4.3");
     const fsrFromLepData = buildLepDataControlValue(lepDataControls?.floorSpaceRatio, "4.4");
     const minLotSizeFromLepData = buildLepDataControlValue(lepDataControls?.minimumLotSize, "4.1");
+    const kempseyDcpControls = await extractKempseyDcpControls(lga, zoneCode);
     const realLandUseFound = hasRealLandUse(zoneSummary.landUse);
     const permissibility = realLandUseFound
       ? {
@@ -1449,6 +1532,9 @@ export const buildQuickSiteCheckLep = async (
       fsr: fsr ?? fsrFromLepData,
       minLotSize: minLotSize ?? minLotSizeFromLepData,
       zoneObjectives: zoneSummary.objectives.length ? zoneSummary.objectives : null,
+      setback: kempseyDcpControls.setback,
+      parking: kempseyDcpControls.parking,
+      activeFrontageBuiltForm: kempseyDcpControls.activeFrontageBuiltForm,
     };
     const dataSource = allClauses.length ? "db_clauses" : "fallback";
 
