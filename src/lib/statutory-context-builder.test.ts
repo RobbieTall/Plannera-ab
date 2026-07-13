@@ -341,7 +341,7 @@ describe("buildStatutoryContextBlock", () => {
     });
 
     expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("BYRON-SP3");
-    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).toContain("BYRON-SP3-MIXED");
+    expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("BYRON-SP3-MIXED");
     expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("BYRON-RU2-SECONDARY");
     expect(result.dcpClauses.map((clause) => clause.clauseNumber)).not.toContain("BYRON-R2-DUAL");
     expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("2.3-SP3");

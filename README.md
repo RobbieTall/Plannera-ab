@@ -46,6 +46,12 @@ Plannera bundles 160+ NSW LEP XML fixtures in data/nsw/xml/ covering all NSW LGA
 Ingest LEP data:
 POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET[&lga=LGACODE][&force=true]
 
+Safe LEP zone-projection refresh for an already-ingested production corpus:
+POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET&lga=BYRON
+POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET&lga=KEMPSEY
+
+When current clause rows already exist and `force=true` is omitted, the endpoint keeps the raw clause corpus, rereads the bundled XML, refreshes the shared `LepZoneObjective` / `LepZoneLandUse` projections, and reports `zoneProjectionRefreshes` counts. Use `force=true` only when intentionally replacing the clause corpus.
+
 Check coverage:
 GET /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET
 Returns: { "lepClauseCount": 0, "lgasCovered": [] }

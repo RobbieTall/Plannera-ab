@@ -46,10 +46,18 @@ const zoneRelevanceScore = (params: { queryText: string; content: string; siteZo
   if (!site.code && !site.name) return { score: 0, exclude: false };
 
   const content = params.content.toLowerCase();
+  const [scopeText] = params.content.split("\n", 1);
+  const scope = scopeText.toLowerCase();
+  const scopeZones = explicitZoneCodes(scopeText);
   const zones = explicitZoneCodes(params.content);
   const unrelatedExplicitZones = site.code ? zones.filter((zone) => zone !== site.code) : zones;
   const matchesSiteCode = Boolean(site.code && zones.includes(site.code));
   const matchesSiteName = Boolean(site.name && content.includes(site.name));
+  const scopeNamesAnotherZone = Boolean(site.code && scopeZones.length && !scopeZones.includes(site.code));
+  const conflictingScopedUse = RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => scope.includes(term));
+  if ((scopeNamesAnotherZone || conflictingScopedUse) && (site.code === "E2" || site.code === "SP3" || site.name.includes("commercial") || site.name.includes("tourist"))) {
+    return { score: -60, exclude: true };
+  }
   const queryAsksAboutUnrelated = queryTargetsUnrelatedZone(params.queryText, unrelatedExplicitZones);
 
   if (unrelatedExplicitZones.length && !matchesSiteCode && !matchesSiteName && !queryAsksAboutUnrelated) {
@@ -145,7 +153,8 @@ export const searchDcpClauses = async (params: {
       const zoneScore = zoneRelevanceScore({
         queryText,
         siteZone: params.siteZone,
-        content: `${headingText} ${clause.title ?? ""} ${clause.bodyText}`,
+        content: `${headingText} ${clause.title ?? ""}
+${clause.bodyText}`,
       });
       const score = baseKeyword + topicMatch + numericScore + depthScore + zoneScore.score;
 

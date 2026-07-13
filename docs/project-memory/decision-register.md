@@ -109,3 +109,19 @@ Status: Active
 Decision: Commercial readiness is evidence/quality-based, never artefact-existence-based. A saved Quick Site Check, SEE, feasibility result, or review artefact only advances the Byron/Kempsey commercial path when it is scoped to the current site and contains relevant cited or otherwise quality-valid controls. Empty, zone-irrelevant, stale, or failed outputs remain useful project history, but must not trigger “ready for paid export or expert review” messaging.
 
 Reference: docs/project-memory/build-next.md item 28 follow-up
+
+## DR-015 — Canonical Shared LEP Zone Projections
+
+Status: Active
+
+Decision: Instrument-scoped `LepZoneObjective` and `LepZoneLandUse` projections are the canonical source for LEP zone objectives and land-use permissibility in fresh projects. `project.lepData` is compatibility/cache fallback only. LEP ingestion and refresh paths must idempotently rebuild these projections even when raw current `Clause` rows already exist, without forcing destructive corpus replacement.
+
+Reference: docs/project-memory/build-next.md item 28 corrective slice after PR #281
+
+## DR-016 — Citation Existence Is Not Applicability
+
+Status: Active
+
+Decision: A retrieved or saved citation is not, by itself, evidence quality. Clause title, hierarchy, zone scope and land-use scope must support the current site before the citation can make Quick Site Check, chat, SEE, or readiness output Confirmed/Cited. Conflicting zone or land-use scopes in title/hierarchy win over incidental current-zone tokens in long clause bodies. Unsupported controls must remain Unavailable/Unresolved rather than inferred from unrelated sources.
+
+Reference: docs/project-memory/build-next.md item 28 corrective slice after PR #281

@@ -337,14 +337,41 @@ const hasRealLandUse = (landUse: ZoneSummary["landUse"]) =>
     (item) => item && !/^No zone-specific/i.test(item),
   );
 
+const SCOPE_EXCLUSION_TERMS = /\b(rural zones?|rural land|rural boundary|residential zones?|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation)\b/i;
+
+const clauseScopeText = (clause: ClauseSummary) =>
+  `${clause.title ?? ""} ${(clause.hierarchyPath ?? []).join(" ")}`.trim();
+
+const clauseBodyText = (clause: ClauseSummary) => cleanXmlLikeString(clause.bodyText ?? "");
+
+const hasCurrentZoneToken = (text: string, zoneCode: string | null) => {
+  if (!zoneCode) return false;
+  const escapedZone = zoneCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escapedZone}\\b`, "i").test(text);
+};
+
 const isZoneIncompatibleClause = (clause: ClauseSummary, zoneCode: string | null) => {
   if (!zoneCode) return false;
-  const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`;
+
+  const scope = clauseScopeText(clause);
+  const body = clauseBodyText(clause);
+  const explicitScopeZones = Array.from(scope.matchAll(/\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi)).map((match) =>
+    match[0].toUpperCase(),
+  );
+
+  // The clause title/hierarchy is the declared applicability scope. If it names
+  // another zone or conflicting land-use class, that scope wins over an
+  // incidental current-zone token inside a long body/table.
+  if (explicitScopeZones.length && !explicitScopeZones.includes(zoneCode)) return true;
+
   const commercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
+  if (commercialOrTourist && SCOPE_EXCLUSION_TERMS.test(scope)) return true;
   if (!commercialOrTourist) return false;
-  const escapedZone = zoneCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (new RegExp(`\\b${escapedZone}\\b`, "i").test(haystack)) return false;
-  return /\b(rural zones?|rural land|residential zones?|dual occupanc|secondary dwelling|dwelling houses?|bed and breakfast)\b/i.test(haystack);
+
+  if (hasCurrentZoneToken(scope, zoneCode)) return false;
+  if (SCOPE_EXCLUSION_TERMS.test(body) && !hasCurrentZoneToken(body, zoneCode)) return true;
+
+  return false;
 };
 
 const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary, zoneCode: string | null) => {

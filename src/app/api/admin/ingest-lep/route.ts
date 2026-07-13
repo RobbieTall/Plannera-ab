@@ -11,12 +11,14 @@ import {
 import { resolveCanonicalNswLga } from "@/lib/lep/nsw-lga-normaliser";
 import { parseInstrumentDocument } from "@/lib/legislation/parser";
 import { parseNswLepXml } from "@/lib/lep/nsw-lep-parser";
+import { refreshLepZoneTables } from "@/lib/lep/zone-table-extractor";
 import { syncInstrumentFromDocument } from "@/lib/legislation/service";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 type IngestError = { lga: string; error: string };
+type ZoneProjectionRefresh = { slug: string; objectiveCount: number; landUseCount: number; zoneCount: number; source: "ingested" | "existing" };
 
 
 const getProvidedSecret = (request: Request, url: URL) => {
@@ -185,6 +187,7 @@ export async function POST(request: Request) {
   const ingested: string[] = [];
   const skipped: string[] = [];
   const errors: IngestError[] = [];
+  const zoneProjectionRefreshes: ZoneProjectionRefresh[] = [];
   let totalClauses = 0;
 
   for (const target of targets) {
@@ -193,11 +196,6 @@ export async function POST(request: Request) {
 
     try {
       const existingClauseCount = await getCurrentClauseCount(target.config.slug);
-      if (existingClauseCount > 0 && !force) {
-        skipped.push(target.config.slug);
-        totalClauses += existingClauseCount;
-        continue;
-      }
 
       if (!xmlPath) {
         throw new Error(`No XML path configured for ${target.config.slug}`);
@@ -211,6 +209,21 @@ export async function POST(request: Request) {
         throw new Error(`No clauses parsed for ${config.slug}`);
       }
 
+      if (existingClauseCount > 0 && !force) {
+        const instrument = await prisma.instrument.findUnique({ where: { slug: config.slug }, select: { id: true } });
+        if (!instrument) throw new Error(`Instrument ${config.slug} has clauses but could not be loaded`);
+        const zoneCount = await refreshLepZoneTables(prisma, instrument.id, parsedClauses);
+        const [objectiveCount, landUseCount] = await Promise.all([
+          prisma.lepZoneObjective.count({ where: { instrumentId: instrument.id } }),
+          prisma.lepZoneLandUse.count({ where: { instrumentId: instrument.id } }),
+        ]);
+        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, source: "existing" });
+        skipped.push(target.config.slug);
+        totalClauses += existingClauseCount;
+        console.log("[INGEST-LEP] Existing corpus kept; refreshed zone projections", { lga, slug: config.slug, existingClauseCount, objectiveCount, landUseCount, zoneCount });
+        continue;
+      }
+
       const result = await syncInstrumentFromDocument(config, xmlDocument, {
         parsedClauses,
         format: "xml",
@@ -221,10 +234,16 @@ export async function POST(request: Request) {
         const clauseCount = await prisma.clause.count({
           where: { instrumentId: result.instrument.id, isCurrent: true },
         });
+        const zoneCount = await refreshLepZoneTables(prisma, result.instrument.id, parsedClauses);
+        const [objectiveCount, landUseCount] = await Promise.all([
+          prisma.lepZoneObjective.count({ where: { instrumentId: result.instrument.id } }),
+          prisma.lepZoneLandUse.count({ where: { instrumentId: result.instrument.id } }),
+        ]);
+        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, source: "ingested" });
         totalClauses += clauseCount;
         const backfilledProjects = await backfillProjectLepData(lga, xmlDocument);
         ingested.push(config.slug);
-        console.log("[INGEST-LEP] Sync complete", { lga, slug: config.slug, clauseCount, backfilledProjects });
+        console.log("[INGEST-LEP] Sync complete", { lga, slug: config.slug, clauseCount, backfilledProjects, objectiveCount, landUseCount, zoneCount });
         continue;
       }
 
@@ -240,5 +259,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ingested, skipped, errors, totalClauses });
+  return NextResponse.json({ ingested, skipped, errors, totalClauses, zoneProjectionRefreshes });
 }

@@ -69,6 +69,31 @@ describe("buildQuickSiteCheckLep", () => {
   });
 
 
+
+  it("uses shared zone projections for fresh projects without project lepData", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Byron", zoningCode: "SP3", lepData: null });
+    mocks.prisma.lepZoneObjective.findMany.mockResolvedValue([
+      { objective: "To provide for tourist-oriented development and related uses." },
+    ]);
+    mocks.prisma.lepZoneLandUse.findMany.mockResolvedValue([
+      { permission: "WITH_CONSENT", description: "Tourist and visitor accommodation" },
+      { permission: "PROHIBITED", description: "Residential accommodation" },
+    ]);
+    mocks.prisma.clause.findMany.mockResolvedValue([
+      clause("4.3", "Height of buildings", "Zone SP3 9m", ["Part 4"]),
+    ]);
+
+    const result = await buildQuickSiteCheckLep("project-1", { debug: true });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.objectives).toContain("To provide for tourist-oriented development and related uses.");
+    expect(result.permissibility?.permittedWithConsent).toContain("Tourist and visitor accommodation");
+    expect(result.permissibility?.prohibited).toContain("Residential accommodation");
+    expect(result.debug?.zoneObjectiveSource).toBe("ingested");
+    expect(result.debug?.landUseSource).toBe("ingested");
+  });
+
   it("extracts cited Kempsey E2 commercial controls from LEP and DCP rows and marks missing controls unavailable", async () => {
     mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Kempsey", zoningCode: "E2" });
     mocks.prisma.instrument.findFirst.mockResolvedValue({ id: "instrument-1", name: "Kempsey LEP 2013", slug: "kempsey-lep-2013" });
