@@ -705,6 +705,138 @@ function OutputSection({
   );
 }
 
+function ReviewRequestCard({
+  artefact,
+  content,
+}: {
+  artefact: WorkspaceArtefact;
+  content: ReviewRequestContent;
+}) {
+  const siteLabel = [
+    content.site.address,
+    content.site.lga,
+    content.site.zoneLabel,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const listPreview = (items: string[]) => items.slice(0, 3);
+
+  return (
+    <article className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 text-sm dark:border-purple-500/20 dark:bg-purple-500/10">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-950 dark:text-white">
+            {artefact.title}
+          </p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+            {content.packageSummary}
+          </p>
+          {siteLabel ? (
+            <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-purple-700 dark:text-purple-200">
+              {siteLabel}
+            </p>
+          ) : null}
+        </div>
+        <span className="shrink-0 rounded-full border border-purple-200 bg-white/80 px-2 py-1 text-[10px] font-semibold text-purple-700 dark:border-purple-400/30 dark:bg-slate-950/30 dark:text-purple-200">
+          Review package
+        </span>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
+          <dt className="text-slate-400 dark:text-slate-500">Artefacts</dt>
+          <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+            {content.includedArtefacts.length}
+          </dd>
+        </div>
+        <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
+          <dt className="text-slate-400 dark:text-slate-500">Citations</dt>
+          <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+            {content.citedSources.length}
+          </dd>
+        </div>
+        <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
+          <dt className="text-slate-400 dark:text-slate-500">Gaps</dt>
+          <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+            {content.confidenceGaps.length}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            Included outputs
+          </p>
+          <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            {content.includedArtefacts.map((item) => (
+              <li key={item.id} className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                <span className="min-w-0 truncate">{item.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Confidence gaps
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+              {listPreview(content.confidenceGaps).map((gap) => (
+                <li key={gap}>• {gap}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Missing inputs
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+              {listPreview(content.missingInputs).map((input) => (
+                <li key={input}>• {input}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <details className="rounded-xl border border-purple-100 bg-white/70 p-3 text-xs dark:border-purple-500/20 dark:bg-slate-950/20">
+          <summary className="cursor-pointer font-semibold text-purple-700 dark:text-purple-200">
+            View assumptions and review scope
+          </summary>
+          <div className="mt-3 space-y-3 text-slate-600 dark:text-slate-300">
+            <div>
+              <p className="font-semibold text-slate-700 dark:text-slate-200">
+                Assumptions
+              </p>
+              <ul className="mt-1 space-y-1">
+                {content.assumptions.map((assumption) => (
+                  <li key={assumption}>• {assumption}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700 dark:text-slate-200">
+                Recommended review scope
+              </p>
+              <ul className="mt-1 space-y-1">
+                {content.recommendedReviewScope.map((scope) => (
+                  <li key={scope}>• {scope}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <p className="mt-3 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        Saved {artefact.updatedAt}
+      </p>
+    </article>
+  );
+}
+
 const readinessStatusClasses: Record<CommercialReadinessStatus, string> = {
   Confirmed:
     "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
@@ -2398,6 +2530,15 @@ export function ProjectWorkspace({
       ? normaliseFeasibilityContent(feasibilityArtefact.content)
       : null;
   }, [artefacts]);
+  const latestReviewRequestArtefact = useMemo(() => {
+    return artefacts.find((artefact) =>
+      normaliseReviewRequestContent(artefact.reviewRequest),
+    );
+  }, [artefacts]);
+  const latestReviewRequestContent = useMemo(
+    () => normaliseReviewRequestContent(latestReviewRequestArtefact?.reviewRequest),
+    [latestReviewRequestArtefact],
+  );
 
   const generatePreSeeMemo = useCallback(async () => {
     if (!siteContext) {
@@ -3685,6 +3826,22 @@ export function ProjectWorkspace({
                     <p className="text-sm italic text-slate-400 dark:text-slate-500">
                       Generate a structured SEE grounded in current planning
                       controls.
+                    </p>
+                  )}
+                </OutputSection>
+
+                <OutputSection title="Expert Review Request">
+                  {latestReviewRequestArtefact && latestReviewRequestContent ? (
+                    <ReviewRequestCard
+                      artefact={latestReviewRequestArtefact}
+                      content={latestReviewRequestContent}
+                    />
+                  ) : (
+                    <p className="text-sm italic text-slate-400 dark:text-slate-500">
+                      Package a saved Quick Site Check and SEE draft from the
+                      Byron/Kempsey commercial path to revisit citations,
+                      confidence gaps, missing inputs, assumptions, and planner
+                      review scope here.
                     </p>
                   )}
                 </OutputSection>
