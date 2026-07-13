@@ -10,7 +10,7 @@
     "vercel-build": "npm run db:push && node ./scripts/prisma-generate.js && next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "npm run test:node && npm run test:vitest",
     "test:site-resolver": "vitest run --config vitest.config.ts src/lib/site-resolver.test.ts",
     "test:site-resolver:google": "vitest run --config vitest.config.ts src/lib/site-resolver.google.test.ts src/app/api/site-context/site-context.test.ts",
     "test:byron-fixture": "tsx scripts/test-byron-landuse-fixture.ts",
@@ -27,7 +27,9 @@
     "nsw:data:test": "tsx scripts/nsw-data-check.ts",
     "nsw:lep:sources": "tsx scripts/list-nsw-lep-sources.ts",
     "mvp:byron:smoke": "tsx scripts/byron-mvp-smoke.ts",
-    "ingest:production": "bash scripts/ingest-production.sh"
+    "ingest:production": "bash scripts/ingest-production.sh",
+    "test:node": "tsx --test tests/*.test.ts",
+    "test:vitest": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
