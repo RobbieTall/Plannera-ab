@@ -42,6 +42,43 @@ const truncateForPrompt = (value: string, maxLength: number) => {
   return `${compacted.slice(0, maxLength).trimEnd()}…`;
 };
 
+const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
+const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre"];
+const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "dual occupancy", "secondary dwelling", "bed and breakfast"];
+
+const normalizeZone = (zone?: string | null) => {
+  const value = zone?.trim() ?? "";
+  const code = value.match(NSW_ZONE_CODE_PATTERN)?.[0]?.toUpperCase() ?? null;
+  const name = value.replace(NSW_ZONE_CODE_PATTERN, " ").replace(/[–—-]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  return { code, name };
+};
+
+const explicitZoneCodes = (text: string) =>
+  Array.from(new Set((text.match(NSW_ZONE_CODE_PATTERN) ?? []).map((zone) => zone.toUpperCase())));
+
+const zoneRelevance = (params: { query: string; text: string; siteZone?: string | null }) => {
+  const site = normalizeZone(params.siteZone);
+  if (!site.code && !site.name) return { score: 0, exclude: false };
+
+  const text = params.text.toLowerCase();
+  const zones = explicitZoneCodes(params.text);
+  const unrelatedZones = site.code ? zones.filter((zone) => zone !== site.code) : zones;
+  const matchesSiteCode = Boolean(site.code && zones.includes(site.code));
+  const matchesSiteName = Boolean(site.name && text.includes(site.name));
+  const queryMentionsUnrelatedZone = unrelatedZones.some((zone) => params.query.toLowerCase().includes(zone.toLowerCase()));
+
+  if (unrelatedZones.length && !matchesSiteCode && !matchesSiteName && !queryMentionsUnrelatedZone) {
+    return { score: -80, exclude: true };
+  }
+
+  let score = 0;
+  if (matchesSiteCode) score += 35;
+  if (matchesSiteName) score += 25;
+  if ((site.code === "E2" || site.name.includes("commercial")) && COMMERCIAL_ZONE_TERMS.some((term) => text.includes(term))) score += 18;
+  if ((site.code === "E2" || site.name.includes("commercial")) && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => text.includes(term))) score -= 35;
+  return { score, exclude: false };
+};
+
 const tokenize = (value: string) =>
   value
     .toLowerCase()
@@ -113,6 +150,7 @@ const findLepClauses = async (params: {
   lgaCode: string;
   query: string;
   limit: number;
+  siteZone?: string | null;
 }): Promise<StatutoryLepClause[]> => {
   const instrumentWhere = buildLepInstrumentFilter(params.lgaCode);
   const instruments = await prisma.instrument.findMany({
@@ -123,7 +161,7 @@ const findLepClauses = async (params: {
       clauses: {
         where: { isCurrent: true },
         select: { clauseKey: true, title: true, bodyText: true },
-        take: Math.max(params.limit * 8, params.limit),
+        take: Math.max(params.limit * 30, params.limit),
       },
     },
     take: 5,
@@ -132,17 +170,20 @@ const findLepClauses = async (params: {
   const queryTokens = tokenize(params.query);
   return instruments
     .flatMap((instrument) =>
-      instrument.clauses.map((clause) => ({
-        clauseKey: clause.clauseKey,
-        heading: clause.title?.trim() || clause.clauseKey,
-        value: clause.bodyText,
-        instrumentName: instrument.name,
-        score: scoreText(
-          queryTokens,
-          `${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`,
-        ),
-      })),
+      instrument.clauses.map((clause) => {
+        const haystack = `${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`;
+        const zoneScore = zoneRelevance({ query: params.query, text: haystack, siteZone: params.siteZone });
+        return {
+          clauseKey: clause.clauseKey,
+          heading: clause.title?.trim() || clause.clauseKey,
+          value: clause.bodyText,
+          instrumentName: instrument.name,
+          score: scoreText(queryTokens, haystack) + zoneScore.score,
+          excludedByZone: zoneScore.exclude,
+        };
+      }),
     )
+    .filter((clause) => !clause.excludedByZone)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.clauseKey.localeCompare(b.clauseKey, undefined, {
@@ -151,8 +192,9 @@ const findLepClauses = async (params: {
       });
     })
     .slice(0, params.limit)
-    .map(({ score, ...clause }) => {
+    .map(({ score, excludedByZone, ...clause }) => {
       void score;
+      void excludedByZone;
       return clause;
     });
 };
@@ -225,6 +267,7 @@ export async function buildStatutoryContextBlock(params: {
   maxDcpClauses?: number;
   maxLepClauses?: number;
   maxSeppClauses?: number;
+  siteZone?: string | null;
 }): Promise<StatutoryContextBlock> {
   const lgaCode = params.lgaCode.trim().toUpperCase();
   const query = params.query.trim();
@@ -243,8 +286,8 @@ export async function buildStatutoryContextBlock(params: {
   }
 
   const [dcpResults, lepClauses, seppClauses] = await Promise.all([
-    searchDcpClauses({ query, lgaCode, limit: maxDcpClauses }),
-    findLepClauses({ lgaCode, query, limit: maxLepClauses }),
+    searchDcpClauses({ query, lgaCode, limit: maxDcpClauses, siteZone: params.siteZone }),
+    findLepClauses({ lgaCode, query, limit: maxLepClauses, siteZone: params.siteZone }),
     findSeppClauses({ query, limit: maxSeppClauses }),
   ]);
 

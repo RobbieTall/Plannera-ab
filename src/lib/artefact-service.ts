@@ -560,6 +560,7 @@ export async function createQuickSiteCheckArtefact({
           .join(" "),
         maxDcpClauses: 0,
         maxLepClauses: 6,
+        siteZone: enrichedReport.site?.zoneLabel ?? ([enrichedReport.site?.zoneCode, enrichedReport.site?.zoneName].filter(Boolean).join(" – ") || null),
       })
     : null;
   const coverageState = lgaCode && deps.prisma.lgaCoverageState
@@ -884,6 +885,7 @@ export async function createPreSeePlanningMemoArtefact({
           query: controlsQuery || "pre SEE planning memo LEP DCP controls",
           maxDcpClauses: 5,
           maxLepClauses: 3,
+          siteZone: quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null),
         })
       : Promise.resolve(null),
   ]);
@@ -1074,6 +1076,7 @@ export async function createFeasibilityArtefact(
         query: [developmentType, normalizedSiteContext.zone, "permissibility height floor space ratio minimum lot size"].filter(Boolean).join(" "),
         maxDcpClauses: 3,
         maxLepClauses: 5,
+        siteZone: normalizedSiteContext.zone ?? null,
       });
       statutoryPromptBlock = statutoryContext.promptBlock;
     }
