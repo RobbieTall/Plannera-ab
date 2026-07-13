@@ -337,18 +337,29 @@ const hasRealLandUse = (landUse: ZoneSummary["landUse"]) =>
     (item) => item && !/^No zone-specific/i.test(item),
   );
 
+const isZoneIncompatibleClause = (clause: ClauseSummary, zoneCode: string | null) => {
+  if (!zoneCode) return false;
+  const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`;
+  const commercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
+  if (!commercialOrTourist) return false;
+  const escapedZone = zoneCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (new RegExp(`\\b${escapedZone}\\b`, "i").test(haystack)) return false;
+  return /\b(rural zones?|rural land|residential zones?|dual occupanc|secondary dwelling|dwelling houses?|bed and breakfast)\b/i.test(haystack);
+};
+
 const scoreClause = (part: "4" | "5" | "6", clause: ClauseSummary, zoneCode: string | null) => {
   const haystack = `${clause.title ?? ""} ${clause.bodyText ?? ""}`.toLowerCase();
   const keywords = KEYWORDS[part];
   const scoreFromKeywords = keywords.reduce((score, keyword) => (haystack.includes(keyword) ? score + 1 : score), 0);
   const partBonus = clause.clauseKey.startsWith(part) ? 1 : 0;
-  const zoneBonus = zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(haystack) ? 2 : 0;
+  const zoneBonus = zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(haystack) ? 2 : 0;
   const zoneWordBonus = /\bzone\b/.test(haystack) ? 1 : 0;
   return scoreFromKeywords + partBonus + zoneBonus + zoneWordBonus;
 };
 
 const selectClauses = (part: "4" | "5" | "6", clauses: ClauseSummary[], zoneCode: string | null): QuickSiteCheckLepClause[] => {
-  const scored = clauses.map((clause) => ({
+  const relevantClauses = clauses.filter((clause) => !isZoneIncompatibleClause(clause, zoneCode));
+  const scored = relevantClauses.map((clause) => ({
     clause,
     score: scoreClause(part, clause, zoneCode),
     clauseNumber: parseClauseNumber(clause),
@@ -491,7 +502,7 @@ const sliceZoneBlock = (
     ? headingMatches.find((match) => match[0] && match[0].toLowerCase().includes(headingHint.toLowerCase()))
     : null;
   const targetHeading =
-    headingMatches.find((match) => new RegExp(`\b${zoneCode}\b`, "i").test(match[0])) ?? hintedHeading ?? null;
+    headingMatches.find((match) => new RegExp(`\\b${zoneCode}\\b`, "i").test(match[0])) ?? hintedHeading ?? null;
 
   if (targetHeading) {
     const headingText = targetHeading[0].trim();
@@ -503,7 +514,7 @@ const sliceZoneBlock = (
   }
 
   const regexWindow = normalized.match(
-    new RegExp(`zone\s+${zoneCode}\b[\s\S]*?(?=zone\s+[A-Z]{1,3}\d?[A-Z]?\b|$)`, "i"),
+    new RegExp(`zone\\s+${zoneCode}\\b[\\s\\S]*?(?=zone\\s+[A-Z]{1,3}\\d?[A-Z]?\\b|$)`, "i"),
   );
   if (regexWindow && typeof regexWindow.index === "number") {
     const headingLineMatch = regexWindow[0].match(/^(.*)$/m);
@@ -533,10 +544,10 @@ const extractZoneSection = (
   const lines = normalized.split("\n");
   const headingRegexes = [
     zoneCode
-      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      ? new RegExp(`^\\s*(?:\\d+[.)]?\\s*)?(?:clause\\s*\\d+(?:\\.\\d+)?[:.)-]?\\s*)?zone\\s+${zoneCode}\\b.*`, "i")
       : null,
     zoneCode
-      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      ? new RegExp(`^\\s*(?:\\d+[.)]?\\s*)?(?:clause\\s*\\d+(?:\\.\\d+)?[:.)-]?\\s*)?${zoneCode}\\b.*`, "i")
       : null,
   ].filter(Boolean) as RegExp[];
 
@@ -574,13 +585,13 @@ const extractZoneSection = (
       },
     } satisfies ZoneClausePick;
 
-  const zonePattern = zoneCode ? new RegExp(`\bzone\s+${zoneCode}\b`, "i") : null;
+  const zonePattern = zoneCode ? new RegExp(`\\bzone\\s+${zoneCode}\\b`, "i") : null;
   const headingRegexes = [
     zoneCode
-      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?zone\s+${zoneCode}\b.*`, "i")
+      ? new RegExp(`^\\s*(?:\\d+[.)]?\\s*)?(?:clause\\s*\\d+(?:\\.\\d+)?[:.)-]?\\s*)?zone\\s+${zoneCode}\\b.*`, "i")
       : null,
     zoneCode
-      ? new RegExp(`^\s*(?:\d+[.)]?\s*)?(?:clause\s*\d+(?:\.\d+)?[:.)-]?\s*)?${zoneCode}\b.*`, "i")
+      ? new RegExp(`^\\s*(?:\\d+[.)]?\\s*)?(?:clause\\s*\\d+(?:\\.\\d+)?[:.)-]?\\s*)?${zoneCode}\\b.*`, "i")
       : null,
   ].filter(Boolean) as RegExp[];
 
@@ -602,8 +613,8 @@ const extractZoneSection = (
     if (headingMatch) score += 12;
     if (zonePattern?.test(titleText)) score += 8;
     if (!score && zonePattern?.test(clause.bodyText ?? "")) score += 4;
-    if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(titleText)) score += 3;
-    if (!score && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")) score += 2;
+    if (!score && zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(titleText)) score += 3;
+    if (!score && zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(clause.bodyText ?? "")) score += 2;
     if (isGlobal) score -= 100;
 
     return { clause, score, headingMatch: headingMatch?.heading ?? null, isGlobal };
@@ -741,7 +752,7 @@ const buildZoneSummary = (
     };
   }
 
-    if (zoneCode && !new RegExp(`\b${zoneCode}\b`, "i").test(selection.sectionText)) {
+    if (zoneCode && !new RegExp(`\\b${zoneCode}\\b`, "i").test(selection.sectionText)) {
       const debug = {
         headingMatch: selection.matchedHeading,
         zoneTableClauseKey: selection.clause.clauseKey ?? null,
@@ -1378,8 +1389,8 @@ export const buildQuickSiteCheckLep = async (
               clause.hierarchyPath?.includes("Part 2") ||
               (clause.title && new RegExp(zonePattern, "i").test(clause.title)) ||
               (clause.bodyText && new RegExp(zonePattern, "i").test(clause.bodyText)) ||
-              (clause.title && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.title)) ||
-              (clause.bodyText && zoneCode && new RegExp(`\b${zoneCode}\b`, "i").test(clause.bodyText ?? "")),
+              (clause.title && zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(clause.title)) ||
+              (clause.bodyText && zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(clause.bodyText ?? "")),
           );
 
           zonePick = pickZoneClause(zoneClauses.length ? zoneClauses : allClauses, zoneCode);

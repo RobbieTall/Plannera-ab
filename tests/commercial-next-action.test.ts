@@ -42,7 +42,23 @@ describe("buildCommercialNextAction", () => {
     assert.equal(result.primaryAction, "generate_see");
   });
 
-  it("recommends export or review once SEE exists", () => {
+  it("rejects artefact-existence-only readiness when evidence quality is weak", () => {
+    const result = buildCommercialNextAction({
+      hasSiteContext: true,
+      lgaCode: "BYRON",
+      zoneLabel: "SP3 – Tourist",
+      coverageMaturity: "SEARCHABLE_READY",
+      hasQuickSiteCheck: true,
+      hasSee: true,
+      hasQualityQuickSiteCheck: false,
+      hasQualitySee: false,
+    });
+
+    assert.equal(result.primaryAction, "run_quick_site_check");
+    assert.equal(result.items.find((item) => item.label === "Saved Quick Site Check")?.status, "Needs Expert Review");
+  });
+
+  it("recommends export or review once quality-valid SEE exists", () => {
     const result = buildCommercialNextAction({
       hasSiteContext: true,
       lgaCode: "BYRON",
@@ -50,6 +66,8 @@ describe("buildCommercialNextAction", () => {
       coverageMaturity: "VERIFIED",
       hasQuickSiteCheck: true,
       hasSee: true,
+      hasQualityQuickSiteCheck: true,
+      hasQualitySee: true,
     });
 
     assert.equal(result.primaryAction, "export_or_review");

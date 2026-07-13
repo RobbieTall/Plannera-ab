@@ -13,6 +13,8 @@ export type CommercialNextActionInput = {
   coverageMaturity?: string | null;
   hasQuickSiteCheck: boolean;
   hasSee: boolean;
+  hasQualityQuickSiteCheck?: boolean;
+  hasQualitySee?: boolean;
 };
 
 export type CommercialReadinessItem = {
@@ -48,6 +50,8 @@ export function buildCommercialNextAction({
   coverageMaturity,
   hasQuickSiteCheck,
   hasSee,
+  hasQualityQuickSiteCheck = hasQuickSiteCheck,
+  hasQualitySee = hasSee,
 }: CommercialNextActionInput): CommercialNextAction {
   const targetLga = isTargetLga(lgaName, lgaCode);
   const searchableCoverage = isSearchableCoverage(coverageMaturity);
@@ -81,16 +85,20 @@ export function buildCommercialNextAction({
     },
     {
       label: "Saved Quick Site Check",
-      status: hasQuickSiteCheck ? "Confirmed" : hasSiteContext ? "Needs Input" : "Unavailable",
-      detail: hasQuickSiteCheck
-        ? "A Quick Site Check artefact is saved in this workspace."
+      status: hasQualityQuickSiteCheck ? "Confirmed" : hasQuickSiteCheck ? "Needs Expert Review" : hasSiteContext ? "Needs Input" : "Unavailable",
+      detail: hasQualityQuickSiteCheck
+        ? "A Quick Site Check artefact is saved with site-scoped cited controls."
+        : hasQuickSiteCheck
+          ? "A Quick Site Check exists, but it lacks enough relevant cited controls for commercial readiness."
         : "Run and save a Quick Site Check before drafting paid documentation.",
     },
     {
       label: "SEE-ready artefact",
-      status: hasSee ? "Confirmed" : hasQuickSiteCheck ? "Needs Input" : "Unavailable",
-      detail: hasSee
-        ? "A SEE draft is saved and ready to copy, download, or review."
+      status: hasQualitySee ? "Confirmed" : hasSee ? "Needs Expert Review" : hasQualityQuickSiteCheck ? "Needs Input" : "Unavailable",
+      detail: hasQualitySee
+        ? "A SEE draft is saved with relevant cited evidence and is ready to copy, download, or review."
+        : hasSee
+          ? "A SEE draft exists, but it lacks enough relevant cited evidence for commercial readiness."
         : "Generate a SEE once the site check is saved and assumptions are clear.",
     },
   ];
@@ -105,7 +113,7 @@ export function buildCommercialNextAction({
     };
   }
 
-  if (!hasQuickSiteCheck) {
+  if (!hasQualityQuickSiteCheck) {
     return {
       heading: "Next commercial step: prove the site intelligence",
       description: "Run a cited Quick Site Check before asking the user to pay for a SEE or professional review.",
@@ -115,7 +123,7 @@ export function buildCommercialNextAction({
     };
   }
 
-  if (!hasSee) {
+  if (!hasQualitySee) {
     return {
       heading: "Next commercial step: generate the SEE draft",
       description: "Use the saved site check, LEP/DCP context and known assumptions to create an exportable artefact.",
@@ -127,7 +135,7 @@ export function buildCommercialNextAction({
 
   return {
     heading: "Ready for paid export or expert review",
-    description: "The workspace now has the core artefacts a Byron/Kempsey user needs to continue commercially.",
+    description: "The workspace has site-scoped, quality-valid evidence and generated outputs for the Byron/Kempsey commercial path.",
     primaryAction: "export_or_review",
     primaryLabel: "Download SEE",
     secondaryLabel: "Request expert review",

@@ -8,7 +8,7 @@ export type ScoredDcpClause = DCPClause & { score: number };
 const DEFAULT_LGA = "BYRON";
 const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
 
-const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre"];
+const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre", "tourist", "visitor", "hotel", "motel", "serviced apartment"];
 const RURAL_RESIDENTIAL_ONLY_TERMS = [
   "rural zone",
   "rural zones",
@@ -59,11 +59,12 @@ const zoneRelevanceScore = (params: { queryText: string; content: string; siteZo
   let score = 0;
   if (matchesSiteCode) score += 35;
   if (matchesSiteName) score += 25;
-  if ((site.code === "E2" || site.name.includes("commercial")) && COMMERCIAL_ZONE_TERMS.some((term) => content.includes(term))) {
+  const isCommercialOrTourist = site.code === "E2" || site.code === "SP3" || site.name.includes("commercial") || site.name.includes("tourist");
+  if (isCommercialOrTourist && COMMERCIAL_ZONE_TERMS.some((term) => content.includes(term))) {
     score += 18;
   }
-  if ((site.code === "E2" || site.name.includes("commercial")) && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => content.includes(term))) {
-    score -= 35;
+  if (isCommercialOrTourist && !matchesSiteCode && RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => content.includes(term))) {
+    return { score: -60, exclude: true };
   }
   return { score, exclude: false };
 };

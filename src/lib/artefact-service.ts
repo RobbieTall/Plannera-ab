@@ -679,7 +679,7 @@ const fallbackFeasibilityContent = (
   generatedAt: new Date().toISOString(),
 });
 
-const parseFeasibilityModelJson = (raw: string, developmentType: string): FeasibilityContent | null => {
+export const parseFeasibilityModelJson = (raw: string, developmentType: string, generatedAt = new Date().toISOString()): FeasibilityContent | null => {
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(jsonMatch?.[0] ?? raw);
@@ -692,7 +692,7 @@ const parseFeasibilityModelJson = (raw: string, developmentType: string): Feasib
     return {
       ...result.data,
       developmentType: result.data.developmentType || developmentType,
-      generatedAt: result.data.generatedAt || new Date().toISOString(),
+      generatedAt,
       items: result.data.items.map((item) => ({
         ...item,
         source: item.confidence === "cited" ? item.source : item.source || undefined,
@@ -1050,7 +1050,7 @@ export async function createFeasibilityArtefact(
   deps: FeasibilityDeps = defaultFeasibilityDeps,
 ): Promise<{ artefactId: string; content: FeasibilityContent }> {
   const normalizedSiteContext = {
-    lga: siteContext?.lga?.trim() || undefined,
+    lga: normalizeCouncilLgaCode(siteContext?.lga) ?? siteContext?.lga?.trim() ?? undefined,
     zone: siteContext?.zone?.trim() || undefined,
   };
 
@@ -1107,7 +1107,8 @@ export async function createFeasibilityArtefact(
       ],
       { maxTokens: 900, temperature: 0 },
     );
-    content = parseFeasibilityModelJson(raw, developmentType) ?? fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "The model response was not valid JSON");
+    const generatedAt = new Date().toISOString();
+    content = parseFeasibilityModelJson(raw, developmentType, generatedAt) ?? fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "The model response was not valid JSON");
   } catch (error) {
     console.warn("[feasibility] OpenAI feasibility generation failed; using fallback content", error);
     content = fallbackFeasibilityContent(developmentType, normalizedSiteContext, address, "AI generation was unavailable");
