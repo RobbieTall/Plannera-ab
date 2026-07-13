@@ -62,17 +62,18 @@ Byron Shire (Byron Bay) and Kempsey Shire are the two production test LGAs for P
 
 **Kempsey Shire**
 - LEP: Kempsey LEP 2013 (`data/nsw/xml/Kempsey-lep-2013.xml`) — registered in `instruments.json` as `kempsey-lep-2013`
-- DCP: Kempsey DCP 2013 — NOT YET WIRED (see build-next.md item 24)
+- DCP: Kempsey DCP 2026 PDF parts — wired through the council DCP ingestion flow as `KEMPSEY_DCP_2026` for searchable DCP chunks (see build-next.md item 24)
 - SEPPs: All NSW 2021 SEPPs apply state-wide via `DEFAULT_SEPP_SLUGS`
-- Coverage status: LEP ingestion required; DCP ingestion not yet implemented; SEPP ingestion required
+- Coverage status: LEP + SEPP ingestion still required per environment; Kempsey DCP ingestion is implemented and should be run/verified in the target DB. Quick Site Check structured E2 Commercial Centre controls are being exercised through the current launch test work, without claiming full production verification yet.
 
 **To activate both LGAs in production, run:**
 ```bash
 npm run ingest:legislation   # ingests all LEPs including Byron + Kempsey
 npm run ingest:sepps         # ingests all NSW SEPPs (state-wide, applies to both LGAs)
 ```
-Then trigger the council DCP ingest via the admin API for Byron:
+Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 `POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
+`POST /api/admin/ingest-council-dcp?lga=KEMPSEY&secret=INGEST_ADMIN_SECRET`
 
 ## Environment variables
 

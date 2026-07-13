@@ -13,6 +13,8 @@ import {
 } from "react";
 import {
   Check,
+  Copy,
+  Download,
   FileSpreadsheet,
   FileText,
   ExternalLink,
@@ -49,10 +51,15 @@ import { SourceConfidenceBadge } from "@/components/projects/source-confidence-b
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
 import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
 import { useExperience } from "@/components/providers/experience-provider";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { formatTranscript } from "@/lib/chat-transcript";
+import {
+  formatReviewRequestHandoff,
+  reviewRequestFilename,
+} from "@/lib/review-request-handoff";
 import {
   buildCommercialNextAction,
   type CommercialReadinessStatus,
@@ -712,6 +719,7 @@ function ReviewRequestCard({
   artefact: WorkspaceArtefact;
   content: ReviewRequestContent;
 }) {
+  const [copied, setCopied] = useState(false);
   const siteLabel = [
     content.site.address,
     content.site.lga,
@@ -720,6 +728,27 @@ function ReviewRequestCard({
     .filter(Boolean)
     .join(" · ");
   const listPreview = (items: string[]) => items.slice(0, 3);
+  const plainText = formatReviewRequestHandoff(content);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(plainText);
+    } catch {
+      // Clipboard access can be unavailable in some browsers; keep the UI non-blocking.
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([plainText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = reviewRequestFilename(content);
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <article className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 text-sm dark:border-purple-500/20 dark:bg-purple-500/10">
@@ -737,9 +766,29 @@ function ReviewRequestCard({
             </p>
           ) : null}
         </div>
-        <span className="shrink-0 rounded-full border border-purple-200 bg-white/80 px-2 py-1 text-[10px] font-semibold text-purple-700 dark:border-purple-400/30 dark:bg-slate-950/30 dark:text-purple-200">
-          Review package
-        </span>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopy}
+            className="gap-1.5 border-purple-200 bg-white/80 text-purple-700 hover:text-purple-900 dark:border-purple-400/30 dark:bg-slate-950/30 dark:text-purple-200 dark:hover:text-white"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-green-500" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDownload}
+            className="gap-1.5 border-purple-200 bg-white/80 text-purple-700 hover:text-purple-900 dark:border-purple-400/30 dark:bg-slate-950/30 dark:text-purple-200 dark:hover:text-white"
+          >
+            <Download className="h-3.5 w-3.5" /> Download .txt
+          </Button>
+        </div>
       </div>
 
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
