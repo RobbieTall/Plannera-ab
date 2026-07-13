@@ -65,6 +65,7 @@ import {
   type CommercialReadinessStatus,
 } from "@/lib/commercial-next-action";
 import { highlightText } from "@/lib/highlight-text";
+import { isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, reviewRequestScope } from "@/lib/site-scoped-artefacts";
 import { getRelativeTime } from "@/lib/relative-time";
 import { generateSuggestions } from "@/lib/suggestion-chips";
 import type { Project } from "@/lib/mock-data";
@@ -76,6 +77,7 @@ import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
 import { useLgaCoverageStatus } from "@/hooks/use-lga-coverage-status";
 import { cn } from "@/lib/utils";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
+import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import type {
   UserTier,
   FeasibilityContent,
@@ -513,6 +515,12 @@ const normaliseFeasibilityContent = (
   };
 };
 
+const normaliseQuickSiteCheckReport = (value: unknown): QuickSiteCheckReport | null => {
+  const parsedValue = parsePossibleJson(value);
+  if (!isRecord(parsedValue) || !isRecord(parsedValue.site) || !isRecord(parsedValue.controls)) return null;
+  return parsedValue as QuickSiteCheckReport;
+};
+
 const normaliseReviewRequestContent = (value: unknown): ReviewRequestContent | null => {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<ReviewRequestContent>;
@@ -626,9 +634,29 @@ const mapServerReviewRequestArtefact = (
   };
 };
 
+const mapServerQuickSiteCheckArtefact = (
+  artefact: ServerArtefactRecord,
+): WorkspaceArtefact | null => {
+  const report = normaliseQuickSiteCheckReport(artefact.payload);
+  if (!report) return null;
+  const controls = Object.values(report.controls ?? {}).filter((control) => control?.present).length;
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: formatMemoDate(report.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt ?? new Date().toISOString()),
+    type: "report",
+    noteType: "Quick Site Check",
+    metadata: [report.site?.zoneLabel, report.site?.lga, `${controls} cited/structured control${controls === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || artefact.notes || "Saved Quick Site Check",
+    quickSiteCheck: report,
+    staleAt: artefact.staleAt ?? undefined,
+  };
+};
+
 const mapServerWorkspaceArtefact = (
   artefact: ServerArtefactRecord,
 ): WorkspaceArtefact | null => {
+  if (artefact.type === "quick_site_check") return mapServerQuickSiteCheckArtefact(artefact);
   if (artefact.type === "feasibility") return mapServerFeasibilityArtefact(artefact);
   if (artefact.type === "review_request") return mapServerReviewRequestArtefact(artefact);
   return mapServerPreSeeMemoArtefact(artefact);
@@ -1711,7 +1739,7 @@ export function ProjectWorkspace({
   );
 
   const handleQuickSiteCheckArtefactSaved = useCallback(
-    (title: string, summary: string) => {
+    (title: string, summary: string, report?: QuickSiteCheckReport) => {
       const preview = summary.replace(/\s+/g, " ").trim();
       const artefact: WorkspaceArtefact = {
         id: `quick-site-check-${Date.now()}`,
@@ -1722,6 +1750,7 @@ export function ProjectWorkspace({
         metadata:
           `${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}` ||
           "LEP quick site check summary",
+        quickSiteCheck: report,
       };
       addArtefact(projectKey, artefact);
       showToast("Saved Quick Site Check as artefact");
@@ -2579,16 +2608,6 @@ export function ProjectWorkspace({
       ? normaliseFeasibilityContent(feasibilityArtefact.content)
       : null;
   }, [artefacts]);
-  const latestReviewRequestArtefact = useMemo(() => {
-    return artefacts.find((artefact) =>
-      normaliseReviewRequestContent(artefact.reviewRequest),
-    );
-  }, [artefacts]);
-  const latestReviewRequestContent = useMemo(
-    () => normaliseReviewRequestContent(latestReviewRequestArtefact?.reviewRequest),
-    [latestReviewRequestArtefact],
-  );
-
   const generatePreSeeMemo = useCallback(async () => {
     if (!siteContext) {
       showToast(
@@ -2825,20 +2844,53 @@ export function ProjectWorkspace({
     [projectKey],
   );
 
+  const currentSiteScope = useMemo(() => ({
+    address: siteContext?.formattedAddress ?? project.name,
+    lgaName: siteContext?.lgaName,
+    lgaCode: siteContext?.lgaCode,
+    zoneCode: undefined,
+    zoneLabel: zoningLabel,
+  }), [project.name, siteContext?.formattedAddress, siteContext?.lgaCode, siteContext?.lgaName, zoningLabel]);
+
+  const siteScopedArtefacts = useMemo(() =>
+    artefacts.map((artefact) => {
+      const scope = quickSiteCheckScope(artefact.quickSiteCheck) ?? preSeeScope(artefact.preSeeMemo) ?? reviewRequestScope(artefact.reviewRequest);
+      if (!scope) return artefact;
+      const isCurrentSite = isArtefactCurrentForSite(currentSiteScope, scope);
+      return {
+        ...artefact,
+        isCurrentSite,
+        staleReason: isCurrentSite ? undefined : "Saved for a different site; rerun for the current site before relying on readiness.",
+      };
+    }),
+  [artefacts, currentSiteScope]);
+
   const latestSeeArtefact = useMemo(() => {
-    return artefacts.find((artefact) =>
-      normalisePreSeeMemoContent(artefact.preSeeMemo),
+    return siteScopedArtefacts.find((artefact) =>
+      artefact.isCurrentSite !== false && normalisePreSeeMemoContent(artefact.preSeeMemo),
     );
-  }, [artefacts]);
+  }, [siteScopedArtefacts]);
   const latestSeeContent = useMemo(
     () => normalisePreSeeMemoContent(latestSeeArtefact?.preSeeMemo),
     [latestSeeArtefact],
   );
   const latestQuickSiteCheckArtefact = useMemo(() => {
-    return artefacts.find((artefact) =>
-      normaliseMemoLabel(artefact.title).includes("quick site check"),
+    return siteScopedArtefacts.find((artefact) =>
+      artefact.isCurrentSite !== false && normaliseMemoLabel(artefact.title).includes("quick site check"),
     );
-  }, [artefacts]);
+  }, [siteScopedArtefacts]);
+  const staleSiteArtefactCount = useMemo(() =>
+    siteScopedArtefacts.filter((artefact) => artefact.isCurrentSite === false).length,
+  [siteScopedArtefacts]);
+  const latestReviewRequestArtefact = useMemo(() => {
+    return siteScopedArtefacts.find((artefact) =>
+      artefact.isCurrentSite !== false && normaliseReviewRequestContent(artefact.reviewRequest),
+    );
+  }, [siteScopedArtefacts]);
+  const latestReviewRequestContent = useMemo(
+    () => normaliseReviewRequestContent(latestReviewRequestArtefact?.reviewRequest),
+    [latestReviewRequestArtefact],
+  );
   const hasSiteContext = Boolean(siteContext);
   const commercialNextAction = useMemo(
     () =>
@@ -3833,11 +3885,23 @@ export function ProjectWorkspace({
                       <p className="mt-3 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                         Last run {latestQuickSiteCheckArtefact.updatedAt}
                       </p>
+                      {staleSiteArtefactCount > 0 ? (
+                        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                          {staleSiteArtefactCount} saved output{staleSiteArtefactCount === 1 ? " is" : "s are"} from a different site and kept as history only. Rerun outputs for the current site before export or review.
+                        </p>
+                      ) : null}
                     </div>
                   ) : (
-                    <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Run a quick zoning and LEP snapshot for this site.
-                    </p>
+                    <div className="space-y-2">
+                      {staleSiteArtefactCount > 0 ? (
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                          {staleSiteArtefactCount} saved output{staleSiteArtefactCount === 1 ? " is" : "s are"} from a different site and kept as history only. Rerun Quick Site Check for the current site.
+                        </p>
+                      ) : null}
+                      <p className="text-sm italic text-slate-400 dark:text-slate-500">
+                        Run a quick zoning and LEP snapshot for this site.
+                      </p>
+                    </div>
                   )}
                 </OutputSection>
 

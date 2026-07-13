@@ -147,6 +147,19 @@ describe("GET /api/admin/ingest-status", () => {
     expect(payload.summary).toMatchObject({ totalInstruments: 4, totalClauses: 2, totalDcpChunks: 3 });
   });
 
+  it("returns JSON with warnings when a production status query fails", async () => {
+    prismaMock.instrument.findMany.mockRejectedValue(new Error("relation missing"));
+    prismaMock.dCPClause.groupBy.mockResolvedValue([]);
+
+    const response = await GET(makeRequest("test-secret"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.warnings).toContain("instrument_status_unavailable");
+    expect(payload.instruments).toHaveLength(4);
+    expect(payload.summary.totalClauses).toBe(0);
+  });
+
   it("computes summary fields correctly from mock data", async () => {
     prismaMock.instrument.findMany.mockResolvedValue([
       { slug: "byron-lep-2014", name: "Byron LEP", shortName: "Byron", instrumentType: "LEP", _count: { clauses: 10 }, clauses: [] },

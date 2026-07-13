@@ -72,6 +72,30 @@ export const getOrCreateCurrentProject = async (
   });
 };
 
+
+export const createProjectForRequester = async (
+  sessionId: string,
+  userId?: string | null,
+  initialTitle?: string,
+): Promise<Project> => {
+  const resolvedTitle = initialTitle?.trim() || "Untitled project";
+
+  return prisma.project.create({
+    data: {
+      title: resolvedTitle,
+      name: resolvedTitle,
+      sessionId: userId ? null : sessionId,
+      property: {
+        create: {
+          name: resolvedTitle,
+          address: null,
+        },
+      },
+      ...(userId ? { owner: { connect: { id: userId } } } : {}),
+    },
+  });
+};
+
 export const getProjectForRequester = async (
   id: string,
   sessionId?: string | null,

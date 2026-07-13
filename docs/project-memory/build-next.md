@@ -208,7 +208,10 @@ Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN
 
 Success signal: hitting the endpoint against the production Vercel deployment shows Byron LEP, Kempsey LEP, and all SEPPs with non-zero clause counts, confirming the DB is live.
 
-## 28) Byron + Kempsey end-to-end live test — TODO
+## 28) Byron + Kempsey end-to-end live test — QA FIX IN PR
+
+
+2026-07-13 production launch QA follow-up: fixed ingest-status to return JSON with warnings instead of HTTP 500 when a production status query fails; changed the landing Generate pathway to create a fresh project for each submitted address so old workspace state is not reused; added current-site matching for saved Quick Site Check, SEE, and review request artefacts so Byron/Kempsey mismatches remain history but do not count toward readiness; and preserved structured Kempsey E2 Quick Site Check controls in saved artefacts/output state.
 
 Before enabling auth/paywall, manually verify the following user journeys work end-to-end on production (plannera-ab.vercel.app):
 

@@ -22,8 +22,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const [instruments, dcpGroups] = await Promise.all([
-    prisma.instrument.findMany({
+  type InstrumentStatusRecord = { slug: string; name: string; shortName: string | null; instrumentType: string; _count: { clauses: number }; clauses: Array<{ createdAt: Date }> };
+  let instruments: InstrumentStatusRecord[] = [];
+  type DcpGroupRecord = { lgaCode: string | null; _count: { _all: number }; _max: { createdAt: Date | null } };
+  let dcpGroups: DcpGroupRecord[] = [];
+  const warnings: string[] = [];
+
+  try {
+    instruments = await prisma.instrument.findMany({
       where: { slug: { in: ALL_INSTRUMENT_CONFIG.map((instrument) => instrument.slug) } },
       select: {
         slug: true,
@@ -38,15 +44,31 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { slug: "asc" },
-    }),
-    prisma.dCPClause.groupBy({
+    }) as InstrumentStatusRecord[];
+  } catch (error) {
+    console.error("[ingest-status] instrument status failed", error);
+    warnings.push("instrument_status_unavailable");
+  }
+
+  try {
+    const groupDcpClauses = prisma.dCPClause.groupBy as unknown as (args: {
+      by: ["lgaCode"];
+      where: { lgaCode: { not: string } };
+      _count: { _all: true };
+      _max: { createdAt: true };
+      orderBy: { lgaCode: "asc" };
+    }) => Promise<DcpGroupRecord[]>;
+    dcpGroups = await groupDcpClauses({
       by: ["lgaCode"],
       where: { lgaCode: { not: "" } },
       _count: { _all: true },
       _max: { createdAt: true },
       orderBy: { lgaCode: "asc" },
-    }),
-  ]);
+    }) as typeof dcpGroups;
+  } catch (error) {
+    console.error("[ingest-status] council DCP status failed", error);
+    warnings.push("council_dcp_status_unavailable");
+  }
 
   const instrumentRecordsBySlug = new Map(instruments.map((instrument) => [instrument.slug, instrument]));
 
@@ -78,6 +100,7 @@ export async function GET(request: Request) {
     generatedAt: new Date().toISOString(),
     instruments: instrumentStatuses,
     councilDcp,
+    warnings,
     summary: {
       totalInstruments: instrumentStatuses.length,
       instrumentsWithClauses: instrumentStatuses.filter((instrument) => instrument.clauseCount > 0).length,
