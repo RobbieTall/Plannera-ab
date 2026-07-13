@@ -308,6 +308,20 @@ Replaced the placeholder review CTA with a working expert review request workflo
 
 Success signal: clicking Request expert review after Quick Site Check + SEE saves an expert review package artefact instead of showing placeholder guidance.
 
-## 40) Paid export/review conversion gate — TODO
+## 40) Paid export/review conversion gate — OUT OF SCOPE FOR NOW
 
 Add the smallest billing-aware gate around SEE download and expert review request submission so users can preview readiness, then choose paid export or planner review without changing the underlying artefact generation flow.
+
+Do not build billing, payment, paywall, account-tier, or paid conversion logic until the commercialisation scope explicitly re-opens this item.
+
+## 41) Surface saved expert review requests in Outputs — ✅ DONE (2026-07-13)
+
+Added a dedicated Expert Review Request card to the workspace Outputs panel. Saved `review_request` artefacts now remain visible after creation and refresh, with the packaged site context, included artefacts, citation count, confidence gaps, missing inputs, assumptions, and recommended planner review scope available for users to revisit.
+
+Commercial value: Byron/Kempsey users no longer lose the review package behind a toast. The workspace now preserves the handoff artefact as a tangible output that reinforces progress toward planner review without introducing billing, payment, paywall, or account-tier logic.
+
+Success signal: after clicking Request expert review from a Byron/Kempsey project with a saved Quick Site Check and SEE draft, the Outputs panel shows an Expert Review Request card that can be reopened to inspect the packaged review assumptions and scope.
+
+## 42) Review request copy/download handoff — TODO
+
+Add a non-billing handoff control on the Expert Review Request card so users can copy the packaged review request summary, gaps, assumptions, and review scope to the clipboard or download it as a plain-text file for planner/email sharing.
