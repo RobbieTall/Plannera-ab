@@ -531,15 +531,37 @@ const hasCitedQuickSiteCheckEvidence = (report: QuickSiteCheckReport | null) => 
   return hasResolvedZone && (hasApplicablePermissibility || citedControls.length > 0);
 };
 
+const READINESS_CONFLICT_SCOPE = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
+const READINESS_ZONE_CODE = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/i;
+const siteZoneCodeForReadiness = (memo: WorkspacePreSeePlanningMemoContent) =>
+  memo.siteDescription.zoneCode?.trim().toUpperCase() || memo.siteDescription.zoneLabel?.match(READINESS_ZONE_CODE)?.[0]?.toUpperCase() || null;
+const isApplicableReadinessText = (text: string, zoneCode: string | null) => {
+  const isCommercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
+  if (!isCommercialOrTourist) return text.trim().length > 0;
+  const mentionsCurrentZone = Boolean(zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(text));
+  const scope = text.split("\n", 1)[0] ?? text;
+  if (READINESS_CONFLICT_SCOPE.test(scope) && !mentionsCurrentZone) return false;
+  if (READINESS_CONFLICT_SCOPE.test(text) && !mentionsCurrentZone) return false;
+  return text.trim().length > 0;
+};
+
 const hasQualitySeeEvidence = (memo: WorkspacePreSeePlanningMemoContent | null) => {
   if (!memo) return false;
   const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
+  if (!hasSiteZone) return false;
+  const zoneCode = siteZoneCodeForReadiness(memo);
+  const applicableDcpRefs = new Set(
+    (memo.applicableControls.dcpClauses ?? [])
+      .filter((clause) => isApplicableReadinessText([clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n"), zoneCode))
+      .map((clause) => clause.title || clause.ref || clause.headingPath.join(" > "))
+      .filter(Boolean),
+  );
   const assessmentCitations = memo.consistencyAssessment.flatMap((item) => item.citations ?? []);
-  const hasRetrievedEvidence =
-    assessmentCitations.length > 0 ||
-    (memo.applicableControls.dcpClauses ?? []).some((clause) => clause.bodyText.trim().length > 0) ||
-    (memo.applicableControls.sourceExcerpts ?? []).some((excerpt) => excerpt.content.trim().length > 0);
-  return hasSiteZone && hasRetrievedEvidence;
+  const hasApplicableCitation = assessmentCitations.some((citation) => citation.type === "LEP" || applicableDcpRefs.has(citation.ref));
+  const hasApplicableRetrievedEvidence =
+    applicableDcpRefs.size > 0 ||
+    (memo.applicableControls.sourceExcerpts ?? []).some((excerpt) => isApplicableReadinessText([excerpt.heading, excerpt.content].filter(Boolean).join("\n"), zoneCode));
+  return hasApplicableCitation || hasApplicableRetrievedEvidence;
 };
 
 const normaliseReviewRequestContent = (value: unknown): ReviewRequestContent | null => {
@@ -2920,23 +2942,30 @@ export function ProjectWorkspace({
   );
   const hasQualityQuickSiteCheck = hasCitedQuickSiteCheckEvidence(normaliseQuickSiteCheckReport(latestQuickSiteCheckArtefact?.quickSiteCheck));
   const hasQualitySee = hasQualitySeeEvidence(latestSeeContent);
-  const hasSiteContext = Boolean(siteContext);
+  const hasPendingInitialSiteConfirmation = Boolean(initialInlineAddress && !siteContext);
+  const hasSiteContext = Boolean(siteContext) || hasPendingInitialSiteConfirmation;
   const commercialNextAction = useMemo(
     () =>
       buildCommercialNextAction({
         hasSiteContext,
-        lgaName: siteContext?.lgaName ?? sessionSignals.lga,
-        lgaCode: siteContext?.lgaCode ?? sessionSignals.lga,
+        lgaName: hasPendingInitialSiteConfirmation
+          ? "Byron/Kempsey launch address confirming"
+          : siteContext?.lgaName ?? sessionSignals.lga,
+        lgaCode: hasPendingInitialSiteConfirmation
+          ? "BYRON_KEMPSEY_CONFIRMING"
+          : siteContext?.lgaCode ?? sessionSignals.lga,
         zoneLabel: zoningLabel,
         coverageMaturity: lgaCoverageMaturity,
         hasQuickSiteCheck: Boolean(latestQuickSiteCheckArtefact),
         hasSee: Boolean(latestSeeContent),
         hasQualityQuickSiteCheck,
         hasQualitySee,
+        isPendingInitialSiteConfirmation: hasPendingInitialSiteConfirmation,
       }),
     [
       hasSiteContext,
       hasQualityQuickSiteCheck,
+      hasPendingInitialSiteConfirmation,
       hasQualitySee,
       latestQuickSiteCheckArtefact,
       latestSeeContent,
@@ -3105,14 +3134,14 @@ export function ProjectWorkspace({
       <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin className="h-4 w-4 text-slate-500" />
-          <span>{siteContext?.formattedAddress ?? (initialInlineAddress && !siteContextLoaded ? "Confirming site…" : "No site set")}</span>
+          <span>{siteContext?.formattedAddress ?? (hasPendingInitialSiteConfirmation ? "Confirming site…" : "No site set")}</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
           <Layers3 className="h-3.5 w-3.5" />
           {zoningLabel ? (
             <span>Zoning: {zoningLabel}</span>
           ) : (
-            <span>{initialInlineAddress && (!siteContextLoaded || isConfirmingSite) ? "Zoning: Confirming…" : "Zoning: Not available"}</span>
+            <span>{hasPendingInitialSiteConfirmation ? "Zoning: Confirming…" : "Zoning: Not available"}</span>
           )}
         </div>
         {siteContext?.councilMap?.url ? (

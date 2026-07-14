@@ -44,7 +44,7 @@ const truncateForPrompt = (value: string, maxLength: number) => {
 
 const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
 const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre", "tourist", "visitor", "hotel", "motel", "serviced apartment"];
-const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "dual occupancy", "secondary dwelling", "bed and breakfast"];
+const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "residential d1", "dual occupancy", "secondary dwelling", "bed and breakfast", "top-up housing", "top up housing"];
 
 const normalizeZone = (zone?: string | null) => {
   const value = zone?.trim() ?? "";
@@ -61,10 +61,18 @@ const zoneRelevance = (params: { query: string; text: string; siteZone?: string 
   if (!site.code && !site.name) return { score: 0, exclude: false };
 
   const text = params.text.toLowerCase();
+  const [scopeText] = params.text.split("\n", 1);
+  const scope = scopeText.toLowerCase();
+  const scopeZones = explicitZoneCodes(scopeText);
   const zones = explicitZoneCodes(params.text);
   const unrelatedZones = site.code ? zones.filter((zone) => zone !== site.code) : zones;
   const matchesSiteCode = Boolean(site.code && zones.includes(site.code));
   const matchesSiteName = Boolean(site.name && text.includes(site.name));
+  const scopeNamesAnotherZone = Boolean(site.code && scopeZones.length && !scopeZones.includes(site.code));
+  const conflictingScopedUse = RURAL_RESIDENTIAL_ONLY_TERMS.some((term) => scope.includes(term));
+  if ((scopeNamesAnotherZone || conflictingScopedUse) && (site.code === "E2" || site.code === "SP3" || site.name.includes("commercial") || site.name.includes("tourist"))) {
+    return { score: -80, exclude: true };
+  }
   const queryMentionsUnrelatedZone = unrelatedZones.some((zone) => params.query.toLowerCase().includes(zone.toLowerCase()));
 
   if (unrelatedZones.length && !matchesSiteCode && !matchesSiteName && !queryMentionsUnrelatedZone) {
@@ -174,7 +182,8 @@ const findLepClauses = async (params: {
   return instruments
     .flatMap((instrument) =>
       instrument.clauses.map((clause) => {
-        const haystack = `${clause.clauseKey} ${clause.title ?? ""} ${clause.bodyText}`;
+        const haystack = `${clause.clauseKey} ${clause.title ?? ""}
+${clause.bodyText}`;
         const zoneScore = zoneRelevance({ query: params.query, text: haystack, siteZone: params.siteZone });
         return {
           clauseKey: clause.clauseKey,
