@@ -315,6 +315,17 @@ const buildEvidenceGapGuidance = (params: {
 };
 
 
+
+const GENERIC_PLAN_SOURCE_REF_REGEX = /\b[A-Z]+_\d{4}_1\b|\bcl\.\s*[A-Z]+_\d{4}_1\b/i;
+const isGenericPlanSourceRef = (ref: string | null | undefined) => Boolean(ref && GENERIC_PLAN_SOURCE_REF_REGEX.test(ref));
+const removeGenericPlanSourceRefs = (text: string) =>
+  text
+    .replace(/\n?\s*(?:Source|Cited source):\s*(?:cl\.\s*)?[A-Z]+_\d{4}_1\.?/gi, "")
+    .replace(/(?:cl\.\s*)?[A-Z]+_\d{4}_1/gi, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 const answerSupportGapReply = (lgaLabel: string, topic: "side_setback" | "secondary_dwelling") =>
   topic === "side_setback"
     ? `I can’t confirm the side setback for ${lgaLabel} from the applicable retrieved site controls. The retrieved evidence does not contain a site-applicable side-setback control, so I’m keeping this unresolved rather than inferring a minimal or zero setback.`
@@ -1499,6 +1510,7 @@ When the user asks about local controls, rely first on the council Development C
     if (
       availableLepSourceRefs.length > 0 &&
       citedRefs.length === 0 &&
+      !isGenericPlanSourceRef(availableLepSourceRefs[0]) &&
       !forcedFallbackReply &&
       usedDcpChunksForAttribution.length === 0 &&
       dcpClauses.length === 0
@@ -1507,6 +1519,8 @@ When the user asks about local controls, rely first on the council Development C
       citedRefs = [availableLepSourceRefs[0]];
     }
 
+    reply = removeGenericPlanSourceRefs(reply);
+    citedRefs = citedRefs.filter((ref) => !isGenericPlanSourceRef(ref));
     lepSourceRefsForPersist = citedRefs;
 
     await persistWorkspaceChatExchange({

@@ -78,8 +78,11 @@ export const cleanXmlLikeString = (text: string | null | undefined) => {
 
 export const toZoneCode = (value: string | null | undefined) => {
   if (!value) return null;
-  const match = value.trim().match(/([A-Z]{1,3}\d?[A-Z]?)/i);
-  return match ? match[1]?.toUpperCase() ?? null : null;
+  const trimmed = value.trim();
+  const explicitZoneMatch = trimmed.match(/\bZone\s+([A-Z]{1,3}\d[A-Z]?)\b/i);
+  if (explicitZoneMatch?.[1]) return explicitZoneMatch[1].toUpperCase();
+  const codeMatch = trimmed.match(/\b([A-Z]{1,3}\d[A-Z]?)\b/i);
+  return codeMatch ? codeMatch[1]?.toUpperCase() ?? null : null;
 };
 
 export const splitZoneSections = (text: string): Record<ZoneSectionKey, string> => {

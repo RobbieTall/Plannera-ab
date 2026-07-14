@@ -553,7 +553,7 @@ describe("workspace-chat forced fallback", () => {
 
   it("uses zone-aware DCP retrieval and suppresses stale preparing notice for searchable Kempsey DCP", async () => {
     getSiteContextForProjectMock.mockResolvedValue({
-      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      formattedAddress: "52 Belgrave St, Kempsey NSW 2440",
       lgaCode: "KEMPSEY",
       lgaName: "Kempsey Shire",
       zone: "E2 Commercial Centre",
@@ -619,7 +619,7 @@ describe("workspace-chat forced fallback", () => {
 
   it("treats retrieved Kempsey DCP chunks as searchable evidence and does not append unrelated LEP fallback sources", async () => {
     getSiteContextForProjectMock.mockResolvedValue({
-      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      formattedAddress: "52 Belgrave St, Kempsey NSW 2440",
       lgaCode: "KEMPSEY",
       lgaName: "Kempsey Shire",
       zone: "E2 Commercial Centre",
@@ -698,7 +698,7 @@ describe("workspace-chat forced fallback", () => {
 
   it("removes unsupported Kempsey E2 side-setback model inference and attribution at the final boundary", async () => {
     getSiteContextForProjectMock.mockResolvedValue({
-      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      formattedAddress: "52 Belgrave St, Kempsey NSW 2440",
       lgaCode: "KEMPSEY",
       lgaName: "Kempsey Shire",
       zone: "E2 Commercial Centre",
@@ -793,7 +793,7 @@ describe("workspace-chat forced fallback", () => {
       method: "POST",
       body: JSON.stringify({ projectId: "proj-1", message: "Can I build a secondary dwelling here?" }),
     }));
-    const payload = (await response.json()) as { reply: string; lepSourceRefs: string[] };
+    const payload = (await response.json()) as { reply: string; lepSourceRefs: string[]; sourceAttribution: { sources: Array<{ ref?: string; title?: string }> } };
 
     expect(response.status).toBe(200);
     expect(payload.reply).toContain("I can’t confirm whether a secondary dwelling is permitted here");
@@ -801,6 +801,17 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.reply).not.toContain("Cited source");
     expect(payload.reply).not.toContain("BYRON_2014_1");
     expect(payload.lepSourceRefs).toEqual([]);
+    expect(JSON.stringify(payload.sourceAttribution)).not.toContain("BYRON_2014_1");
+
+    expect(chatMessageCreateManyMock).toHaveBeenCalled();
+    const persistedRows = chatMessageCreateManyMock.mock.calls.at(-1)?.[0]?.data ?? [];
+    const persistedAssistant = persistedRows.find((row: { role?: string }) => row.role === "assistant") as
+      | { content?: string; lepSourceRefs?: string[] | null }
+      | undefined;
+    expect(persistedAssistant?.content).toContain("I can’t confirm whether a secondary dwelling is permitted here");
+    expect(persistedAssistant?.content).not.toContain("BYRON_2014_1");
+    expect(persistedAssistant?.content).not.toMatch(/Source:\s*(?:cl\.\s*)?BYRON_2014_1/i);
+    expect(persistedAssistant?.lepSourceRefs ?? []).toEqual([]);
   });
 
 

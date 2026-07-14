@@ -155,6 +155,8 @@ type SourceAttributionDcpChunk = {
   metadata?: unknown;
 };
 
+const GENERIC_PLAN_SOURCE_REF_REGEX = /\b[A-Z]+_\d{4}_1\b|\bcl\.\s*[A-Z]+_\d{4}_1\b/i;
+
 const SEARCHABLE_COVERAGE_STATES = ["SEARCHABLE_READY", "STRUCTURED_PARTIAL", "VERIFIED"] as const;
 
 const isSearchableCoverageState = (coverageState: string | null | undefined) =>
@@ -204,6 +206,7 @@ export const buildSourceAttribution = (params: {
   if (isSearchableCoverageState(params.coverageState)) {
     for (const clause of (params.clauses ?? []).slice(0, 4)) {
       if (clause.instrumentType !== "LEP" && clause.instrumentType !== "SEPP") continue;
+      if (GENERIC_PLAN_SOURCE_REF_REGEX.test(`${clause.clauseKey} ${clause.title ?? ""}`)) continue;
       sources.push({
         ref: `${clause.instrumentName} ${clause.clauseKey}`,
         type: clause.instrumentType,

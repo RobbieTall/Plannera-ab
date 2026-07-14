@@ -50,7 +50,7 @@ Safe LEP zone-projection refresh for an already-ingested production corpus:
 POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET&lga=BYRON
 POST /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET&lga=KEMPSEY
 
-When current clause rows already exist and `force=true` is omitted, the endpoint keeps the raw clause corpus, rereads the bundled XML, refreshes the shared `LepZoneObjective` / `LepZoneLandUse` projections, and reports `zoneProjectionRefreshes` counts. Use `force=true` only when intentionally replacing the clause corpus.
+When current clause rows already exist and `force=true` is omitted, the endpoint keeps the raw clause corpus, rereads the bundled XML, refreshes the shared `LepZoneObjective` / `LepZoneLandUse` projections, and reports `zoneProjectionRefreshes` counts plus explicit refreshed `zoneCodes`, so operators can verify the target zone (for example `SP3` or `E2`) rather than trusting aggregate non-zero counts. Use `force=true` only when intentionally replacing the clause corpus.
 
 Check coverage:
 GET /api/admin/ingest-lep?secret=INGEST_ADMIN_SECRET
@@ -70,7 +70,7 @@ Byron Shire (Byron Bay) and Kempsey Shire are the two production test LGAs for P
 - LEP: Kempsey LEP 2013 (`data/nsw/xml/Kempsey-lep-2013.xml`) — registered in `instruments.json` as `kempsey-lep-2013`
 - DCP: Kempsey DCP 2026 PDF parts — wired through the council DCP ingestion flow as `KEMPSEY_DCP_2026` for searchable DCP chunks (see build-next.md item 24)
 - SEPPs: All NSW 2021 SEPPs apply state-wide via `DEFAULT_SEPP_SLUGS`
-- Coverage status: LEP + SEPP ingestion still required per environment; Kempsey DCP ingestion is implemented and should be run/verified in the target DB. Quick Site Check structured E2 Commercial Centre controls are being exercised through the current launch test work, without claiming full production verification yet.
+- Coverage status: LEP + SEPP ingestion still required per environment; Kempsey DCP ingestion is implemented and should be run/verified in the target DB. Quick Site Check structured E2 Commercial Centre controls are exercised with `52 Belgrave St, Kempsey NSW 2440`; `32 Smith St, Kempsey NSW 2440` is an SP2 Infrastructure truth case and must not be used as the E2 QA address.
 
 **To activate both LGAs in production, run:**
 ```bash

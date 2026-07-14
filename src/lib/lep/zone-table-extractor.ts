@@ -21,7 +21,7 @@ type ExtractedZoneTable = {
   source: ZoneBlock["source"];
 };
 
-const ZONE_HEADING_REGEX = /(^|\n)\s*zone\s+([A-Z]{1,3}\d?[A-Z]?)[^\n]*/gi;
+const ZONE_HEADING_REGEX = /(^|\n)\s*(?:[-*•]\s*)?(?:\([a-z0-9]+\)\s*)?Zone\s+([A-Z]{1,3}\d[A-Z]?)(?:\s+[^\n]*)?/gi;
 
 const extractZoneBlocksFromClause = (clause: ClauseLike): ZoneBlock[] => {
   const text = clause.bodyText ?? "";

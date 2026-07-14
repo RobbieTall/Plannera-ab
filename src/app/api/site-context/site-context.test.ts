@@ -448,8 +448,9 @@ describe("site-context api validation", () => {
 
   it("applies scoped launch-fixture zoning for fresh Byron and Kempsey site confirmations", async () => {
     const fixtures = [
-      { projectId: "proj-byron", address: "45 Broken Head Road, Byron Bay NSW 2481", code: "RU2", name: "Rural Landscape" },
-      { projectId: "proj-kempsey", address: "32 Smith St Kempsey NSW 2440", code: "E2", name: "Commercial Centre" },
+      { projectId: "proj-byron", address: "45 Broken Head Road, Byron Bay NSW 2481", code: "SP3", name: "Tourist" },
+      { projectId: "proj-kempsey-sp2", address: "32 Smith St Kempsey NSW 2440", code: "SP2", name: "Infrastructure" },
+      { projectId: "proj-kempsey-e2", address: "52 Belgrave St Kempsey NSW 2440", code: "E2", name: "Commercial Centre" },
     ];
 
     for (const fixture of fixtures) {
@@ -478,10 +479,14 @@ describe("site-context api validation", () => {
 
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "db-proj-byron" },
-      data: { zoningCode: "RU2", zoningName: "Rural Landscape", zoningSource: "NSW_EPI_LZN" },
+      data: { zoningCode: "SP3", zoningName: "Tourist", zoningSource: "NSW_EPI_LZN" },
     });
     expect(projectUpdateMock).toHaveBeenCalledWith({
-      where: { id: "db-proj-kempsey" },
+      where: { id: "db-proj-kempsey-sp2" },
+      data: { zoningCode: "SP2", zoningName: "Infrastructure", zoningSource: "NSW_EPI_LZN" },
+    });
+    expect(projectUpdateMock).toHaveBeenCalledWith({
+      where: { id: "db-proj-kempsey-e2" },
       data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "NSW_EPI_LZN" },
     });
   });
