@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import type { QuickSiteCheckLepResponse, QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { WorkspaceSessionSignals } from "@/types/workspace";
+import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 
 type QuickSiteCheckModalProps = {
   open: boolean;
@@ -152,6 +153,20 @@ export function QuickSiteCheckModal({
   const { requireAuth } = useAuthGuard();
 
   const hasResult = Boolean(result);
+  const evidenceSummary = useMemo(() => (result ? summariseQuickSiteCheckEvidence(result) : null), [result]);
+  const evidenceTone = evidenceSummary?.label === "Cited"
+    ? {
+        panel: "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/30",
+        heading: "text-emerald-900 dark:text-emerald-100",
+        body: "text-emerald-800 dark:text-emerald-100",
+        meta: "text-emerald-700 dark:text-emerald-200",
+      }
+    : {
+        panel: "border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-800/60",
+        heading: "text-slate-900 dark:text-slate-100",
+        body: "text-slate-700 dark:text-slate-200",
+        meta: "text-slate-500 dark:text-slate-300",
+      };
 
   const lepHeading = useMemo(() => {
     if (!result) return null;
@@ -296,6 +311,19 @@ export function QuickSiteCheckModal({
 
       {result ? (
         <div className="mt-4 space-y-4">
+          {evidenceSummary ? (
+            <div className={`rounded-2xl border p-4 text-sm ${evidenceTone.panel}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className={`font-semibold ${evidenceTone.heading}`}>LEP evidence quality: {evidenceSummary.label}</p>
+                <p className={`text-xs font-medium ${evidenceTone.meta}`}>{evidenceSummary.sourceRef}</p>
+              </div>
+              <p className={`mt-1 ${evidenceTone.body}`}>{evidenceSummary.detail}</p>
+              <p className={`mt-2 text-xs ${evidenceTone.meta}`}>
+                This evidence-quality label covers LEP evidence only; overlays, DCP controls and proposal-specific pathway advice still require separate verification.
+              </p>
+            </div>
+          ) : null}
+
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/60">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Zone objectives</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
