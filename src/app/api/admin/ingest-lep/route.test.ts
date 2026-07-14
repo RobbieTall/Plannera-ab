@@ -18,6 +18,8 @@ const {
   projectUpdateMock,
   lepZoneObjectiveCountMock,
   lepZoneLandUseCountMock,
+  lepZoneObjectiveFindManyMock,
+  lepZoneLandUseFindManyMock,
   clauseCountMock,
 } = vi.hoisted(() => ({
   isAuthorizedMock: vi.fn(),
@@ -37,6 +39,8 @@ const {
   projectUpdateMock: vi.fn(),
   lepZoneObjectiveCountMock: vi.fn(),
   lepZoneLandUseCountMock: vi.fn(),
+  lepZoneObjectiveFindManyMock: vi.fn(),
+  lepZoneLandUseFindManyMock: vi.fn(),
   clauseCountMock: vi.fn(),
 }));
 
@@ -57,8 +61,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     instrument: { findUnique: instrumentFindUniqueMock, findMany: instrumentFindManyMock },
     project: { findMany: projectFindManyMock, update: projectUpdateMock },
-    lepZoneObjective: { count: lepZoneObjectiveCountMock },
-    lepZoneLandUse: { count: lepZoneLandUseCountMock },
+    lepZoneObjective: { count: lepZoneObjectiveCountMock, findMany: lepZoneObjectiveFindManyMock },
+    lepZoneLandUse: { count: lepZoneLandUseCountMock, findMany: lepZoneLandUseFindManyMock },
     clause: { count: clauseCountMock },
   },
 }));
@@ -87,6 +91,8 @@ describe("POST /api/admin/ingest-lep", () => {
     projectFindManyMock.mockResolvedValue([]);
     projectUpdateMock.mockResolvedValue({});
     clauseCountMock.mockResolvedValue(103);
+    lepZoneObjectiveFindManyMock.mockResolvedValue([{ zoneCode: "E2" }]);
+    lepZoneLandUseFindManyMock.mockResolvedValue([{ zoneCode: "E2" }, { zoneCode: "SP3" }]);
   });
 
   it("refreshes zone projections idempotently when an existing clause corpus is posted without force", async () => {
@@ -113,6 +119,7 @@ describe("POST /api/admin/ingest-lep", () => {
         objectiveCount: 6,
         landUseCount: 42,
         zoneCount: 3,
+        zoneCodes: ["E2", "SP3"],
         source: "existing",
       },
     ]);

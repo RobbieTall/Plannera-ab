@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 type IngestError = { lga: string; error: string };
-type ZoneProjectionRefresh = { slug: string; objectiveCount: number; landUseCount: number; zoneCount: number; source: "ingested" | "existing" };
+type ZoneProjectionRefresh = { slug: string; objectiveCount: number; landUseCount: number; zoneCount: number; zoneCodes: string[]; source: "ingested" | "existing" };
 
 
 const getProvidedSecret = (request: Request, url: URL) => {
@@ -37,6 +37,14 @@ const getProvidedSecret = (request: Request, url: URL) => {
 
 const getTargetLabel = (target: ReturnType<typeof listLocalNswLepPreparations>[number]) =>
   target.details.canonicalLga ?? target.details.lgaCode ?? target.details.lgaName ?? target.config.slug;
+
+const getZoneCodes = async (instrumentId: string) => {
+  const [objectiveZones, landUseZones] = await Promise.all([
+    prisma.lepZoneObjective.findMany({ where: { instrumentId }, distinct: ["zoneCode"], select: { zoneCode: true } }),
+    prisma.lepZoneLandUse.findMany({ where: { instrumentId }, distinct: ["zoneCode"], select: { zoneCode: true } }),
+  ]);
+  return [...new Set([...objectiveZones, ...landUseZones].map((entry) => entry.zoneCode).filter(Boolean))].sort();
+};
 
 const getCurrentClauseCount = async (slug: string) => {
   const instrument = await prisma.instrument.findUnique({
@@ -217,7 +225,8 @@ export async function POST(request: Request) {
           prisma.lepZoneObjective.count({ where: { instrumentId: instrument.id } }),
           prisma.lepZoneLandUse.count({ where: { instrumentId: instrument.id } }),
         ]);
-        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, source: "existing" });
+        const zoneCodes = await getZoneCodes(instrument.id);
+        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, zoneCodes, source: "existing" });
         skipped.push(target.config.slug);
         totalClauses += existingClauseCount;
         console.log("[INGEST-LEP] Existing corpus kept; refreshed zone projections", { lga, slug: config.slug, existingClauseCount, objectiveCount, landUseCount, zoneCount });
@@ -239,7 +248,8 @@ export async function POST(request: Request) {
           prisma.lepZoneObjective.count({ where: { instrumentId: result.instrument.id } }),
           prisma.lepZoneLandUse.count({ where: { instrumentId: result.instrument.id } }),
         ]);
-        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, source: "ingested" });
+        const zoneCodes = await getZoneCodes(result.instrument.id);
+        zoneProjectionRefreshes.push({ slug: config.slug, objectiveCount, landUseCount, zoneCount, zoneCodes, source: "ingested" });
         totalClauses += clauseCount;
         const backfilledProjects = await backfillProjectLepData(lga, xmlDocument);
         ingested.push(config.slug);

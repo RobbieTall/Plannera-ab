@@ -126,9 +126,12 @@ const resolveLaunchFixtureZoning = (address: string | null | undefined): ZoningR
   const key = normalizeAddressFixtureKey(address);
   if (!key) return null;
   if (key.includes("45 broken head road") && key.includes("byron")) {
-    return { zoneCode: "RU2", zoneName: "Rural Landscape", source: "NSW_EPI_LZN" };
+    return { zoneCode: "SP3", zoneName: "Tourist", source: "NSW_EPI_LZN" };
   }
   if (key.includes("32 smith") && key.includes("kempsey")) {
+    return { zoneCode: "SP2", zoneName: "Infrastructure", source: "NSW_EPI_LZN" };
+  }
+  if (key.includes("52 belgrave") && key.includes("kempsey")) {
     return { zoneCode: "E2", zoneName: "Commercial Centre", source: "NSW_EPI_LZN" };
   }
   return null;

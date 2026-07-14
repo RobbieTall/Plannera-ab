@@ -1,4 +1,10 @@
+import fs from "fs";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { buildLepConfigFromFileSync } from "@/lib/lep/lep-ingest-files";
+import { parseInstrumentDocument } from "@/lib/legislation/parser";
+import { extractZoneTables } from "@/lib/lep/zone-table-extractor";
 
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -28,6 +34,16 @@ vi.mock("@/lib/lep/lep-search", () => ({ buildLepInstrumentFilter: (lga: string)
 vi.mock("@/lib/lep/nsw-lga-normaliser", () => ({ resolveCanonicalNswLga: (lga: string) => lga }));
 
 const { buildQuickSiteCheckLep } = await import("./quick-site-check");
+
+
+const realZoneProjection = (xmlPath: string, zoneCode: string) => {
+  const xml = fs.readFileSync(xmlPath, "utf-8");
+  const { config } = buildLepConfigFromFileSync(xmlPath, { xml });
+  const clauses = parseInstrumentDocument(config, xml, "xml");
+  const table = extractZoneTables(clauses).find((entry) => entry.zoneCode === zoneCode);
+  if (!table) throw new Error(`Missing ${zoneCode} in ${xmlPath}`);
+  return table;
+};
 
 const clause = (clauseKey: string, title: string, bodyText: string, hierarchyPath = ["Part 4"]) => ({
   clauseKey,
@@ -92,6 +108,33 @@ describe("buildQuickSiteCheckLep", () => {
     expect(result.permissibility?.permittedWithConsent).toContain("Commercial premises");
     expect(result.permissibility?.prohibited).toContain("Heavy industrial storage establishment");
     expect(result.controls.heightOfBuilding).toEqual({ value: "11m", clauseRef: "4.3", confidence: "Cited" });
+    expect(result.debug?.zoneObjectiveSource).toBe("ingested");
+    expect(result.debug?.landUseSource).toBe("ingested");
+  });
+
+
+  it.each([
+    ["Byron", "Byron LEP 2014", "byron-lep-2014", "SP3", "data/nsw/xml/Byron-lep-2014.xml"],
+    ["Kempsey", "Kempsey LEP 2013", "kempsey-lep-2013", "E2", "data/nsw/xml/Kempsey-lep-2013.xml"],
+  ])("uses actual extracted %s %s projections for a fresh project without project lepData", async (lgaName, instrumentName, slug, zoneCode, xmlPath) => {
+    const projection = realZoneProjection(xmlPath, zoneCode);
+    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName, zoningCode: zoneCode, lepData: null });
+    mocks.prisma.instrument.findFirst.mockResolvedValue({ id: "instrument-1", name: instrumentName, slug });
+    mocks.prisma.lepZoneObjective.findMany.mockResolvedValue(projection.objectives.map((objective) => ({ objective })));
+    mocks.prisma.lepZoneLandUse.findMany.mockResolvedValue([
+      ...projection.landUse.withConsent.map((description) => ({ permission: "WITH_CONSENT", description })),
+      ...projection.landUse.prohibited.map((description) => ({ permission: "PROHIBITED", description })),
+      ...projection.landUse.withoutConsent.map((description) => ({ permission: "WITHOUT_CONSENT", description })),
+    ]);
+    mocks.prisma.clause.findMany.mockResolvedValue([]);
+
+    const result = await buildQuickSiteCheckLep("project-1", { debug: true });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.objectives.length).toBeGreaterThan(0);
+    expect(result.permissibility?.permittedWithConsent.length).toBeGreaterThan(0);
+    expect(result.permissibility?.prohibited.length).toBeGreaterThan(0);
     expect(result.debug?.zoneObjectiveSource).toBe("ingested");
     expect(result.debug?.landUseSource).toBe("ingested");
   });

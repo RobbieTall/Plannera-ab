@@ -306,9 +306,10 @@ const XML_CLAUSE_TAGS = [
   "cl",
   "sect",
   "rule",
+  "clausegroup",
 ];
 const XML_TIER_TYPES = new Set(["chapter", "part", "division", "subdivision", "schedule", "annexure", "attachment"]);
-const XML_CLAUSE_TYPES = new Set(["clause", "section", "provision", "prov", "zoningtable", "zoning-table", "item"]);
+const XML_CLAUSE_TYPES = new Set(["clause", "section", "provision", "prov", "zoningtable", "zoning-table", "item", "clausegroup"]);
 const XML_TIER_TAGS = new Set(["chapter", "part", "division", "subdivision", "schedule", "annexure", "attachment"]);
 
 const detectDocumentFormat = (content: string, declared?: InstrumentFetchResult["format"]) => {

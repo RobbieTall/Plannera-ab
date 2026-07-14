@@ -245,7 +245,7 @@ describe("SEE DCP applicability and readiness evidence", () => {
     expect(applicable.map((clause) => clause.ref)).toEqual(["Part D-649", "Part B-33"]);
     expect(
       hasApplicableSeeReadinessEvidence({
-        siteDescription: { address: "32 Smith St", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 Commercial Centre" },
+        siteDescription: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 Commercial Centre" },
         applicableControls: {
           lepInstrument: null,
           permissibility: null,
