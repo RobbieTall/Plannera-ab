@@ -44,7 +44,7 @@ const truncateForPrompt = (value: string, maxLength: number) => {
 
 const NSW_ZONE_CODE_PATTERN = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/gi;
 const COMMERCIAL_ZONE_TERMS = ["commercial centre", "local centre", "business", "retail", "shop", "office", "centre", "tourist", "visitor", "hotel", "motel", "serviced apartment"];
-const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "dual occupancy", "secondary dwelling", "bed and breakfast"];
+const RURAL_RESIDENTIAL_ONLY_TERMS = ["rural zone", "rural zones", "rural land", "rural boundary", "residential zone", "residential zones", "residential d1", "dual occupancy", "secondary dwelling", "bed and breakfast", "top-up housing", "top up housing"];
 
 const normalizeZone = (zone?: string | null) => {
   const value = zone?.trim() ?? "";

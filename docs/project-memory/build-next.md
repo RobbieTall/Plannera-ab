@@ -208,12 +208,14 @@ Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN
 
 Success signal: hitting the endpoint against the production Vercel deployment shows Byron LEP, Kempsey LEP, and all SEPPs with non-zero clause counts, confirming the DB is live.
 
-## 28) Byron + Kempsey end-to-end live test — QA FIX IN PR
+## 28) Byron + Kempsey end-to-end live test — OPEN (post-deploy refresh/live QA pending)
 
 
 2026-07-13 production launch QA follow-up: fixed ingest-status to return JSON with warnings instead of HTTP 500 when a production status query fails; changed the landing Generate pathway to create a fresh project for each submitted address so old workspace state is not reused; added current-site matching for saved Quick Site Check, SEE, and review request artefacts so Byron/Kempsey mismatches remain history but do not count toward readiness; and preserved structured Kempsey E2 Quick Site Check controls in saved artefacts/output state.
 
-2026-07-13 Item 28 follow-up after PR #278: fixed the remaining fresh-site zoning blocker by preserving resolver-provided zoning when the spatial zoning service returns no feature and adding a tightly scoped launch-fixture fallback for the two live QA addresses only: 45 Broken Head Road, Byron Bay (RU2 Rural Landscape) and 32 Smith St, Kempsey (E2 Commercial Centre). Fresh landing initialAddress auto-confirmation and Change Site → Use this site now save project zoning fields so the Site card surfaces a zone and Quick Site Check is no longer blocked, while PR #278 site-isolation and stale artefact history behaviour remains unchanged.
+2026-07-14 corrective follow-up after PR #282: added missing automated coverage for idempotent existing-corpus LEP POST projection refresh, fresh Kempsey E2 shared-projection Quick Site Check, applicability-aware chat/support retrieval, SEE evidence-quality exclusions, exact conflicting LEP scope exclusions including top-up housing, title/hierarchy precedence while preserving general/current-zone controls, and pending initial-address UI/readiness handling. Item 28 remains open until the child PR is deployed, Byron/Kempsey production ingest refresh is run, and live QA confirms Quick Site Check, chat, SEE, and feasibility outputs are predominantly cited and site-applicable.
+
+2026-07-13 Item 28 follow-up after PR #278: fixed the remaining fresh-site zoning blocker by preserving resolver-provided zoning when the spatial zoning service returns no feature and adding a tightly scoped launch-fixture fallback for the two live QA addresses only: 45 Broken Head Road, Byron Bay (production evidence currently SP3 Tourist; older RU2 launch-fixture notes are stale) and 32 Smith St, Kempsey (E2 Commercial Centre). Fresh landing initialAddress auto-confirmation and Change Site → Use this site now save project zoning fields so the Site card surfaces a zone and Quick Site Check is no longer blocked, while PR #278 site-isolation and stale artefact history behaviour remains unchanged.
 
 Before enabling auth/paywall, manually verify the following user journeys work end-to-end on production (plannera-ab.vercel.app):
 
@@ -221,7 +223,7 @@ Note: Before starting the manual test journeys, run all automated production ing
 
 Byron Bay test:
 
-- Enter "45 Broken Head Road, Byron Bay NSW 2481" → Quick Site Check returns real zone (RU2/R2/E3), permissibility table, height limit and FSR from Byron LEP 2014 clauses (Cited confidence)
+- Enter "45 Broken Head Road, Byron Bay NSW 2481" → Quick Site Check returns real zone (current production evidence for 45 Broken Head Road is SP3 Tourist), permissibility table, height limit and FSR from Byron LEP 2014 clauses (Cited confidence)
 - Open workspace, ask "Can I build a secondary dwelling here?" → response cites Byron LEP 2014 cl. 4.21 and SEPP Housing 2021 (Cited)
 - Ask about setbacks → response cites Byron DCP 2014 chapter reference (Cited)
 - Generate SEE → produces structured document with real LEP/DCP clause citations

@@ -314,6 +314,51 @@ const buildEvidenceGapGuidance = (params: {
   return `I can’t confirm ${params.dualOccQuestion ? "dual occupancy " : ""}setback requirements for ${params.lgaLabel} from the currently retrieved council excerpts. ${availableSections} I won’t infer numbers from memory. Next best step: ask me to extract the exact setback clause text (for example the Dual Occupancy / setbacks section) after it is ingested, and I will return clause-based numeric controls only.`;
 };
 
+
+const answerSupportGapReply = (lgaLabel: string, topic: "side_setback" | "secondary_dwelling") =>
+  topic === "side_setback"
+    ? `I can’t confirm the side setback for ${lgaLabel} from the applicable retrieved site controls. The retrieved evidence does not contain a site-applicable side-setback control, so I’m keeping this unresolved rather than inferring a minimal or zero setback.`
+    : `I can’t confirm whether a secondary dwelling is permitted here from the applicable retrieved site controls. The retrieved evidence does not contain a site-applicable secondary-dwelling clause for this site, so I’m keeping this unresolved rather than treating a generic citation as cited support.`;
+
+const CONFLICTING_SUPPORT_SCOPE = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
+const zoneCodeFromLabel = (zone?: string | null) => zone?.match(/\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/i)?.[0]?.toUpperCase() ?? null;
+const hasCurrentZoneSupportToken = (text: string, zoneCode: string | null) => Boolean(zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(text));
+const isAnswerSupportingText = (params: { text: string; siteZone?: string | null; topic: "side_setback" | "secondary_dwelling" }) => {
+  const zoneCode = zoneCodeFromLabel(params.siteZone);
+  const firstLine = params.text.split("\n", 1)[0] ?? params.text;
+  const isCommercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
+  if (isCommercialOrTourist && CONFLICTING_SUPPORT_SCOPE.test(firstLine) && !hasCurrentZoneSupportToken(firstLine, zoneCode)) return false;
+  if (isCommercialOrTourist && CONFLICTING_SUPPORT_SCOPE.test(params.text) && !hasCurrentZoneSupportToken(params.text, zoneCode)) return false;
+  if (params.topic === "side_setback") {
+    return /\bside\b/i.test(params.text) && SETBACK_QUERY_REGEX.test(params.text) && Boolean(extractSideSetbackValue(params.text));
+  }
+  return /\bsecondary dwelling\b/i.test(params.text) && hasCurrentZoneSupportToken(params.text, zoneCode);
+};
+
+const validateFinalReplySupport = (params: {
+  reply: string;
+  userMessage: string;
+  lgaLabel: string;
+  siteZone?: string | null;
+  dcpClauses: DCPClause[];
+  dcpChunks: WorkspaceSourceContext["chunks"];
+  statutoryContext: StatutoryContextBlock | null;
+}) => {
+  const asksSideSetback = /\bside\b/i.test(params.userMessage) && SETBACK_QUERY_REGEX.test(params.userMessage);
+  const asksSecondaryDwelling = /\bsecondary dwelling\b/i.test(params.userMessage);
+  if (!asksSideSetback && !asksSecondaryDwelling) return { reply: params.reply, supported: true };
+  const topic = asksSideSetback ? "side_setback" : "secondary_dwelling";
+  const evidenceTexts = [
+    ...params.dcpClauses.map((clause) => [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n")),
+    ...params.dcpChunks.map((chunk) => [chunk.heading, chunk.content].filter(Boolean).join("\n")),
+    ...(params.statutoryContext?.lepClauses ?? []).map((clause) => [clause.clauseKey, clause.heading, clause.value].filter(Boolean).join("\n")),
+    ...(params.statutoryContext?.dcpClauses ?? []).map((clause) => [clause.clauseNumber, clause.heading, clause.body].filter(Boolean).join("\n")),
+  ];
+  const hasSupport = evidenceTexts.some((text) => isAnswerSupportingText({ text, siteZone: params.siteZone, topic }));
+  if (hasSupport) return { reply: params.reply, supported: true };
+  return { reply: answerSupportGapReply(params.lgaLabel, topic), supported: false };
+};
+
 const buildDcpClausePrompt = (
   clauses: DCPClause[],
   lgaLabel: string | null,
@@ -1305,7 +1350,7 @@ When the user asks about local controls, rely first on the council Development C
       messages.push({ role: "system", content: sourceContextPrompt });
     }
 
-    const usedDcpChunksForAttribution = usedChunksForPrompt.filter((chunk) =>
+    let usedDcpChunksForAttribution = usedChunksForPrompt.filter((chunk) =>
       COUNCIL_DCP_TYPES.includes(chunk.sourceType),
     );
 
@@ -1398,6 +1443,22 @@ When the user asks about local controls, rely first on the council Development C
             throw error;
           }
         })();
+
+    const supportValidation = modelWasCalled ? validateFinalReplySupport({
+      reply,
+      userMessage,
+      lgaLabel: fallbackLga ?? sourceContext?.canonicalLgaCode ?? "this site",
+      siteZone: siteContextSummary?.zone ?? null,
+      dcpClauses,
+      dcpChunks: usedDcpChunksForAttribution,
+      statutoryContext,
+    }) : { reply, supported: true };
+    if (!supportValidation.supported) {
+      reply = supportValidation.reply;
+      dcpClauses = [];
+      usedDcpChunksForAttribution = [];
+      lepSourceRefsForPersist = [];
+    }
 
     const updatedHistory: ChatCompletionMessageParam[] = [
       ...historyMessages,

@@ -16,9 +16,12 @@ const RURAL_RESIDENTIAL_ONLY_TERMS = [
   "rural boundary",
   "residential zone",
   "residential zones",
+  "residential d1",
   "dual occupancy",
   "secondary dwelling",
   "bed and breakfast",
+  "top-up housing",
+  "top up housing",
 ];
 
 const zoneParts = (zone?: string | null) => {

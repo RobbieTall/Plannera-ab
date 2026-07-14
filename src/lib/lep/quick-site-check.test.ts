@@ -70,26 +70,28 @@ describe("buildQuickSiteCheckLep", () => {
 
 
 
-  it("uses shared zone projections for fresh projects without project lepData", async () => {
-    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Byron", zoningCode: "SP3", lepData: null });
+  it("uses shared Kempsey E2 zone projections for fresh projects without project lepData", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({ id: "project-1", lgaName: "Kempsey", zoningCode: "E2", lepData: null });
+    mocks.prisma.instrument.findFirst.mockResolvedValue({ id: "instrument-1", name: "Kempsey LEP 2013", slug: "kempsey-lep-2013" });
     mocks.prisma.lepZoneObjective.findMany.mockResolvedValue([
-      { objective: "To provide for tourist-oriented development and related uses." },
+      { objective: "To strengthen the role of Kempsey as a commercial centre." },
     ]);
     mocks.prisma.lepZoneLandUse.findMany.mockResolvedValue([
-      { permission: "WITH_CONSENT", description: "Tourist and visitor accommodation" },
-      { permission: "PROHIBITED", description: "Residential accommodation" },
+      { permission: "WITH_CONSENT", description: "Commercial premises" },
+      { permission: "PROHIBITED", description: "Heavy industrial storage establishment" },
     ]);
     mocks.prisma.clause.findMany.mockResolvedValue([
-      clause("4.3", "Height of buildings", "Zone SP3 9m", ["Part 4"]),
+      clause("4.3", "Height of buildings", "Zone E2 11m", ["Part 4"]),
     ]);
 
     const result = await buildQuickSiteCheckLep("project-1", { debug: true });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.objectives).toContain("To provide for tourist-oriented development and related uses.");
-    expect(result.permissibility?.permittedWithConsent).toContain("Tourist and visitor accommodation");
-    expect(result.permissibility?.prohibited).toContain("Residential accommodation");
+    expect(result.objectives).toContain("To strengthen the role of Kempsey as a commercial centre.");
+    expect(result.permissibility?.permittedWithConsent).toContain("Commercial premises");
+    expect(result.permissibility?.prohibited).toContain("Heavy industrial storage establishment");
+    expect(result.controls.heightOfBuilding).toEqual({ value: "11m", clauseRef: "4.3", confidence: "Cited" });
     expect(result.debug?.zoneObjectiveSource).toBe("ingested");
     expect(result.debug?.landUseSource).toBe("ingested");
   });
