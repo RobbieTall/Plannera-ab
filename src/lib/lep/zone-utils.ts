@@ -120,8 +120,7 @@ export const cleanListItems = (section: string): string[] => {
   if (!section) return [];
 
   const rawEntries = section
-    .split(/\r?\n|;/)
-    .flatMap((line) => line.split(/[•·\-–—]/))
+    .split(/\r?\n|;|[•·]/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 
@@ -131,6 +130,7 @@ export const cleanListItems = (section: string): string[] => {
     .map((entry) => entry.replace(/\[[^\]]+\]/g, ""))
     .map((entry) => entry.replace(/\s+\.$/, "."))
     .filter((entry) => entry.length > 0)
+    .filter((entry) => !/^\d+$/.test(entry))
     .filter((entry) => !/^none\b/i.test(entry) && !/^nil\b/i.test(entry));
 
   return Array.from(new Set(cleaned));
