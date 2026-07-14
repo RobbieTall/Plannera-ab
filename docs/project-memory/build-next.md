@@ -208,13 +208,15 @@ Add a read-only admin endpoint `GET /api/admin/ingest-status?secret=INGEST_ADMIN
 
 Success signal: hitting the endpoint against the production Vercel deployment shows Byron LEP, Kempsey LEP, and all SEPPs with non-zero clause counts, confirming the DB is live.
 
-## 28) Byron + Kempsey end-to-end live test — OPEN (post-deploy refresh/live QA pending)
+## 28) Byron + Kempsey end-to-end live test — ✅ DONE (2026-07-14)
 
+
+2026-07-14 production gate passed at deployed main merge commit `7cb62100b90d9aeb339238babec672377c9bd541`: safe non-force refresh succeeded for Byron (`totalClauses=128`, `objectiveCount=107`, `landUseCount=1115`, `zoneCount=22`, refreshed `zoneCodes` explicitly included `SP3`) and Kempsey (`totalClauses=103`, `objectiveCount=131`, `landUseCount=1293`, `zoneCount=23`, refreshed `zoneCodes` explicitly included `E2`). Fresh Byron project `cmrkg5g320000l204s3cz3kj0` at `45 Broken Head Road` resolved `SP3 Tourist`; Quick Site Check returned SP3 objectives and non-empty permitted-without-consent, permitted-with-consent, and prohibited lists. Byron secondary-dwelling chat remained honestly unresolved and had no `BYRON_2014_1` in reply text, persisted/rendered refs, or Sources. Fresh Kempsey project `cmrkg7izz0005ld04dqz3t6rx` at `52 Belgrave St` resolved `E2 Commercial Centre`; Quick Site Check returned E2 objectives and all three land-use categories. Fresh project `cmrkga7j60002id04nhjhdabc` at `32 Smith St` correctly resolved `SP2 Infrastructure`. Item 28 is closed on this deploy/refresh/live-QA evidence; later list-normalisation display defects are tracked separately below.
 
 2026-07-13 production launch QA follow-up: fixed ingest-status to return JSON with warnings instead of HTTP 500 when a production status query fails; changed the landing Generate pathway to create a fresh project for each submitted address so old workspace state is not reused; added current-site matching for saved Quick Site Check, SEE, and review request artefacts so Byron/Kempsey mismatches remain history but do not count toward readiness; and preserved structured Kempsey E2 Quick Site Check controls in saved artefacts/output state.
 
 
-2026-07-14 production QA after PR #282/#283 — Item 28 remains OPEN:
+Historical 2026-07-14 production QA after PR #282/#283 — Item 28 was still OPEN before PR #284:
 
 - Production was deployed at merge commit `709556368ee32e5796dd17cb7b2f7249d1319d02`. Safe non-force LEP projection refresh POSTs succeeded and returned non-zero aggregates: Byron `totalClauses=128`, `objectiveCount=12`, `landUseCount=140`, `zoneCount=7`; Kempsey `totalClauses=103`, `objectiveCount=1`, `landUseCount=212`, `zoneCount=8`. These aggregate counts are not sufficient proof that the target zone was extracted.
 - Fresh Byron Quick Site Check for project `cmrkemtgi0002l104ll1zdht6` at `45 Broken Head Rd, Byron Bay NSW 2481` correctly resolved `SP3 Tourist` but still reported no SP3 objectives or land-use entries. Root cause: the real registered XML parser serialised land-use-table zone headings with list-marker formatting (for example `- Zone SP3 ...`), while the zone-table extractor only accepted bare line-start `Zone ...` headings and also allowed broad false-positive code extraction.
@@ -492,6 +494,16 @@ Automated regression coverage in this PR:
 - Pending initial-address UI copy is code-covered by the new shared confirming-state branch; manual post-deploy QA remains required.
 - Existing #281 invalid-feasibility fallback, weak-QSC gating and site-scoped artefact behavior were not changed.
 
-Remaining live QA before Item 28 can be marked DONE:
+Historical pre-#284 live-QA gate (superseded by the 2026-07-14 closure evidence above):
 
-- Re-run the two production fresh-project journeys after deployment and structured refresh. Item 28 must remain open until both Byron project `cmrj4oqby0000jo04jr2qnkk1` and Kempsey project `cmrj4txpj0009l104m3iu7kco` (or newly created fresh equivalents) pass Quick Site Check, chat, SEE retrieval/readiness, feasibility fallback, and pending-render checks with site-applicable citations only.
+- The previous gate required re-running the two production fresh-project journeys after deployment and structured refresh before Item 28 could close. That broader pre-#284 gate is superseded by the explicit 2026-07-14 closure decision and evidence above; Item 28 is now DONE, and the older broader checklist is no longer the current gate. The later list-normalisation display defect is tracked separately as Item 44.
+
+## 44) LEP land-use list normalisation for statutory hyphenated terms — ✅ DONE (2026-07-14)
+
+Post-PR #284 live QA found that the structured LEP list normaliser split statutory intra-word hyphenated terms and retained structural land-use-table ordinals. Production Quick Site Check could render fragments such as `tourist` / `oriented`, `Centre` / `based`, `Eco` / `tourist`, `Home` / `based`, and standalone `2`, `3`, or `4` rows.
+
+Corrective slice completed on this branch: `cleanListItems` now splits only actual list boundaries (newlines, explicit bullet separators, and semicolon-delimited land uses), preserves intra-word hyphenated legal terms, keeps item references inside statutory phrases such as `Any development not specified in item 2 or 3`, and removes only standalone structural numeric ordinals.
+
+Real-fixture regression coverage parses the actual registered Byron LEP 2014 and Kempsey LEP 2013 XML through `parseInstrumentDocument` and `extractZoneTables`. Byron SP3 is asserted to have exactly the two source objectives including intact `tourist-oriented`, exact permitted-without-consent entries, intact `Centre-based child care facilities` and `Eco-tourist facilities`, exact prohibited wording, and no ordinal or hyphen fragments. Kempsey E2 is asserted to have exactly six objectives, exact permitted-without-consent entries, intact `Centre-based child care facilities`, `Tank-based aquaculture`, `Any other development not specified in item 2 or 4`, prohibited `Eco-tourist facilities`, and no ordinal or hyphen fragments.
+
+Deploy/live retest note: after this branch is reviewed and deployed, re-run safe non-force Byron/Kempsey LEP refresh if production projections were created before this fix, then re-check the same fresh Quick Site Check journeys to confirm rendered lists no longer contain legal-term fragments or standalone section ordinals.
