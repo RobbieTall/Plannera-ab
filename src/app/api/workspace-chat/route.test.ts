@@ -694,6 +694,116 @@ describe("workspace-chat forced fallback", () => {
     expect(payload.reply).not.toContain("Local controls preparing");
   });
 
+
+
+  it("removes unsupported Kempsey E2 side-setback model inference and attribution at the final boundary", async () => {
+    getSiteContextForProjectMock.mockResolvedValue({
+      formattedAddress: "32 Smith St, Kempsey NSW 2440",
+      lgaCode: "KEMPSEY",
+      lgaName: "Kempsey Shire",
+      zone: "E2 Commercial Centre",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+    });
+    findProjectByExternalIdMock.mockResolvedValue({
+      id: "db-1",
+      publicId: "proj-1",
+      zoningCode: "E2",
+      zoningName: "Commercial Centre",
+      zoningSource: "test",
+      lepData: null,
+      dcpData: null,
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({
+      canonicalLgaCode: "KEMPSEY",
+      hasCouncilDcp: true,
+      perSourceTotals: { council_dcp: 4 },
+      councilDcpSampleHeadings: ["Part D-653", "Part B-33", "Part D-154", "Part D-649"],
+      chunks: [
+        { id: "d653", lgaCode: "KEMPSEY", sourceType: "council_dcp", heading: "Part D-653 Residential setbacks", content: "Residential D1 side setbacks apply to dwelling houses only.", metadata: {} },
+        { id: "b33", lgaCode: "KEMPSEY", sourceType: "council_dcp", heading: "Part B-33 General objectives", content: "General Part B front setback 3m for access sightlines, with no side setback figure.", metadata: {} },
+        { id: "d154", lgaCode: "KEMPSEY", sourceType: "council_dcp", heading: "Part D-154 Rural boundary", content: "Rural boundary setbacks for RU1 land.", metadata: {} },
+        { id: "d649", lgaCode: "KEMPSEY", sourceType: "council_dcp", heading: "Part D-649 Business controls", content: "Business-zone design objectives, but no side setback value is stated.", metadata: {} },
+      ],
+    });
+    getDCPContextMock.mockResolvedValue([]);
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [],
+      lepClauses: [
+        { clauseKey: "KEMP_2013_4_1C", heading: "Exceptions to minimum lot sizes", value: "Lot-size exception text only." },
+        { clauseKey: "KEMP_2013_4_1A", heading: "Minimum subdivision lot size", value: "Subdivision lot-size text only." },
+        { clauseKey: "KEMP_2013_4_1", heading: "Minimum subdivision lot size", value: "Lot size map text only." },
+        { clauseKey: "KEMP_2013_4_1AA", heading: "Community title schemes", value: "Community title text only." },
+      ],
+      seppClauses: [],
+      sourceTypes: ["cited"],
+      promptBlock: "LEP lot-size provisions only; no side-setback control.",
+    });
+    lgaCoverageFindUniqueMock.mockResolvedValue({ state: "SEARCHABLE_READY" });
+    callModelMock.mockResolvedValue("For an E2 centre, side setbacks are often minimal or zero. Sources: KEMP_2013_4_1C; KEMP_2013_4_1A; KEMP_2013_4_1; KEMP_2013_4_1AA; Part D-653; Part B-33; Part D-154; Part D-649.");
+
+    const response = await POST(new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "proj-1", message: "What is the minimum side setback for this site?" }),
+    }));
+    const payload = (await response.json()) as { reply: string; lepSourceRefs: string[]; sourceAttribution: { sources: Array<{ ref?: string; title?: string }> } };
+
+    expect(response.status).toBe(200);
+    expect(callModelMock).toHaveBeenCalledTimes(1);
+    expect(payload.reply).toContain("I can’t confirm the side setback");
+    expect(payload.reply).toContain("unresolved");
+    expect(payload.reply).not.toContain("often minimal or zero");
+    expect(payload.reply).not.toContain("KEMP_2013_4_1C");
+    expect(payload.reply).not.toContain("Part D-649");
+    expect(payload.lepSourceRefs).toEqual([]);
+    expect(JSON.stringify(payload.sourceAttribution)).not.toContain("Part D-649");
+  });
+
+  it("does not let generic Byron SP3 LEP text support a cited secondary-dwelling answer", async () => {
+    getSiteContextForProjectMock.mockResolvedValue({
+      formattedAddress: "45 Broken Head Road, Byron Bay NSW 2481",
+      lgaCode: "BYRON",
+      lgaName: "Byron Shire",
+      zone: "SP3 Tourist",
+      zoningCode: "SP3",
+      zoningName: "Tourist",
+    });
+    findProjectByExternalIdMock.mockResolvedValue({
+      id: "db-1",
+      publicId: "proj-1",
+      zoningCode: "SP3",
+      zoningName: "Tourist",
+      zoningSource: "test",
+      lepData: null,
+      dcpData: null,
+    });
+    getWorkspaceSourceContextMock.mockResolvedValue({ canonicalLgaCode: "BYRON", hasCouncilDcp: true, perSourceTotals: {}, councilDcpSampleHeadings: [], chunks: [] });
+    getDCPContextMock.mockResolvedValue([]);
+    buildStatutoryContextBlockMock.mockResolvedValue({
+      dcpClauses: [],
+      lepClauses: [{ clauseKey: "BYRON_2014_1", heading: "Name of Plan", value: "This Plan is Byron Local Environmental Plan 2014." }],
+      seppClauses: [],
+      sourceTypes: ["cited"],
+      promptBlock: "[BYRON_2014_1] Name of Plan only.",
+    });
+    lgaCoverageFindUniqueMock.mockResolvedValue({ state: "SEARCHABLE_READY" });
+    callModelMock.mockResolvedValue("Yes, a secondary dwelling may be possible here. Cited source: BYRON_2014_1.");
+
+    const response = await POST(new Request("http://localhost/api/workspace-chat", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "proj-1", message: "Can I build a secondary dwelling here?" }),
+    }));
+    const payload = (await response.json()) as { reply: string; lepSourceRefs: string[] };
+
+    expect(response.status).toBe(200);
+    expect(payload.reply).toContain("I can’t confirm whether a secondary dwelling is permitted here");
+    expect(payload.reply).toContain("unresolved");
+    expect(payload.reply).not.toContain("Cited source");
+    expect(payload.reply).not.toContain("BYRON_2014_1");
+    expect(payload.lepSourceRefs).toEqual([]);
+  });
+
+
   it("injects a coverage notice, queues preparation, and still calls the model for preparing LGAs", async () => {
     callModelMock.mockResolvedValue("Baseline planning answer.");
 

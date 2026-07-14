@@ -15,6 +15,7 @@ export type CommercialNextActionInput = {
   hasSee: boolean;
   hasQualityQuickSiteCheck?: boolean;
   hasQualitySee?: boolean;
+  isPendingInitialSiteConfirmation?: boolean;
 };
 
 export type CommercialReadinessItem = {
@@ -52,20 +53,24 @@ export function buildCommercialNextAction({
   hasSee,
   hasQualityQuickSiteCheck = hasQuickSiteCheck,
   hasQualitySee = hasSee,
+  isPendingInitialSiteConfirmation = false,
 }: CommercialNextActionInput): CommercialNextAction {
   const targetLga = isTargetLga(lgaName, lgaCode);
   const searchableCoverage = isSearchableCoverage(coverageMaturity);
+  const confirmedSiteContext = hasSiteContext && !isPendingInitialSiteConfirmation;
   const lgaDetail = targetLga
     ? `${lgaName ?? lgaCode} is one of the launch LGAs.`
-    : hasSiteContext
+    : confirmedSiteContext
       ? "This commercial workflow is tuned for Byron and Kempsey first."
+      : isPendingInitialSiteConfirmation
+        ? "Plannera is confirming the address before treating the launch workflow as ready."
       : "Enter a Byron or Kempsey address to start the launch workflow.";
 
   const items: CommercialReadinessItem[] = [
     {
       label: "Site and LGA",
-      status: hasSiteContext ? (targetLga ? "Confirmed" : "Needs Expert Review") : "Needs Input",
-      detail: hasSiteContext ? lgaDetail : "No confirmed site address yet.",
+      status: confirmedSiteContext ? (targetLga ? "Confirmed" : "Needs Expert Review") : "Needs Input",
+      detail: confirmedSiteContext ? lgaDetail : isPendingInitialSiteConfirmation ? lgaDetail : "No confirmed site address yet.",
     },
     {
       label: "LEP / zone intelligence",
@@ -85,7 +90,7 @@ export function buildCommercialNextAction({
     },
     {
       label: "Saved Quick Site Check",
-      status: hasQualityQuickSiteCheck ? "Confirmed" : hasQuickSiteCheck ? "Needs Expert Review" : hasSiteContext ? "Needs Input" : "Unavailable",
+      status: hasQualityQuickSiteCheck ? "Confirmed" : hasQuickSiteCheck ? "Needs Expert Review" : confirmedSiteContext ? "Needs Input" : "Unavailable",
       detail: hasQualityQuickSiteCheck
         ? "A Quick Site Check artefact is saved with site-scoped cited controls."
         : hasQuickSiteCheck
@@ -103,12 +108,12 @@ export function buildCommercialNextAction({
     },
   ];
 
-  if (!hasSiteContext) {
+  if (!confirmedSiteContext) {
     return {
-      heading: "Start the Byron/Kempsey paid workflow",
+      heading: isPendingInitialSiteConfirmation ? "Confirming the launch site" : "Start the Byron/Kempsey paid workflow",
       description: "Resolve the address first so Plannera can identify the LGA, zone and available planning intelligence.",
       primaryAction: "set_site",
-      primaryLabel: "Set a Byron or Kempsey site",
+      primaryLabel: isPendingInitialSiteConfirmation ? "Confirm site before paid workflow" : "Set a Byron or Kempsey site",
       items,
     };
   }

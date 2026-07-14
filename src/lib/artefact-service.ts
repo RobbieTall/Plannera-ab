@@ -780,6 +780,62 @@ export type PreSeePlanningMemoContent = {
   limitations: string[];
 };
 
+
+const APPLICABILITY_CONFLICT_TERMS = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
+const NSW_ZONE_CODE = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/i;
+const dcpEvidenceText = (clause: Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">) =>
+  [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n");
+const zoneCodeFromSiteLabel = (zoneLabel?: string | null, zoneCode?: string | null) =>
+  zoneCode?.trim().toUpperCase() || zoneLabel?.match(NSW_ZONE_CODE)?.[0]?.toUpperCase() || null;
+const evidenceMentionsZone = (text: string, zoneCode: string | null) => Boolean(zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(text));
+
+export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabel?: string | null; siteZoneCode?: string | null; controlTopic?: string | null }) => {
+  const zoneCode = zoneCodeFromSiteLabel(params.siteZoneLabel, params.siteZoneCode);
+  const isCommercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
+  const lines = params.text.split("\n").map((line) => line.trim()).filter(Boolean);
+  // Structured DCP evidence is ordered ref, title, hierarchy, body. Ref is not
+  // the applicability scope, and body text must not rescue a conflicting title
+  // or hierarchy just because it incidentally mentions the current zone.
+  const scope = lines.length >= 3 ? `${lines[1]} ${lines[2]}` : (lines[0] ?? params.text);
+  const body = lines.length >= 4 ? lines.slice(3).join(" ") : params.text;
+  if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(scope) && !evidenceMentionsZone(scope, zoneCode)) return false;
+  if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(body) && !evidenceMentionsZone(body, zoneCode)) return false;
+  if (params.controlTopic && !new RegExp(params.controlTopic, "i").test(params.text) && !/\bpart b\b/i.test(params.text)) return false;
+  return true;
+};
+
+export const filterSiteApplicableDcpClauses = <T extends Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">>(clauses: T[], site: { zoneLabel?: string | null; zoneCode?: string | null }, controlTopic?: string | null) =>
+  clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, controlTopic }));
+
+export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null) => {
+  if (!memo) return false;
+  const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
+  if (!hasSiteZone) return false;
+  const site = { zoneLabel: memo.siteDescription.zoneLabel ?? memo.siteDescription.zoneName, zoneCode: memo.siteDescription.zoneCode };
+  const applicableDcpRefs = new Set(
+    (memo.applicableControls.dcpClauses ?? [])
+      .filter((clause) => isSiteApplicableDcpEvidence({ text: [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n"), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode }))
+      .map((clause) => clause.title || clause.ref || clause.headingPath.join(" > "))
+      .filter(Boolean),
+  );
+  const applicableLepRefs = new Set<string>();
+  Object.values(memo.applicableControls.quickSiteControls ?? {}).forEach((control) => {
+    const clauseRef = typeof control?.clauseRef === "string" ? control.clauseRef.trim() : "";
+    if (!clauseRef) return;
+    applicableLepRefs.add(clauseRef);
+    applicableLepRefs.add(`cl. ${clauseRef}`);
+  });
+  const hasApplicableCitation = memo.consistencyAssessment.some((item) =>
+    (item.citations ?? []).some((citation) => {
+      if (citation.type === "DCP") return applicableDcpRefs.has(citation.ref);
+      if (citation.type !== "LEP") return false;
+      return Array.from(applicableLepRefs).some((ref) => new RegExp(`(^|\\s)${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(citation.ref));
+    }),
+  );
+  const hasApplicableDcpBody = applicableDcpRefs.size > 0;
+  return hasApplicableCitation || hasApplicableDcpBody;
+};
+
 const buildControlAssessment = (
   label: string,
   interpretation: string,
@@ -891,8 +947,10 @@ export async function createPreSeePlanningMemoArtefact({
       : Promise.resolve(null),
   ]);
 
-  const dcpSectionPromptContext = buildDcpSectionPromptContext(dcpSectionClauses);
-  const dcpClauseCounts = countDcpClausesBySection(dcpSectionClauses);
+  const filteredDcpClauses = filterSiteApplicableDcpClauses(dcpClauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode });
+  const filteredDcpSectionClauses = new Map(Array.from(dcpSectionClauses.entries()).map(([section, clauses]) => [section, filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, section)]));
+  const dcpSectionPromptContext = buildDcpSectionPromptContext(filteredDcpSectionClauses);
+  const dcpClauseCounts = countDcpClausesBySection(filteredDcpSectionClauses);
 
   const siteDescription = {
     address: quickSiteCheck.site.address ?? null,
@@ -904,7 +962,7 @@ export async function createPreSeePlanningMemoArtefact({
 
   const availableLepClauseRefs = new Set((lepEnrichment.lepContext?.clauses ?? []).map((clause) => clause.ref));
   const dcpControlCitations = uniqueCitations(
-    dcpClauses
+    filteredDcpClauses
       .map((clause) => buildDcpCitationRef(clause))
       .filter((ref): ref is string => Boolean(ref))
       .map((ref) => ({ ref, type: "DCP" as const })),
@@ -964,14 +1022,14 @@ export async function createPreSeePlanningMemoArtefact({
       lepInstrument: quickSiteCheck.lepInstrument ?? null,
       permissibility: quickSiteCheck.permissibility ?? null,
       quickSiteControls: quickSiteCheck.controls,
-      dcpClauses: dcpClauses.map((clause) => ({
+      dcpClauses: filteredDcpClauses.map((clause) => ({
         ref: clause.ref,
         title: clause.title,
         headingPath: clause.headingPath,
         bodyText: clause.bodyText,
         score: clause.score,
       })),
-      sourceExcerpts: sourceContext.chunks.map((chunk) => ({
+      sourceExcerpts: sourceContext.chunks.filter((chunk) => isSiteApplicableDcpEvidence({ text: [chunk.heading, chunk.content].filter(Boolean).join("\n"), siteZoneLabel: siteDescription.zoneLabel ?? siteDescription.zoneName, siteZoneCode: siteDescription.zoneCode })).map((chunk) => ({
         id: chunk.id,
         heading: chunk.heading,
         sourceType: chunk.sourceType,

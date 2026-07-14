@@ -337,7 +337,7 @@ const hasRealLandUse = (landUse: ZoneSummary["landUse"]) =>
     (item) => item && !/^No zone-specific/i.test(item),
   );
 
-const SCOPE_EXCLUSION_TERMS = /\b(rural zones?|rural land|rural boundary|residential zones?|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation)\b/i;
+const SCOPE_EXCLUSION_TERMS = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
 
 const clauseScopeText = (clause: ClauseSummary) =>
   `${clause.title ?? ""} ${(clause.hierarchyPath ?? []).join(" ")}`.trim();

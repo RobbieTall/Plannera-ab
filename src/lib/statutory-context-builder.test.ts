@@ -349,4 +349,51 @@ describe("buildStatutoryContextBlock", () => {
     expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("4.2A");
   });
 
+
+  it("excludes exact conflicting LEP top-up and residential scopes while preserving general/current-zone clauses", async () => {
+    dcpFindManyMock.mockResolvedValue([]);
+    instrumentFindManyMock.mockResolvedValueOnce([
+      {
+        id: "instrument-byron",
+        name: "Byron Local Environmental Plan 2014",
+        clauses: [
+          {
+            clauseKey: "D1-SP3",
+            title: "Zone SP3 Tourist current-zone controls",
+            bodyText: "Zone SP3 Tourist controls preserve tourist and visitor accommodation outcomes.",
+          },
+          {
+            clauseKey: "B-GENERAL",
+            title: "General provisions",
+            bodyText: "General Part B controls apply across the LGA and include objective-based design guidance for all zones.",
+          },
+          {
+            clauseKey: "D1-RES",
+            title: "Residential D1 controls",
+            bodyText: "D1 residential accommodation controls apply to residential zones and secondary dwelling development only.",
+          },
+          {
+            clauseKey: "TOP-UP",
+            title: "Top-up housing in residential zones",
+            bodyText: "Top-up housing provisions apply to residential zones and must not be used for Zone SP3 Tourist land.",
+          },
+        ],
+      },
+    ]);
+    instrumentFindManyMock.mockResolvedValueOnce([]);
+
+    const result = await buildStatutoryContextBlock({
+      lgaCode: "BYRON",
+      query: "tourist site controls general provisions top-up housing",
+      siteZone: "SP3 Tourist",
+      maxDcpClauses: 1,
+      maxLepClauses: 4,
+    });
+
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("D1-SP3");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).toContain("B-GENERAL");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("D1-RES");
+    expect(result.lepClauses.map((clause) => clause.clauseKey)).not.toContain("TOP-UP");
+  });
+
 });
