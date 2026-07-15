@@ -549,7 +549,7 @@ Acceptance:
 - The saved Quick Site Check output card visibly retains LEP evidence quality, source reference, and detail after refresh.
 - The existing commercial-readiness handoff uses the persisted summary where present and falls back only to cited numeric LEP controls for legacy reports.
 
-Status: In review. Code is implemented on `codex/item-47-lep-evidence-persistence` and committed for review.
+Status: In review via PR #287 (`codex/implement-item-47-for-quick-site-check`).
 
 Changed files:
 
@@ -561,11 +561,11 @@ Changed files:
 
 Tests/checks for review:
 
-- `npm run test:node -- tests/quick-site-check-evidence.test.ts tests/map-snapshot.test.ts`
-- `npm run lint`
-- `npx tsc --noEmit`
-- `npm test`
-- `npm run build`
-- `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build`
+- PASS: `npm run test:node -- tests/quick-site-check-evidence.test.ts tests/map-snapshot.test.ts`
+- PASS: `npm run lint`
+- PASS: `npx tsc --noEmit`
+- PASS: `npm test`
+- PASS: `npm run build`
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432`; this is the known Codex Cloud environment limitation, not a regression.
 
 Deploy/live gate: after deploy, open an existing saved Quick Site Check or run/save a non-production/local Quick Site Check and refresh the workspace. The saved Quick Site Check card should show `LEP evidence quality`, the LEP source reference, and the persisted detail. The Item 46 production live gate remains open: after PR #286 deployed at merge commit `787880ce346f7dcb32c2239ad63895f088ddfd24`, historical Byron/Kempsey QA project IDs returned `Project not found` after a fresh load, so this item must not claim that Item 46 live QA passed.
