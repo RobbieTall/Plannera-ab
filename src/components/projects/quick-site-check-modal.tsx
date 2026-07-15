@@ -132,6 +132,7 @@ const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSucc
         ? `Confirm mapping overlays and constraints for zone ${payload.zone}.`
         : "Confirm zoning and rerun Quick Site Check.",
     ],
+    lepEvidenceSummary: summariseQuickSiteCheckEvidence(payload),
   };
 };
 

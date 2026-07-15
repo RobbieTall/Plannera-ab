@@ -1,14 +1,5 @@
+import type { QuickSiteCheckEvidenceSummary } from "@/types/quick-site-check";
 import type { QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
-
-export type QuickSiteCheckEvidenceSummary = {
-  label: "Cited" | "Unavailable";
-  detail: string;
-  citedControlCount: number;
-  totalControlCount: number;
-  landUseEntryCount: number;
-  objectiveCount: number;
-  sourceRef: string;
-};
 
 const lepControls = (payload: QuickSiteCheckLepSuccess) => [
   payload.controls.heightOfBuilding,
