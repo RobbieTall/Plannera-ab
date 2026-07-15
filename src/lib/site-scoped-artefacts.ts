@@ -1,4 +1,4 @@
-import type { ReviewRequestContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
+import type { DetailedPlanningPackContent, ReviewRequestContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 export type CurrentSiteScope = {
@@ -69,6 +69,13 @@ export const preSeeScope = (memo?: WorkspacePreSeePlanningMemoContent | null): A
   lga: memo.siteDescription.lga,
   zoneCode: memo.siteDescription.zoneCode,
   zoneLabel: memo.siteDescription.zoneLabel,
+} : null;
+
+export const detailedPlanningPackScope = (pack?: DetailedPlanningPackContent | null): ArtefactSiteScope | null => pack?.site ? {
+  address: pack.site.address,
+  lga: pack.site.lga,
+  zoneCode: pack.site.zoneCode,
+  zoneLabel: pack.site.zoneLabel,
 } : null;
 
 export const reviewRequestScope = (review?: ReviewRequestContent | null): ArtefactSiteScope | null => review?.site ? {

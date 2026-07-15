@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ArtefactAccessError, requireSessionUser } from "@/lib/artefact-service";
 import { prisma } from "@/lib/prisma";
 
-const STALE_REGENERABLE_TYPES: ArtefactType[] = ["quick_site_check", "pre_see_planning_memo"];
+const STALE_REGENERABLE_TYPES: ArtefactType[] = ["quick_site_check", "pre_see_planning_memo", "detailed_planning_pack"];
 
 export async function GET(_request: NextRequest, { params }: { params: { projectId: string } }) {
   try {

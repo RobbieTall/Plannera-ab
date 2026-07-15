@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   artefactCreateMock,
   artefactFindManyMock,
+  artefactFindFirstMock,
   artefactUpdateMock,
   buildQuickSiteCheckReportMock,
+  createDetailedPlanningPackArtefactMock,
   createPreSeePlanningMemoArtefactMock,
   createQuickSiteCheckArtefactMock,
   lgaCoverageFindUniqueMock,
@@ -12,8 +14,10 @@ const {
 } = vi.hoisted(() => ({
   artefactCreateMock: vi.fn(),
   artefactFindManyMock: vi.fn(),
+  artefactFindFirstMock: vi.fn(),
   artefactUpdateMock: vi.fn(),
   buildQuickSiteCheckReportMock: vi.fn(),
+  createDetailedPlanningPackArtefactMock: vi.fn(),
   createPreSeePlanningMemoArtefactMock: vi.fn(),
   createQuickSiteCheckArtefactMock: vi.fn(),
   lgaCoverageFindUniqueMock: vi.fn(),
@@ -25,6 +29,7 @@ vi.mock("@/lib/prisma", () => ({
     artefact: {
       create: artefactCreateMock,
       findMany: artefactFindManyMock,
+      findFirst: artefactFindFirstMock,
       update: artefactUpdateMock,
     },
     lgaCoverageState: {
@@ -39,6 +44,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/quick-site-check", () => ({ buildQuickSiteCheckReport: buildQuickSiteCheckReportMock }));
 
 vi.mock("@/lib/artefact-service", () => ({
+  createDetailedPlanningPackArtefact: createDetailedPlanningPackArtefactMock,
   createPreSeePlanningMemoArtefact: createPreSeePlanningMemoArtefactMock,
   createQuickSiteCheckArtefact: createQuickSiteCheckArtefactMock,
 }));
@@ -79,7 +85,7 @@ describe("getStaleArtefactsForLga", () => {
     });
     expect(artefactFindManyMock).toHaveBeenCalledWith({
       where: {
-        type: { in: ["quick_site_check", "pre_see_planning_memo"] },
+        type: { in: ["quick_site_check", "pre_see_planning_memo", "detailed_planning_pack"] },
         createdAt: { lt: coverageUpdatedAt },
         project: { siteContext: { is: { lgaCode: "KEMPSEY" } } },
       },
@@ -136,6 +142,25 @@ describe("triggerArtefactRegeneration", () => {
 
     expect(createPreSeePlanningMemoArtefactMock).toHaveBeenCalledWith({
       body: { projectId: "project-1" },
+      userId: "user-1",
+    });
+  });
+
+
+  it("regenerates a Detailed Planning Pack using the stale pack proposal brief", async () => {
+    artefactFindFirstMock.mockResolvedValue({ payload: { proposalBrief: "Shopfront fitout" } });
+    createDetailedPlanningPackArtefactMock.mockResolvedValue({ artefact: { id: "new-pack" }, content: {} });
+
+    await expect(triggerArtefactRegeneration("project-1", "user-1", "detailed_planning_pack", "stale-pack")).resolves.toEqual({
+      queued: true,
+      newArtefactId: "new-pack",
+    });
+
+    expect(artefactFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "stale-pack", projectId: "project-1", type: "detailed_planning_pack" },
+    });
+    expect(createDetailedPlanningPackArtefactMock).toHaveBeenCalledWith({
+      body: { projectId: "project-1", proposalBrief: "Shopfront fitout" },
       userId: "user-1",
     });
   });

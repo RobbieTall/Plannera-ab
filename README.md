@@ -81,6 +81,12 @@ Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 `POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
 `POST /api/admin/ingest-council-dcp?lga=KEMPSEY&secret=INGEST_ADMIN_SECRET`
 
+## Commercial pilot funnel
+
+Near-term revenue is deliberately focused on a tight Byron/Kempsey funnel: **free Quick Site Check → proposal-aware, cited Detailed Planning Pack → consultant-ready SEE/referral**. The Project Workspace remains the retention layer, but the sellable step is now the Detailed Planning Pack, persisted as its own `detailed_planning_pack` artefact type: it carries the saved Quick Site Check LEP evidence forward, asks for a concise proposed-works brief, and separates cited DCP evidence from unresolved topics before SEE/referral.
+
+Payments, subscriptions, checkout, and auth gating are **not active** for this pilot. Item 40 remains deferred until the Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 golden cases pass saved-output and live-verification quality gates.
+
 ## Environment variables
 
 Required:
