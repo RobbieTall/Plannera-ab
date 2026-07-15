@@ -11,6 +11,7 @@ import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
 import { serializeSiteContext } from "@/lib/site-context";
+import { isArtefactCurrentForSite, quickSiteCheckScope, type CurrentSiteScope } from "@/lib/site-scoped-artefacts";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
@@ -20,7 +21,7 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
-import type { FeasibilityContent } from "@/types/workspace";
+import type { DetailedPlanningPackContent, FeasibilityContent } from "@/types/workspace";
 
 export const DEV_BYPASS_USER_ID = "dev-bypass-user";
 
@@ -440,6 +441,191 @@ export const loadDcpClausesForSections = async (
     return new Map();
   }
 };
+
+
+const DETAILED_PLANNING_PACK_TOPICS = [
+  { id: "setbacks", label: "Setbacks", query: "setback building line street side rear boundary" },
+  { id: "parking_access", label: "Parking and access", query: "parking access driveway loading commercial centre" },
+  { id: "built_form_active_frontage", label: "Built form and active frontage", query: "built form active frontage street frontage commercial centre tourist" },
+  { id: "landscaping_open_space", label: "Landscaping and open space", query: "landscaping open space deep soil tree planting" },
+  { id: "local_controls", label: "Other proposal-relevant local controls", query: "local controls development controls proposal design requirements" },
+] as const;
+
+const detailedPlanningPackSchema = z.object({
+  projectId: z.string().trim().min(1, "projectId is required"),
+  proposalBrief: z.string().trim().min(1, "A proposed-works brief is required").max(2000),
+});
+
+const isLaunchPackLga = (lgaCode?: string | null, lgaName?: string | null) => {
+  const haystack = `${lgaCode ?? ""} ${lgaName ?? ""}`.toLowerCase();
+  return /\b(byron|kempsey)\b/.test(haystack);
+};
+
+const compactExcerpt = (text: string, maxLength = 520) => {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > maxLength ? `${compact.slice(0, maxLength).trimEnd()}…` : compact;
+};
+
+const hasRealDcpSourceRef = (clause: Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">) =>
+  Boolean((clause.ref && clause.ref.trim()) || (clause.title && clause.title.trim()) || clause.headingPath?.some((part) => part.trim()));
+
+const mapDcpTopicEvidence = (
+  topic: (typeof DETAILED_PLANNING_PACK_TOPICS)[number],
+  clauses: ScoredDcpClause[],
+): DetailedPlanningPackContent["dcpEvidence"][number] => {
+  const citations = clauses
+    .filter(hasRealDcpSourceRef)
+    .slice(0, 3)
+    .map((clause) => ({
+      ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
+      title: clause.title ?? null,
+      headingPath: clause.headingPath ?? [],
+      excerpt: compactExcerpt(clause.bodyText),
+      score: clause.score,
+    }));
+
+  if (!citations.length) {
+    return {
+      topicId: topic.id,
+      topicLabel: topic.label,
+      status: "Unavailable",
+      reason: "No proposal- and zone-applicable DCP clause with a real source reference was retrieved for this topic.",
+      citations: [],
+    };
+  }
+
+  return {
+    topicId: topic.id,
+    topicLabel: topic.label,
+    status: "Cited",
+    reason: "Retrieved DCP evidence survived current zone/proposal applicability filtering.",
+    citations,
+  };
+};
+
+export async function createDetailedPlanningPackArtefact({
+  body,
+  userId,
+  deps = defaultPreSeePlanningMemoDeps,
+}: {
+  body: unknown;
+  userId: string;
+  deps?: PreSeePlanningMemoDeps;
+}): Promise<{ artefact: Artefact; content: DetailedPlanningPackContent }> {
+  const parsed = detailedPlanningPackSchema.safeParse(body);
+  if (!parsed.success) throw new ArtefactValidationError(parsed.error.issues[0]?.message ?? "Invalid detailed planning pack payload");
+  const { projectId, proposalBrief } = parsed.data;
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
+  const projectWithContext = await deps.prisma.project.findUnique({ where: { id: project.id }, include: { siteContext: true } });
+  if (!projectWithContext?.siteContext) throw new ArtefactValidationError("Set a confirmed site before generating a Detailed Planning Pack");
+
+  const currentSiteScope: CurrentSiteScope = {
+    address: projectWithContext.siteContext.formattedAddress,
+    lgaName: projectWithContext.siteContext.lgaName,
+    lgaCode: projectWithContext.siteContext.lgaCode,
+    zoneLabel: projectWithContext.siteContext.zone ?? projectWithContext.zoning,
+    zoneCode: projectWithContext.zoningCode,
+  };
+  const savedQuickSiteChecks = await deps.prisma.artefact.findMany({
+    where: { projectId: project.id, type: "quick_site_check" as ArtefactType },
+    orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
+  });
+  const parsedQuickSiteChecks = savedQuickSiteChecks
+    .map((artefact: Artefact) => {
+      const parsedReport = quickSiteCheckReportSchema.safeParse(artefact.payload);
+      return parsedReport.success ? { artefact, report: parsedReport.data as QuickSiteCheckReport } : null;
+    })
+    .filter((entry): entry is { artefact: Artefact; report: QuickSiteCheckReport } => Boolean(entry));
+  const currentQuickSiteCheck = parsedQuickSiteChecks.find(({ report }) =>
+    report.lepEvidenceSummary?.label === "Cited" && isArtefactCurrentForSite(currentSiteScope, quickSiteCheckScope(report)),
+  );
+
+  if (!currentQuickSiteCheck) {
+    const hasStaleCitedQuickSiteCheck = parsedQuickSiteChecks.some(({ report }) => report.lepEvidenceSummary?.label === "Cited");
+    throw new ArtefactValidationError(
+      hasStaleCitedQuickSiteCheck
+        ? "Regenerate and save a quality-valid Quick Site Check for the current site before generating a Detailed Planning Pack"
+        : "Save a quality-valid Quick Site Check with cited LEP evidence for the current site before generating a Detailed Planning Pack",
+    );
+  }
+
+  const quickSiteArtefact = currentQuickSiteCheck.artefact;
+  const quickSiteCheck = currentQuickSiteCheck.report;
+
+  const lgaCode = normalizeCouncilLgaCode(quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaCode);
+  if (!isLaunchPackLga(lgaCode, quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaName)) {
+    throw new ArtefactValidationError("Detailed Planning Pack pilot is currently available for Byron and Kempsey only");
+  }
+
+  const siteZone = quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null);
+  const topicResults = await Promise.all(DETAILED_PLANNING_PACK_TOPICS.map(async (topic) => {
+    const clauses = lgaCode
+      ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone })
+      : [];
+    const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id === "local_controls" ? null : topic.query.split(" ")[0]);
+    return mapDcpTopicEvidence(topic, filtered);
+  }));
+
+  const unresolvedTopics = topicResults
+    .filter((topic) => topic.status !== "Cited")
+    .map((topic) => `${topic.topicLabel}: ${topic.reason}`);
+  const citedTopicCount = topicResults.filter((topic) => topic.status === "Cited").length;
+  const content: DetailedPlanningPackContent = {
+    packType: "detailed_planning_pack",
+    generatedAt: new Date().toISOString(),
+    projectId: project.id,
+    site: {
+      address: quickSiteCheck.site.address ?? projectWithContext.siteContext.formattedAddress ?? null,
+      lga: quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaName ?? null,
+      lgaCode,
+      zoneCode: quickSiteCheck.site.zoneCode ?? null,
+      zoneName: quickSiteCheck.site.zoneName ?? null,
+      zoneLabel: quickSiteCheck.site.zoneLabel ?? null,
+    },
+    proposalBrief,
+    sourceQuickSiteCheck: {
+      artefactId: quickSiteArtefact.id,
+      title: quickSiteArtefact.title,
+      generatedAt: quickSiteCheck.generatedAt ?? quickSiteArtefact.capturedAt?.toISOString?.() ?? null,
+      lepEvidenceSummary: quickSiteCheck.lepEvidenceSummary ?? null,
+    },
+    carriedLepEvidenceSummary: quickSiteCheck.lepEvidenceSummary ?? null,
+    dcpEvidence: topicResults,
+    topicMatrix: topicResults.map((topic) => ({
+      topicId: topic.topicId,
+      topicLabel: topic.topicLabel,
+      status: topic.status,
+      summary: topic.status === "Cited" ? topic.reason : "Unavailable from current retrieved DCP evidence; needs expert review before lodgement.",
+      sourceRefs: topic.citations.map((citation) => citation.ref),
+    })),
+    unresolvedTopics,
+    consultantReviewQuestions: [
+      "Do the cited DCP controls apply to the exact proposed use, tenancy, works extent and site constraints?",
+      "Are any uncited or unavailable topics controlled by maps, schedules, policies, overlays or council practice not yet retrieved here?",
+      "What design changes or consultant inputs are needed before SEE drafting or referral?",
+    ],
+    nextAction: citedTopicCount > 0
+      ? "Review unresolved topics with a consultant, then use this pack as the evidence base for SEE/referral preparation."
+      : "Treat this as an evidence gap pack: do not progress to commercially ready SEE/referral until DCP evidence is verified.",
+    commercialReady: citedTopicCount > 0 && unresolvedTopics.length === 0,
+  };
+
+  const artefact = await deps.prisma.artefact.create({
+    data: {
+      projectId: project.id,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
+      type: "detailed_planning_pack" as ArtefactType,
+      title: `Detailed Planning Pack${content.site.address ? ` — ${content.site.address}` : ""}`,
+      source: content.site.address ?? content.site.zoneLabel ?? "Detailed Planning Pack",
+      overlays: [],
+      notes: `${citedTopicCount} cited DCP topic${citedTopicCount === 1 ? "" : "s"}; ${unresolvedTopics.length} unresolved topic${unresolvedTopics.length === 1 ? "" : "s"}`,
+      payload: content,
+      capturedAt: new Date(content.generatedAt),
+    },
+  });
+
+  return { artefact, content };
+}
 
 const SEE_SECTION_DCP_QUERIES = [
   { id: "setbacks", label: "Setbacks", query: "setback building line street side rear boundary" },

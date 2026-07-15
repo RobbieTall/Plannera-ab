@@ -48,7 +48,7 @@ export async function POST(
       return NextResponse.json({ reason: "Stale artefact not found" }, { status: 400 });
     }
 
-    const result = await triggerArtefactRegeneration(project.id, userId, normalizedArtefactType);
+    const result = await triggerArtefactRegeneration(project.id, userId, normalizedArtefactType, params.artefactId);
 
     if (!result.queued || !result.newArtefactId) {
       return NextResponse.json({ reason: result.reason ?? "Unable to regenerate artefact" }, { status: 400 });

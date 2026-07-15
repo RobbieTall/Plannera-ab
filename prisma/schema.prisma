@@ -324,6 +324,7 @@ enum ArtefactType {
   map_snapshot
   quick_site_check
   pre_see_planning_memo
+  detailed_planning_pack
   feasibility
   review_request
 }

@@ -61,7 +61,7 @@ describe("GET /api/projects/[projectId]/artefacts/stale", () => {
       where: {
         projectId: "project-1",
         staleAt: { not: null },
-        type: { in: ["quick_site_check", "pre_see_planning_memo"] },
+        type: { in: ["quick_site_check", "pre_see_planning_memo", "detailed_planning_pack"] },
       },
       select: { id: true, type: true, staleAt: true, createdAt: true },
       orderBy: { staleAt: "desc" },

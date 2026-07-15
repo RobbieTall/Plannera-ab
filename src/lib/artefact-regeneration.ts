@@ -1,6 +1,6 @@
 import type { ArtefactType } from "@prisma/client";
 
-import { createPreSeePlanningMemoArtefact, createQuickSiteCheckArtefact } from "@/lib/artefact-service";
+import { createDetailedPlanningPackArtefact, createPreSeePlanningMemoArtefact, createQuickSiteCheckArtefact } from "@/lib/artefact-service";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { prisma } from "@/lib/prisma";
 
@@ -11,9 +11,9 @@ export type StaleArtefact = {
   createdAt: Date;
 };
 
-type RegenerableArtefactType = Extract<ArtefactType, "quick_site_check" | "pre_see_planning_memo">;
+type RegenerableArtefactType = Extract<ArtefactType, "quick_site_check" | "pre_see_planning_memo" | "detailed_planning_pack">;
 
-const REGENERABLE_ARTEFACT_TYPES: RegenerableArtefactType[] = ["quick_site_check", "pre_see_planning_memo"];
+const REGENERABLE_ARTEFACT_TYPES: RegenerableArtefactType[] = ["quick_site_check", "pre_see_planning_memo", "detailed_planning_pack"];
 
 const normalizeLgaCode = (lgaCode: string) => lgaCode.trim().toUpperCase();
 
@@ -32,6 +32,14 @@ export const normalizeRegenerableArtefactType = (artefactType: string): Regenera
     normalized === "planning memo"
   ) {
     return "pre_see_planning_memo";
+  }
+
+  if (
+    normalized === "detailed_planning_pack" ||
+    normalized === "detailed-planning-pack" ||
+    normalized === "detailed planning pack"
+  ) {
+    return "detailed_planning_pack";
   }
 
   return null;
@@ -86,6 +94,7 @@ export async function triggerArtefactRegeneration(
   projectId: string,
   userId: string,
   artefactType: string,
+  staleArtefactId?: string,
 ): Promise<{ queued: boolean; reason?: string; newArtefactId?: string }> {
   const normalizedArtefactType = normalizeRegenerableArtefactType(artefactType);
 
@@ -115,6 +124,21 @@ export async function triggerArtefactRegeneration(
       userId,
     });
 
+    return { queued: true, newArtefactId: artefact.id };
+  }
+
+  if (normalizedArtefactType === "detailed_planning_pack") {
+    const staleArtefact = staleArtefactId
+      ? await prisma.artefact.findFirst({ where: { id: staleArtefactId, projectId, type: "detailed_planning_pack" } })
+      : null;
+    const payload = staleArtefact?.payload;
+    const proposalBrief = payload && typeof payload === "object" && "proposalBrief" in payload && typeof payload.proposalBrief === "string"
+      ? payload.proposalBrief
+      : "Regenerate the saved Detailed Planning Pack for the current proposal.";
+    const { artefact } = await createDetailedPlanningPackArtefact({
+      body: { projectId, proposalBrief },
+      userId,
+    });
     return { queued: true, newArtefactId: artefact.id };
   }
 

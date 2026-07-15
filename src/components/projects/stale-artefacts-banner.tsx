@@ -15,6 +15,7 @@ type RegenerationState = "idle" | "loading" | "success" | "error";
 const ARTEFACT_LABELS: Record<string, string> = {
   quick_site_check: "Quick Site Check",
   pre_see_planning_memo: "Planning Memo",
+  detailed_planning_pack: "Detailed Planning Pack",
 };
 
 export function StaleArtefactsBanner({ projectId }: { projectId: string }) {

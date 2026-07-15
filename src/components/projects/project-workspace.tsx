@@ -65,7 +65,8 @@ import {
   type CommercialReadinessStatus,
 } from "@/lib/commercial-next-action";
 import { highlightText } from "@/lib/highlight-text";
-import { isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, reviewRequestScope } from "@/lib/site-scoped-artefacts";
+import { selectCurrentSiteDetailedPlanningPackArtefact } from "@/lib/detailed-planning-pack-selector";
+import { detailedPlanningPackScope, isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, reviewRequestScope } from "@/lib/site-scoped-artefacts";
 import { getRelativeTime } from "@/lib/relative-time";
 import { generateSuggestions } from "@/lib/suggestion-chips";
 import type { Project } from "@/lib/mock-data";
@@ -82,6 +83,7 @@ import type {
   UserTier,
   FeasibilityContent,
   FeasibilityItem,
+  DetailedPlanningPackContent,
   WorkspaceArtefact,
   WorkspaceMessage,
   WorkspacePreSeePlanningMemoContent,
@@ -388,6 +390,69 @@ const normaliseLimitations = (value: unknown) => {
       ];
 };
 
+
+const normaliseDetailedPlanningPackContent = (
+  value: unknown,
+): DetailedPlanningPackContent | null => {
+  const parsedValue = parsePossibleJson(value);
+  if (!isRecord(parsedValue) || parsedValue.packType !== "detailed_planning_pack") return null;
+  const site = coerceRecord(parsedValue.site);
+  const sourceQuickSiteCheck = coerceRecord(parsedValue.sourceQuickSiteCheck);
+  const dcpEvidence = Array.isArray(parsedValue.dcpEvidence) ? parsedValue.dcpEvidence : [];
+  return {
+    packType: "detailed_planning_pack",
+    generatedAt: readString(parsedValue.generatedAt, new Date().toISOString()),
+    projectId: readString(parsedValue.projectId),
+    site: {
+      address: readNullableString(site.address),
+      lga: readNullableString(site.lga),
+      lgaCode: readNullableString(site.lgaCode),
+      zoneCode: readNullableString(site.zoneCode),
+      zoneName: readNullableString(site.zoneName),
+      zoneLabel: readNullableString(site.zoneLabel),
+    },
+    proposalBrief: readString(parsedValue.proposalBrief, "Proposed works brief was not saved with this pack."),
+    sourceQuickSiteCheck: {
+      artefactId: readString(sourceQuickSiteCheck.artefactId),
+      title: readString(sourceQuickSiteCheck.title, "Saved Quick Site Check"),
+      generatedAt: readNullableString(sourceQuickSiteCheck.generatedAt),
+      lepEvidenceSummary: isRecord(sourceQuickSiteCheck.lepEvidenceSummary)
+        ? (sourceQuickSiteCheck.lepEvidenceSummary as DetailedPlanningPackContent["sourceQuickSiteCheck"]["lepEvidenceSummary"])
+        : null,
+    },
+    carriedLepEvidenceSummary: isRecord(parsedValue.carriedLepEvidenceSummary)
+      ? (parsedValue.carriedLepEvidenceSummary as DetailedPlanningPackContent["carriedLepEvidenceSummary"])
+      : null,
+    dcpEvidence: dcpEvidence.map((item) => {
+      const record = coerceRecord(item);
+      const status = record.status === "Cited" || record.status === "Needs Expert Review" ? record.status : "Unavailable";
+      return {
+        topicId: readString(record.topicId),
+        topicLabel: readString(record.topicLabel, "Planning topic"),
+        status,
+        reason: readString(record.reason, "No reason saved."),
+        citations: Array.isArray(record.citations)
+          ? record.citations.map((citation) => {
+              const c = coerceRecord(citation);
+              return {
+                ref: readString(c.ref, "DCP source"),
+                title: readNullableString(c.title),
+                headingPath: Array.isArray(c.headingPath) ? c.headingPath.filter((part): part is string => typeof part === "string") : [],
+                excerpt: readString(c.excerpt),
+                score: typeof c.score === "number" ? c.score : 0,
+              };
+            })
+          : [],
+      };
+    }),
+    topicMatrix: Array.isArray(parsedValue.topicMatrix) ? (parsedValue.topicMatrix as DetailedPlanningPackContent["topicMatrix"]) : [],
+    unresolvedTopics: Array.isArray(parsedValue.unresolvedTopics) ? parsedValue.unresolvedTopics.filter((item): item is string => typeof item === "string") : [],
+    consultantReviewQuestions: Array.isArray(parsedValue.consultantReviewQuestions) ? parsedValue.consultantReviewQuestions.filter((item): item is string => typeof item === "string") : [],
+    nextAction: readString(parsedValue.nextAction, "Review this pack with a consultant before relying on it."),
+    commercialReady: parsedValue.commercialReady === true,
+  };
+};
+
 const normalisePreSeeMemoContent = (
   value: unknown,
 ): WorkspacePreSeePlanningMemoContent | null => {
@@ -595,6 +660,30 @@ const formatMemoDate = (value: string) => {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 };
 
+
+const mapServerDetailedPlanningPackArtefact = (
+  artefact: ServerArtefactRecord,
+): WorkspaceArtefact | null => {
+  const detailedPlanningPack = normaliseDetailedPlanningPackContent(artefact.payload);
+  if (!detailedPlanningPack) return null;
+  const citedCount = detailedPlanningPack.dcpEvidence.filter((topic) => topic.status === "Cited").length;
+  return {
+    id: artefact.id,
+    title: artefact.title,
+    owner: "You",
+    updatedAt: formatMemoDate(detailedPlanningPack.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt ?? new Date().toISOString()),
+    type: "detailed_planning_pack",
+    noteType: "Detailed Planning Pack",
+    metadata: [
+      detailedPlanningPack.site.zoneLabel,
+      `${citedCount} cited DCP topic${citedCount === 1 ? "" : "s"}`,
+      `${detailedPlanningPack.unresolvedTopics.length} unresolved topic${detailedPlanningPack.unresolvedTopics.length === 1 ? "" : "s"}`,
+    ].filter(Boolean).join(" · ") || artefact.notes || "Saved Detailed Planning Pack",
+    detailedPlanningPack,
+    staleAt: artefact.staleAt ?? undefined,
+  };
+};
+
 const mapServerPreSeeMemoArtefact = (
   artefact: ServerArtefactRecord,
 ): WorkspaceArtefact | null => {
@@ -709,6 +798,7 @@ const mapServerWorkspaceArtefact = (
   if (artefact.type === "quick_site_check") return mapServerQuickSiteCheckArtefact(artefact);
   if (artefact.type === "feasibility") return mapServerFeasibilityArtefact(artefact);
   if (artefact.type === "review_request") return mapServerReviewRequestArtefact(artefact);
+  if (artefact.type === "detailed_planning_pack") return mapServerDetailedPlanningPackArtefact(artefact);
   return mapServerPreSeeMemoArtefact(artefact);
 };
 
@@ -1062,6 +1152,8 @@ export function ProjectWorkspace({
   >(null);
   const [, setIsGeneratingPreSeeMemo] = useState(false);
   const [isGeneratingSee, setIsGeneratingSee] = useState(false);
+  const [proposalBrief, setProposalBrief] = useState("");
+  const [isGeneratingDetailedPack, setIsGeneratingDetailedPack] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
   const [serverArtefacts, setServerArtefacts] = useState<WorkspaceArtefact[]>(
     [],
@@ -2678,6 +2770,42 @@ export function ProjectWorkspace({
       ? normaliseFeasibilityContent(feasibilityArtefact.content)
       : null;
   }, [artefacts]);
+
+  const generateDetailedPlanningPack = useCallback(async () => {
+    if (!proposalBrief.trim()) {
+      showToast("Enter a proposed-works brief before generating the Detailed Planning Pack", "error");
+      return;
+    }
+    setIsGeneratingDetailedPack(true);
+    try {
+      const response = await fetch("/api/artefacts/generate-detailed-planning-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ projectId: projectKey, proposalBrief }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { artefactId?: string; content?: DetailedPlanningPackContent; error?: string };
+      if (!response.ok || !data.artefactId || !data.content) throw new Error(data.error ?? "Unable to generate Detailed Planning Pack");
+      const citedCount = data.content.dcpEvidence.filter((topic) => topic.status === "Cited").length;
+      addArtefact(projectKey, {
+        id: data.artefactId,
+        title: `Detailed Planning Pack${data.content.site.address ? ` — ${data.content.site.address}` : ""}`,
+        owner: "You",
+        updatedAt: "Just now",
+        type: "detailed_planning_pack",
+        noteType: "Detailed Planning Pack",
+        metadata: `${citedCount} cited DCP topic${citedCount === 1 ? "" : "s"} · ${data.content.unresolvedTopics.length} unresolved topic${data.content.unresolvedTopics.length === 1 ? "" : "s"}`,
+        detailedPlanningPack: data.content,
+      });
+      showToast("Detailed Planning Pack saved as an artefact");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to generate Detailed Planning Pack";
+      showToast(message, "error");
+    } finally {
+      setIsGeneratingDetailedPack(false);
+    }
+  }, [addArtefact, projectKey, proposalBrief, showToast]);
+
   const generatePreSeeMemo = useCallback(async () => {
     if (!siteContext) {
       showToast(
@@ -2924,7 +3052,7 @@ export function ProjectWorkspace({
 
   const siteScopedArtefacts = useMemo(() =>
     artefacts.map((artefact) => {
-      const scope = quickSiteCheckScope(artefact.quickSiteCheck) ?? preSeeScope(artefact.preSeeMemo) ?? reviewRequestScope(artefact.reviewRequest);
+      const scope = quickSiteCheckScope(artefact.quickSiteCheck) ?? detailedPlanningPackScope(artefact.detailedPlanningPack) ?? preSeeScope(artefact.preSeeMemo) ?? reviewRequestScope(artefact.reviewRequest);
       if (!scope) return artefact;
       const isCurrentSite = isArtefactCurrentForSite(currentSiteScope, scope);
       return {
@@ -2934,6 +3062,10 @@ export function ProjectWorkspace({
       };
     }),
   [artefacts, currentSiteScope]);
+
+  const latestDetailedPlanningPackArtefact = useMemo(() => selectCurrentSiteDetailedPlanningPackArtefact(siteScopedArtefacts), [siteScopedArtefacts]);
+  const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
+  const hasQualityDetailedPlanningPack = latestDetailedPlanningPack?.commercialReady === true;
 
   const latestSeeArtefact = useMemo(() => {
     return siteScopedArtefacts.find((artefact) =>
@@ -2979,6 +3111,8 @@ export function ProjectWorkspace({
         coverageMaturity: lgaCoverageMaturity,
         hasQuickSiteCheck: Boolean(latestQuickSiteCheckArtefact),
         hasSee: Boolean(latestSeeContent),
+        hasDetailedPlanningPack: Boolean(latestDetailedPlanningPack),
+        hasQualityDetailedPlanningPack,
         hasQualityQuickSiteCheck,
         hasQualitySee,
         isPendingInitialSiteConfirmation: hasPendingInitialSiteConfirmation,
@@ -2990,6 +3124,8 @@ export function ProjectWorkspace({
       hasQualitySee,
       latestQuickSiteCheckArtefact,
       latestSeeContent,
+      latestDetailedPlanningPack,
+      hasQualityDetailedPlanningPack,
       lgaCoverageMaturity,
       sessionSignals.lga,
       siteContext?.lgaCode,
@@ -3054,13 +3190,18 @@ export function ProjectWorkspace({
       return;
     }
 
+    if (commercialNextAction.primaryAction === "generate_detailed_pack") {
+      void generateDetailedPlanningPack();
+      return;
+    }
+
     if (commercialNextAction.primaryAction === "generate_see") {
       handleGeneratePreSeeMemo();
       return;
     }
 
     showToast("Use the SEE panel Copy or Download button, or request expert review");
-  }, [commercialNextAction.primaryAction, handleGeneratePreSeeMemo, showToast]);
+  }, [commercialNextAction.primaryAction, generateDetailedPlanningPack, handleGeneratePreSeeMemo, showToast]);
   const activeStaleArtefact = staleArtefactTypes[0];
   const activeNotification = notifications[0];
   const outputStatusKind =
@@ -3997,6 +4138,63 @@ export function ProjectWorkspace({
                       <p className="text-sm italic text-slate-400 dark:text-slate-500">
                         Run a quick zoning and LEP snapshot for this site.
                       </p>
+                    </div>
+                  )}
+                </OutputSection>
+
+                <OutputSection
+                  title="Detailed Planning Pack"
+                  action={
+                    hasSiteContext ? (
+                      <button
+                        type="button"
+                        onClick={() => void generateDetailedPlanningPack()}
+                        disabled={isGeneratingDetailedPack || !hasQualityQuickSiteCheck || !proposalBrief.trim()}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+                      >
+                        {isGeneratingDetailedPack ? "Generating…" : latestDetailedPlanningPack ? "Regenerate pack" : "Generate pack"}
+                      </button>
+                    ) : null
+                  }
+                >
+                  {!hasSiteContext ? (
+                    <p className="text-sm italic text-slate-400 dark:text-slate-500">Set a site address before generating a proposal-scoped pack.</p>
+                  ) : !hasQualityQuickSiteCheck ? (
+                    <p className="text-sm italic text-slate-400 dark:text-slate-500">Save a quality-valid Quick Site Check first.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300" htmlFor="proposal-brief">
+                        Proposed works brief
+                      </label>
+                      <textarea
+                        id="proposal-brief"
+                        value={proposalBrief}
+                        onChange={(event) => setProposalBrief(event.target.value)}
+                        rows={3}
+                        placeholder="e.g. Alterations to an existing commercial premises with shopfront updates and minor internal fitout."
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                      {latestDetailedPlanningPack ? (
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-sm dark:border-slate-800 dark:bg-slate-800/60">
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">{latestDetailedPlanningPackArtefact?.title}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{latestDetailedPlanningPackArtefact?.metadata}</p>
+                          <p className="mt-3 text-xs leading-5 text-slate-600 dark:text-slate-300">{latestDetailedPlanningPack.nextAction}</p>
+                          <div className="mt-3 grid gap-2">
+                            {latestDetailedPlanningPack.topicMatrix.map((topic) => (
+                              <div key={topic.topicId} className="rounded-xl border border-white/70 bg-white/70 p-2 text-xs dark:border-slate-700 dark:bg-slate-900/50">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-100">{topic.topicLabel}</span>
+                                  <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", readinessStatusClasses[topic.status === "Cited" ? "Confirmed" : topic.status])}>{topic.status}</span>
+                                </div>
+                                <p className="mt-1 text-slate-500 dark:text-slate-400">{topic.summary}</p>
+                                {topic.sourceRefs.length ? <p className="mt-1 text-slate-400">Sources: {topic.sourceRefs.join(", ")}</p> : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm italic text-slate-400 dark:text-slate-500">Generate a persisted proposal-aware DCP evidence pack before SEE/referral.</p>
+                      )}
                     </div>
                   )}
                 </OutputSection>

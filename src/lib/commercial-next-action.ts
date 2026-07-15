@@ -13,6 +13,8 @@ export type CommercialNextActionInput = {
   coverageMaturity?: string | null;
   hasQuickSiteCheck: boolean;
   hasSee: boolean;
+  hasDetailedPlanningPack?: boolean;
+  hasQualityDetailedPlanningPack?: boolean;
   hasQualityQuickSiteCheck?: boolean;
   hasQualitySee?: boolean;
   isPendingInitialSiteConfirmation?: boolean;
@@ -27,7 +29,7 @@ export type CommercialReadinessItem = {
 export type CommercialNextAction = {
   heading: string;
   description: string;
-  primaryAction: "set_site" | "run_quick_site_check" | "generate_see" | "export_or_review";
+  primaryAction: "set_site" | "run_quick_site_check" | "generate_detailed_pack" | "generate_see" | "export_or_review";
   primaryLabel: string;
   secondaryLabel?: string;
   items: CommercialReadinessItem[];
@@ -51,6 +53,8 @@ export function buildCommercialNextAction({
   coverageMaturity,
   hasQuickSiteCheck,
   hasSee,
+  hasDetailedPlanningPack = false,
+  hasQualityDetailedPlanningPack = false,
   hasQualityQuickSiteCheck = hasQuickSiteCheck,
   hasQualitySee = hasSee,
   isPendingInitialSiteConfirmation = false,
@@ -98,13 +102,24 @@ export function buildCommercialNextAction({
         : "Run and save a Quick Site Check before drafting paid documentation.",
     },
     {
-      label: "SEE-ready artefact",
-      status: hasQualitySee ? "Confirmed" : hasSee ? "Needs Expert Review" : hasQualityQuickSiteCheck ? "Needs Input" : "Unavailable",
-      detail: hasQualitySee
+      label: "Detailed Planning Pack",
+      status: hasQualityDetailedPlanningPack ? "Confirmed" : hasDetailedPlanningPack ? "Needs Expert Review" : hasQualityQuickSiteCheck ? "Needs Input" : "Unavailable",
+      detail: hasQualityDetailedPlanningPack
+        ? "A current-site proposal-scoped DCP evidence pack is saved and all tracked topics are cited."
+        : hasDetailedPlanningPack
+          ? "A current-site Detailed Planning Pack exists, but unresolved topics need review or regeneration before SEE/referral."
+          : "Enter a proposed-works brief and generate the Detailed Planning Pack before SEE/referral.",
+    },
+    {
+      label: "SEE / referral",
+      status: hasQualitySee && hasQualityDetailedPlanningPack ? "Confirmed" : hasSee ? "Needs Expert Review" : hasQualityDetailedPlanningPack ? "Needs Input" : "Unavailable",
+      detail: hasQualitySee && hasQualityDetailedPlanningPack
         ? "A SEE draft is saved with relevant cited evidence and is ready to copy, download, or review."
-        : hasSee
+        : hasQualitySee
+          ? "A quality SEE draft exists, but the current-site Detailed Planning Pack gate is not yet quality-valid."
+          : hasSee
           ? "A SEE draft exists, but it lacks enough relevant cited evidence for commercial readiness."
-        : "Generate a SEE once the site check is saved and assumptions are clear.",
+        : "Generate SEE/referral handoff after the Detailed Planning Pack is reviewed.",
     },
   ];
 
@@ -128,10 +143,24 @@ export function buildCommercialNextAction({
     };
   }
 
+  if (!hasQualityDetailedPlanningPack) {
+    return {
+      heading: hasDetailedPlanningPack
+        ? "Next commercial step: resolve the Detailed Planning Pack"
+        : "Next commercial step: generate the Detailed Planning Pack",
+      description: hasDetailedPlanningPack
+        ? "The current-site pack has unresolved DCP topics; review or regenerate it before SEE or referral."
+        : "Capture the proposed works and retrieve proposal/zone-scoped DCP evidence before SEE or referral.",
+      primaryAction: "generate_detailed_pack",
+      primaryLabel: hasDetailedPlanningPack ? "Regenerate detailed planning pack" : "Generate detailed planning pack",
+      items,
+    };
+  }
+
   if (!hasQualitySee) {
     return {
-      heading: "Next commercial step: generate the SEE draft",
-      description: "Use the saved site check, LEP/DCP context and known assumptions to create an exportable artefact.",
+      heading: "Next commercial step: prepare SEE/referral",
+      description: "Use the saved Detailed Planning Pack as the consultant-ready evidence step before export or review.",
       primaryAction: "generate_see",
       primaryLabel: "Generate SEE",
       items,

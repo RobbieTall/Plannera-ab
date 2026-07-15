@@ -133,3 +133,12 @@ Date: 2026-07-14
 Decision: Structured LEP list parsing must preserve statutory land-use terms exactly where normalisation is only reconstructing list rows. Intra-word hyphenated terms such as `tourist-oriented`, `Centre-based`, `Eco-tourist`, `Home-based`, and `Tank-based` are legal terms and must not be split into fragments. The parser may split actual list boundaries and semicolon-delimited land-use entries, and may remove standalone structural land-use-table ordinals, but item references inside statutory text (for example `item 2 or 3`) must remain intact.
 
 Rationale: Quick Site Check is a cited statutory product surface. Normalisation can improve display and structured storage, but it must not alter the meaning of LEP objectives or land-use permissibility terms.
+
+
+## DR-018 — Evidence-Gated Commercial Funnel
+
+Status: Active
+
+Decision: Near-term monetisation follows a deliberately narrow free Quick Site Check → proposal-aware cited Detailed Planning Pack → consultant-ready SEE/referral funnel, with the pack represented as its own durable artefact type rather than a SEE memo or review request. Payment/auth gating remains deferred until the Detailed Planning Pack passes Byron/Kempsey golden-case saved-output and live-verification gates. Artefact existence alone is not commercial readiness; cited, applicable evidence and honest unresolved topics control readiness.
+
+Reference: docs/project-memory/build-next.md item 49

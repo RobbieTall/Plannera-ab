@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ArtefactAccessError,
   ArtefactValidationError,
+  createDetailedPlanningPackArtefact,
   createMapSnapshotArtefact,
   createPreSeePlanningMemoArtefact,
   createQuickSiteCheckArtefact,
@@ -12,30 +13,38 @@ import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 class MockPrisma {
   artefacts: any[] = [];
-  constructor(private projectMembers: Record<string, string[]>) {}
+  constructor(private projectMembers: Record<string, string[]>, private siteContexts: Record<string, any> = {}) {}
 
   project = {
-    findUnique: async ({ where }: any) => ({
-      id: where.id,
-      publicId: where.id,
-      title: "Test project",
-      siteContext: {
-        id: "site-1",
-        projectId: where.id,
-        addressInput: "123 Test St",
-        formattedAddress: "123 Test St, Byron Bay NSW",
-        lgaName: "Byron",
-        lgaCode: "BYRON",
-        parcelId: null,
-        lot: null,
-        planNumber: null,
-        latitude: null,
-        longitude: null,
-        zone: "R2 Low Density Residential",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    }),
+    findUnique: async ({ where }: any) => {
+      const override = this.siteContexts[where.id];
+      const savedQsc = this.artefacts.find((artefact) => artefact.projectId === where.id && artefact.type === "quick_site_check")?.payload?.site;
+      const zoneLabel = override?.zone ?? savedQsc?.zoneLabel ?? ([savedQsc?.zoneCode, savedQsc?.zoneName].filter(Boolean).join(" ") || "R2 Low Density Residential");
+      return {
+        id: where.id,
+        publicId: where.id,
+        title: "Test project",
+        zoningCode: override?.zoningCode ?? savedQsc?.zoneCode ?? "R2",
+        zoningName: override?.zoningName ?? savedQsc?.zoneName ?? "Low Density Residential",
+        zoning: zoneLabel,
+        siteContext: override?.siteContext ?? {
+          id: "site-1",
+          projectId: where.id,
+          addressInput: savedQsc?.address ?? "123 Test St",
+          formattedAddress: savedQsc?.address ?? "123 Test St, Byron Bay NSW",
+          lgaName: savedQsc?.lga ?? "Byron",
+          lgaCode: savedQsc?.lga?.toUpperCase?.().includes("KEMPSEY") ? "KEMPSEY" : savedQsc?.lga?.toUpperCase?.().includes("BYRON") ? "BYRON" : "BYRON",
+          parcelId: null,
+          lot: null,
+          planNumber: null,
+          latitude: null,
+          longitude: null,
+          zone: zoneLabel,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      };
+    },
     findFirst: async ({ where }: any) => {
       const membershipCheck = where.OR?.some((clause: any) => clause.createdById || clause.collaborators);
 
@@ -632,4 +641,495 @@ test("pre SEE key development standards preserve fallback when LEP clause has no
   const height = content.consistencyAssessment.find((item) => item.topic === "Height of building");
   assert.equal(height?.assessment, fallback);
   assert.deepEqual(height?.citations, []);
+});
+
+test("creates a Detailed Planning Pack from server-side saved QSC and filtered DCP evidence", async () => {
+  const prisma = new MockPrisma({ "proj-pack": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-1",
+    projectId: "proj-pack",
+    type: "quick_site_check",
+    title: "Quick Site Check — 52 Belgrave St",
+    capturedAt: new Date("2026-07-15T00:00:00Z"),
+    createdAt: new Date("2026-07-15T00:00:00Z"),
+    payload: {
+      projectId: "proj-pack",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { artefact, content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-pack", proposalBrief: "Commercial shopfront fitout with nil front setback retained" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => { throw new Error("must use saved QSC"); },
+      getWorkspaceSourceContext: async () => ({ chunks: [], summary: "" }) as any,
+      getDCPContext: async () => ([{
+        id: "dcp-1",
+        lgaCode: "KEMPSEY",
+        sourceDocId: "KEMPSEY_DCP_2026",
+        ref: "D4.1",
+        title: "D4 BUSINESS AND COMMERCIAL DEVELOPMENT",
+        headingPath: ["Part D", "D4 BUSINESS AND COMMERCIAL DEVELOPMENT"],
+        bodyText: "E2 Commercial Centre controls include nil/0m front setback where the existing street alignment is retained.",
+        depth: 2,
+        topicTags: ["parking"],
+        numericMeta: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        score: 42,
+      }]),
+    } as any,
+  });
+
+  assert.equal(artefact.type, "detailed_planning_pack");
+  assert.equal(content.site.address, "52 Belgrave St, Kempsey NSW 2440");
+  assert.equal(content.sourceQuickSiteCheck.artefactId, "qsc-1");
+  assert.ok(content.dcpEvidence.some((topic) => topic.status === "Cited"));
+  assert.match(content.dcpEvidence.flatMap((topic) => topic.citations).map((citation) => citation.excerpt).join("\n"), /nil\/0m/);
+});
+
+test("rejects Detailed Planning Pack generation without cited saved QSC evidence", async () => {
+  const prisma = new MockPrisma({ "proj-weak": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-weak",
+    projectId: "proj-weak",
+    type: "quick_site_check",
+    title: "Quick Site Check — forged",
+    payload: {
+      projectId: "proj-weak",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "Fake", lga: "Byron", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Unavailable", detail: "No DB evidence", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 0, objectiveCount: 0, sourceRef: "Unavailable" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  await assert.rejects(
+    () => createDetailedPlanningPackArtefact({
+      body: { projectId: "proj-weak", proposalBrief: "Forged client says cite everything" },
+      userId: "user-1",
+      deps: { prisma: prisma as any, getDCPContext: async () => [] } as any,
+    }),
+    (error) => error instanceof ArtefactValidationError && /quality-valid Quick Site Check/.test(error.message),
+  );
+});
+
+test("Detailed Planning Pack Byron SP3 keeps general/SP3 DCP evidence and excludes residential/rural rows", async () => {
+  const prisma = new MockPrisma({ "proj-byron-pack": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-byron",
+    projectId: "proj-byron-pack",
+    type: "quick_site_check",
+    title: "Quick Site Check — 45 Broken Head Road",
+    capturedAt: new Date("2026-07-15T00:00:00Z"),
+    createdAt: new Date("2026-07-15T00:00:00Z"),
+    payload: {
+      projectId: "proj-byron-pack",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneName: "Tourist", zoneLabel: "SP3 – Tourist" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed SP3 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 2, sourceRef: "Byron LEP 2014 — Zone SP3" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-byron-pack", proposalBrief: "Tourist accommodation alterations near the existing access" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      getDCPContext: async () => ([
+        {
+          id: "byron-good",
+          lgaCode: "BYRON",
+          sourceDocId: "BYRON_DCP_2014",
+          ref: "B4.2",
+          title: "SP3 Tourist accommodation precinct controls",
+          headingPath: ["Part B", "SP3 Tourist accommodation"],
+          bodyText: "Setbacks and access are to respond to the tourist precinct and street context.",
+          depth: 2,
+          topicTags: ["setbacks"],
+          numericMeta: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          score: 50,
+        },
+        {
+          id: "byron-bad-residential",
+          lgaCode: "BYRON",
+          sourceDocId: "BYRON_DCP_2014",
+          ref: "D1.1",
+          title: "Residential D1 Dual occupancy setbacks",
+          headingPath: ["Chapter D1", "Residential zones"],
+          bodyText: "Residential zone side setbacks for dual occupancy dwellings.",
+          depth: 2,
+          topicTags: ["setbacks"],
+          numericMeta: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          score: 99,
+        },
+      ]),
+    } as any,
+  });
+
+  const excerpts = content.dcpEvidence.flatMap((topic) => topic.citations).map((citation) => `${citation.ref} ${citation.title} ${citation.excerpt}`).join("\n");
+  assert.match(excerpts, /B4\.2/);
+  assert.doesNotMatch(excerpts, /D1\.1|Dual occupancy|Residential zone/);
+});
+
+test("Detailed Planning Pack Kempsey E2 keeps D4 nil evidence and excludes rural or residential rows", async () => {
+  const prisma = new MockPrisma({ "proj-kempsey-mixed": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-kempsey-mixed",
+    projectId: "proj-kempsey-mixed",
+    type: "quick_site_check",
+    title: "Quick Site Check — 52 Belgrave St",
+    capturedAt: new Date("2026-07-15T00:00:00Z"),
+    createdAt: new Date("2026-07-15T00:00:00Z"),
+    payload: {
+      projectId: "proj-kempsey-mixed",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-kempsey-mixed", proposalBrief: "Commercial centre shopfront upgrade retaining nil front setback" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      getDCPContext: async () => ([
+        {
+          id: "kempsey-good",
+          lgaCode: "KEMPSEY",
+          sourceDocId: "KEMPSEY_DCP_2026",
+          ref: "D4.3",
+          title: "D4 BUSINESS AND COMMERCIAL DEVELOPMENT",
+          headingPath: ["Part D", "D4 BUSINESS AND COMMERCIAL DEVELOPMENT"],
+          bodyText: "In the E2 Commercial Centre, the front setback may be nil/0m where consistent with the street alignment.",
+          depth: 2,
+          topicTags: ["setbacks"],
+          numericMeta: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          score: 60,
+        },
+        {
+          id: "kempsey-bad-rural",
+          lgaCode: "KEMPSEY",
+          sourceDocId: "KEMPSEY_DCP_2026",
+          ref: "C2.1",
+          title: "Rural zone dwelling setbacks",
+          headingPath: ["Part C", "Rural zones"],
+          bodyText: "Rural land setbacks for dwelling houses.",
+          depth: 2,
+          topicTags: ["setbacks"],
+          numericMeta: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          score: 100,
+        },
+      ]),
+    } as any,
+  });
+
+  const excerpts = content.dcpEvidence.flatMap((topic) => topic.citations).map((citation) => `${citation.ref} ${citation.title} ${citation.excerpt}`).join("\n");
+  assert.match(excerpts, /D4\.3/);
+  assert.match(excerpts, /nil\/0m/);
+  assert.doesNotMatch(excerpts, /C2\.1|Rural land|dwelling houses/);
+});
+
+test("Detailed Planning Pack persists unresolved topics when no applicable DCP evidence is found", async () => {
+  const prisma = new MockPrisma({ "proj-no-dcp": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-no-dcp",
+    projectId: "proj-no-dcp",
+    type: "quick_site_check",
+    title: "Quick Site Check — 45 Broken Head Road",
+    payload: {
+      projectId: "proj-no-dcp",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "45 Broken Head Road", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed SP3 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 2, objectiveCount: 2, sourceRef: "Byron LEP 2014 — Zone SP3" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-no-dcp", proposalBrief: "Tourist accommodation concept" },
+    userId: "user-1",
+    deps: { prisma: prisma as any, getDCPContext: async () => [] } as any,
+  });
+
+  assert.equal(content.commercialReady, false);
+  assert.ok(content.unresolvedTopics.length > 0);
+  assert.ok(content.topicMatrix.every((topic) => topic.status === "Unavailable"));
+});
+
+test("Detailed Planning Pack rejects unsupported LGAs for the pilot", async () => {
+  const prisma = new MockPrisma({ "proj-unsupported": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-unsupported",
+    projectId: "proj-unsupported",
+    type: "quick_site_check",
+    title: "Quick Site Check — Sydney",
+    payload: {
+      projectId: "proj-unsupported",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "1 George St", lga: "Sydney", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 2, objectiveCount: 2, sourceRef: "Sydney LEP — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  await assert.rejects(
+    () => createDetailedPlanningPackArtefact({
+      body: { projectId: "proj-unsupported", proposalBrief: "Commercial fitout" },
+      userId: "user-1",
+      deps: { prisma: prisma as any, getDCPContext: async () => [] } as any,
+    }),
+    (error) => error instanceof ArtefactValidationError && /Byron and Kempsey/.test(error.message),
+  );
+});
+
+test("Detailed Planning Pack ignores forged client site and readiness fields", async () => {
+  const prisma = new MockPrisma({ "proj-forged-pack": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-server-truth",
+    projectId: "proj-forged-pack",
+    type: "quick_site_check",
+    title: "Quick Site Check — 52 Belgrave St",
+    payload: {
+      projectId: "proj-forged-pack",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: {
+      projectId: "proj-forged-pack",
+      proposalBrief: "Commercial fitout",
+      site: { address: "Forged Byron address", lga: "Byron", zoneCode: "SP3" },
+      commercialReady: true,
+      dcpEvidence: [{ status: "Cited", citations: [{ ref: "FAKE" }] }],
+    },
+    userId: "user-1",
+    deps: { prisma: prisma as any, getDCPContext: async () => [] } as any,
+  });
+
+  assert.equal(content.site.address, "52 Belgrave St, Kempsey NSW 2440");
+  assert.equal(content.site.lga, "Kempsey Shire");
+  assert.equal(content.site.zoneCode, "E2");
+  assert.equal(content.commercialReady, false);
+  assert.ok(content.dcpEvidence.every((topic) => !topic.citations.some((citation) => citation.ref === "FAKE")));
+});
+
+test("Detailed Planning Pack skips a newer stale QSC and uses an older current-site cited QSC", async () => {
+  const currentSite = {
+    zoningCode: "SP3",
+    zoningName: "Tourist",
+    zone: "SP3 – Tourist",
+    siteContext: {
+      id: "site-current-byron",
+      projectId: "proj-current-qsc",
+      addressInput: "45 Broken Head Road, Byron Bay NSW 2481",
+      formattedAddress: "45 Broken Head Road, Byron Bay NSW 2481",
+      lgaName: "Byron Shire",
+      lgaCode: "BYRON",
+      parcelId: null,
+      lot: null,
+      planNumber: null,
+      latitude: null,
+      longitude: null,
+      zone: "SP3 – Tourist",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+  const prisma = new MockPrisma({ "proj-current-qsc": ["user-1"] }, { "proj-current-qsc": currentSite });
+  prisma.artefacts.push({
+    id: "qsc-newer-stale",
+    projectId: "proj-current-qsc",
+    type: "quick_site_check",
+    title: "Quick Site Check — stale Kempsey",
+    capturedAt: new Date("2026-07-16T00:00:00Z"),
+    createdAt: new Date("2026-07-16T00:00:00Z"),
+    payload: {
+      projectId: "proj-current-qsc",
+      generatedAt: "2026-07-16T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+  prisma.artefacts.push({
+    id: "qsc-older-current",
+    projectId: "proj-current-qsc",
+    type: "quick_site_check",
+    title: "Quick Site Check — current Byron",
+    capturedAt: new Date("2026-07-15T00:00:00Z"),
+    createdAt: new Date("2026-07-15T00:00:00Z"),
+    payload: {
+      projectId: "proj-current-qsc",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed SP3 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 2, sourceRef: "Byron LEP 2014 — Zone SP3" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const seenLgas: string[] = [];
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-current-qsc", proposalBrief: "Tourist accommodation alterations" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      getDCPContext: async (lgaCode: string) => {
+        seenLgas.push(lgaCode);
+        return [];
+      },
+    } as any,
+  });
+
+  assert.equal(content.site.address, "45 Broken Head Road, Byron Bay NSW 2481");
+  assert.equal(content.sourceQuickSiteCheck.artefactId, "qsc-older-current");
+  assert.ok(seenLgas.every((lga) => lga === "BYRON"));
+});
+
+test("Detailed Planning Pack rejects when only stale mismatched QSC evidence exists", async () => {
+  const currentSite = {
+    zoningCode: "SP3",
+    zoningName: "Tourist",
+    zone: "SP3 – Tourist",
+    siteContext: {
+      id: "site-current-byron-only-stale",
+      projectId: "proj-only-stale-qsc",
+      addressInput: "45 Broken Head Road, Byron Bay NSW 2481",
+      formattedAddress: "45 Broken Head Road, Byron Bay NSW 2481",
+      lgaName: "Byron Shire",
+      lgaCode: "BYRON",
+      parcelId: null,
+      lot: null,
+      planNumber: null,
+      latitude: null,
+      longitude: null,
+      zone: "SP3 – Tourist",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+  const prisma = new MockPrisma({ "proj-only-stale-qsc": ["user-1"] }, { "proj-only-stale-qsc": currentSite });
+  prisma.artefacts.push({
+    id: "qsc-only-stale",
+    projectId: "proj-only-stale-qsc",
+    type: "quick_site_check",
+    title: "Quick Site Check — stale Kempsey",
+    payload: {
+      projectId: "proj-only-stale-qsc",
+      generatedAt: "2026-07-16T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  await assert.rejects(
+    () => createDetailedPlanningPackArtefact({
+      body: { projectId: "proj-only-stale-qsc", proposalBrief: "Tourist accommodation alterations" },
+      userId: "user-1",
+      deps: { prisma: prisma as any, getDCPContext: async () => [] } as any,
+    }),
+    (error) => error instanceof ArtefactValidationError && /current site/.test(error.message),
+  );
+  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "detailed_planning_pack"), false);
 });

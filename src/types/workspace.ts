@@ -24,7 +24,7 @@ export type WorkspaceSessionSignals = {
   lastIntent?: string;
 };
 
-export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note" | "feasibility" | "review_request";
+export type WorkspaceArtefactType = "summary" | "brief" | "report" | "chat" | "note" | "feasibility" | "review_request" | "detailed_planning_pack";
 
 export type FeasibilityItem = {
   label: string;
@@ -70,6 +70,42 @@ export type ReviewRequestContent = {
   missingInputs: string[];
   assumptions: string[];
   recommendedReviewScope: string[];
+};
+
+export type DetailedPlanningPackTopicStatus = "Cited" | "Unavailable" | "Needs Expert Review";
+
+export type DetailedPlanningPackContent = {
+  packType: "detailed_planning_pack";
+  generatedAt: string;
+  projectId: string;
+  site: {
+    address: string | null;
+    lga: string | null;
+    lgaCode: string | null;
+    zoneCode: string | null;
+    zoneName: string | null;
+    zoneLabel: string | null;
+  };
+  proposalBrief: string;
+  sourceQuickSiteCheck: {
+    artefactId: string;
+    title: string;
+    generatedAt: string | null;
+    lepEvidenceSummary?: QuickSiteCheckEvidenceSummary | null;
+  };
+  carriedLepEvidenceSummary: QuickSiteCheckEvidenceSummary | null;
+  dcpEvidence: Array<{
+    topicId: string;
+    topicLabel: string;
+    status: DetailedPlanningPackTopicStatus;
+    reason: string;
+    citations: Array<{ ref: string; title: string | null; headingPath: string[]; excerpt: string; score: number }>;
+  }>;
+  topicMatrix: Array<{ topicId: string; topicLabel: string; status: DetailedPlanningPackTopicStatus; summary: string; sourceRefs: string[] }>;
+  unresolvedTopics: string[];
+  consultantReviewQuestions: string[];
+  nextAction: string;
+  commercialReady: boolean;
 };
 
 export type WorkspacePreSeePlanningMemoContent = {
@@ -124,6 +160,7 @@ export type WorkspaceArtefact = {
   preSeeMemo?: WorkspacePreSeePlanningMemoContent;
   content?: FeasibilityContent;
   reviewRequest?: ReviewRequestContent;
+  detailedPlanningPack?: DetailedPlanningPackContent;
   quickSiteCheck?: QuickSiteCheckReport;
   isCurrentSite?: boolean;
   staleReason?: string;
