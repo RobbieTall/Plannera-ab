@@ -799,9 +799,9 @@ function ReviewRequestCard({
 }) {
   const [copied, setCopied] = useState(false);
   const siteLabel = [
-    content.site.address,
-    content.site.lga,
-    content.site.zoneLabel,
+    content.site?.address,
+    content.site?.lga,
+    content.site?.zoneLabel,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -873,19 +873,19 @@ function ReviewRequestCard({
         <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
           <dt className="text-slate-400 dark:text-slate-500">Artefacts</dt>
           <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
-            {content.includedArtefacts.length}
+            {(content.includedArtefacts ?? []).length}
           </dd>
         </div>
         <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
           <dt className="text-slate-400 dark:text-slate-500">Citations</dt>
           <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
-            {content.citedSources.length}
+            {(content.citedSources ?? []).length}
           </dd>
         </div>
         <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-950/30">
           <dt className="text-slate-400 dark:text-slate-500">Gaps</dt>
           <dd className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
-            {content.confidenceGaps.length}
+            {(content.confidenceGaps ?? []).length}
           </dd>
         </div>
       </dl>
@@ -896,7 +896,7 @@ function ReviewRequestCard({
             Included outputs
           </p>
           <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-            {content.includedArtefacts.map((item) => (
+            {(content.includedArtefacts ?? []).map((item) => (
               <li key={item.id} className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
                 <span className="min-w-0 truncate">{item.title}</span>
@@ -906,12 +906,26 @@ function ReviewRequestCard({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
+          {content.lepEvidenceSummary ? (
+            <div className="sm:col-span-2 rounded-xl border border-purple-100 bg-white/70 p-3 text-xs text-slate-600 dark:border-purple-500/20 dark:bg-slate-950/20 dark:text-slate-300">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                LEP evidence quality
+              </p>
+              <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">
+                {content.lepEvidenceSummary.label} · {content.lepEvidenceSummary.sourceRef}
+              </p>
+              <p className="mt-1">{content.lepEvidenceSummary.detail}</p>
+              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                {content.lepEvidenceSummary.objectiveCount} objectives · {content.lepEvidenceSummary.landUseEntryCount} land-use entries · {content.lepEvidenceSummary.citedControlCount}/{content.lepEvidenceSummary.totalControlCount} cited numeric LEP controls
+              </p>
+            </div>
+          ) : null}
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
               Confidence gaps
             </p>
             <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-              {listPreview(content.confidenceGaps).map((gap) => (
+              {listPreview(content.confidenceGaps ?? []).map((gap) => (
                 <li key={gap}>• {gap}</li>
               ))}
             </ul>
@@ -921,7 +935,7 @@ function ReviewRequestCard({
               Missing inputs
             </p>
             <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-              {listPreview(content.missingInputs).map((input) => (
+              {listPreview(content.missingInputs ?? []).map((input) => (
                 <li key={input}>• {input}</li>
               ))}
             </ul>
@@ -938,7 +952,7 @@ function ReviewRequestCard({
                 Assumptions
               </p>
               <ul className="mt-1 space-y-1">
-                {content.assumptions.map((assumption) => (
+                {(content.assumptions ?? []).map((assumption) => (
                   <li key={assumption}>• {assumption}</li>
                 ))}
               </ul>
@@ -948,7 +962,7 @@ function ReviewRequestCard({
                 Recommended review scope
               </p>
               <ul className="mt-1 space-y-1">
-                {content.recommendedReviewScope.map((scope) => (
+                {(content.recommendedReviewScope ?? []).map((scope) => (
                   <li key={scope}>• {scope}</li>
                 ))}
               </ul>

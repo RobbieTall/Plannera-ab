@@ -83,6 +83,15 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
   },
   notes: [],
   nextSteps: [],
+  lepEvidenceSummary: {
+    label: "Cited",
+    sourceRef: "Byron LEP 2014 Zone RU2",
+    detail: "LEP evidence is grounded in 2 DB-backed zone objectives and 1 land-use entry plus 2 cited numeric LEP controls from Byron LEP 2014 Zone RU2.",
+    objectiveCount: 2,
+    landUseEntryCount: 1,
+    citedControlCount: 2,
+    totalControlCount: 3,
+  },
 };
 
 const seePayload: WorkspacePreSeePlanningMemoContent = {
@@ -212,6 +221,7 @@ describe("createExpertReviewRequestArtefact", () => {
         { ref: "Byron DCP 2014 D1.2", type: "DCP" },
       ]),
     );
+    expect(result.content.lepEvidenceSummary).toEqual(quickSiteCheckPayload.lepEvidenceSummary);
     expect(result.content.confidenceGaps).toEqual(
       expect.arrayContaining([
         "Floor space ratio: No mapped FSR found yet.",
@@ -233,6 +243,47 @@ describe("createExpertReviewRequestArtefact", () => {
         payload: result.content,
       }),
     });
+  });
+
+  it("preserves an unavailable saved Quick Site Check LEP evidence summary as a planner gap", async () => {
+    const unavailableSummary = {
+      label: "Unavailable" as const,
+      sourceRef: "Byron LEP 2014 Zone RU2",
+      detail: "No DB-backed LEP zone table or cited numeric LEP controls were available for this site.",
+      objectiveCount: 0,
+      landUseEntryCount: 0,
+      citedControlCount: 0,
+      totalControlCount: 3,
+    };
+    const { deps } = makeDeps([
+      makeArtefact({ id: "quick-site-check-id", type: "quick_site_check", payload: { ...quickSiteCheckPayload, lepEvidenceSummary: unavailableSummary } }),
+      makeArtefact({ id: "see-draft-id", type: "pre_see_planning_memo", payload: seePayload }),
+    ]);
+
+    const result = await createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps);
+
+    expect(result.content.lepEvidenceSummary).toEqual(unavailableSummary);
+    expect(result.content.confidenceGaps).toEqual(
+      expect.arrayContaining([`LEP evidence quality: ${unavailableSummary.detail}`]),
+    );
+  });
+
+  it("does not upgrade missing LEP evidence from DCP clauses or generic citations", async () => {
+    const qscWithoutSummary = { ...quickSiteCheckPayload, lepEvidenceSummary: null };
+    const { deps } = makeDeps([
+      makeArtefact({ id: "quick-site-check-id", type: "quick_site_check", payload: qscWithoutSummary }),
+      makeArtefact({ id: "see-draft-id", type: "pre_see_planning_memo", payload: seePayload }),
+    ]);
+
+    const result = await createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps);
+
+    expect(result.content.citedSources.length).toBeGreaterThan(0);
+    expect(result.content.lepEvidenceSummary).toBeNull();
+    expect(result.content.confidenceGaps).toEqual(
+      expect.arrayContaining([
+        "LEP evidence quality: unavailable in the saved Quick Site Check; planner should verify LEP provenance before relying on the handoff.",
+      ]),
+    );
   });
 
   it.each([
