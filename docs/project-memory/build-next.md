@@ -535,3 +535,37 @@ Tests/checks for this slice:
 - Full required checks are recorded in the branch review notes/final handoff.
 
 Deploy/live gate: after review and deploy, open a fresh Byron `45 Broken Head Road` and Kempsey `52 Belgrave St` Quick Site Check and confirm the modal shows `LEP evidence quality: Cited` with the relevant LEP zone source while preserving the already-verified statutory list wording from Item 44. If a future result contains only DCP-card evidence or fallback populated arrays without DB-clause provenance, the LEP evidence banner must remain `Unavailable`.
+
+## 47) Persist Quick Site Check LEP evidence-quality summary — IN REVIEW (2026-07-15)
+
+Scope: persist the Item 46 LEP evidence-quality summary into saved Quick Site Check artefact JSON and render it on the saved Quick Site Check output card so provenance survives modal closure, refresh, and downstream readiness checks. This uses the existing JSON payload only; no Prisma/schema migration, auth, billing, paywall, production-data mutation, or production test-project creation is included.
+
+Acceptance:
+
+- Saved Quick Site Check reports can carry an optional, backward-compatible `lepEvidenceSummary` with only the LEP evidence semantics from `summariseQuickSiteCheckEvidence`: `Cited`/`Unavailable`, LEP `sourceRef`, objective and land-use counts, and cited/total numeric LEP control counts.
+- The save flow recomputes the summary from the server-side LEP Quick Site Check enrichment when available, and stores `null` when server LEP enrichment is unavailable rather than trusting a client-supplied label.
+- DCP-only controls such as setbacks, parking, and active frontage / built form do not upgrade LEP evidence quality.
+- Older saved Quick Site Check artefacts without `lepEvidenceSummary` render safely and do not become `Cited` merely because a saved artefact or permissibility interpretation exists.
+- The saved Quick Site Check output card visibly retains LEP evidence quality, source reference, and detail after refresh.
+- The existing commercial-readiness handoff uses the persisted summary where present and falls back only to cited numeric LEP controls for legacy reports.
+
+Status: In review via PR #287 (`codex/implement-item-47-for-quick-site-check`).
+
+Changed files:
+
+- `src/types/quick-site-check.ts` — adds optional saved `lepEvidenceSummary` type/payload field.
+- `src/lib/artefact-service.ts` — validates optional evidence summaries, server-side recomputes persisted summaries from LEP enrichment, and drops client-supplied summaries when server LEP enrichment is unavailable.
+- `src/components/projects/quick-site-check-modal.tsx` — includes the summary in newly built client reports for immediate local output state.
+- `src/components/projects/project-workspace.tsx` — renders saved LEP evidence quality/source/detail and tightens legacy readiness fallback.
+- `tests/map-snapshot.test.ts` and `tests/quick-site-check-evidence.test.ts` — cover cited persistence, unavailable/fallback persistence, DCP-only exclusion, forged client-summary rejection, and legacy compatibility semantics.
+
+Tests/checks for review:
+
+- PASS: `npm run test:node -- tests/quick-site-check-evidence.test.ts tests/map-snapshot.test.ts`
+- PASS: `npm run lint`
+- PASS: `npx tsc --noEmit`
+- PASS: `npm test`
+- PASS: `npm run build`
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432`; this is the known Codex Cloud environment limitation, not a regression.
+
+Deploy/live gate: after deploy, open an existing saved Quick Site Check or run/save a non-production/local Quick Site Check and refresh the workspace. The saved Quick Site Check card should show `LEP evidence quality`, the LEP source reference, and the persisted detail. The Item 46 production live gate remains open: after PR #286 deployed at merge commit `787880ce346f7dcb32c2239ad63895f088ddfd24`, historical Byron/Kempsey QA project IDs returned `Project not found` after a fresh load, so this item must not claim that Item 46 live QA passed.

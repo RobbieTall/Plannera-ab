@@ -7,6 +7,7 @@ import { getDCPContext } from "@/lib/dcp/get-dcp-context";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
+import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
 import { serializeSiteContext } from "@/lib/site-context";
@@ -70,6 +71,16 @@ const quickSiteCheckControlSchema = z.object({
   interpretation: z.string(),
 });
 
+const quickSiteCheckEvidenceSummarySchema = z.object({
+  label: z.enum(["Cited", "Unavailable"]),
+  detail: z.string(),
+  citedControlCount: z.number().int().nonnegative(),
+  totalControlCount: z.number().int().nonnegative(),
+  landUseEntryCount: z.number().int().nonnegative(),
+  objectiveCount: z.number().int().nonnegative(),
+  sourceRef: z.string(),
+});
+
 const quickSiteCheckReportSchema = z
   .object({
     projectId: z.string().trim().min(1),
@@ -110,6 +121,7 @@ const quickSiteCheckReportSchema = z
     }).passthrough(),
     notes: z.array(z.string()),
     nextSteps: z.array(z.string()),
+    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().optional(),
   })
   .passthrough();
 
@@ -336,6 +348,8 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
     site.zoneLabel = zoneLabel;
   }
 
+  const lepEvidenceSummary = lepResponse ? summariseQuickSiteCheckEvidence(lepResponse) : null;
+
   return {
     ...report,
     site,
@@ -362,6 +376,7 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
       floorSpaceRatio: withRealLepControl(report.controls.floorSpaceRatio, fsrClause ?? null),
       minimumLotSize: withRealLepControl(report.controls.minimumLotSize, lotSizeClause ?? null),
     },
+    lepEvidenceSummary,
   };
 };
 

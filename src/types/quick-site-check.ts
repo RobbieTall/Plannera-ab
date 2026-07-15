@@ -10,6 +10,16 @@ export type QuickSiteCheckControl = {
   confidence?: "Cited" | "Inferred" | "Unavailable";
 };
 
+export type QuickSiteCheckEvidenceSummary = {
+  label: "Cited" | "Unavailable";
+  detail: string;
+  citedControlCount: number;
+  totalControlCount: number;
+  landUseEntryCount: number;
+  objectiveCount: number;
+  sourceRef: string;
+};
+
 export type QuickSiteCheckPermissibility = {
   zoneLabel: string | null;
   permittedWithoutConsent: string[];
@@ -46,6 +56,7 @@ export type QuickSiteCheckReport = {
   };
   notes: string[];
   nextSteps: string[];
+  lepEvidenceSummary?: QuickSiteCheckEvidenceSummary | null;
 };
 
 export type QuickSiteCheckResponse = {

@@ -524,11 +524,15 @@ const normaliseQuickSiteCheckReport = (value: unknown): QuickSiteCheckReport | n
 
 const hasCitedQuickSiteCheckEvidence = (report: QuickSiteCheckReport | null) => {
   if (!report) return false;
-  const controls = Object.values(report.controls ?? {});
-  const citedControls = controls.filter((control) => control?.lepSource || Boolean(control?.clauseRef));
+  if (report.lepEvidenceSummary) return report.lepEvidenceSummary.label === "Cited";
+  const lepControls = [
+    report.controls?.heightOfBuilding,
+    report.controls?.floorSpaceRatio,
+    report.controls?.minimumLotSize,
+  ];
+  const citedLepControls = lepControls.filter((control) => control?.lepSource && Boolean(control?.clauseRef));
   const hasResolvedZone = Boolean(report.site?.zoneCode || report.site?.zoneName || report.site?.zoneLabel);
-  const hasApplicablePermissibility = Boolean(report.permissibility?.interpretation?.trim());
-  return hasResolvedZone && (hasApplicablePermissibility || citedControls.length > 0);
+  return hasResolvedZone && citedLepControls.length > 0;
 };
 
 const READINESS_CONFLICT_SCOPE = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
@@ -683,6 +687,9 @@ const mapServerQuickSiteCheckArtefact = (
   const report = normaliseQuickSiteCheckReport(artefact.payload);
   if (!report) return null;
   const controls = Object.values(report.controls ?? {}).filter((control) => control?.present).length;
+  const evidenceMetadata = report.lepEvidenceSummary
+    ? `LEP evidence quality: ${report.lepEvidenceSummary.label} · ${report.lepEvidenceSummary.sourceRef}`
+    : null;
   return {
     id: artefact.id,
     title: artefact.title,
@@ -690,7 +697,7 @@ const mapServerQuickSiteCheckArtefact = (
     updatedAt: formatMemoDate(report.generatedAt ?? artefact.capturedAt ?? artefact.updatedAt ?? artefact.createdAt ?? new Date().toISOString()),
     type: "report",
     noteType: "Quick Site Check",
-    metadata: [report.site?.zoneLabel, report.site?.lga, `${controls} cited/structured control${controls === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || artefact.notes || "Saved Quick Site Check",
+    metadata: [evidenceMetadata, report.site?.zoneLabel, report.site?.lga, `${controls} cited/structured control${controls === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || artefact.notes || "Saved Quick Site Check",
     quickSiteCheck: report,
     staleAt: artefact.staleAt ?? undefined,
   };
@@ -3944,6 +3951,19 @@ export function ProjectWorkspace({
                         {latestQuickSiteCheckArtefact.metadata ||
                           "Saved zoning and LEP snapshot."}
                       </p>
+                      {latestQuickSiteCheckArtefact.quickSiteCheck?.lepEvidenceSummary ? (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900/40">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100">
+                            LEP evidence quality: {latestQuickSiteCheckArtefact.quickSiteCheck.lepEvidenceSummary.label}
+                          </p>
+                          <p className="mt-0.5 text-slate-500 dark:text-slate-300">
+                            {latestQuickSiteCheckArtefact.quickSiteCheck.lepEvidenceSummary.sourceRef}
+                          </p>
+                          <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">
+                            {latestQuickSiteCheckArtefact.quickSiteCheck.lepEvidenceSummary.detail}
+                          </p>
+                        </div>
+                      ) : null}
                       <p className="mt-3 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                         Last run {latestQuickSiteCheckArtefact.updatedAt}
                       </p>

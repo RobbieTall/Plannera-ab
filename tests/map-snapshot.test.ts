@@ -200,8 +200,10 @@ test("creates a quick_site_check artefact with the report payload", async () => 
 
   assert.equal(artefact.type, "quick_site_check");
   assert.equal(artefact.title, "Quick Site Check — 123 Test St");
+  assert.equal((artefact.payload as QuickSiteCheckReport).lepEvidenceSummary, null);
   assert.deepEqual(artefact.payload, {
     ...report,
+    lepEvidenceSummary: null,
     controls: {
       heightOfBuilding: { ...report.controls.heightOfBuilding, lepSource: false },
       floorSpaceRatio: { ...report.controls.floorSpaceRatio, lepSource: false },
@@ -283,6 +285,124 @@ test("creates a quick_site_check artefact enriched with real LEP values", async 
   assert.equal(payload.controls.heightOfBuilding.lepSource, true);
   assert.equal(payload.controls.floorSpaceRatio.value, "0.5:1");
   assert.equal(payload.controls.minimumLotSize.value, "600 sqm");
+  assert.equal(payload.lepEvidenceSummary?.label, "Cited");
+  assert.equal(payload.lepEvidenceSummary?.sourceRef, "Byron LEP 2014 Zone R2");
+  assert.equal(payload.lepEvidenceSummary?.objectiveCount, 1);
+  assert.equal(payload.lepEvidenceSummary?.landUseEntryCount, 3);
+  assert.equal(payload.lepEvidenceSummary?.citedControlCount, 3);
+});
+
+test("persists unavailable LEP evidence summary and ignores DCP-only controls", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "52 Belgrave St", lga: "Kempsey", zoneCode: "E2" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Not found" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Not found" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Not found" },
+      setback: { label: "Setback", value: "Nil", present: true, clauseRef: "D4.2", interpretation: "DCP setback", confidence: "Cited" },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — Kempsey", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => ({
+        lepContext: null,
+        rawLga: null,
+        normalisedLga: null,
+        instruments: [],
+        chosenInstrumentId: null,
+        lepClauseCount: 0,
+        usedFallback: true,
+      }),
+      buildQuickSiteCheckLep: async () => ({
+        ok: true,
+        projectId: "proj-2",
+        lga: "Kempsey",
+        lepName: "Kempsey LEP 2013",
+        zone: "E2",
+        objectives: ["Fallback objective"],
+        controls: {
+          heightOfBuilding: null,
+          fsr: null,
+          minLotSize: null,
+          zoneObjectives: ["Fallback objective"],
+          setback: { value: "Nil", clauseRef: "D4.2", confidence: "Cited" },
+        },
+        permissibility: null,
+        dataSource: "fallback",
+        landUse: { withoutConsent: ["Environmental protection works"], withConsent: [], prohibited: [] },
+        part4: [],
+        part5: [],
+        part6: [],
+      }),
+    },
+  });
+
+  const payload = artefact.payload as QuickSiteCheckReport;
+  assert.equal(payload.lepEvidenceSummary?.label, "Unavailable");
+  assert.equal(payload.lepEvidenceSummary?.sourceRef, "Kempsey LEP 2013 Zone E2");
+  assert.equal(payload.lepEvidenceSummary?.citedControlCount, 0);
+  assert.equal(payload.lepEvidenceSummary?.objectiveCount, 1);
+  assert.equal(payload.lepEvidenceSummary?.landUseEntryCount, 1);
+});
+
+test("does not persist a forged client LEP evidence summary when server LEP enrichment is unavailable", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "123 Test St", lga: "Byron", zoneCode: "SP3" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Not found" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Not found" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Not found" },
+    },
+    notes: [],
+    nextSteps: [],
+    lepEvidenceSummary: {
+      label: "Cited",
+      detail: "Forged client summary",
+      citedControlCount: 99,
+      totalControlCount: 99,
+      landUseEntryCount: 99,
+      objectiveCount: 99,
+      sourceRef: "Forged LEP Zone SP3",
+    },
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — Forged", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => ({
+        lepContext: null,
+        rawLga: null,
+        normalisedLga: null,
+        instruments: [],
+        chosenInstrumentId: null,
+        lepClauseCount: 0,
+        usedFallback: true,
+      }),
+      buildQuickSiteCheckLep: async () => ({ ok: false, message: "No LEP data" }),
+    },
+  });
+
+  assert.equal((artefact.payload as QuickSiteCheckReport).lepEvidenceSummary, null);
 });
 
 test("creates a quick_site_check artefact when LEP enrichment fails", async () => {
