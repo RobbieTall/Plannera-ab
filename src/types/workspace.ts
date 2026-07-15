@@ -1,5 +1,5 @@
 import type { SourceAttribution } from "@/lib/workspace-chat";
-import type { QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { QuickSiteCheckEvidenceSummary, QuickSiteCheckReport } from "@/types/quick-site-check";
 
 export type UserTier = "guest" | "free" | "pro";
 
@@ -65,6 +65,7 @@ export type ReviewRequestContent = {
     generatedAt: string | null;
   }>;
   citedSources: SeeSourceCitation[];
+  lepEvidenceSummary?: QuickSiteCheckEvidenceSummary | null;
   confidenceGaps: string[];
   missingInputs: string[];
   assumptions: string[];

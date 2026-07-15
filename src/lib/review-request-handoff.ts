@@ -66,6 +66,19 @@ export function formatReviewRequestHandoff(content: ReviewRequestContent): strin
     lines.push("");
   }
 
+  const lepEvidence = content.lepEvidenceSummary;
+  if (lepEvidence) {
+    lines.push("LEP evidence quality");
+    lines.push("--------------------");
+    pushField(lines, "Quality", lepEvidence.label);
+    pushField(lines, "Source", lepEvidence.sourceRef);
+    pushField(lines, "Detail", lepEvidence.detail);
+    lines.push(`Zone objectives: ${lepEvidence.objectiveCount}`);
+    lines.push(`Land-use entries: ${lepEvidence.landUseEntryCount}`);
+    lines.push(`Cited numeric LEP controls: ${lepEvidence.citedControlCount}/${lepEvidence.totalControlCount}`);
+    lines.push("");
+  }
+
   pushList(lines, "Confidence gaps", content.confidenceGaps ?? []);
   pushList(lines, "Missing inputs", content.missingInputs ?? []);
   pushList(lines, "Assumptions", content.assumptions ?? []);

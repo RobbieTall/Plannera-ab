@@ -31,6 +31,15 @@ const baseContent = (overrides: Partial<ReviewRequestContent> = {}): ReviewReque
     { ref: "Byron LEP 2014 cl. 4.3", type: "LEP" },
     { ref: "Byron DCP 2014 Chapter D1", type: "DCP" },
   ],
+  lepEvidenceSummary: {
+    label: "Cited",
+    sourceRef: "Byron LEP 2014 Zone RU2",
+    detail: "LEP evidence is grounded in DB-backed zone data.",
+    objectiveCount: 2,
+    landUseEntryCount: 1,
+    citedControlCount: 2,
+    totalControlCount: 3,
+  },
   confidenceGaps: ["Confirm mapped hazard overlays."],
   missingInputs: ["Survey plan"],
   assumptions: ["No recent consent history was supplied."],
@@ -48,6 +57,11 @@ describe("review request handoff formatter", () => {
     expect(text).toContain("Quick Site Check — 45 Broken Head Road · quick_site_check");
     expect(text).toContain("Citation count: 2");
     expect(text).toContain("Byron LEP 2014 cl. 4.3 (LEP)");
+    expect(text).toContain("LEP evidence quality");
+    expect(text).toContain("Quality: Cited");
+    expect(text).toContain("Source: Byron LEP 2014 Zone RU2");
+    expect(text).toContain("Zone objectives: 2");
+    expect(text).toContain("Cited numeric LEP controls: 2/3");
     expect(text).toContain("Confirm mapped hazard overlays.");
     expect(text).toContain("Survey plan");
     expect(text).toContain("No recent consent history was supplied.");
@@ -61,6 +75,7 @@ describe("review request handoff formatter", () => {
       packageSummary: "",
       includedArtefacts: [],
       citedSources: [],
+      lepEvidenceSummary: undefined,
       confidenceGaps: [],
       missingInputs: [],
       assumptions: [],
@@ -71,6 +86,13 @@ describe("review request handoff formatter", () => {
     expect(text).not.toMatch(/undefined|null/);
     expect(text).not.toContain("Confidence gaps");
     expect(text).not.toContain("Missing inputs");
+  });
+
+  it("exports legacy review requests without LEP evidence safely", () => {
+    const text = formatReviewRequestHandoff(baseContent({ lepEvidenceSummary: undefined }));
+
+    expect(text).not.toContain("LEP evidence quality");
+    expect(text).not.toMatch(/undefined|null/);
   });
 
   it("uses the existing address-slug filename style", () => {

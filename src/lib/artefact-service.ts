@@ -1236,6 +1236,7 @@ export async function createExpertReviewRequestArtefact({
 
   const qsc = quickSiteCheck.payload as QuickSiteCheckReport | null;
   const see = seeMemo.payload as import("@/types/workspace").WorkspacePreSeePlanningMemoContent | null;
+  const lepEvidenceSummary = qsc?.lepEvidenceSummary ?? null;
   const controls = qsc?.controls ? Object.values(qsc.controls) : [];
   const citedSources = new Map<string, { ref: string; type: "LEP" | "DCP" }>();
   controls.forEach((control) => {
@@ -1249,9 +1250,14 @@ export async function createExpertReviewRequestArtefact({
   });
 
   const confidenceGaps = [
+    !lepEvidenceSummary
+      ? "LEP evidence quality: unavailable in the saved Quick Site Check; planner should verify LEP provenance before relying on the handoff."
+      : lepEvidenceSummary.label === "Unavailable"
+        ? `LEP evidence quality: ${lepEvidenceSummary.detail}`
+        : null,
     ...controls.filter((control) => control.confidence !== "Cited").map((control) => `${control.label}: ${control.interpretation}`),
     ...(see?.limitations ?? []),
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
   const missingInputs = [
     !qsc?.site?.address && "Confirmed street address",
     !qsc?.site?.zoneLabel && "Confirmed zoning layer",
@@ -1282,6 +1288,7 @@ export async function createExpertReviewRequestArtefact({
       generatedAt: artefact.capturedAt?.toISOString() ?? artefact.createdAt.toISOString(),
     })),
     citedSources: Array.from(citedSources.values()),
+    lepEvidenceSummary,
     confidenceGaps: confidenceGaps.length ? confidenceGaps : ["No explicit confidence gaps were found; planner should still verify assumptions."],
     missingInputs: missingInputs.length ? missingInputs : ["No obvious missing inputs detected by Plannera."],
     assumptions,
