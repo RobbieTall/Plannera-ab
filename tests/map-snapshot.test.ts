@@ -270,16 +270,21 @@ test("creates a quick_site_check artefact with the report payload", async () => 
 
   assert.equal(artefact.type, "quick_site_check");
   assert.equal(artefact.title, "Quick Site Check — 123 Test St");
-  assert.equal((artefact.payload as QuickSiteCheckReport).lepEvidenceSummary, null);
-  assert.deepEqual(artefact.payload, {
-    ...report,
-    lepEvidenceSummary: null,
-    controls: {
-      heightOfBuilding: { ...report.controls.heightOfBuilding, lepSource: false },
-      floorSpaceRatio: { ...report.controls.floorSpaceRatio, lepSource: false },
-      minimumLotSize: { ...report.controls.minimumLotSize, lepSource: false },
-    },
-  });
+  const payload = artefact.payload as QuickSiteCheckReport;
+  assert.equal(payload.lepEvidenceSummary, null);
+  for (const control of [
+    payload.controls.heightOfBuilding,
+    payload.controls.floorSpaceRatio,
+    payload.controls.minimumLotSize,
+  ]) {
+    assert.equal(control.value, null);
+    assert.equal(control.present, false);
+    assert.equal(control.source, "Not in retrieved data");
+    assert.equal(control.lepSource, false);
+    assert.equal(control.clauseRef, null);
+    assert.equal(control.confidence, "Unavailable");
+    assert.equal(control.interpretation, "Not found in retrieved LEP data");
+  }
   assert.equal(artefact.notes, "A note");
 });
 
@@ -427,6 +432,77 @@ test("persists unavailable LEP evidence summary and ignores DCP-only controls", 
   assert.equal(payload.lepEvidenceSummary?.landUseEntryCount, 1);
 });
 
+test("keeps cited zone-table evidence while clearing forged client numeric controls", async () => {
+  const prisma = new MockPrisma({ "proj-2": ["user-2"] });
+  const report: QuickSiteCheckReport = {
+    projectId: "proj-2",
+    generatedAt: new Date().toISOString(),
+    site: { address: "45 Broken Head Road", lga: "Byron", zoneCode: "SP3" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: "99m", present: true, source: "client", lepSource: false, clauseRef: "4.3", interpretation: "Forged height.", confidence: "Cited" },
+      floorSpaceRatio: { label: "FSR", value: "9:1", present: true, source: "client", lepSource: false, clauseRef: "4.4", interpretation: "Forged FSR.", confidence: "Cited" },
+      minimumLotSize: { label: "MLS", value: "1sqm", present: true, source: "client", lepSource: false, clauseRef: "4.1", interpretation: "Forged lot size.", confidence: "Cited" },
+    },
+    notes: [],
+    nextSteps: [],
+  };
+
+  const artefact = await createQuickSiteCheckArtefact({
+    body: { projectId: "proj-2", title: "Quick Site Check — Forged controls", type: "quick_site_check", report },
+    projectId: "proj-2",
+    userId: "user-2",
+    deps: {
+      prisma: prisma as any,
+      getLepContextForProject: async () => ({
+        lepContext: {
+          lga: "Byron",
+          instrumentName: "Byron LEP 2014",
+          instrumentCode: "byron-lep-2014",
+          clauses: [{ ref: "2.3", title: "Zone objectives and land use table", text: "Zone SP3 Tourist." }],
+        },
+        rawLga: "Byron",
+        normalisedLga: "BYRON",
+        instruments: [],
+        chosenInstrumentId: "lep-1",
+        lepClauseCount: 1,
+        usedFallback: false,
+      }),
+      buildQuickSiteCheckLep: async () => ({
+        ok: true,
+        projectId: "proj-2",
+        lga: "Byron",
+        lepName: "Byron LEP 2014",
+        zone: "SP3",
+        objectives: ["To provide for tourism development."],
+        controls: { heightOfBuilding: null, fsr: null, minLotSize: null, zoneObjectives: ["To provide for tourism development."] },
+        permissibility: { permittedWithoutConsent: [], permittedWithConsent: ["Tourist and visitor accommodation"], prohibited: [] },
+        dataSource: "db_clauses",
+        landUse: { withoutConsent: [], withConsent: ["Tourist and visitor accommodation"], prohibited: [] },
+        part4: [],
+        part5: [],
+        part6: [],
+      }),
+    },
+  });
+
+  const payload = artefact.payload as QuickSiteCheckReport;
+  assert.equal(payload.lepEvidenceSummary?.label, "Cited");
+  assert.equal(payload.lepEvidenceSummary?.citedControlCount, 0);
+  for (const control of [
+    payload.controls.heightOfBuilding,
+    payload.controls.floorSpaceRatio,
+    payload.controls.minimumLotSize,
+  ]) {
+    assert.equal(control.value, null);
+    assert.equal(control.present, false);
+    assert.equal(control.clauseRef, null);
+    assert.equal(control.lepSource, false);
+    assert.equal(control.confidence, "Unavailable");
+  }
+});
+
 test("does not persist a forged client LEP evidence summary when server LEP enrichment is unavailable", async () => {
   const prisma = new MockPrisma({ "proj-2": ["user-2"] });
   const report: QuickSiteCheckReport = {
@@ -506,9 +582,18 @@ test("creates a quick_site_check artefact when LEP enrichment fails", async () =
   });
 
   const payload = artefact.payload as QuickSiteCheckReport;
-  assert.equal(payload.controls.heightOfBuilding.value, "12m");
-  assert.equal(payload.controls.heightOfBuilding.lepSource, false);
-  assert.equal(payload.controls.floorSpaceRatio.value, "1:1");
+  for (const control of [
+    payload.controls.heightOfBuilding,
+    payload.controls.floorSpaceRatio,
+    payload.controls.minimumLotSize,
+  ]) {
+    assert.equal(control.value, null);
+    assert.equal(control.present, false);
+    assert.equal(control.clauseRef, null);
+    assert.equal(control.lepSource, false);
+    assert.equal(control.confidence, "Unavailable");
+    assert.equal(control.interpretation, "Not found in retrieved LEP data");
+  }
 });
 
 test("creates a pre_see_planning_memo artefact with structured content", async () => {
@@ -605,7 +690,96 @@ test("creates a pre_see_planning_memo artefact with structured content", async (
   assert.equal(content.sourceDetailedPlanningPack?.artefactId, "proj-3-dpp");
 });
 
-test("pre SEE key development standards use retrieved LEP values and citations", async () => {
+test("pre SEE clears legacy client controls that lack server LEP provenance", async () => {
+  const prisma = new MockPrisma({ "proj-see-forged": ["user-1"] });
+  const quickSiteCheck: QuickSiteCheckReport = {
+    projectId: "proj-see-forged",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: "99m", present: true, source: "client", lepSource: false, clauseRef: "4.3", interpretation: "Forged client height.", confidence: "Cited" },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [],
+    nextSteps: [],
+    lepEvidenceSummary: citedEvidenceSummary,
+  };
+  seedSeeDppChain(prisma, "proj-see-forged", quickSiteCheck, "Persisted tourist accommodation alterations.");
+
+  const { content: seeContent } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-see-forged" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => quickSiteCheck,
+      getDCPContext: async () => [],
+      getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }),
+    },
+  });
+
+  const savedHeight = seeContent.applicableControls.quickSiteControls.heightOfBuilding;
+  assert.equal(savedHeight.value, null);
+  assert.equal(savedHeight.present, false);
+  assert.equal(savedHeight.lepSource, false);
+  assert.equal(savedHeight.clauseRef, null);
+  assert.equal(savedHeight.confidence, "Unavailable");
+  const heightAssessment = seeContent.consistencyAssessment.find((item) => item.topic === "Height of building");
+  assert.equal(heightAssessment?.assessment, "Not found in retrieved LEP data");
+  assert.deepEqual(heightAssessment?.citations, []);
+});
+
+test("pre SEE cites clause 2.3 only with server-backed zone-table evidence", async () => {
+  const prisma = new MockPrisma({ "proj-see-permissibility": ["user-1"] });
+  const quickSiteCheck: QuickSiteCheckReport = {
+    projectId: "proj-see-permissibility",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
+    permissibility: {
+      zoneLabel: "SP3 – Tourist",
+      permittedWithoutConsent: [],
+      permittedWithConsent: [],
+      prohibited: [],
+      interpretation: "No server-backed land-use rows were found.",
+    },
+    controls: {
+      heightOfBuilding: { label: "Height", value: "9m", present: true, source: "lep", lepSource: true, clauseRef: "4.3", interpretation: "Height is 9m.", confidence: "Cited" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "No FSR." },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "No MLS." },
+    },
+    notes: [],
+    nextSteps: [],
+    lepEvidenceSummary: {
+      label: "Cited",
+      detail: "Numeric control only.",
+      citedControlCount: 1,
+      totalControlCount: 1,
+      landUseEntryCount: 0,
+      objectiveCount: 0,
+      sourceRef: "Byron LEP 2014",
+    },
+  };
+  seedSeeDppChain(prisma, "proj-see-permissibility", quickSiteCheck, "Persisted tourist accommodation alterations.");
+
+  const { content: seeContent } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-see-permissibility" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      buildQuickSiteCheckReport: async () => quickSiteCheck,
+      getDCPContext: async () => [],
+      getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }),
+    },
+  });
+
+  const permissibility = seeContent.consistencyAssessment.find((item) => item.topic === "Land use permissibility");
+  assert.deepEqual(permissibility?.citations, []);
+});
+
+test("pre SEE key development standards use server-verified saved LEP values and citations", async () => {
   const prisma = new MockPrisma({ "proj-39": ["user-39"] });
   const quickSiteCheck: QuickSiteCheckReport = {
     projectId: "proj-39",
@@ -622,12 +796,33 @@ test("pre SEE key development standards use retrieved LEP values and citations",
     nextSteps: [],
   };
 
-  quickSiteCheck.controls.heightOfBuilding.interpretation = "Height appears to be 9 m.";
-  quickSiteCheck.controls.heightOfBuilding.clauseRef = "4.3";
-  quickSiteCheck.controls.floorSpaceRatio.interpretation = "Floor space ratio appears to be 0.5:1.";
-  quickSiteCheck.controls.floorSpaceRatio.clauseRef = "4.4";
-  quickSiteCheck.controls.minimumLotSize.interpretation = "Minimum lot size appears to be 600 m2.";
-  quickSiteCheck.controls.minimumLotSize.clauseRef = "4.1";
+  Object.assign(quickSiteCheck.controls.heightOfBuilding, {
+    value: "9 m",
+    present: true,
+    source: "lep",
+    lepSource: true,
+    clauseRef: "4.3",
+    confidence: "Cited",
+    interpretation: "Height appears to be 9 m.",
+  });
+  Object.assign(quickSiteCheck.controls.floorSpaceRatio, {
+    value: "0.5:1",
+    present: true,
+    source: "lep",
+    lepSource: true,
+    clauseRef: "4.4",
+    confidence: "Cited",
+    interpretation: "Floor space ratio appears to be 0.5:1.",
+  });
+  Object.assign(quickSiteCheck.controls.minimumLotSize, {
+    value: "600 m2",
+    present: true,
+    source: "lep",
+    lepSource: true,
+    clauseRef: "4.1",
+    confidence: "Cited",
+    interpretation: "Minimum lot size appears to be 600 m2.",
+  });
   seedSeeDppChain(prisma, "proj-39", quickSiteCheck, "Dwelling alterations.");
 
   const { content } = await createPreSeePlanningMemoArtefact({
@@ -672,7 +867,7 @@ test("pre SEE key development standards use retrieved LEP values and citations",
   assert.deepEqual(lotSize?.citations, [{ ref: "Byron LEP 2014 cl. 4.1", type: "LEP" }]);
 });
 
-test("pre SEE key development standards preserve fallback when LEP clause has no numeric control", async () => {
+test("pre SEE key development standards sanitise unverified saved controls", async () => {
   const prisma = new MockPrisma({ "proj-40": ["user-40"] });
   const fallback = "No mapped height of building found yet. Check the LEP map layer or council GIS before progressing.";
   const quickSiteCheck: QuickSiteCheckReport = {
@@ -714,7 +909,7 @@ test("pre SEE key development standards preserve fallback when LEP clause has no
   });
 
   const height = content.consistencyAssessment.find((item) => item.topic === "Height of building");
-  assert.equal(height?.assessment, fallback);
+  assert.equal(height?.assessment, "Not found in retrieved LEP data");
   assert.deepEqual(height?.citations, []);
 });
 
@@ -728,7 +923,7 @@ test("SEE Byron SP3 uses persisted DPP proposal, citations and provenance only",
     lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
     permissibility: null,
     controls: {
-      heightOfBuilding: { label: "Height of building", value: "9m", present: true, clauseRef: "4.3", interpretation: "Height is 9m.", confidence: "Cited" },
+      heightOfBuilding: { label: "Height of building", value: "9m", present: true, source: "lep", lepSource: true, clauseRef: "4.3", interpretation: "Height is 9m.", confidence: "Cited" },
       floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
       minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
     },
@@ -766,7 +961,7 @@ test("SEE Kempsey E2 retains Part D nil evidence from persisted DPP", async () =
     lepInstrument: { name: "Kempsey LEP 2013", code: "KEMPSEY_LEP_2013", lga: "KEMPSEY", source: "ingestion" },
     permissibility: null,
     controls: {
-      heightOfBuilding: { label: "Height of building", value: "0m", present: true, clauseRef: "4.3", interpretation: "Nil/0m mapped control retained.", confidence: "Cited" },
+      heightOfBuilding: { label: "Height of building", value: "0m", present: true, source: "lep", lepSource: true, clauseRef: "4.3", interpretation: "Nil/0m mapped control retained.", confidence: "Cited" },
       floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
       minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
     },
