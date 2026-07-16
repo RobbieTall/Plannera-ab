@@ -643,7 +643,7 @@ Deploy/migration/live gate: OPEN. Apply the additive Prisma migration before dep
 
 Status reconciliation: Item 49 moved from IN REVIEW to merged/deployed at exact merge commit `ae3e8a8bab58bb78a3777f79bfb7e451c823278b` (PR #289). Live saved-output verification gate remains OPEN until fresh production-safe saved outputs verify the current QSC → DPP path.
 
-## 50) SEE and consultant referral consume Detailed Planning Pack — IN REVIEW (2026-07-15)
+## 50) SEE and consultant referral consume Detailed Planning Pack — DONE/MERGED (2026-07-15)
 
 Scope: make the saved current-site Detailed Planning Pack the server-authoritative proposal and DCP evidence source for SEE generation, and require consultant referral to carry an unbroken current-site QSC → DPP → matching SEE chain when SEE is present.
 
@@ -674,4 +674,38 @@ Tests/checks for review:
 - PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
 - EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
 
-Deploy/live gate: OPEN. Do not claim live saved-output verification until fresh production-safe Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 paths confirm DPP-derived SEE citations/provenance and referral branching without production data mutation outside the approved QA path. Item 40 billing/auth remains deferred.
+Status reconciliation: Item 50 moved to DONE/MERGED at exact merge commit `b997b8f6f8985f947e7a8d0edef765d4d0ac84d7` (PR #290) and Vercel deployment succeeded for target `https://vercel.com/robbietalls-projects/plannera-ab/DuvyeHc4Zp9SmnDDSgWRmkbMKuMg`. Live saved-output/commercial audit gate remains OPEN; deployment success alone is not live funnel proof. Do not claim live saved-output verification until fresh production-safe Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 paths confirm DPP-derived SEE citations/provenance and referral branching without production data mutation outside the approved QA path. Item 40 billing/auth remains deferred.
+
+## 51) Production-safe commercial funnel readiness audit — IN REVIEW (2026-07-16)
+
+Scope: add a protected, read-only operational audit endpoint for an authorised operator to verify one existing project's saved Quick Site Check → Detailed Planning Pack → matching SEE/referral chain without creating projects, generating artefacts, invoking OpenAI, retrieving DCP/LEP, or mutating production data.
+
+Contract:
+
+- `GET /api/admin/commercial-funnel-audit?secret=INGEST_ADMIN_SECRET&projectId=<id>` returns `commercial_funnel_audit.v1` JSON for one explicit project identifier.
+- Output includes `checkedAt`, project/site scope, compact QSC/DPP/SEE states, saved artefact IDs, exact source QSC/DPP IDs, cited/applicable evidence counts, unresolved topics, referral eligibility (`none`, `unresolved_pack_referral`, or `quality_chain_referral`), and machine-readable next-action reason codes.
+- The audit is read-only: it may query project/site/artefacts only and must never create, update, upsert, delete, regenerate, retrieve DCP/LEP, call OpenAI, expose full artefact payloads, DCP excerpts, contact details, or secrets.
+- Readiness uses the same current-site/provenance selectors as artefact generation: new quality chains require exact current-site saved QSC → DPP → SEE provenance from Item 50. Legacy, stale, cross-site, malformed, forged, or broken-ID chains remain history and cannot pass.
+
+Changed files for review:
+
+- `src/lib/commercial-funnel-audit.ts` — side-effect-free commercial funnel audit helper driven by the shared current-site DPP/QSC chain resolver.
+- `src/lib/commercial-funnel-audit.test.ts` — dedicated helper regression coverage for quality chains, unresolved/newer active packs, stale/malformed/forged/broken provenance, strict SEE parsing, and deterministic ordering.
+- `src/app/api/admin/commercial-funnel-audit/route.ts` — protected read-only admin GET route using existing admin secret conventions.
+- `src/app/api/admin/commercial-funnel-audit/route.test.ts` — dedicated route auth, missing-project, unknown-project, and valid-secret coverage.
+- `src/lib/artefact-service.ts` — shared canonical current-site DPP/QSC chain resolver, strict SEE parser, schemas/current-site/recency helpers reused by generation and audit.
+- `tests/map-snapshot.test.ts` — Item 50 generation regression for newer unresolved active DPP superseding an older ready pack.
+- `README.md`, `docs/project-memory/build-next.md`, and `docs/project-memory/decision-register.md` — operator endpoint note, Item 49/50 reconciliation, Item 51 record, and billing/auth decision.
+
+Tests/checks for review:
+
+- PASS: `npm run test:vitest -- src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts` — 2 files and 16 tests passed.
+- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 33 tests passed.
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 2 files and 9 tests passed.
+- PASS: `npm run lint` — no warnings/errors.
+- PASS: `npx tsc --noEmit --pretty false`.
+- PASS: `npm test` — Node suite passed 65 tests; Vitest passed 48 files and 225 tests.
+- PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
+
+Remaining gate: OPEN. Use this endpoint against approved existing production Byron/Kempsey projects only; approved live evidence must prove exact current-site QSC → DPP → SEE/referral chains before billing/auth can unlock.

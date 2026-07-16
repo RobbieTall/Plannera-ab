@@ -82,7 +82,7 @@ const quickSiteCheckEvidenceSummarySchema = z.object({
   sourceRef: z.string(),
 });
 
-const quickSiteCheckReportSchema = z
+export const quickSiteCheckReportSchema = z
   .object({
     projectId: z.string().trim().min(1),
     generatedAt: z.string().trim().min(1),
@@ -636,7 +636,7 @@ const dppCitationSchema = z.object({
   score: z.number().default(0),
 });
 
-const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackContent> = z.object({
+export const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackContent> = z.object({
   packType: z.literal("detailed_planning_pack"),
   generatedAt: z.string(),
   projectId: z.string(),
@@ -676,7 +676,7 @@ const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackContent> 
   commercialReady: z.boolean(),
 }).passthrough();
 
-const currentScopeForProject = (project: ProjectWithOptionalSiteContext): CurrentSiteScope => ({
+export const currentScopeForProject = (project: ProjectWithOptionalSiteContext): CurrentSiteScope => ({
   address: project.siteContext?.formattedAddress ?? project.address ?? null,
   lgaName: project.siteContext?.lgaName ?? null,
   lgaCode: project.siteContext?.lgaCode ?? null,
@@ -684,7 +684,7 @@ const currentScopeForProject = (project: ProjectWithOptionalSiteContext): Curren
   zoneCode: project.zoningCode ?? null,
 });
 
-const artefactRecencyMs = (artefact: Artefact, generatedAt?: string | null) => {
+export const artefactRecencyMs = (artefact: Artefact, generatedAt?: string | null) => {
   const generated = generatedAt ? Date.parse(generatedAt) : Number.NaN;
   if (Number.isFinite(generated)) return generated;
   const captured = artefact.capturedAt?.getTime?.() ?? Number.NaN;
@@ -692,20 +692,34 @@ const artefactRecencyMs = (artefact: Artefact, generatedAt?: string | null) => {
   return artefact.createdAt?.getTime?.() ?? Number.NEGATIVE_INFINITY;
 };
 
-async function resolveNewestCurrentDetailedPlanningPack({
+export type CurrentDetailedPlanningPackChain = {
+  artefact: Artefact;
+  pack: DetailedPlanningPackContent;
+  quickSiteCheckArtefact: Artefact;
+  quickSiteCheck: QuickSiteCheckReport;
+};
+
+export type CurrentDetailedPlanningPackChainResolution = {
+  active: CurrentDetailedPlanningPackChain | null;
+  sawPack: boolean;
+  sawCurrentPack: boolean;
+  sawUnreadyCurrentPack: boolean;
+  candidates: Array<{ artefact: Artefact; pack: DetailedPlanningPackContent | null; quickSiteCheckArtefact?: Artefact; quickSiteCheck?: QuickSiteCheckReport; validProvenance: boolean }>;
+};
+
+export async function resolveCurrentDetailedPlanningPackChain({
   prismaClient,
   project,
-  requireCommercialReady,
 }: {
   prismaClient: ArtefactDependencies["prisma"];
   project: ProjectWithOptionalSiteContext;
-  requireCommercialReady: boolean;
-}) {
+}): Promise<CurrentDetailedPlanningPackChainResolution> {
   const currentScope = currentScopeForProject(project);
   const artefacts = await prismaClient.artefact.findMany({
     where: { projectId: project.id, type: { in: ["detailed_planning_pack", "quick_site_check"] as ArtefactType[] } },
     orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
   });
+  const projectIdentifiers = [project.id, (project as { publicId?: string | null }).publicId].filter(Boolean);
   const qscById = new Map<string, { artefact: Artefact; report: QuickSiteCheckReport }>();
   for (const artefact of artefacts) {
     if (artefact.type !== "quick_site_check") continue;
@@ -719,32 +733,67 @@ async function resolveNewestCurrentDetailedPlanningPack({
       const parsed = detailedPlanningPackContentSchema.safeParse(artefact.payload);
       return parsed.success ? { artefact, pack: parsed.data } : { artefact, pack: null };
     })
-    .sort((left, right) => artefactRecencyMs(right.artefact, right.pack?.generatedAt) - artefactRecencyMs(left.artefact, left.pack?.generatedAt));
+    .sort((left, right) => {
+      const recency = artefactRecencyMs(right.artefact, right.pack?.generatedAt) - artefactRecencyMs(left.artefact, left.pack?.generatedAt);
+      return recency || left.artefact.id.localeCompare(right.artefact.id);
+    });
 
   const sawPack = parsedPacks.length > 0;
   let sawCurrentPack = false;
   let sawUnreadyCurrentPack = false;
+  const candidates: CurrentDetailedPlanningPackChainResolution["candidates"] = [];
   for (const { artefact, pack } of parsedPacks) {
-    if (!pack) continue;
-    if (!isArtefactCurrentForSite(currentScope, detailedPlanningPackScope(pack))) continue;
-    sawCurrentPack = true;
-    if (requireCommercialReady && !pack.commercialReady) {
-      sawUnreadyCurrentPack = true;
+    if (!pack) {
+      candidates.push({ artefact, pack: null, validProvenance: false });
       continue;
     }
+    if (pack.projectId !== project.id) {
+      candidates.push({ artefact, pack, validProvenance: false });
+      continue;
+    }
+    const current = isArtefactCurrentForSite(currentScope, detailedPlanningPackScope(pack));
+    if (!current) {
+      candidates.push({ artefact, pack, validProvenance: false });
+      continue;
+    }
+    sawCurrentPack = true;
     const qscEntry = qscById.get(pack.sourceQuickSiteCheck.artefactId);
-    if (!qscEntry) continue;
-    if (qscEntry.report.lepEvidenceSummary?.label !== "Cited") continue;
-    if (!isArtefactCurrentForSite(currentScope, quickSiteCheckScope(qscEntry.report))) continue;
-    if (!isArtefactCurrentForSite(detailedPlanningPackScope(pack), quickSiteCheckScope(qscEntry.report))) continue;
-    return { artefact, pack, quickSiteCheckArtefact: qscEntry.artefact, quickSiteCheck: qscEntry.report };
+    const validProvenance = Boolean(
+      qscEntry &&
+      projectIdentifiers.includes(qscEntry.report.projectId) &&
+      qscEntry.report.lepEvidenceSummary?.label === "Cited" &&
+      isArtefactCurrentForSite(currentScope, quickSiteCheckScope(qscEntry.report)) &&
+      isArtefactCurrentForSite(detailedPlanningPackScope(pack), quickSiteCheckScope(qscEntry.report)),
+    );
+    candidates.push({ artefact, pack, quickSiteCheckArtefact: qscEntry?.artefact, quickSiteCheck: qscEntry?.report, validProvenance });
+    if (!validProvenance) continue;
+    sawUnreadyCurrentPack = !pack.commercialReady;
+    return { active: { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report }, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
   }
 
-  const reason = !sawPack
+  return { active: null, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+}
+
+async function resolveNewestCurrentDetailedPlanningPack({
+  prismaClient,
+  project,
+  requireCommercialReady,
+}: {
+  prismaClient: ArtefactDependencies["prisma"];
+  project: ProjectWithOptionalSiteContext;
+  requireCommercialReady: boolean;
+}) {
+  const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project });
+  if (resolution.active) {
+    if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
+    throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
+  }
+
+  const reason = !resolution.sawPack
     ? "Generate a current-site Detailed Planning Pack before continuing."
-    : !sawCurrentPack
+    : !resolution.sawCurrentPack
       ? "Only stale or cross-site Detailed Planning Packs were found. Generate a current-site Detailed Planning Pack."
-      : sawUnreadyCurrentPack
+      : resolution.sawUnreadyCurrentPack
         ? "The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first."
         : "No current Detailed Planning Pack has an intact cited Quick Site Check provenance chain. Regenerate the pack from a saved current-site Quick Site Check.";
   throw new ArtefactValidationError(reason);
@@ -1066,6 +1115,54 @@ export type PreSeePlanningMemoContent = {
 };
 
 
+const preSeePlanningMemoContentSchema = z.object({
+  memoType: z.literal("pre_see_planning_memo"),
+  generatedAt: z.string(),
+  projectId: z.string(),
+  siteDescription: z.object({
+    address: z.string().nullable().default(null),
+    lga: z.string().nullable().default(null),
+    zoneCode: z.string().nullable().default(null),
+    zoneName: z.string().nullable().default(null),
+    zoneLabel: z.string().nullable().default(null),
+  }),
+  proposedWorksSummary: z.string(),
+  applicableControls: z.object({
+    lepInstrument: z.any().nullable().optional(),
+    permissibility: z.any().nullable().optional(),
+    quickSiteControls: z.record(z.string(), z.any()),
+    dcpClauses: z.array(z.object({
+      ref: z.string().nullable(),
+      title: z.string().nullable(),
+      headingPath: z.array(z.string()),
+      bodyText: z.string(),
+      score: z.number(),
+    })),
+    sourceExcerpts: z.array(z.any()).default([]),
+    statutoryContext: z.any().nullable().optional(),
+    groundingInstructions: z.array(z.string()).optional(),
+  }).passthrough(),
+  consistencyAssessment: z.array(z.object({
+    topic: z.string(),
+    assessment: z.string(),
+    citations: z.array(z.object({ ref: z.string(), type: z.enum(["LEP", "DCP"]) })).optional(),
+  })),
+  limitations: z.array(z.string()),
+  sourceDetailedPlanningPack: z.object({
+    artefactId: z.string(),
+    title: z.string(),
+    generatedAt: z.string().nullable(),
+    commercialReady: z.boolean(),
+    sourceQuickSiteCheckArtefactId: z.string(),
+  }).optional(),
+}).passthrough();
+
+export const parsePreSeePlanningMemoContent = (payload: unknown): WorkspacePreSeePlanningMemoContent | null => {
+  const parsed = preSeePlanningMemoContentSchema.safeParse(payload);
+  return parsed.success ? parsed.data as WorkspacePreSeePlanningMemoContent : null;
+};
+
+
 const APPLICABILITY_CONFLICT_TERMS = /\b(rural zones?|rural land|rural boundary|residential zones?|residential d1|residential accommodation|dual occupanc(?:y|ies)|secondary dwelling|dwelling houses?|bed and breakfast|large lot residential|environmental conservation|top[- ]?up housing)\b/i;
 const NSW_ZONE_CODE = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/i;
 const dcpEvidenceText = (clause: Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">) =>
@@ -1092,7 +1189,7 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
 export const filterSiteApplicableDcpClauses = <T extends Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">>(clauses: T[], site: { zoneLabel?: string | null; zoneCode?: string | null }, controlTopic?: string | null) =>
   clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, controlTopic }));
 
-export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null) => {
+export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | Pick<WorkspacePreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null) => {
   if (!memo) return false;
   const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
   if (!hasSiteZone) return false;
@@ -1105,7 +1202,7 @@ export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoC
   );
   const applicableLepRefs = new Set<string>();
   Object.values(memo.applicableControls.quickSiteControls ?? {}).forEach((control) => {
-    const clauseRef = typeof control?.clauseRef === "string" ? control.clauseRef.trim() : "";
+    const clauseRef = typeof (control as { clauseRef?: unknown })?.clauseRef === "string" ? ((control as { clauseRef: string }).clauseRef).trim() : "";
     if (!clauseRef) return;
     applicableLepRefs.add(clauseRef);
     applicableLepRefs.add(`cl. ${clauseRef}`);

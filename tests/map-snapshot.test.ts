@@ -848,6 +848,43 @@ test("unresolved DPP blocks SEE and persists no memo", async () => {
   assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
 });
 
+test("SEE rejects newer unresolved active DPP instead of falling back to older ready pack", async () => {
+  const prisma = new MockPrisma({ "proj-see-active-unresolved": ["user-1"] });
+  const qsc: QuickSiteCheckReport = {
+    projectId: "proj-see-active-unresolved",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: "9m", present: true, interpretation: "Height.", confidence: "Cited" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [], nextSteps: [], lepEvidenceSummary: citedEvidenceSummary,
+  };
+  seedSeeDppChain(prisma, "proj-see-active-unresolved", qsc, "Older ready brief.");
+  const olderReady = prisma.artefacts.find((artefact) => artefact.id === "proj-see-active-unresolved-dpp");
+  olderReady.payload.generatedAt = "2026-07-15T00:10:00.000Z";
+  olderReady.capturedAt = new Date("2026-07-15T00:10:00.000Z");
+  prisma.artefacts.push({
+    ...olderReady,
+    id: "proj-see-active-unresolved-newer-dpp",
+    capturedAt: new Date("2026-07-15T00:30:00.000Z"),
+    createdAt: new Date("2026-07-15T00:30:00.000Z"),
+    payload: {
+      ...olderReady.payload,
+      generatedAt: "2026-07-15T00:30:00.000Z",
+      proposalBrief: "Newer unresolved brief.",
+      commercialReady: false,
+      unresolvedTopics: ["Parking: unresolved."],
+    },
+  });
+
+  await assert.rejects(() => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-active-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } }), ArtefactValidationError);
+  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
+});
+
 test("creates a Detailed Planning Pack from server-side saved QSC and filtered DCP evidence", async () => {
   const prisma = new MockPrisma({ "proj-pack": ["user-1"] });
   prisma.artefacts.push({
