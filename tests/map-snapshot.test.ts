@@ -367,7 +367,7 @@ test("creates a quick_site_check artefact enriched with real LEP values", async 
   assert.equal(payload.lepEvidenceSummary?.citedControlCount, 3);
 });
 
-test("persists unavailable LEP evidence summary and ignores DCP-only controls", async () => {
+test("persists server-verified DCP controls without promoting them into the LEP summary", async () => {
   const prisma = new MockPrisma({ "proj-2": ["user-2"] });
   const report: QuickSiteCheckReport = {
     projectId: "proj-2",
@@ -412,7 +412,12 @@ test("persists unavailable LEP evidence summary and ignores DCP-only controls", 
           fsr: null,
           minLotSize: null,
           zoneObjectives: ["Fallback objective"],
-          setback: { value: "Nil", clauseRef: "D4.2", confidence: "Cited" },
+          setback: {
+            value: "Nil",
+            clauseRef: "D4.2",
+            sourceRef: "Kempsey DCP 2026 Part D > Commercial Centres > Setbacks",
+            confidence: "Cited",
+          },
         },
         permissibility: null,
         dataSource: "fallback",
@@ -430,9 +435,15 @@ test("persists unavailable LEP evidence summary and ignores DCP-only controls", 
   assert.equal(payload.lepEvidenceSummary?.citedControlCount, 0);
   assert.equal(payload.lepEvidenceSummary?.objectiveCount, 1);
   assert.equal(payload.lepEvidenceSummary?.landUseEntryCount, 1);
+  assert.equal(payload.controls.setback?.value, "Nil");
+  assert.equal(payload.controls.setback?.source, "dcp");
+  assert.equal(payload.controls.setback?.lepSource, false);
+  assert.equal(payload.controls.setback?.clauseRef, "D4.2");
+  assert.equal(payload.controls.setback?.detail, "Kempsey DCP 2026 Part D > Commercial Centres > Setbacks");
+  assert.equal(payload.controls.setback?.confidence, "Cited");
 });
 
-test("keeps cited zone-table evidence while clearing forged client numeric controls", async () => {
+test("keeps cited zone-table evidence while clearing forged client numeric and DCP controls", async () => {
   const prisma = new MockPrisma({ "proj-2": ["user-2"] });
   const report: QuickSiteCheckReport = {
     projectId: "proj-2",
@@ -444,6 +455,7 @@ test("keeps cited zone-table evidence while clearing forged client numeric contr
       heightOfBuilding: { label: "Height", value: "99m", present: true, source: "client", lepSource: false, clauseRef: "4.3", interpretation: "Forged height.", confidence: "Cited" },
       floorSpaceRatio: { label: "FSR", value: "9:1", present: true, source: "client", lepSource: false, clauseRef: "4.4", interpretation: "Forged FSR.", confidence: "Cited" },
       minimumLotSize: { label: "MLS", value: "1sqm", present: true, source: "client", lepSource: false, clauseRef: "4.1", interpretation: "Forged lot size.", confidence: "Cited" },
+      parking: { label: "Parking", value: "No parking required", present: true, source: "client", clauseRef: "FAKE DCP", interpretation: "Forged parking.", confidence: "Cited" },
     },
     notes: [],
     nextSteps: [],
@@ -501,6 +513,12 @@ test("keeps cited zone-table evidence while clearing forged client numeric contr
     assert.equal(control.lepSource, false);
     assert.equal(control.confidence, "Unavailable");
   }
+  assert.equal(payload.controls.parking?.value, null);
+  assert.equal(payload.controls.parking?.present, false);
+  assert.equal(payload.controls.parking?.source, "Not in retrieved data");
+  assert.equal(payload.controls.parking?.clauseRef, null);
+  assert.equal(payload.controls.parking?.confidence, "Unavailable");
+  assert.equal(payload.controls.parking?.interpretation, "Not found in retrieved DCP data");
 });
 
 test("does not persist a forged client LEP evidence summary when server LEP enrichment is unavailable", async () => {
