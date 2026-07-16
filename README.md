@@ -99,6 +99,8 @@ Every pull request and push to `main` runs the secret-free **Commercial Funnel G
 
 This workflow never receives production secrets, connects to a database, calls OpenAI, retrieves live planning data, builds/deploys the app, creates a production project, or mutates production data. A green deterministic gate is required regression evidence, but it is not a substitute for the protected live saved-output audit and cannot close Item 52 or unlock billing/auth.
 
+Commercial evidence is fail-closed at persistence and handoff boundaries. Saved core LEP controls (height, floor space ratio, and minimum lot size) are re-derived from server-retrieved evidence; client-supplied values, clause references, confidence labels, and interpretations are cleared to `Unavailable` unless server provenance is present. LEP clause 2.3 is cited only when the saved QSC contains a DB-backed zone table with both objectives and land-use entries. A SEE is eligible for audit or consultant handoff only when its proposal summary, copied QSC evidence, DPP clauses and excerpts, and consistency assessments exactly match its source QSC/DPP snapshot. Matching IDs or plausible citation labels alone never establish provenance.
+
 ## Environment variables
 
 Required:
