@@ -740,7 +740,7 @@ Changed files/tests/checks for this runner slice:
 
 Checks run for this slice:
 
-- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 5 runner tests passed.
+- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 6 runner tests passed, including exact nested contract-shape failures and valid non-ready exit 2 coverage.
 - Full requested checks were run in Codex Cloud and are reported in the PR/final review notes.
 
 Production-safe operator runbook:

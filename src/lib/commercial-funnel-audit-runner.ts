@@ -13,11 +13,27 @@ export type AuditRunSummary = {
 
 type GoldenKey = "byron" | "kempsey";
 type GoldenConfig = { key: GoldenKey; env: "PLANNERA_BYRON_PROJECT_ID" | "PLANNERA_KEMPSEY_PROJECT_ID"; address: string; lgaCode: string; zoneCode: string };
+type ContractResult = { ok: true; value: AuditContract } | { ok: false; reasons: string[] };
+type AuditContract = {
+  version: "commercial_funnel_audit.v1";
+  checkedAt: string;
+  project: { id: string; publicId: string | null; title: string | null };
+  site: { address: string | null; lgaName: string | null; lgaCode: string | null; zoneLabel: string | null; zoneCode: string | null };
+  quickSiteCheck: { state: "missing" | "stale_mismatched" | "unresolved" | "ready"; artefactId: string | null; evidence: { label: string | null; sourceRef: string | null; citedControlCount: number | null; summary: string | null }; reasons: string[] };
+  detailedPlanningPack: { state: "missing" | "stale_mismatched_malformed" | "needs_expert_review" | "ready"; artefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; citedTopicCount: number; unresolvedTopics: string[]; reasons: string[] };
+  see: { state: "missing" | "stale_mismatched_legacy" | "ready"; artefactId: string | null; sourceDetailedPlanningPackArtefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; applicableCitedEvidenceCount: number; reasons: string[] };
+  referralEligibility: "none" | "unresolved_pack_referral" | "quality_chain_referral";
+  nextAction: { code: string; reasonCodes: string[] };
+};
 const GOLDENS: readonly GoldenConfig[] = [
   { key: "byron", env: "PLANNERA_BYRON_PROJECT_ID", address: "45 Broken Head Road, Byron Bay NSW 2481", lgaCode: "BYRON", zoneCode: "SP3" },
   { key: "kempsey", env: "PLANNERA_KEMPSEY_PROJECT_ID", address: "52 Belgrave St, Kempsey NSW 2440", lgaCode: "KEMPSEY", zoneCode: "E2" },
 ];
 const ENV_KEYS = ["PLANNERA_AUDIT_BASE_URL", "PLANNERA_AUDIT_ADMIN_TOKEN", "PLANNERA_BYRON_PROJECT_ID", "PLANNERA_KEMPSEY_PROJECT_ID", "PLANNERA_AUDIT_EXPECTED_COMMIT"] as const;
+const qscStates = ["missing", "stale_mismatched", "unresolved", "ready"] as const;
+const dppStates = ["missing", "stale_mismatched_malformed", "needs_expert_review", "ready"] as const;
+const seeStates = ["missing", "stale_mismatched_legacy", "ready"] as const;
+const referralStates = ["none", "unresolved_pack_referral", "quality_chain_referral"] as const;
 
 export type ProjectSummary = {
   checkedAt: string | null;
@@ -32,11 +48,16 @@ export type ProjectSummary = {
   runnerValidationReasons: string[];
 };
 
-const blankSummary = (reasons: string[]): ProjectSummary => ({ checkedAt: null, project: { id: null, publicId: null }, site: { address: null, lgaCode: null, zoneCode: null }, quickSiteCheck: { state: null, artefactId: null, sourceRef: null, citedControlCount: null }, detailedPlanningPack: { state: null, artefactId: null, sourceQuickSiteCheckArtefactId: null, citedTopicCount: null, unresolvedTopicCount: null }, see: { state: null, artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: null }, referralEligibility: null, nextAction: { code: null, reasonCodes: [] }, ready: false, runnerValidationReasons: reasons });
+const blankSummary = (reasons: string[]): ProjectSummary => ({ checkedAt: null, project: { id: null, publicId: null }, site: { address: null, lgaCode: null, zoneCode: null }, quickSiteCheck: { state: null, artefactId: null, sourceRef: null, citedControlCount: null }, detailedPlanningPack: { state: null, artefactId: null, sourceQuickSiteCheckArtefactId: null, citedTopicCount: null, unresolvedTopicCount: null }, see: { state: null, artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: null }, referralEligibility: null, nextAction: { code: null, reasonCodes: [] }, ready: false, runnerValidationReasons: [...reasons].sort() });
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const stringOrNull = (v: unknown) => typeof v === "string" || v === null;
+const isStringOrNull = (v: unknown): v is string | null => typeof v === "string" || v === null;
 const nonEmpty = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
-const keysOnly = (o: Record<string, unknown>, keys: string[]) => Object.keys(o).every((k) => keys.includes(k));
+const exactKeys = (o: Record<string, unknown>, keys: readonly string[]) => Object.keys(o).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(o, key));
+const validCount = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+const stringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((item) => typeof item === "string");
+const enumValue = <T extends readonly string[]>(v: unknown, values: T): v is T[number] => typeof v === "string" && values.includes(v);
+const canonicalIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) && new Date(v).toISOString() === v;
+const contractFailure = (reasons: string[]) => reasons.map((reason) => `contract_${reason}`).sort();
 
 export function parseAuditEnv(env: AuditRunnerEnv) {
   const missing = ENV_KEYS.filter((k) => !env[k]?.trim());
@@ -53,44 +74,96 @@ function auditUrl(baseUrl: URL, projectId: string) {
   return url.toString();
 }
 
-function validatePayload(payload: unknown, requestedId: string, golden: GoldenConfig): ProjectSummary {
+function validateContract(payload: unknown): ContractResult {
   const reasons: string[] = [];
-  if (!isRecord(payload) || !keysOnly(payload, ["version", "checkedAt", "project", "site", "quickSiteCheck", "detailedPlanningPack", "see", "referralEligibility", "nextAction"])) return blankSummary(["malformed_contract"]);
-  const p = payload as Record<string, unknown>;
-  const project = isRecord(p.project) ? p.project : null, site = isRecord(p.site) ? p.site : null, q = isRecord(p.quickSiteCheck) ? p.quickSiteCheck : null, d = isRecord(p.detailedPlanningPack) ? p.detailedPlanningPack : null, s = isRecord(p.see) ? p.see : null, n = isRecord(p.nextAction) ? p.nextAction : null;
-  if (p.version !== "commercial_funnel_audit.v1") reasons.push("unsupported_version");
-  if (!nonEmpty(p.checkedAt) || Number.isNaN(Date.parse(p.checkedAt))) reasons.push("invalid_checked_at");
-  if (!project || !keysOnly(project, ["id", "publicId", "title"])) reasons.push("malformed_project");
-  if (!site || !keysOnly(site, ["address", "lgaName", "lgaCode", "zoneLabel", "zoneCode"])) reasons.push("malformed_site");
-  if (!q || !keysOnly(q, ["state", "artefactId", "evidence", "reasons"])) reasons.push("malformed_qsc");
-  if (!d || !keysOnly(d, ["state", "artefactId", "sourceQuickSiteCheckArtefactId", "citedTopicCount", "unresolvedTopics", "reasons"])) reasons.push("malformed_dpp");
-  if (!s || !keysOnly(s, ["state", "artefactId", "sourceDetailedPlanningPackArtefactId", "sourceQuickSiteCheckArtefactId", "applicableCitedEvidenceCount", "reasons"])) reasons.push("malformed_see");
-  if (!n || !keysOnly(n, ["code", "reasonCodes"])) reasons.push("malformed_next_action");
+  if (!isRecord(payload)) return { ok: false, reasons: ["root_not_object"] };
+  if (!exactKeys(payload, ["version", "checkedAt", "project", "site", "quickSiteCheck", "detailedPlanningPack", "see", "referralEligibility", "nextAction"])) reasons.push("root_shape");
+  if (payload.version !== "commercial_funnel_audit.v1") reasons.push("unsupported_version");
+  if (!canonicalIso(payload.checkedAt)) reasons.push("checkedAt_iso");
+
+  const project = isRecord(payload.project) ? payload.project : null;
+  if (!project || !exactKeys(project, ["id", "publicId", "title"])) reasons.push("project_shape");
+  else {
+    if (typeof project.id !== "string") reasons.push("project_id_type");
+    if (!isStringOrNull(project.publicId)) reasons.push("project_publicId_type");
+    if (!isStringOrNull(project.title)) reasons.push("project_title_type");
+  }
+
+  const site = isRecord(payload.site) ? payload.site : null;
+  if (!site || !exactKeys(site, ["address", "lgaName", "lgaCode", "zoneLabel", "zoneCode"])) reasons.push("site_shape");
+  else ["address", "lgaName", "lgaCode", "zoneLabel", "zoneCode"].forEach((key) => { if (!isStringOrNull(site[key])) reasons.push(`site_${key}_type`); });
+
+  const q = isRecord(payload.quickSiteCheck) ? payload.quickSiteCheck : null;
   const ev = q && isRecord(q.evidence) ? q.evidence : null;
-  if (!ev || !keysOnly(ev, ["label", "sourceRef", "citedControlCount", "summary"])) reasons.push("malformed_qsc_evidence");
-  const projectId = project && typeof project.id === "string" ? project.id : null;
-  const publicId = project && stringOrNull(project.publicId) ? project.publicId : null;
-  if (requestedId !== projectId && requestedId !== publicId) reasons.push("response_project_id_mismatch");
-  if (site?.address !== golden.address) reasons.push("site_address_mismatch");
-  if (site?.lgaCode !== golden.lgaCode) reasons.push("site_lga_mismatch");
-  if (site?.zoneCode !== golden.zoneCode) reasons.push("site_zone_mismatch");
-  if (q?.state !== "ready") reasons.push("qsc_not_ready");
-  if (!nonEmpty(q?.artefactId)) reasons.push("qsc_artefact_missing");
-  if (ev?.label !== "Cited" || !nonEmpty(ev?.sourceRef)) reasons.push("qsc_uncited_evidence");
-  if (d?.state !== "ready") reasons.push("dpp_not_ready");
-  if (!nonEmpty(d?.artefactId)) reasons.push("dpp_artefact_missing");
-  if (typeof d?.citedTopicCount !== "number" || d.citedTopicCount <= 0) reasons.push("dpp_no_cited_topics");
-  if (!Array.isArray(d?.unresolvedTopics) || d.unresolvedTopics.length) reasons.push("dpp_unresolved_topics");
-  if (d?.sourceQuickSiteCheckArtefactId !== q?.artefactId) reasons.push("dpp_qsc_provenance_mismatch");
-  if (s?.state !== "ready") reasons.push("see_not_ready");
-  if (!nonEmpty(s?.artefactId)) reasons.push("see_artefact_missing");
-  if (typeof s?.applicableCitedEvidenceCount !== "number" || s.applicableCitedEvidenceCount <= 0) reasons.push("see_no_applicable_cited_evidence");
-  if (s?.sourceDetailedPlanningPackArtefactId !== d?.artefactId) reasons.push("see_dpp_provenance_mismatch");
-  if (s?.sourceQuickSiteCheckArtefactId !== q?.artefactId) reasons.push("see_qsc_provenance_mismatch");
-  if (p.referralEligibility !== "quality_chain_referral") reasons.push("referral_not_quality_chain");
-  if (n?.code !== "ready_for_quality_chain_referral") reasons.push("next_action_not_ready");
-  const summary: ProjectSummary = { checkedAt: nonEmpty(p.checkedAt) ? p.checkedAt : null, project: { id: projectId, publicId }, site: { address: typeof site?.address === "string" ? site.address : null, lgaCode: typeof site?.lgaCode === "string" ? site.lgaCode : null, zoneCode: typeof site?.zoneCode === "string" ? site.zoneCode : null }, quickSiteCheck: { state: typeof q?.state === "string" ? q.state : null, artefactId: stringOrNull(q?.artefactId) ? q.artefactId : null, sourceRef: ev && stringOrNull(ev.sourceRef) ? ev.sourceRef : null, citedControlCount: ev && typeof ev.citedControlCount === "number" ? ev.citedControlCount : null }, detailedPlanningPack: { state: typeof d?.state === "string" ? d.state : null, artefactId: stringOrNull(d?.artefactId) ? d.artefactId : null, sourceQuickSiteCheckArtefactId: stringOrNull(d?.sourceQuickSiteCheckArtefactId) ? d.sourceQuickSiteCheckArtefactId : null, citedTopicCount: typeof d?.citedTopicCount === "number" ? d.citedTopicCount : null, unresolvedTopicCount: Array.isArray(d?.unresolvedTopics) ? d.unresolvedTopics.length : null }, see: { state: typeof s?.state === "string" ? s.state : null, artefactId: stringOrNull(s?.artefactId) ? s.artefactId : null, sourceDetailedPlanningPackArtefactId: stringOrNull(s?.sourceDetailedPlanningPackArtefactId) ? s.sourceDetailedPlanningPackArtefactId : null, sourceQuickSiteCheckArtefactId: stringOrNull(s?.sourceQuickSiteCheckArtefactId) ? s.sourceQuickSiteCheckArtefactId : null, applicableCitedEvidenceCount: typeof s?.applicableCitedEvidenceCount === "number" ? s.applicableCitedEvidenceCount : null }, referralEligibility: typeof p.referralEligibility === "string" ? p.referralEligibility : null, nextAction: { code: typeof n?.code === "string" ? n.code : null, reasonCodes: Array.isArray(n?.reasonCodes) && n.reasonCodes.every((r) => typeof r === "string") ? [...n.reasonCodes].sort() : [] }, ready: reasons.length === 0, runnerValidationReasons: reasons.sort() };
-  return summary;
+  if (!q || !exactKeys(q, ["state", "artefactId", "evidence", "reasons"])) reasons.push("qsc_shape");
+  else {
+    if (!enumValue(q.state, qscStates)) reasons.push("qsc_state_enum");
+    if (!isStringOrNull(q.artefactId)) reasons.push("qsc_artefactId_type");
+    if (!stringArray(q.reasons)) reasons.push("qsc_reasons_type");
+  }
+  if (!ev || !exactKeys(ev, ["label", "sourceRef", "citedControlCount", "summary"])) reasons.push("qsc_evidence_shape");
+  else {
+    if (!isStringOrNull(ev.label)) reasons.push("qsc_evidence_label_type");
+    if (!isStringOrNull(ev.sourceRef)) reasons.push("qsc_evidence_sourceRef_type");
+    if (!(validCount(ev.citedControlCount) || ev.citedControlCount === null)) reasons.push("qsc_evidence_citedControlCount_type");
+    if (!isStringOrNull(ev.summary)) reasons.push("qsc_evidence_summary_type");
+  }
+
+  const d = isRecord(payload.detailedPlanningPack) ? payload.detailedPlanningPack : null;
+  if (!d || !exactKeys(d, ["state", "artefactId", "sourceQuickSiteCheckArtefactId", "citedTopicCount", "unresolvedTopics", "reasons"])) reasons.push("dpp_shape");
+  else {
+    if (!enumValue(d.state, dppStates)) reasons.push("dpp_state_enum");
+    if (!isStringOrNull(d.artefactId)) reasons.push("dpp_artefactId_type");
+    if (!isStringOrNull(d.sourceQuickSiteCheckArtefactId)) reasons.push("dpp_sourceQuickSiteCheckArtefactId_type");
+    if (!validCount(d.citedTopicCount)) reasons.push("dpp_citedTopicCount_type");
+    if (!stringArray(d.unresolvedTopics)) reasons.push("dpp_unresolvedTopics_type");
+    if (!stringArray(d.reasons)) reasons.push("dpp_reasons_type");
+  }
+
+  const s = isRecord(payload.see) ? payload.see : null;
+  if (!s || !exactKeys(s, ["state", "artefactId", "sourceDetailedPlanningPackArtefactId", "sourceQuickSiteCheckArtefactId", "applicableCitedEvidenceCount", "reasons"])) reasons.push("see_shape");
+  else {
+    if (!enumValue(s.state, seeStates)) reasons.push("see_state_enum");
+    if (!isStringOrNull(s.artefactId)) reasons.push("see_artefactId_type");
+    if (!isStringOrNull(s.sourceDetailedPlanningPackArtefactId)) reasons.push("see_sourceDetailedPlanningPackArtefactId_type");
+    if (!isStringOrNull(s.sourceQuickSiteCheckArtefactId)) reasons.push("see_sourceQuickSiteCheckArtefactId_type");
+    if (!validCount(s.applicableCitedEvidenceCount)) reasons.push("see_applicableCitedEvidenceCount_type");
+    if (!stringArray(s.reasons)) reasons.push("see_reasons_type");
+  }
+
+  const n = isRecord(payload.nextAction) ? payload.nextAction : null;
+  if (!enumValue(payload.referralEligibility, referralStates)) reasons.push("referralEligibility_enum");
+  if (!n || !exactKeys(n, ["code", "reasonCodes"])) reasons.push("nextAction_shape");
+  else {
+    if (typeof n.code !== "string") reasons.push("nextAction_code_type");
+    if (!stringArray(n.reasonCodes)) reasons.push("nextAction_reasonCodes_type");
+  }
+  if (reasons.length) return { ok: false, reasons: contractFailure(reasons) };
+  return { ok: true, value: payload as AuditContract };
+}
+
+function evaluateGolden(audit: AuditContract, requestedId: string, golden: GoldenConfig): ProjectSummary {
+  const reasons: string[] = [];
+  if (requestedId !== audit.project.id && requestedId !== audit.project.publicId) reasons.push("response_project_id_mismatch");
+  if (audit.site.address !== golden.address) reasons.push("site_address_mismatch");
+  if (audit.site.lgaCode !== golden.lgaCode) reasons.push("site_lga_mismatch");
+  if (audit.site.zoneCode !== golden.zoneCode) reasons.push("site_zone_mismatch");
+  if (audit.quickSiteCheck.state !== "ready") reasons.push("qsc_not_ready");
+  if (!nonEmpty(audit.quickSiteCheck.artefactId)) reasons.push("qsc_artefact_missing");
+  if (audit.quickSiteCheck.evidence.label !== "Cited" || !nonEmpty(audit.quickSiteCheck.evidence.sourceRef)) reasons.push("qsc_uncited_evidence");
+  if (audit.detailedPlanningPack.state !== "ready") reasons.push("dpp_not_ready");
+  if (!nonEmpty(audit.detailedPlanningPack.artefactId)) reasons.push("dpp_artefact_missing");
+  if (audit.detailedPlanningPack.citedTopicCount <= 0) reasons.push("dpp_no_cited_topics");
+  if (audit.detailedPlanningPack.unresolvedTopics.length) reasons.push("dpp_unresolved_topics");
+  if (audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) reasons.push("dpp_qsc_provenance_mismatch");
+  if (audit.see.state !== "ready") reasons.push("see_not_ready");
+  if (!nonEmpty(audit.see.artefactId)) reasons.push("see_artefact_missing");
+  if (audit.see.applicableCitedEvidenceCount <= 0) reasons.push("see_no_applicable_cited_evidence");
+  if (audit.see.sourceDetailedPlanningPackArtefactId !== audit.detailedPlanningPack.artefactId) reasons.push("see_dpp_provenance_mismatch");
+  if (audit.see.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) reasons.push("see_qsc_provenance_mismatch");
+  if (audit.referralEligibility !== "quality_chain_referral") reasons.push("referral_not_quality_chain");
+  if (audit.nextAction.code !== "ready_for_quality_chain_referral") reasons.push("next_action_not_ready");
+  return { checkedAt: audit.checkedAt, project: { id: audit.project.id, publicId: audit.project.publicId }, site: { address: audit.site.address, lgaCode: audit.site.lgaCode, zoneCode: audit.site.zoneCode }, quickSiteCheck: { state: audit.quickSiteCheck.state, artefactId: audit.quickSiteCheck.artefactId, sourceRef: audit.quickSiteCheck.evidence.sourceRef, citedControlCount: audit.quickSiteCheck.evidence.citedControlCount }, detailedPlanningPack: { state: audit.detailedPlanningPack.state, artefactId: audit.detailedPlanningPack.artefactId, sourceQuickSiteCheckArtefactId: audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId, citedTopicCount: audit.detailedPlanningPack.citedTopicCount, unresolvedTopicCount: audit.detailedPlanningPack.unresolvedTopics.length }, see: { state: audit.see.state, artefactId: audit.see.artefactId, sourceDetailedPlanningPackArtefactId: audit.see.sourceDetailedPlanningPackArtefactId, sourceQuickSiteCheckArtefactId: audit.see.sourceQuickSiteCheckArtefactId, applicableCitedEvidenceCount: audit.see.applicableCitedEvidenceCount }, referralEligibility: audit.referralEligibility, nextAction: { code: audit.nextAction.code, reasonCodes: [...audit.nextAction.reasonCodes].sort() }, ready: reasons.length === 0, runnerValidationReasons: reasons.sort() };
 }
 
 export async function runCommercialFunnelAudit(env: AuditRunnerEnv, fetchImpl: AuditRunnerFetch): Promise<AuditRunnerResult> {
@@ -103,10 +176,11 @@ export async function runCommercialFunnelAudit(env: AuditRunnerEnv, fetchImpl: A
     try {
       const response = await fetchImpl(auditUrl(parsed.baseUrl, requested), { method: "GET", headers: { "x-admin-token": parsed.token, Accept: "application/json" } });
       if (!response.ok) { hardFailure = true; projects[golden.key] = blankSummary([`http_status:${response.status}`]); continue; }
-      projects[golden.key] = validatePayload(await response.json(), requested, golden);
+      const contract = validateContract(await response.json());
+      if (!contract.ok) { hardFailure = true; projects[golden.key] = blankSummary(contract.reasons); continue; }
+      projects[golden.key] = evaluateGolden(contract.value, requested, golden);
     } catch { hardFailure = true; projects[golden.key] = blankSummary(["fetch_or_json_failure"]); }
   }
   const ready = projects.byron.ready && projects.kempsey.ready;
-  const contractFailure = ([projects.byron, projects.kempsey] as ProjectSummary[]).some((project) => project.runnerValidationReasons.some((reason) => reason.startsWith("malformed_") || reason === "unsupported_version"));
-  return { exitCode: hardFailure || contractFailure ? 1 : ready ? 0 : 2, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v1", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: parsed.expectedCommit, baseOrigin: parsed.baseUrl.origin, ready, projects: { byron: projects.byron, kempsey: projects.kempsey } } };
+  return { exitCode: hardFailure ? 1 : ready ? 0 : 2, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v1", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: parsed.expectedCommit, baseOrigin: parsed.baseUrl.origin, ready, projects: { byron: projects.byron, kempsey: projects.kempsey } } };
 }
