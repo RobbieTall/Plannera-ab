@@ -710,7 +710,6 @@ export type CurrentDetailedPlanningPackChainResolution = {
 export async function resolveCurrentDetailedPlanningPackChain({
   prismaClient,
   project,
-  requireCommercialReady,
 }: {
   prismaClient: ArtefactDependencies["prisma"];
   project: ProjectWithOptionalSiteContext;
@@ -769,10 +768,7 @@ export async function resolveCurrentDetailedPlanningPackChain({
     );
     candidates.push({ artefact, pack, quickSiteCheckArtefact: qscEntry?.artefact, quickSiteCheck: qscEntry?.report, validProvenance });
     if (!validProvenance) continue;
-    if (requireCommercialReady && !pack.commercialReady) {
-      sawUnreadyCurrentPack = true;
-      continue;
-    }
+    sawUnreadyCurrentPack = !pack.commercialReady;
     return { active: { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report }, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
   }
 
@@ -789,7 +785,10 @@ async function resolveNewestCurrentDetailedPlanningPack({
   requireCommercialReady: boolean;
 }) {
   const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project, requireCommercialReady });
-  if (resolution.active) return resolution.active;
+  if (resolution.active) {
+    if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
+    throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
+  }
 
   const reason = !resolution.sawPack
     ? "Generate a current-site Detailed Planning Pack before continuing."

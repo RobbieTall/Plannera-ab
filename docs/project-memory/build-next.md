@@ -668,8 +668,6 @@ Tests/checks for review:
 
 - PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 32 tests passed, including Byron SP3/Kempsey E2 DPP-derived SEE, forged body, stale/current pack, unresolved-pack rejection, and unresolved referral CTA coverage.
 - PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 9 tests passed, including QSC + DPP + matching SEE packaging, unresolved QSC + DPP referral without SEE, mismatched SEE exclusion, legacy bypass rejection, DPP handoff provenance, unresolved topics, and legacy export safety.
-- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 32 tests passed for relevant Item 50 generation/golden paths.
-- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 2 files and 9 tests passed for relevant Item 50 referral/handoff paths.
 - PASS: `npm run lint` — no warnings/errors.
 - PASS: `npx tsc --noEmit --pretty false`.
 - PASS: `npm test` — 46 Vitest files and 209 total Vitest tests passed after Node test suite completed with 64 passing tests.
@@ -701,11 +699,9 @@ Changed files for review:
 Tests/checks for review:
 
 - PASS: `npm run test:vitest -- src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts` — 2 files and 16 tests passed.
-- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 32 tests passed for relevant Item 50 generation/golden paths.
-- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 2 files and 9 tests passed for relevant Item 50 referral/handoff paths.
 - PASS: `npm run lint` — no warnings/errors.
 - PASS: `npx tsc --noEmit --pretty false`.
-- PASS: `npm test` — Node suite passed 64 tests; Vitest passed 48 files and 225 tests.
+- PASS: `npm test` — Node suite passed 65 tests; Vitest passed 48 files and 225 tests.
 - PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
 - EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
 
