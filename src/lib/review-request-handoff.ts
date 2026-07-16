@@ -66,6 +66,30 @@ export function formatReviewRequestHandoff(content: ReviewRequestContent): strin
     lines.push("");
   }
 
+  const pack = content.detailedPlanningPack;
+  if (pack) {
+    lines.push("Detailed Planning Pack provenance");
+    lines.push("---------------------------------");
+    pushField(lines, "Pack", `${pack.title} (${pack.artefactId})`);
+    pushField(lines, "Generated", pack.generatedAt);
+    pushField(lines, "Commercial ready", pack.commercialReady ? "Yes" : "No — unresolved referral only");
+    pushField(lines, "Source Quick Site Check", pack.sourceQuickSiteCheckArtefactId);
+    pushField(lines, "Proposal brief", pack.proposalBrief);
+    const matrix = (pack.topicMatrix ?? []).map((topic) => `${topic.topicLabel}: ${topic.status}${topic.sourceRefs?.length ? ` (${topic.sourceRefs.join(", ")})` : ""}`);
+    pushList(lines, "DCP topic status/source refs", matrix);
+    pushList(lines, "Unresolved Detailed Planning Pack topics", pack.unresolvedTopics ?? []);
+  }
+
+  const see = content.sourceSeeMemo;
+  if (see) {
+    lines.push("SEE provenance");
+    lines.push("--------------");
+    pushField(lines, "SEE", `${see.title} (${see.artefactId})`);
+    pushField(lines, "Generated", see.generatedAt);
+    pushField(lines, "Source Detailed Planning Pack", see.sourceDetailedPlanningPackArtefactId);
+    lines.push("");
+  }
+
   const lepEvidence = content.lepEvidenceSummary;
   if (lepEvidence) {
     lines.push("LEP evidence quality");

@@ -614,8 +614,10 @@ const isApplicableReadinessText = (text: string, zoneCode: string | null) => {
   return text.trim().length > 0;
 };
 
-const hasQualitySeeEvidence = (memo: WorkspacePreSeePlanningMemoContent | null) => {
-  if (!memo) return false;
+const hasQualitySeeEvidence = (memo: WorkspacePreSeePlanningMemoContent | null, pack: DetailedPlanningPackContent | null) => {
+  if (!memo || !pack?.commercialReady || !memo.sourceDetailedPlanningPack) return false;
+  if (memo.sourceDetailedPlanningPack.commercialReady !== true) return false;
+  if (memo.sourceDetailedPlanningPack.sourceQuickSiteCheckArtefactId !== pack.sourceQuickSiteCheck.artefactId) return false;
   const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
   if (!hasSiteZone) return false;
   const zoneCode = siteZoneCodeForReadiness(memo);
@@ -2822,12 +2824,7 @@ export function ProjectWorkspace({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          projectId: projectKey,
-          proposedWorksSummary:
-            project.description?.trim() ||
-            `Planning memo for ${project.name}${siteContext.formattedAddress ? ` at ${siteContext.formattedAddress}` : ""}.`,
-        }),
+        body: JSON.stringify({ projectId: projectKey }),
       });
 
       const data = (await response.json().catch(() => ({}))) as {
@@ -2879,8 +2876,6 @@ export function ProjectWorkspace({
     }
   }, [
     addArtefact,
-    project.description,
-    project.name,
     projectKey,
     showToast,
     siteContext,
@@ -3094,7 +3089,7 @@ export function ProjectWorkspace({
     [latestReviewRequestArtefact],
   );
   const hasQualityQuickSiteCheck = hasCitedQuickSiteCheckEvidence(normaliseQuickSiteCheckReport(latestQuickSiteCheckArtefact?.quickSiteCheck));
-  const hasQualitySee = hasQualitySeeEvidence(latestSeeContent);
+  const hasQualitySee = hasQualitySeeEvidence(latestSeeContent, latestDetailedPlanningPack ?? null);
   const hasPendingInitialSiteConfirmation = Boolean(initialInlineAddress && !siteContext);
   const hasSiteContext = Boolean(siteContext) || hasPendingInitialSiteConfirmation;
   const commercialNextAction = useMemo(
@@ -4206,7 +4201,7 @@ export function ProjectWorkspace({
                       <button
                         type="button"
                         onClick={handleGeneratePreSeeMemo}
-                        disabled={isGeneratingSee}
+                        disabled={isGeneratingSee || !hasQualityDetailedPlanningPack}
                         className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                       >
                         {isGeneratingSee
@@ -4231,8 +4226,7 @@ export function ProjectWorkspace({
                     />
                   ) : (
                     <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Generate a structured SEE grounded in current planning
-                      controls.
+                      Generate a structured SEE from the current commercial-ready Detailed Planning Pack.
                     </p>
                   )}
                 </OutputSection>
@@ -4245,10 +4239,7 @@ export function ProjectWorkspace({
                     />
                   ) : (
                     <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Package a saved Quick Site Check and SEE draft from the
-                      Byron/Kempsey commercial path to revisit citations,
-                      confidence gaps, missing inputs, assumptions, and planner
-                      review scope here.
+                      Package the current Quick Site Check, Detailed Planning Pack and matching SEE when available; unresolved packs can be referred without claiming SEE readiness.
                     </p>
                   )}
                 </OutputSection>

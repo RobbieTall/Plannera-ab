@@ -75,6 +75,7 @@ describe("buildCommercialNextAction", () => {
 
     assert.equal(result.primaryAction, "generate_detailed_pack");
     assert.equal(result.primaryLabel, "Regenerate detailed planning pack");
+    assert.equal(result.secondaryLabel, "Request expert review");
     assert.equal(result.items.find((item) => item.label === "Detailed Planning Pack")?.status, "Needs Expert Review");
     assert.equal(result.items.find((item) => item.label === "SEE / referral")?.status, "Unavailable");
   });

@@ -149,10 +149,11 @@ export function buildCommercialNextAction({
         ? "Next commercial step: resolve the Detailed Planning Pack"
         : "Next commercial step: generate the Detailed Planning Pack",
       description: hasDetailedPlanningPack
-        ? "The current-site pack has unresolved DCP topics; review or regenerate it before SEE or referral."
+        ? "The current-site pack has unresolved DCP topics; it can go to expert review without claiming SEE readiness."
         : "Capture the proposed works and retrieve proposal/zone-scoped DCP evidence before SEE or referral.",
       primaryAction: "generate_detailed_pack",
       primaryLabel: hasDetailedPlanningPack ? "Regenerate detailed planning pack" : "Generate detailed planning pack",
+      secondaryLabel: hasDetailedPlanningPack ? "Request expert review" : undefined,
       items,
     };
   }

@@ -142,3 +142,11 @@ Status: Active
 Decision: Near-term monetisation follows a deliberately narrow free Quick Site Check → proposal-aware cited Detailed Planning Pack → consultant-ready SEE/referral funnel, with the pack represented as its own durable artefact type rather than a SEE memo or review request. Payment/auth gating remains deferred until the Detailed Planning Pack passes Byron/Kempsey golden-case saved-output and live-verification gates. Artefact existence alone is not commercial readiness; cited, applicable evidence and honest unresolved topics control readiness.
 
 Reference: docs/project-memory/build-next.md item 49
+
+## DR-019 — DPP-Provenance Branch for SEE and Referral
+
+Status: Active
+
+Decision: SEE generation requires a current-site, commercial-ready Detailed Planning Pack with an intact cited Quick Site Check provenance chain. Expert referral may branch earlier when the newest current-site Detailed Planning Pack is unresolved: package QSC + DPP, list unresolved topics/questions, and omit SEE rather than pretending commercial readiness. Review packaging must resolve QSC, DPP, and SEE by durable provenance and current-site scope, not by newest artefact type alone.
+
+Reference: docs/project-memory/build-next.md item 50
