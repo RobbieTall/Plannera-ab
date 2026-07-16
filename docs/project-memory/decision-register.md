@@ -168,3 +168,12 @@ Status: Active
 Decision: Item 52 live verification must use the deterministic commercial funnel audit runner rather than ad hoc production calls. The runner is environment-only for base URL, admin token, expected commit, and approved existing Byron/Kempsey project IDs; authenticates with the `x-admin-token` header; performs exactly one read-only GET per configured project; emits only an allowlisted documentation-safe summary; and fails closed for missing config, unsafe URLs, HTTP/auth/network/JSON/contract failures, project identity mismatches, or any broken QSC → DPP → SEE/referral invariant. The live gate cannot close unless both Byron and Kempsey golden chains independently pass.
 
 Reference: docs/project-memory/build-next.md item 52
+
+
+## DR-022 — Protected Manual Remote Commercial Funnel Audit Lane
+
+Status: Active
+
+Decision: The approved Byron/Kempsey commercial funnel audit must be run through a manually dispatched, protected GitHub Actions environment on `main`, not through chat, local shells, ad hoc curl calls, or production mutation paths. The workflow uses immutable official action pins, read-only repository permissions, environment/repository secret and variable injection only, `github.sha` as the expected commit, no caching, no persisted checkout credentials, no build/deployment/DB/Prisma/ingest/generation steps, and uploads only the runner's validated allowlisted JSON summary. The gate remains fail-closed: only runner exit `0` can pass the workflow; runner exit `1`, runner exit `2`, install failure, missing exit output, or absent/invalid JSON fails.
+
+Reference: docs/project-memory/build-next.md item 53
