@@ -59,7 +59,7 @@ export type ReviewRequestContent = {
   };
   packageSummary: string;
   includedArtefacts: Array<{
-    type: "quick_site_check" | "pre_see_planning_memo";
+    type: "quick_site_check" | "detailed_planning_pack" | "pre_see_planning_memo";
     id: string;
     title: string;
     generatedAt: string | null;
@@ -70,6 +70,22 @@ export type ReviewRequestContent = {
   missingInputs: string[];
   assumptions: string[];
   recommendedReviewScope: string[];
+  detailedPlanningPack?: {
+    artefactId: string;
+    title: string;
+    generatedAt: string | null;
+    proposalBrief: string;
+    commercialReady: boolean;
+    topicMatrix: DetailedPlanningPackContent["topicMatrix"];
+    unresolvedTopics: string[];
+    sourceQuickSiteCheckArtefactId: string;
+  } | null;
+  sourceSeeMemo?: {
+    artefactId: string;
+    title: string;
+    generatedAt: string | null;
+    sourceDetailedPlanningPackArtefactId?: string | null;
+  } | null;
 };
 
 export type DetailedPlanningPackTopicStatus = "Cited" | "Unavailable" | "Needs Expert Review";
@@ -145,6 +161,13 @@ export type WorkspacePreSeePlanningMemoContent = {
     citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
+  sourceDetailedPlanningPack?: {
+    artefactId: string;
+    title: string;
+    generatedAt: string | null;
+    commercialReady: boolean;
+    sourceQuickSiteCheckArtefactId: string;
+  };
 };
 
 export type WorkspaceArtefact = {

@@ -82,6 +82,67 @@ const mockSaveFile = async (file: File) => ({
   size: file.size,
 });
 
+
+const citedEvidenceSummary = {
+  label: "Cited" as const,
+  detail: "Saved QSC has cited LEP evidence.",
+  citedControlCount: 1,
+  totalControlCount: 3,
+  landUseEntryCount: 1,
+  objectiveCount: 1,
+  sourceRef: "Byron LEP 2014",
+};
+
+const seedSeeDppChain = (prisma: MockPrisma, projectId: string, quickSiteCheck: QuickSiteCheckReport, proposalBrief: string) => {
+  const qsc = { ...quickSiteCheck, lepEvidenceSummary: quickSiteCheck.lepEvidenceSummary ?? citedEvidenceSummary };
+  prisma.artefacts.push({
+    id: `${projectId}-qsc`,
+    projectId,
+    type: "quick_site_check",
+    title: "Quick Site Check",
+    payload: qsc,
+    capturedAt: new Date(qsc.generatedAt),
+    createdAt: new Date(qsc.generatedAt),
+  });
+  prisma.artefacts.push({
+    id: `${projectId}-dpp`,
+    projectId,
+    type: "detailed_planning_pack",
+    title: "Detailed Planning Pack",
+    payload: {
+      packType: "detailed_planning_pack",
+      generatedAt: new Date().toISOString(),
+      projectId,
+      site: {
+        address: qsc.site.address ?? null,
+        lga: qsc.site.lga ?? null,
+        lgaCode: qsc.site.lga?.toUpperCase?.().includes("KEMPSEY") ? "KEMPSEY" : "BYRON",
+        zoneCode: qsc.site.zoneCode ?? null,
+        zoneName: qsc.site.zoneName ?? null,
+        zoneLabel: qsc.site.zoneLabel ?? null,
+      },
+      proposalBrief,
+      sourceQuickSiteCheck: { artefactId: `${projectId}-qsc`, title: "Quick Site Check", generatedAt: qsc.generatedAt, lepEvidenceSummary: qsc.lepEvidenceSummary },
+      carriedLepEvidenceSummary: qsc.lepEvidenceSummary,
+      dcpEvidence: [{
+        topicId: "built_form",
+        topicLabel: "Built form",
+        status: "Cited",
+        reason: "Fixture cited DCP evidence.",
+        citations: [{ ref: "D1.1", title: "Built form", headingPath: ["Chapter D1", "Built form"], excerpt: "Setbacks and built-form controls apply.", score: 12 }],
+      }],
+      topicMatrix: [{ topicId: "built_form", topicLabel: "Built form", status: "Cited", summary: "Fixture cited DCP evidence.", sourceRefs: ["D1.1"] }],
+      unresolvedTopics: [],
+      consultantReviewQuestions: [],
+      nextAction: "Generate SEE.",
+      commercialReady: true,
+    },
+    capturedAt: new Date(),
+    createdAt: new Date(),
+  });
+};
+
+
 test("creates a map_snapshot artefact with overlays and notes", async () => {
   const prisma = new MockPrisma({
     "proj-1": ["user-1"],
@@ -479,8 +540,10 @@ test("creates a pre_see_planning_memo artefact with structured content", async (
     nextSteps: [],
   };
 
+  seedSeeDppChain(prisma, "proj-3", quickSiteCheck, "Alterations and additions to a dwelling.");
+
   const { artefact, content } = await createPreSeePlanningMemoArtefact({
-    body: { projectId: "proj-3", proposedWorksSummary: "Alterations and additions to a dwelling." },
+    body: { projectId: "proj-3", proposedWorksSummary: "Forged client summary ignored." },
     userId: "user-3",
     deps: {
       prisma: prisma as any,
@@ -537,7 +600,9 @@ test("creates a pre_see_planning_memo artefact with structured content", async (
   assert.equal(content.memoType, "pre_see_planning_memo");
   assert.equal(content.siteDescription.lga, "Byron");
   assert.equal(content.applicableControls.dcpClauses[0].ref, "D1.1");
-  assert.equal(content.applicableControls.sourceExcerpts[0].heading, "Chapter D1");
+  assert.equal(content.applicableControls.sourceExcerpts[0].heading, "Built form");
+  assert.equal(content.proposedWorksSummary, "Alterations and additions to a dwelling.");
+  assert.equal(content.sourceDetailedPlanningPack?.artefactId, "proj-3-dpp");
 });
 
 test("pre SEE key development standards use retrieved LEP values and citations", async () => {
@@ -557,8 +622,16 @@ test("pre SEE key development standards use retrieved LEP values and citations",
     nextSteps: [],
   };
 
+  quickSiteCheck.controls.heightOfBuilding.interpretation = "Height appears to be 9 m.";
+  quickSiteCheck.controls.heightOfBuilding.clauseRef = "4.3";
+  quickSiteCheck.controls.floorSpaceRatio.interpretation = "Floor space ratio appears to be 0.5:1.";
+  quickSiteCheck.controls.floorSpaceRatio.clauseRef = "4.4";
+  quickSiteCheck.controls.minimumLotSize.interpretation = "Minimum lot size appears to be 600 m2.";
+  quickSiteCheck.controls.minimumLotSize.clauseRef = "4.1";
+  seedSeeDppChain(prisma, "proj-39", quickSiteCheck, "Dwelling alterations.");
+
   const { content } = await createPreSeePlanningMemoArtefact({
-    body: { projectId: "proj-39", proposedWorksSummary: "Dwelling alterations." },
+    body: { projectId: "proj-39", proposedWorksSummary: "Forged summary ignored." },
     userId: "user-39",
     deps: {
       prisma: prisma as any,
@@ -617,8 +690,10 @@ test("pre SEE key development standards preserve fallback when LEP clause has no
     nextSteps: [],
   };
 
+  seedSeeDppChain(prisma, "proj-40", quickSiteCheck, "Dwelling alterations.");
+
   const { content } = await createPreSeePlanningMemoArtefact({
-    body: { projectId: "proj-40", proposedWorksSummary: "Dwelling alterations." },
+    body: { projectId: "proj-40", proposedWorksSummary: "Forged summary ignored." },
     userId: "user-40",
     deps: {
       prisma: prisma as any,
@@ -641,6 +716,136 @@ test("pre SEE key development standards preserve fallback when LEP clause has no
   const height = content.consistencyAssessment.find((item) => item.topic === "Height of building");
   assert.equal(height?.assessment, fallback);
   assert.deepEqual(height?.citations, []);
+});
+
+
+test("SEE Byron SP3 uses persisted DPP proposal, citations and provenance only", async () => {
+  const prisma = new MockPrisma({ "proj-see-byron": ["user-1"] });
+  const qsc: QuickSiteCheckReport = {
+    projectId: "proj-see-byron",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneName: "Tourist", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: "9m", present: true, clauseRef: "4.3", interpretation: "Height is 9m.", confidence: "Cited" },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [],
+    nextSteps: [],
+    lepEvidenceSummary: citedEvidenceSummary,
+  };
+  seedSeeDppChain(prisma, "proj-see-byron", qsc, "Persisted SP3 tourist accommodation alterations.");
+  const dpp = prisma.artefacts.find((artefact) => artefact.id === "proj-see-byron-dpp");
+  dpp.payload.dcpEvidence[0].citations = [
+    { ref: "Byron DCP 2014 SP3", title: "SP3 tourist controls", headingPath: ["Chapter E", "SP3 Tourist"], excerpt: "Tourist accommodation in SP3 must address coastal character.", score: 20 },
+  ];
+  dpp.payload.topicMatrix[0].sourceRefs = ["Byron DCP 2014 SP3"];
+
+  const { content } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-see-byron", proposedWorksSummary: "FORGED", site: { address: "Fake" }, citations: ["Fake"] },
+    userId: "user-1",
+    deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) },
+  });
+
+  assert.equal(content.proposedWorksSummary, "Persisted SP3 tourist accommodation alterations.");
+  assert.equal(content.applicableControls.dcpClauses[0].ref, "Byron DCP 2014 SP3");
+  assert.equal(content.applicableControls.dcpClauses.some((clause) => /residential|rural/i.test(`${clause.title} ${clause.bodyText}`)), false);
+  assert.equal(content.sourceDetailedPlanningPack?.artefactId, "proj-see-byron-dpp");
+  assert.equal(content.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId, "proj-see-byron-qsc");
+  assert.deepEqual(content.consistencyAssessment.find((item) => item.topic === "Height of building")?.citations, [{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }]);
+});
+
+test("SEE Kempsey E2 retains Part D nil evidence from persisted DPP", async () => {
+  const prisma = new MockPrisma({ "proj-see-kempsey": ["user-1"] });
+  const qsc: QuickSiteCheckReport = {
+    projectId: "proj-see-kempsey",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 – Commercial Centre" },
+    lepInstrument: { name: "Kempsey LEP 2013", code: "KEMPSEY_LEP_2013", lga: "KEMPSEY", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height of building", value: "0m", present: true, clauseRef: "4.3", interpretation: "Nil/0m mapped control retained.", confidence: "Cited" },
+      floorSpaceRatio: { label: "Floor space ratio", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "Minimum lot size", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [],
+    nextSteps: [],
+    lepEvidenceSummary: { ...citedEvidenceSummary, sourceRef: "Kempsey LEP 2013 Zone E2" },
+  };
+  seedSeeDppChain(prisma, "proj-see-kempsey", qsc, "Persisted E2 shopfront fitout.");
+  const dpp = prisma.artefacts.find((artefact) => artefact.id === "proj-see-kempsey-dpp");
+  dpp.payload.dcpEvidence[0].citations = [
+    { ref: "Kempsey DCP 2013 Part D D4", title: "Part D4 Commercial Centres", headingPath: ["Part D", "D4 Commercial Centres"], excerpt: "Commercial centre controls include nil setback where active frontage is retained.", score: 18 },
+  ];
+  dpp.payload.topicMatrix[0].sourceRefs = ["Kempsey DCP 2013 Part D D4"];
+
+  const { content } = await createPreSeePlanningMemoArtefact({
+    body: { projectId: "proj-see-kempsey", proposedWorksSummary: "FORGED RESIDENTIAL" },
+    userId: "user-1",
+    deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "KEMPSEY", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) },
+  });
+
+  assert.equal(content.proposedWorksSummary, "Persisted E2 shopfront fitout.");
+  assert.match(content.applicableControls.dcpClauses[0].ref ?? "", /Part D D4/);
+  assert.match(content.applicableControls.dcpClauses[0].bodyText, /nil setback/i);
+  assert.equal(content.applicableControls.dcpClauses.some((clause) => /rural|residential/i.test(`${clause.title} ${clause.bodyText}`)), false);
+});
+
+test("SEE skips newer stale DPP for older current quality pack and stale-only rejects without persistence", async () => {
+  const prisma = new MockPrisma({ "proj-see-stale": ["user-1"] });
+  const qsc: QuickSiteCheckReport = {
+    projectId: "proj-see-stale",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: "9m", present: true, interpretation: "Height.", confidence: "Cited" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [], nextSteps: [], lepEvidenceSummary: citedEvidenceSummary,
+  };
+  seedSeeDppChain(prisma, "proj-see-stale", qsc, "Older current pack brief.");
+  const currentPack = prisma.artefacts.find((artefact) => artefact.id === "proj-see-stale-dpp");
+  currentPack.payload.generatedAt = "2026-07-14T00:00:00.000Z";
+  prisma.artefacts.push({ ...currentPack, id: "newer-stale-dpp", capturedAt: new Date("2026-07-15T00:00:00.000Z"), createdAt: new Date("2026-07-15T00:00:00.000Z"), payload: { ...currentPack.payload, generatedAt: "2026-07-15T00:00:00.000Z", site: { ...currentPack.payload.site, address: "1 Fake Street, Sydney NSW", lga: "Sydney", lgaCode: "SYDNEY" }, proposalBrief: "Stale forged pack." } });
+
+  const { content } = await createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-stale" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } });
+  assert.equal(content.proposedWorksSummary, "Older current pack brief.");
+
+  const staleOnly = new MockPrisma({ "proj-stale-only": ["user-1"] });
+  seedSeeDppChain(staleOnly, "proj-stale-only", { ...qsc, projectId: "proj-stale-only" }, "Stale-only brief.");
+  const stalePack = staleOnly.artefacts.find((artefact) => artefact.id === "proj-stale-only-dpp");
+  stalePack.payload.site.address = "1 Fake Street, Sydney NSW";
+  await assert.rejects(() => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-stale-only" }, userId: "user-1", deps: { prisma: staleOnly as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } }), ArtefactValidationError);
+  assert.equal(staleOnly.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
+});
+
+test("unresolved DPP blocks SEE and persists no memo", async () => {
+  const prisma = new MockPrisma({ "proj-see-unresolved": ["user-1"] });
+  const qsc: QuickSiteCheckReport = {
+    projectId: "proj-see-unresolved",
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    site: { address: "45 Broken Head Road, Byron Bay NSW 2481", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" },
+    lepInstrument: null,
+    permissibility: null,
+    controls: {
+      heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "No height.", confidence: "Unavailable" },
+      floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "No FSR.", confidence: "Unavailable" },
+      minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "No MLS.", confidence: "Unavailable" },
+    },
+    notes: [], nextSteps: [], lepEvidenceSummary: citedEvidenceSummary,
+  };
+  seedSeeDppChain(prisma, "proj-see-unresolved", qsc, "Unresolved brief.");
+  const dpp = prisma.artefacts.find((artefact) => artefact.id === "proj-see-unresolved-dpp");
+  dpp.payload.commercialReady = false;
+  dpp.payload.unresolvedTopics = ["Parking: unresolved."];
+
+  await assert.rejects(() => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } }), ArtefactValidationError);
+  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
 });
 
 test("creates a Detailed Planning Pack from server-side saved QSC and filtered DCP evidence", async () => {

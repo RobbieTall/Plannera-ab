@@ -11,7 +11,7 @@ import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
 import { serializeSiteContext } from "@/lib/site-context";
-import { isArtefactCurrentForSite, quickSiteCheckScope, type CurrentSiteScope } from "@/lib/site-scoped-artefacts";
+import { detailedPlanningPackScope, isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, type CurrentSiteScope } from "@/lib/site-scoped-artefacts";
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
@@ -21,7 +21,7 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
-import type { DetailedPlanningPackContent, FeasibilityContent } from "@/types/workspace";
+import type { DetailedPlanningPackContent, FeasibilityContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
 
 export const DEV_BYPASS_USER_ID = "dev-bypass-user";
 
@@ -107,7 +107,7 @@ const quickSiteCheckReportSchema = z
       .optional(),
     permissibility: z
       .object({
-        zoneLabel: z.string().nullable().optional(),
+        zoneLabel: z.string().nullable().default(null),
         permittedWithoutConsent: z.array(z.string()),
         permittedWithConsent: z.array(z.string()),
         prohibited: z.array(z.string()),
@@ -122,7 +122,7 @@ const quickSiteCheckReportSchema = z
     }).passthrough(),
     notes: z.array(z.string()),
     nextSteps: z.array(z.string()),
-    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().optional(),
+    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
   })
   .passthrough();
 
@@ -627,52 +627,129 @@ export async function createDetailedPlanningPackArtefact({
   return { artefact, content };
 }
 
-const SEE_SECTION_DCP_QUERIES = [
-  { id: "setbacks", label: "Setbacks", query: "setback building line street side rear boundary" },
-  { id: "height", label: "Building Height", query: "height storey building height plane levels" },
-  { id: "parking", label: "Car Parking", query: "parking car space visitor bicycle driveway" },
-  { id: "landscaping", label: "Landscaping", query: "landscaping deep soil tree vegetation planting" },
-  { id: "site_coverage", label: "Site Coverage", query: "site coverage floor area plot ratio site density" },
-  { id: "private_open_space", label: "Private Open Space", query: "private open space POS courtyard balcony" },
-  { id: "character", label: "Character and Appearance", query: "character streetscape appearance context" },
-  { id: "flooding", label: "Flood Risk", query: "flood flooding floodplain" },
-];
 
-const buildDcpSectionPromptContext = (sectionClauses: Map<string, ScoredDcpClause[]>) =>
-  SEE_SECTION_DCP_QUERIES.map((section) => buildDcpSectionPromptBlock(sectionClauses.get(section.id) ?? [], section.label))
-    .filter(Boolean)
-    .join("\n\n");
+const dppCitationSchema = z.object({
+  ref: z.string(),
+  title: z.string().nullable().default(null),
+  headingPath: z.array(z.string()).default([]),
+  excerpt: z.string(),
+  score: z.number().default(0),
+});
 
-const countDcpClausesBySection = (sectionClauses: Map<string, ScoredDcpClause[]>) =>
-  SEE_SECTION_DCP_QUERIES.reduce<Record<string, number>>((counts, section) => {
-    counts[section.id] = sectionClauses.get(section.id)?.length ?? 0;
-    return counts;
-  }, {});
+const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackContent> = z.object({
+  packType: z.literal("detailed_planning_pack"),
+  generatedAt: z.string(),
+  projectId: z.string(),
+  site: z.object({
+    address: z.string().nullable().default(null),
+    lga: z.string().nullable().default(null),
+    lgaCode: z.string().nullable().default(null),
+    zoneCode: z.string().nullable().default(null),
+    zoneName: z.string().nullable().default(null),
+    zoneLabel: z.string().nullable().default(null),
+  }),
+  proposalBrief: z.string().min(1),
+  sourceQuickSiteCheck: z.object({
+    artefactId: z.string(),
+    title: z.string(),
+    generatedAt: z.string().nullable().default(null),
+    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
+  }),
+  carriedLepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
+  dcpEvidence: z.array(z.object({
+    topicId: z.string(),
+    topicLabel: z.string(),
+    status: z.enum(["Cited", "Unavailable", "Needs Expert Review"]),
+    reason: z.string(),
+    citations: z.array(dppCitationSchema),
+  })),
+  topicMatrix: z.array(z.object({
+    topicId: z.string(),
+    topicLabel: z.string(),
+    status: z.enum(["Cited", "Unavailable", "Needs Expert Review"]),
+    summary: z.string(),
+    sourceRefs: z.array(z.string()),
+  })),
+  unresolvedTopics: z.array(z.string()),
+  consultantReviewQuestions: z.array(z.string()),
+  nextAction: z.string(),
+  commercialReady: z.boolean(),
+}).passthrough();
 
-const buildPreSeeLepPromptBlock = (enrichment: LepEnrichment, quickSiteCheck: QuickSiteCheckReport) => {
-  const lepResponse = isRealLepResponse(enrichment.lepResponse) ? enrichment.lepResponse : null;
-  if (!enrichment.lepContext && !lepResponse) return null;
+const currentScopeForProject = (project: ProjectWithOptionalSiteContext): CurrentSiteScope => ({
+  address: project.siteContext?.formattedAddress ?? project.address ?? null,
+  lgaName: project.siteContext?.lgaName ?? null,
+  lgaCode: project.siteContext?.lgaCode ?? null,
+  zoneLabel: project.siteContext?.zone ?? project.zoning ?? project.zoningName ?? null,
+  zoneCode: project.zoningCode ?? null,
+});
 
-  const controls = quickSiteCheck.controls;
-  const clauseLines = (enrichment.lepContext?.clauses ?? []).slice(0, 5).map((clause) => {
-    const title = clause.title ? ` ${clause.title}` : "";
-    return `- Clause ${clause.ref}${title}: ${truncatePromptText(clause.text)}`;
-  });
-
-  return [
-    "=== REAL LEP ZONE CONTEXT FOR PRE-SEE MEMO ===",
-    `Zone: ${lepResponse?.zone ?? quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneCode ?? "Not found in retrieved LEP data"}`,
-    `Objectives: ${formatPromptList(lepResponse?.objectives)}`,
-    `Permissible uses with consent: ${formatPromptList(lepResponse?.landUse.withConsent)}`,
-    `Permissible uses without consent: ${formatPromptList(lepResponse?.landUse.withoutConsent)}`,
-    `Height limit: ${controls.heightOfBuilding.value ?? "Not found in retrieved LEP data"}`,
-    `FSR: ${controls.floorSpaceRatio.value ?? "Not found in retrieved LEP data"}`,
-    `Minimum lot size: ${controls.minimumLotSize.value ?? "Not found in retrieved LEP data"}`,
-    "Top LEP clauses (verbatim excerpts, truncated):",
-    clauseLines.length ? clauseLines.join("\n") : "No LEP clause excerpts were retrieved.",
-    "=== END REAL LEP ZONE CONTEXT ===",
-  ].join("\n");
+const artefactRecencyMs = (artefact: Artefact, generatedAt?: string | null) => {
+  const generated = generatedAt ? Date.parse(generatedAt) : Number.NaN;
+  if (Number.isFinite(generated)) return generated;
+  const captured = artefact.capturedAt?.getTime?.() ?? Number.NaN;
+  if (Number.isFinite(captured)) return captured;
+  return artefact.createdAt?.getTime?.() ?? Number.NEGATIVE_INFINITY;
 };
+
+async function resolveNewestCurrentDetailedPlanningPack({
+  prismaClient,
+  project,
+  requireCommercialReady,
+}: {
+  prismaClient: ArtefactDependencies["prisma"];
+  project: ProjectWithOptionalSiteContext;
+  requireCommercialReady: boolean;
+}) {
+  const currentScope = currentScopeForProject(project);
+  const artefacts = await prismaClient.artefact.findMany({
+    where: { projectId: project.id, type: { in: ["detailed_planning_pack", "quick_site_check"] as ArtefactType[] } },
+    orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
+  });
+  const qscById = new Map<string, { artefact: Artefact; report: QuickSiteCheckReport }>();
+  for (const artefact of artefacts) {
+    if (artefact.type !== "quick_site_check") continue;
+    const parsed = quickSiteCheckReportSchema.safeParse(artefact.payload);
+    if (parsed.success) qscById.set(artefact.id, { artefact, report: parsed.data as QuickSiteCheckReport });
+  }
+
+  const parsedPacks = artefacts
+    .filter((artefact) => artefact.type === "detailed_planning_pack")
+    .map((artefact) => {
+      const parsed = detailedPlanningPackContentSchema.safeParse(artefact.payload);
+      return parsed.success ? { artefact, pack: parsed.data } : { artefact, pack: null };
+    })
+    .sort((left, right) => artefactRecencyMs(right.artefact, right.pack?.generatedAt) - artefactRecencyMs(left.artefact, left.pack?.generatedAt));
+
+  const sawPack = parsedPacks.length > 0;
+  let sawCurrentPack = false;
+  let sawUnreadyCurrentPack = false;
+  for (const { artefact, pack } of parsedPacks) {
+    if (!pack) continue;
+    if (!isArtefactCurrentForSite(currentScope, detailedPlanningPackScope(pack))) continue;
+    sawCurrentPack = true;
+    if (requireCommercialReady && !pack.commercialReady) {
+      sawUnreadyCurrentPack = true;
+      continue;
+    }
+    const qscEntry = qscById.get(pack.sourceQuickSiteCheck.artefactId);
+    if (!qscEntry) continue;
+    if (qscEntry.report.lepEvidenceSummary?.label !== "Cited") continue;
+    if (!isArtefactCurrentForSite(currentScope, quickSiteCheckScope(qscEntry.report))) continue;
+    if (!isArtefactCurrentForSite(detailedPlanningPackScope(pack), quickSiteCheckScope(qscEntry.report))) continue;
+    return { artefact, pack, quickSiteCheckArtefact: qscEntry.artefact, quickSiteCheck: qscEntry.report };
+  }
+
+  const reason = !sawPack
+    ? "Generate a current-site Detailed Planning Pack before continuing."
+    : !sawCurrentPack
+      ? "Only stale or cross-site Detailed Planning Packs were found. Generate a current-site Detailed Planning Pack."
+      : sawUnreadyCurrentPack
+        ? "The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first."
+        : "No current Detailed Planning Pack has an intact cited Quick Site Check provenance chain. Regenerate the pack from a saved current-site Quick Site Check.";
+  throw new ArtefactValidationError(reason);
+}
+
 
 export async function createMapSnapshotArtefact({
   formData,
@@ -979,6 +1056,13 @@ export type PreSeePlanningMemoContent = {
     citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
+  sourceDetailedPlanningPack?: {
+    artefactId: string;
+    title: string;
+    generatedAt: string | null;
+    commercialReady: boolean;
+    sourceQuickSiteCheckArtefactId: string;
+  };
 };
 
 
@@ -1052,17 +1136,6 @@ const buildLepCitationRef = (instrumentName: string | null | undefined, clauseRe
   return `${instrumentName} cl. ${clauseRef}`;
 };
 
-const buildDcpCitationRef = (clause: ScoredDcpClause) => clause.title || clause.ref || clause.headingPath.join(" > ");
-
-const uniqueCitations = (citations: SeeSourceCitation[]) => {
-  const seen = new Set<string>();
-  return citations.filter((citation) => {
-    const key = `${citation.type}:${citation.ref}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
 
 type PreSeePlanningMemoDeps = {
   prisma: ArtefactDependencies["prisma"];
@@ -1097,7 +1170,7 @@ export async function createPreSeePlanningMemoArtefact({
     throw new ArtefactValidationError(message);
   }
 
-  const { projectId, proposedWorksSummary, title } = parsed.data;
+  const { projectId, title } = parsed.data;
   const project = await assertProjectAccess(deps.prisma, projectId, userId);
   const projectWithContext = await deps.prisma.project.findUnique({
     where: { id: project.id },
@@ -1112,64 +1185,30 @@ export async function createPreSeePlanningMemoArtefact({
     throw new ArtefactValidationError("Set a confirmed site before generating a pre-SEE planning memo");
   }
 
-  const quickSiteCheckFallback = await deps.buildQuickSiteCheckReport(projectWithContext);
-  const lepEnrichment = await loadLepEnrichmentForProject(projectWithContext, deps);
-  const quickSiteCheck = applyRealLepEnrichmentToReport(quickSiteCheckFallback, lepEnrichment);
-  const preSeeLepPromptBlock = buildPreSeeLepPromptBlock(lepEnrichment, quickSiteCheck);
+  const resolvedPack = await resolveNewestCurrentDetailedPlanningPack({
+    prismaClient: deps.prisma,
+    project: projectWithContext,
+    requireCommercialReady: true,
+  });
+  const proposedWorksSummary = resolvedPack.pack.proposalBrief;
+  const quickSiteCheck = resolvedPack.quickSiteCheck;
   const lepInstrumentName = quickSiteCheck.lepInstrument?.name ?? null;
-  const lgaCode = normalizeCouncilLgaCode(quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaCode);
-  const controlsQuery = [
-    proposedWorksSummary,
-    quickSiteCheck.site.lga,
-    quickSiteCheck.site.zoneLabel,
-    "development controls setbacks parking landscaping built form",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const [dcpClauses, dcpSectionClauses, sourceContext, statutoryContext] = await Promise.all([
-    lgaCode ? deps.getDCPContext(lgaCode, controlsQuery) : Promise.resolve([]),
-    lgaCode ? loadDcpClausesForSections(deps.getDCPContext, lgaCode, SEE_SECTION_DCP_QUERIES) : Promise.resolve(new Map<string, ScoredDcpClause[]>()),
-    deps.getWorkspaceSourceContext({
-      projectId: project.id,
-      lgaCode,
-      lgaName: quickSiteCheck.site.lga ?? null,
-      query: controlsQuery || "pre SEE planning memo",
-      limit: 6,
-    }),
-    lgaCode && deps.buildStatutoryContextBlock
-      ? deps.buildStatutoryContextBlock({
-          lgaCode,
-          query: controlsQuery || "pre SEE planning memo LEP DCP controls",
-          maxDcpClauses: 5,
-          maxLepClauses: 3,
-          siteZone: quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null),
-        })
-      : Promise.resolve(null),
-  ]);
-
-  const filteredDcpClauses = filterSiteApplicableDcpClauses(dcpClauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode });
-  const filteredDcpSectionClauses = new Map(Array.from(dcpSectionClauses.entries()).map(([section, clauses]) => [section, filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, section)]));
-  const dcpSectionPromptContext = buildDcpSectionPromptContext(filteredDcpSectionClauses);
-  const dcpClauseCounts = countDcpClausesBySection(filteredDcpSectionClauses);
-
   const siteDescription = {
-    address: quickSiteCheck.site.address ?? null,
-    lga: quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaName ?? null,
-    zoneCode: quickSiteCheck.site.zoneCode ?? null,
-    zoneName: quickSiteCheck.site.zoneName ?? null,
-    zoneLabel: quickSiteCheck.site.zoneLabel ?? null,
+    address: resolvedPack.pack.site.address ?? quickSiteCheck.site.address ?? projectWithContext.siteContext.formattedAddress ?? null,
+    lga: resolvedPack.pack.site.lga ?? quickSiteCheck.site.lga ?? projectWithContext.siteContext.lgaName ?? null,
+    zoneCode: resolvedPack.pack.site.zoneCode ?? quickSiteCheck.site.zoneCode ?? null,
+    zoneName: resolvedPack.pack.site.zoneName ?? quickSiteCheck.site.zoneName ?? null,
+    zoneLabel: resolvedPack.pack.site.zoneLabel ?? quickSiteCheck.site.zoneLabel ?? null,
   };
 
-  const availableLepClauseRefs = new Set((lepEnrichment.lepContext?.clauses ?? []).map((clause) => clause.ref));
-  const dcpControlCitations = uniqueCitations(
-    filteredDcpClauses
-      .map((clause) => buildDcpCitationRef(clause))
-      .filter((ref): ref is string => Boolean(ref))
-      .map((ref) => ({ ref, type: "DCP" as const })),
+  const dppCitations = resolvedPack.pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({ topic, citation })),
   );
+  if (!dppCitations.length) {
+    throw new ArtefactValidationError("The current Detailed Planning Pack has no applicable cited DCP evidence for SEE generation");
+  }
   const citationForControl = (clauseRef: string | null | undefined) => {
-    if (!clauseRef || !availableLepClauseRefs.has(clauseRef)) return [];
+    if (!clauseRef) return [];
     const ref = buildLepCitationRef(lepInstrumentName, clauseRef);
     return ref ? [{ ref, type: "LEP" as const }] : [];
   };
@@ -1178,96 +1217,90 @@ export async function createPreSeePlanningMemoArtefact({
     buildControlAssessment(
       "Land use permissibility",
       quickSiteCheck.permissibility?.interpretation ??
-        "Permissibility could not be confirmed from the available LEP data. Confirm the land use against the LEP before relying on this memo.",
-      uniqueCitations([
-        ...citationForControl("2.3"),
-        ...dcpControlCitations.slice(0, 2),
-      ]),
+        "Permissibility could not be confirmed from the saved Quick Site Check. Confirm the land use against the LEP before relying on this memo.",
+      citationForControl("2.3"),
     ),
     buildControlAssessment(
       "Height of building",
       quickSiteCheck.controls.heightOfBuilding.interpretation,
-      uniqueCitations([
-        ...citationForControl(quickSiteCheck.controls.heightOfBuilding.clauseRef),
-        ...dcpControlCitations.slice(0, 2),
-      ]),
+      citationForControl(quickSiteCheck.controls.heightOfBuilding.clauseRef),
     ),
     buildControlAssessment(
       "Floor space ratio",
       quickSiteCheck.controls.floorSpaceRatio.interpretation,
-      uniqueCitations([
-        ...citationForControl(quickSiteCheck.controls.floorSpaceRatio.clauseRef),
-        ...dcpControlCitations.slice(0, 2),
-      ]),
+      citationForControl(quickSiteCheck.controls.floorSpaceRatio.clauseRef),
     ),
     buildControlAssessment(
       "Minimum lot size",
       quickSiteCheck.controls.minimumLotSize.interpretation,
-      uniqueCitations([
-        ...citationForControl(quickSiteCheck.controls.minimumLotSize.clauseRef),
-        ...dcpControlCitations.slice(0, 2),
-      ]),
+      citationForControl(quickSiteCheck.controls.minimumLotSize.clauseRef),
     ),
+    ...resolvedPack.pack.topicMatrix.map((topic) => buildControlAssessment(
+      topic.topicLabel,
+      topic.summary,
+      topic.sourceRefs.map((ref) => ({ ref, type: "DCP" as const })),
+    )),
   ];
+
+  const dcpPromptBlock = resolvedPack.pack.dcpEvidence
+    .filter((topic) => topic.citations.length > 0)
+    .map((topic) => buildDcpSectionPromptBlock(topic.citations.map((citation) => ({
+      ref: citation.ref,
+      title: citation.title,
+      headingPath: citation.headingPath,
+      bodyText: citation.excerpt,
+      score: citation.score,
+    } as ScoredDcpClause)), topic.topicLabel))
+    .filter(Boolean)
+    .join("\n\n");
 
   const content: PreSeePlanningMemoContent = {
     memoType: "pre_see_planning_memo",
     generatedAt: new Date().toISOString(),
     projectId: project.id,
-    dcpClauses: dcpClauseCounts,
+    dcpClauses: Object.fromEntries(resolvedPack.pack.topicMatrix.map((topic) => [topic.topicId, topic.sourceRefs.length])),
     siteDescription,
-    proposedWorksSummary:
-      proposedWorksSummary ||
-      "Proposed works summary not supplied. Add a concise description of the intended development before using this memo for application preparation.",
+    proposedWorksSummary,
     applicableControls: {
       lepInstrument: quickSiteCheck.lepInstrument ?? null,
       permissibility: quickSiteCheck.permissibility ?? null,
       quickSiteControls: quickSiteCheck.controls,
-      dcpClauses: filteredDcpClauses.map((clause) => ({
-        ref: clause.ref,
-        title: clause.title,
-        headingPath: clause.headingPath,
-        bodyText: clause.bodyText,
-        score: clause.score,
+      dcpClauses: dppCitations.map(({ citation }) => ({
+        ref: citation.ref,
+        title: citation.title ?? null,
+        headingPath: citation.headingPath,
+        bodyText: citation.excerpt,
+        score: citation.score,
       })),
-      sourceExcerpts: sourceContext.chunks.filter((chunk) => isSiteApplicableDcpEvidence({ text: [chunk.heading, chunk.content].filter(Boolean).join("\n"), siteZoneLabel: siteDescription.zoneLabel ?? siteDescription.zoneName, siteZoneCode: siteDescription.zoneCode })).map((chunk) => ({
-        id: chunk.id,
-        heading: chunk.heading,
-        sourceType: chunk.sourceType,
-        content: chunk.content,
-        score: chunk.score,
+      sourceExcerpts: dppCitations.map(({ topic, citation }) => ({
+        id: `${topic.topicId}:${citation.ref}`,
+        heading: citation.title ?? topic.topicLabel,
+        sourceType: "detailed_planning_pack",
+        content: citation.excerpt,
+        score: citation.score,
       })),
-      statutoryContext: statutoryContext
-        ? {
-            promptBlock: [dcpSectionPromptContext, preSeeLepPromptBlock, statutoryContext.promptBlock].filter(Boolean).join("\n\n"),
-            lepClauses: statutoryContext.lepClauses,
-            dcpClauses: statutoryContext.dcpClauses,
-            sourceTypes: statutoryContext.sourceTypes,
-          }
-        : dcpSectionPromptContext || preSeeLepPromptBlock
-          ? {
-              promptBlock: [dcpSectionPromptContext, preSeeLepPromptBlock].filter(Boolean).join("\n\n"),
-              lepClauses: [],
-              dcpClauses: [],
-              sourceTypes: ["cited"],
-            }
-          : null,
+      statutoryContext: dcpPromptBlock
+        ? { promptBlock: dcpPromptBlock, lepClauses: [], dcpClauses: [], sourceTypes: ["detailed_planning_pack"] }
+        : null,
       groundingInstructions: [
-        "Base all LEP and DCP references on the retrieved clause text provided below. Do not invent clause numbers or policy references.",
-        "Each SEE section must cite the specific DCP source title exactly as provided in the retrieved `DCP Source — [title]: [chunk text]` line whenever that DCP chunk is used.",
-        "When using retrieved LEP material, cite the LEP instrument and clause number in the form `<Instrument Name> cl. <clause number>` (for example, `Byron LEP 2014 cl. 4.3`).",
-        "Do not quote generic control numbers (for example, a typical setback or parking rate) unless that number appears verbatim in a retrieved DCP chunk, LEP clause, quick-site-check control, or statutory-context excerpt.",
-        "Every SEE section JSON object must include a `citations` array listing each cited source as `{ ref: string, type: \"LEP\" | \"DCP\" }`; leave it empty only where no retrieved source supports that section.",
-        "Development Description, Site Context, LEP Compliance, DCP Compliance and Conclusion must cite retrieved clause text where available.",
-        "Use retrieved LEP zone, FSR and height controls from the quick site check/statutory context; if a value is missing, say it was not found in retrieved data.",
+        "Use the persisted Detailed Planning Pack as the primary DCP evidence snapshot. Do not invent or replace pack citations.",
+        "The proposed works summary, site, zone and DCP citations are server-derived from the saved Detailed Planning Pack.",
+        "Every SEE section JSON object must include citations from the saved Quick Site Check or Detailed Planning Pack where available.",
       ],
     },
     consistencyAssessment: controlAssessments,
     limitations: [
       "This is an MVP pre-SEE planning memo, not a final legal Statement of Environmental Effects.",
+      "This memo is derived from a saved Detailed Planning Pack and its cited Quick Site Check provenance chain.",
       "Confirm all controls against the current LEP, DCP, planning certificates, council mapping and specialist reports before lodgement.",
-      "Hazards, servicing, biodiversity, flooding, bushfire, heritage and engineering constraints may require separate assessment.",
     ],
+    sourceDetailedPlanningPack: {
+      artefactId: resolvedPack.artefact.id,
+      title: resolvedPack.artefact.title,
+      generatedAt: resolvedPack.pack.generatedAt ?? resolvedPack.artefact.capturedAt?.toISOString?.() ?? null,
+      commercialReady: resolvedPack.pack.commercialReady,
+      sourceQuickSiteCheckArtefactId: resolvedPack.quickSiteCheckArtefact.id,
+    },
   };
 
   const artefact = await deps.prisma.artefact.create({
@@ -1409,31 +1442,47 @@ export async function createExpertReviewRequestArtefact({
 
   const prismaClient = deps.prisma as ArtefactDependencies["prisma"];
   const project = await assertProjectAccess(prismaClient, parsed.data.projectId, userId);
-  const existingArtefacts = await prismaClient.artefact.findMany({
-    where: { projectId: project.id, type: { in: ["quick_site_check", "pre_see_planning_memo"] as ArtefactType[] } },
-    orderBy: { createdAt: "desc" },
+  const projectWithContext = await prismaClient.project.findUnique({ where: { id: project.id }, include: { siteContext: true } });
+  if (!projectWithContext?.siteContext) throw new ArtefactValidationError("Set a confirmed site before requesting expert review");
+
+  const resolvedPack = await resolveNewestCurrentDetailedPlanningPack({
+    prismaClient,
+    project: projectWithContext,
+    requireCommercialReady: false,
   });
-  const quickSiteCheck = existingArtefacts.find((artefact) => artefact.type === "quick_site_check");
-  const seeMemo = existingArtefacts.find((artefact) => artefact.type === "pre_see_planning_memo");
+  const qsc = resolvedPack.quickSiteCheck;
+  const pack = resolvedPack.pack;
+  const quickSiteCheck = resolvedPack.quickSiteCheckArtefact;
+  const detailedPlanningPack = resolvedPack.artefact;
+  const currentScope = currentScopeForProject(projectWithContext);
 
-  if (!quickSiteCheck || !seeMemo) {
-    throw new ArtefactValidationError("Run and save a Quick Site Check and SEE draft before requesting expert review");
-  }
+  const seeCandidates = await prismaClient.artefact.findMany({
+    where: { projectId: project.id, type: "pre_see_planning_memo" as ArtefactType },
+    orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
+  });
+  const seeMemo = seeCandidates.find((artefact) => {
+    const see = artefact.payload as WorkspacePreSeePlanningMemoContent | null;
+    return Boolean(
+      pack.commercialReady === true &&
+      see?.memoType === "pre_see_planning_memo" &&
+      see.sourceDetailedPlanningPack?.artefactId === detailedPlanningPack.id &&
+      see.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId === quickSiteCheck.id &&
+      isArtefactCurrentForSite(currentScope, preSeeScope(see)) &&
+      isArtefactCurrentForSite(detailedPlanningPackScope(pack), preSeeScope(see)),
+    );
+  });
+  const see = seeMemo?.payload as WorkspacePreSeePlanningMemoContent | null | undefined;
 
-  const qsc = quickSiteCheck.payload as QuickSiteCheckReport | null;
-  const see = seeMemo.payload as import("@/types/workspace").WorkspacePreSeePlanningMemoContent | null;
-  const lepEvidenceSummary = qsc?.lepEvidenceSummary ?? null;
-  const controls = qsc?.controls ? Object.values(qsc.controls) : [];
+  const lepEvidenceSummary = qsc.lepEvidenceSummary ?? pack.carriedLepEvidenceSummary ?? null;
+  const controls = qsc.controls ? Object.values(qsc.controls) : [];
   const citedSources = new Map<string, { ref: string; type: "LEP" | "DCP" }>();
   controls.forEach((control) => {
-    if (control.clauseRef) citedSources.set(control.clauseRef, { ref: control.clauseRef, type: "LEP" });
+    if (control.clauseRef) citedSources.set(`LEP:${control.clauseRef}`, { ref: control.clauseRef, type: "LEP" });
   });
+  pack.dcpEvidence.forEach((topic) => topic.citations.forEach((citation) => citedSources.set(`DCP:${citation.ref}`, { ref: citation.ref, type: "DCP" })));
   see?.consistencyAssessment?.forEach((item) =>
     item.citations?.forEach((citation) => citedSources.set(`${citation.type}:${citation.ref}`, citation)),
   );
-  see?.applicableControls?.dcpClauses?.forEach((clause) => {
-    if (clause.ref) citedSources.set(`DCP:${clause.ref}`, { ref: clause.ref, type: "DCP" });
-  });
 
   const confidenceGaps = [
     !lepEvidenceSummary
@@ -1442,45 +1491,85 @@ export async function createExpertReviewRequestArtefact({
         ? `LEP evidence quality: ${lepEvidenceSummary.detail}`
         : null,
     ...controls.filter((control) => control.confidence !== "Cited").map((control) => `${control.label}: ${control.interpretation}`),
+    ...pack.unresolvedTopics.map((topic) => `Detailed Planning Pack unresolved topic: ${topic}`),
     ...(see?.limitations ?? []),
   ].filter((item): item is string => Boolean(item));
   const missingInputs = [
-    !qsc?.site?.address && "Confirmed street address",
-    !qsc?.site?.zoneLabel && "Confirmed zoning layer",
-    !see?.proposedWorksSummary && "Proposed works summary",
+    !qsc.site?.address && "Confirmed street address",
+    !qsc.site?.zoneLabel && "Confirmed zoning layer",
+    !pack.proposalBrief && "Detailed Planning Pack proposal brief",
     citedSources.size === 0 && "Cited LEP/DCP sources",
+    pack.commercialReady && !seeMemo && "Matching SEE generated from the current Detailed Planning Pack",
   ].filter((item): item is string => Boolean(item));
   const assumptions = [
-    see?.proposedWorksSummary ? `Proposed works: ${see.proposedWorksSummary}` : null,
-    qsc?.permissibility?.interpretation ?? null,
+    `Proposed works from Detailed Planning Pack: ${pack.proposalBrief}`,
+    qsc.permissibility?.interpretation ?? null,
+    pack.commercialReady ? "Detailed Planning Pack is marked commercial-ready." : "Detailed Planning Pack is unresolved; this referral does not claim SEE readiness.",
     "Planner to verify currency of council controls before lodgement advice.",
   ].filter((item): item is string => Boolean(item));
 
   const generatedAt = new Date().toISOString();
+  const includedArtefacts: import("@/types/workspace").ReviewRequestContent["includedArtefacts"] = [
+    {
+      type: "quick_site_check",
+      id: quickSiteCheck.id,
+      title: quickSiteCheck.title,
+      generatedAt: quickSiteCheck.capturedAt?.toISOString() ?? quickSiteCheck.createdAt.toISOString(),
+    },
+    {
+      type: "detailed_planning_pack",
+      id: detailedPlanningPack.id,
+      title: detailedPlanningPack.title,
+      generatedAt: detailedPlanningPack.capturedAt?.toISOString() ?? detailedPlanningPack.createdAt.toISOString(),
+    },
+  ];
+  if (seeMemo) {
+    includedArtefacts.push({
+      type: "pre_see_planning_memo",
+      id: seeMemo.id,
+      title: seeMemo.title,
+      generatedAt: seeMemo.capturedAt?.toISOString() ?? seeMemo.createdAt.toISOString(),
+    });
+  }
+
   const payload: import("@/types/workspace").ReviewRequestContent = {
     requestType: "expert_review_request",
     generatedAt,
     projectId: project.id,
     site: {
-      address: qsc?.site?.address ?? see?.siteDescription?.address ?? project.address ?? null,
-      lga: qsc?.site?.lga ?? see?.siteDescription?.lga ?? null,
-      zoneLabel: qsc?.site?.zoneLabel ?? see?.siteDescription?.zoneLabel ?? project.zoning ?? project.zoningName ?? null,
+      address: pack.site.address ?? qsc.site.address ?? project.address ?? null,
+      lga: pack.site.lga ?? qsc.site.lga ?? null,
+      zoneLabel: pack.site.zoneLabel ?? qsc.site.zoneLabel ?? project.zoning ?? project.zoningName ?? null,
     },
-    packageSummary: "Expert review package assembled from the saved Quick Site Check and SEE draft for planner handoff.",
-    includedArtefacts: [quickSiteCheck, seeMemo].map((artefact) => ({
-      type: artefact.type as "quick_site_check" | "pre_see_planning_memo",
-      id: artefact.id,
-      title: artefact.title,
-      generatedAt: artefact.capturedAt?.toISOString() ?? artefact.createdAt.toISOString(),
-    })),
+    packageSummary: seeMemo
+      ? "Expert review package assembled from the current Quick Site Check, Detailed Planning Pack and matching SEE draft."
+      : "Expert review package assembled from the current Quick Site Check and unresolved Detailed Planning Pack. No SEE readiness is claimed.",
+    includedArtefacts,
     citedSources: Array.from(citedSources.values()),
     lepEvidenceSummary,
+    detailedPlanningPack: {
+      artefactId: detailedPlanningPack.id,
+      title: detailedPlanningPack.title,
+      generatedAt: pack.generatedAt ?? detailedPlanningPack.capturedAt?.toISOString() ?? null,
+      proposalBrief: pack.proposalBrief,
+      commercialReady: pack.commercialReady,
+      topicMatrix: pack.topicMatrix,
+      unresolvedTopics: pack.unresolvedTopics,
+      sourceQuickSiteCheckArtefactId: quickSiteCheck.id,
+    },
+    sourceSeeMemo: seeMemo ? {
+      artefactId: seeMemo.id,
+      title: seeMemo.title,
+      generatedAt: see?.generatedAt ?? seeMemo.capturedAt?.toISOString() ?? null,
+      sourceDetailedPlanningPackArtefactId: see?.sourceDetailedPlanningPack?.artefactId ?? null,
+    } : null,
     confidenceGaps: confidenceGaps.length ? confidenceGaps : ["No explicit confidence gaps were found; planner should still verify assumptions."],
     missingInputs: missingInputs.length ? missingInputs : ["No obvious missing inputs detected by Plannera."],
     assumptions,
     recommendedReviewScope: [
       "Confirm permissibility pathway and consent requirements.",
-      "Check LEP/DCP citations against current council instruments.",
+      "Check Quick Site Check and Detailed Planning Pack citations against current council instruments.",
+      ...(pack.unresolvedTopics.length ? ["Resolve the Detailed Planning Pack unresolved topics before treating this as SEE-ready."] : []),
       "Review SEE limitations, assumptions and any inferred controls before paid export or lodgement use.",
     ],
   };

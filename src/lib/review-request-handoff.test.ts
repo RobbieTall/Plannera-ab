@@ -21,6 +21,12 @@ const baseContent = (overrides: Partial<ReviewRequestContent> = {}): ReviewReque
       generatedAt: "2026-07-13T10:00:00.000Z",
     },
     {
+      type: "detailed_planning_pack",
+      id: "dpp-1",
+      title: "Detailed Planning Pack — 45 Broken Head Road",
+      generatedAt: "2026-07-13T10:10:00.000Z",
+    },
+    {
       type: "pre_see_planning_memo",
       id: "see-1",
       title: "Pre-SEE planning memo — 45 Broken Head Road",
@@ -44,6 +50,22 @@ const baseContent = (overrides: Partial<ReviewRequestContent> = {}): ReviewReque
   missingInputs: ["Survey plan"],
   assumptions: ["No recent consent history was supplied."],
   recommendedReviewScope: ["Review SEE limitations before lodgement use."],
+  detailedPlanningPack: {
+    artefactId: "dpp-1",
+    title: "Detailed Planning Pack — 45 Broken Head Road",
+    generatedAt: "2026-07-13T10:10:00.000Z",
+    proposalBrief: "Alterations and additions to tourist accommodation.",
+    commercialReady: false,
+    topicMatrix: [{ topicId: "parking", topicLabel: "Parking", status: "Unavailable", summary: "No cited parking clause.", sourceRefs: [] }],
+    unresolvedTopics: ["Parking: no cited current DCP clause found."],
+    sourceQuickSiteCheckArtefactId: "qsc-1",
+  },
+  sourceSeeMemo: {
+    artefactId: "see-1",
+    title: "Pre-SEE planning memo — 45 Broken Head Road",
+    generatedAt: "2026-07-13T10:20:00.000Z",
+    sourceDetailedPlanningPackArtefactId: "dpp-1",
+  },
   ...overrides,
 });
 
@@ -56,6 +78,13 @@ describe("review request handoff formatter", () => {
     expect(text).toContain("Zone: RU2 Rural Landscape");
     expect(text).toContain("Quick Site Check — 45 Broken Head Road · quick_site_check");
     expect(text).toContain("Citation count: 2");
+    expect(text).toContain("Detailed Planning Pack provenance");
+    expect(text).toContain("Commercial ready: No — unresolved referral only");
+    expect(text).toContain("Proposal brief: Alterations and additions to tourist accommodation.");
+    expect(text).toContain("Parking: Unavailable");
+    expect(text).toContain("Parking: no cited current DCP clause found.");
+    expect(text).toContain("SEE provenance");
+    expect(text).toContain("Source Detailed Planning Pack: dpp-1");
     expect(text).toContain("Byron LEP 2014 cl. 4.3 (LEP)");
     expect(text).toContain("LEP evidence quality");
     expect(text).toContain("Quality: Cited");
@@ -76,6 +105,8 @@ describe("review request handoff formatter", () => {
       includedArtefacts: [],
       citedSources: [],
       lepEvidenceSummary: undefined,
+      detailedPlanningPack: undefined,
+      sourceSeeMemo: undefined,
       confidenceGaps: [],
       missingInputs: [],
       assumptions: [],

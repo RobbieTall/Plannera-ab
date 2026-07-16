@@ -25,15 +25,36 @@ import {
   createExpertReviewRequestArtefact,
 } from "@/lib/artefact-service";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
-import type { WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
+import type { DetailedPlanningPackContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
 
 const project = {
   id: "project-db-id",
   publicId: "project-public-id",
   title: "Byron review project",
   address: "45 Broken Head Road, Byron Bay NSW 2481",
-  zoning: null,
-  zoningName: "RU2 Rural Landscape",
+  zoning: "SP3 – Tourist",
+  zoningCode: "SP3",
+  zoningName: "Tourist",
+};
+
+const projectWithSite = {
+  ...project,
+  siteContext: {
+    formattedAddress: "45 Broken Head Road, Byron Bay NSW 2481",
+    lgaName: "Byron Shire",
+    lgaCode: "BYRON",
+    zone: "SP3 – Tourist",
+  },
+};
+
+const citedSummary = {
+  label: "Cited" as const,
+  sourceRef: "Byron LEP 2014 Zone SP3",
+  detail: "LEP evidence is grounded in DB-backed zone data.",
+  objectiveCount: 2,
+  landUseEntryCount: 1,
+  citedControlCount: 2,
+  totalControlCount: 3,
 };
 
 const quickSiteCheckPayload: QuickSiteCheckReport = {
@@ -42,17 +63,17 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
   site: {
     address: "45 Broken Head Road, Byron Bay NSW 2481",
     lga: "Byron Shire",
-    zoneCode: "RU2",
-    zoneName: "Rural Landscape",
-    zoneLabel: "RU2 – Rural Landscape",
+    zoneCode: "SP3",
+    zoneName: "Tourist",
+    zoneLabel: "SP3 – Tourist",
   },
   lepInstrument: { name: "Byron LEP 2014", code: "BYRON_LEP_2014", lga: "BYRON", source: "ingestion" },
   permissibility: {
-    zoneLabel: "RU2 – Rural Landscape",
+    zoneLabel: "SP3 – Tourist",
     permittedWithoutConsent: [],
-    permittedWithConsent: ["dwelling house"],
+    permittedWithConsent: ["tourist and visitor accommodation"],
     prohibited: [],
-    interpretation: "Dwelling houses are permitted with consent in RU2.",
+    interpretation: "Tourist and visitor accommodation is permitted with consent in SP3.",
   },
   controls: {
     heightOfBuilding: {
@@ -60,7 +81,7 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
       value: "9m",
       present: true,
       source: "Byron LEP 2014",
-      clauseRef: "Byron LEP 2014 cl. 4.3",
+      clauseRef: "4.3",
       interpretation: "Cited maximum building height is 9m.",
       confidence: "Cited",
     },
@@ -76,46 +97,91 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
       value: "40ha",
       present: true,
       source: "Byron LEP 2014",
-      clauseRef: "Byron LEP 2014 cl. 4.1",
+      clauseRef: "4.1",
       interpretation: "Minimum lot size is mapped as 40ha.",
       confidence: "Cited",
     },
   },
   notes: [],
   nextSteps: [],
-  lepEvidenceSummary: {
-    label: "Cited",
-    sourceRef: "Byron LEP 2014 Zone RU2",
-    detail: "LEP evidence is grounded in 2 DB-backed zone objectives and 1 land-use entry plus 2 cited numeric LEP controls from Byron LEP 2014 Zone RU2.",
-    objectiveCount: 2,
-    landUseEntryCount: 1,
-    citedControlCount: 2,
-    totalControlCount: 3,
-  },
+  lepEvidenceSummary: citedSummary,
 };
 
-const seePayload: WorkspacePreSeePlanningMemoContent = {
+const dppPayload = (overrides: Partial<DetailedPlanningPackContent> = {}): DetailedPlanningPackContent => ({
+  packType: "detailed_planning_pack",
+  generatedAt: "2026-07-10T01:03:00.000Z",
+  projectId: project.id,
+  site: {
+    address: "45 Broken Head Road, Byron Bay NSW 2481",
+    lga: "Byron Shire",
+    lgaCode: "BYRON",
+    zoneCode: "SP3",
+    zoneName: "Tourist",
+    zoneLabel: "SP3 – Tourist",
+  },
+  proposalBrief: "Alterations and additions to tourist accommodation.",
+  sourceQuickSiteCheck: {
+    artefactId: "quick-site-check-id",
+    title: "Quick Site Check — 45 Broken Head Road",
+    generatedAt: quickSiteCheckPayload.generatedAt,
+    lepEvidenceSummary: citedSummary,
+  },
+  carriedLepEvidenceSummary: citedSummary,
+  dcpEvidence: [
+    {
+      topicId: "tourist_setbacks",
+      topicLabel: "Tourist setbacks",
+      status: "Cited",
+      reason: "SP3 tourist controls survived applicability filtering.",
+      citations: [
+        {
+          ref: "Byron DCP 2014 D1.2",
+          title: "Tourist setbacks",
+          headingPath: ["Chapter D1", "SP3 tourist controls"],
+          excerpt: "Setbacks for tourist accommodation must respond to the coastal character.",
+          score: 12,
+        },
+      ],
+    },
+  ],
+  topicMatrix: [
+    {
+      topicId: "tourist_setbacks",
+      topicLabel: "Tourist setbacks",
+      status: "Cited",
+      summary: "SP3 tourist setbacks cited from the DCP.",
+      sourceRefs: ["Byron DCP 2014 D1.2"],
+    },
+  ],
+  unresolvedTopics: [],
+  consultantReviewQuestions: ["Confirm coastal character controls."],
+  nextAction: "Generate SEE.",
+  commercialReady: true,
+  ...overrides,
+});
+
+const seePayload = (overrides: Partial<WorkspacePreSeePlanningMemoContent> = {}): WorkspacePreSeePlanningMemoContent => ({
   memoType: "pre_see_planning_memo",
   generatedAt: "2026-07-10T01:05:00.000Z",
   projectId: project.id,
   siteDescription: {
     address: "45 Broken Head Road, Byron Bay NSW 2481",
     lga: "Byron Shire",
-    zoneCode: "RU2",
-    zoneName: "Rural Landscape",
-    zoneLabel: "RU2 – Rural Landscape",
+    zoneCode: "SP3",
+    zoneName: "Tourist",
+    zoneLabel: "SP3 – Tourist",
   },
-  proposedWorksSummary: "Alterations and additions to an existing dwelling.",
+  proposedWorksSummary: "Alterations and additions to tourist accommodation.",
   applicableControls: {
     lepInstrument: { name: "Byron LEP 2014" },
-    permissibility: { landUse: "dwelling house", status: "permitted with consent", interpretation: "Consent required." },
+    permissibility: { landUse: "tourist accommodation", status: "permitted with consent", interpretation: "Consent required." },
     quickSiteControls: {},
     dcpClauses: [
       {
         ref: "Byron DCP 2014 D1.2",
-        title: "Setbacks",
-        headingPath: ["Chapter D1", "Setbacks"],
-        bodyText: "Setbacks must respond to the streetscape.",
+        title: "Tourist setbacks",
+        headingPath: ["Chapter D1", "SP3 tourist controls"],
+        bodyText: "Setbacks for tourist accommodation must respond to the coastal character.",
         score: 12,
       },
     ],
@@ -128,13 +194,21 @@ const seePayload: WorkspacePreSeePlanningMemoContent = {
       citations: [{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }],
     },
     {
-      topic: "Setbacks",
+      topic: "Tourist setbacks",
       assessment: "Setbacks require planner review against the DCP.",
       citations: [{ ref: "Byron DCP 2014 D1.2", type: "DCP" }],
     },
   ],
   limitations: ["Confirm survey levels before relying on building height compliance."],
-};
+  sourceDetailedPlanningPack: {
+    artefactId: "dpp-id",
+    title: "Detailed Planning Pack — 45 Broken Head Road",
+    generatedAt: "2026-07-10T01:03:00.000Z",
+    commercialReady: true,
+    sourceQuickSiteCheckArtefactId: "quick-site-check-id",
+  },
+  ...overrides,
+});
 
 const makeArtefact = (overrides: Record<string, unknown>) => ({
   id: "artefact-id",
@@ -150,6 +224,33 @@ const makeArtefact = (overrides: Record<string, unknown>) => ({
   createdAt: new Date("2026-07-10T01:00:00.000Z"),
   updatedAt: new Date("2026-07-10T01:00:00.000Z"),
   createdById: "user-1",
+  ...overrides,
+});
+
+const qscArtefact = (payload = quickSiteCheckPayload) => makeArtefact({
+  id: "quick-site-check-id",
+  type: "quick_site_check",
+  title: "Quick Site Check — 45 Broken Head Road",
+  payload,
+});
+
+const dppArtefact = (payload = dppPayload(), overrides: Record<string, unknown> = {}) => makeArtefact({
+  id: "dpp-id",
+  type: "detailed_planning_pack",
+  title: "Detailed Planning Pack — 45 Broken Head Road",
+  payload,
+  capturedAt: new Date(payload.generatedAt),
+  createdAt: new Date(payload.generatedAt),
+  ...overrides,
+});
+
+const seeArtefact = (payload = seePayload(), overrides: Record<string, unknown> = {}) => makeArtefact({
+  id: "see-draft-id",
+  type: "pre_see_planning_memo",
+  title: "Pre-SEE planning memo — 45 Broken Head Road",
+  payload,
+  capturedAt: new Date(payload.generatedAt),
+  createdAt: new Date(payload.generatedAt),
   ...overrides,
 });
 
@@ -169,7 +270,7 @@ const makeDeps = (savedArtefacts: Array<ReturnType<typeof makeArtefact>>) => {
             .fn()
             .mockResolvedValueOnce(project)
             .mockResolvedValueOnce({ id: project.id }),
-          findUnique: vi.fn(),
+          findUnique: vi.fn().mockResolvedValue(projectWithSite),
         },
         artefact: {
           findMany: vi.fn(async () => savedArtefacts),
@@ -182,22 +283,8 @@ const makeDeps = (savedArtefacts: Array<ReturnType<typeof makeArtefact>>) => {
 };
 
 describe("createExpertReviewRequestArtefact", () => {
-  it("packages saved Quick Site Check and SEE draft into a review request artefact", async () => {
-    const quickSiteCheck = makeArtefact({
-      id: "quick-site-check-id",
-      type: "quick_site_check",
-      title: "Quick Site Check — 45 Broken Head Road",
-      payload: quickSiteCheckPayload,
-    });
-    const seeDraft = makeArtefact({
-      id: "see-draft-id",
-      type: "pre_see_planning_memo",
-      title: "Pre-SEE planning memo — 45 Broken Head Road",
-      payload: seePayload,
-      capturedAt: new Date("2026-07-10T01:05:00.000Z"),
-      createdAt: new Date("2026-07-10T01:05:00.000Z"),
-    });
-    const { deps, artefactCreate } = makeDeps([quickSiteCheck, seeDraft]);
+  it("packages current-site QSC, DPP and matching SEE into a review request artefact", async () => {
+    const { deps, artefactCreate } = makeDeps([qscArtefact(), dppArtefact(), seeArtefact()]);
 
     const result = await createExpertReviewRequestArtefact(
       { body: { projectId: project.publicId }, userId: "user-1" },
@@ -208,33 +295,33 @@ describe("createExpertReviewRequestArtefact", () => {
     expect(result.content.site).toEqual({
       address: "45 Broken Head Road, Byron Bay NSW 2481",
       lga: "Byron Shire",
-      zoneLabel: "RU2 – Rural Landscape",
+      zoneLabel: "SP3 – Tourist",
     });
     expect(result.content.includedArtefacts).toEqual([
       expect.objectContaining({ id: "quick-site-check-id", type: "quick_site_check" }),
+      expect.objectContaining({ id: "dpp-id", type: "detailed_planning_pack" }),
       expect.objectContaining({ id: "see-draft-id", type: "pre_see_planning_memo" }),
     ]);
-    expect(result.content.citedSources).toEqual(
-      expect.arrayContaining([
-        { ref: "Byron LEP 2014 cl. 4.3", type: "LEP" },
-        { ref: "Byron LEP 2014 cl. 4.1", type: "LEP" },
-        { ref: "Byron DCP 2014 D1.2", type: "DCP" },
-      ]),
-    );
-    expect(result.content.lepEvidenceSummary).toEqual(quickSiteCheckPayload.lepEvidenceSummary);
-    expect(result.content.confidenceGaps).toEqual(
-      expect.arrayContaining([
-        "Floor space ratio: No mapped FSR found yet.",
-        "Confirm survey levels before relying on building height compliance.",
-      ]),
-    );
-    expect(result.content.missingInputs).toEqual(["No obvious missing inputs detected by Plannera."]);
-    expect(result.content.assumptions).toEqual(
-      expect.arrayContaining([
-        "Proposed works: Alterations and additions to an existing dwelling.",
-        "Dwelling houses are permitted with consent in RU2.",
-      ]),
-    );
+    expect(result.content.detailedPlanningPack).toEqual(expect.objectContaining({
+      artefactId: "dpp-id",
+      proposalBrief: "Alterations and additions to tourist accommodation.",
+      commercialReady: true,
+      sourceQuickSiteCheckArtefactId: "quick-site-check-id",
+    }));
+    expect(result.content.sourceSeeMemo).toEqual(expect.objectContaining({
+      artefactId: "see-draft-id",
+      sourceDetailedPlanningPackArtefactId: "dpp-id",
+    }));
+    expect(result.content.citedSources).toEqual(expect.arrayContaining([
+      { ref: "4.3", type: "LEP" },
+      { ref: "4.1", type: "LEP" },
+      { ref: "Byron DCP 2014 D1.2", type: "DCP" },
+    ]));
+    expect(result.content.lepEvidenceSummary).toEqual(citedSummary);
+    expect(result.content.assumptions).toEqual(expect.arrayContaining([
+      "Proposed works from Detailed Planning Pack: Alterations and additions to tourist accommodation.",
+      "Detailed Planning Pack is marked commercial-ready.",
+    ]));
     expect(artefactCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         projectId: project.id,
@@ -245,58 +332,70 @@ describe("createExpertReviewRequestArtefact", () => {
     });
   });
 
-  it("preserves an unavailable saved Quick Site Check LEP evidence summary as a planner gap", async () => {
-    const unavailableSummary = {
-      label: "Unavailable" as const,
-      sourceRef: "Byron LEP 2014 Zone RU2",
-      detail: "No DB-backed LEP zone table or cited numeric LEP controls were available for this site.",
-      objectiveCount: 0,
-      landUseEntryCount: 0,
-      citedControlCount: 0,
-      totalControlCount: 3,
-    };
-    const { deps } = makeDeps([
-      makeArtefact({ id: "quick-site-check-id", type: "quick_site_check", payload: { ...quickSiteCheckPayload, lepEvidenceSummary: unavailableSummary } }),
-      makeArtefact({ id: "see-draft-id", type: "pre_see_planning_memo", payload: seePayload }),
-    ]);
+  it("packages unresolved current-site DPP for referral without SEE or false readiness", async () => {
+    const unresolvedPack = dppPayload({
+      commercialReady: false,
+      unresolvedTopics: ["Parking and access: no current DCP clause found."],
+      consultantReviewQuestions: ["Confirm parking rates with council."],
+      topicMatrix: [{ topicId: "parking", topicLabel: "Parking", status: "Unavailable", summary: "Needs expert review.", sourceRefs: [] }],
+    });
+    const matchingSee = seePayload({
+      sourceDetailedPlanningPack: {
+        artefactId: "dpp-id",
+        title: "Detailed Planning Pack — 45 Broken Head Road",
+        generatedAt: unresolvedPack.generatedAt,
+        commercialReady: false,
+        sourceQuickSiteCheckArtefactId: "quick-site-check-id",
+      },
+    });
+    const { deps } = makeDeps([qscArtefact(), dppArtefact(unresolvedPack), seeArtefact(matchingSee)]);
 
     const result = await createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps);
 
-    expect(result.content.lepEvidenceSummary).toEqual(unavailableSummary);
-    expect(result.content.confidenceGaps).toEqual(
-      expect.arrayContaining([`LEP evidence quality: ${unavailableSummary.detail}`]),
-    );
+    expect(result.content.includedArtefacts.map((artefact) => artefact.type)).toEqual(["quick_site_check", "detailed_planning_pack"]);
+    expect(result.content.sourceSeeMemo).toBeNull();
+    expect(result.content.packageSummary).toContain("No SEE readiness is claimed");
+    expect(result.content.detailedPlanningPack?.commercialReady).toBe(false);
+    expect(result.content.detailedPlanningPack?.unresolvedTopics).toEqual(["Parking and access: no current DCP clause found."]);
+    expect(result.content.confidenceGaps).toEqual(expect.arrayContaining([
+      "Detailed Planning Pack unresolved topic: Parking and access: no current DCP clause found.",
+    ]));
   });
 
-  it("does not upgrade missing LEP evidence from DCP clauses or generic citations", async () => {
-    const qscWithoutSummary = { ...quickSiteCheckPayload, lepEvidenceSummary: null };
-    const { deps } = makeDeps([
-      makeArtefact({ id: "quick-site-check-id", type: "quick_site_check", payload: qscWithoutSummary }),
-      makeArtefact({ id: "see-draft-id", type: "pre_see_planning_memo", payload: seePayload }),
-    ]);
+  it("does not package a SEE from another DPP or site", async () => {
+    const mismatchedSee = seePayload({
+      siteDescription: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 – Commercial Centre" },
+      sourceDetailedPlanningPack: {
+        artefactId: "other-dpp-id",
+        title: "Detailed Planning Pack — Kempsey",
+        generatedAt: "2026-07-10T01:03:00.000Z",
+        commercialReady: true,
+        sourceQuickSiteCheckArtefactId: "quick-site-check-id",
+      },
+    });
+    const { deps } = makeDeps([qscArtefact(), dppArtefact(), seeArtefact(mismatchedSee)]);
 
     const result = await createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps);
 
-    expect(result.content.citedSources.length).toBeGreaterThan(0);
-    expect(result.content.lepEvidenceSummary).toBeNull();
-    expect(result.content.confidenceGaps).toEqual(
-      expect.arrayContaining([
-        "LEP evidence quality: unavailable in the saved Quick Site Check; planner should verify LEP provenance before relying on the handoff.",
-      ]),
-    );
+    expect(result.content.includedArtefacts.map((artefact) => artefact.type)).toEqual(["quick_site_check", "detailed_planning_pack"]);
+    expect(result.content.sourceSeeMemo).toBeNull();
+    expect(result.content.missingInputs).toContain("Matching SEE generated from the current Detailed Planning Pack");
   });
 
-  it.each([
-    ["Quick Site Check", [makeArtefact({ id: "see-draft-id", type: "pre_see_planning_memo", payload: seePayload })]],
-    ["SEE draft", [makeArtefact({ id: "quick-site-check-id", type: "quick_site_check", payload: quickSiteCheckPayload })]],
-  ])("rejects when the saved %s artefact is missing", async (_missingLabel, savedArtefacts) => {
-    const { deps, artefactCreate } = makeDeps(savedArtefacts);
+  it("rejects legacy QSC plus SEE without DPP provenance and persists no review", async () => {
+    const { deps, artefactCreate } = makeDeps([qscArtefact(), seeArtefact(seePayload({ sourceDetailedPlanningPack: undefined }))]);
 
     await expect(
-      createExpertReviewRequestArtefact(
-        { body: { projectId: project.publicId }, userId: "user-1" },
-        deps,
-      ),
+      createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps),
+    ).rejects.toBeInstanceOf(ArtefactValidationError);
+    expect(artefactCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a DPP whose source QSC no longer exists", async () => {
+    const { deps, artefactCreate } = makeDeps([dppArtefact()]);
+
+    await expect(
+      createExpertReviewRequestArtefact({ body: { projectId: project.publicId }, userId: "user-1" }, deps),
     ).rejects.toBeInstanceOf(ArtefactValidationError);
     expect(artefactCreate).not.toHaveBeenCalled();
   });
