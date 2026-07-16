@@ -723,13 +723,13 @@ Final verification evidence preserved for Item 51:
 
 Live saved-output/commercial audit gate: OPEN. Deployment success is not live funnel proof. No approved live Byron/Kempsey audit result has been captured yet, so saved-output/commercial readiness remains unproven and billing/auth/payment remains deferred.
 
-## 52) Approved live Byron/Kempsey commercial funnel audit — IN REVIEW/RUNNER SLICE (live gate OPEN) (2026-07-16)
+## 52) Approved live Byron/Kempsey commercial funnel audit — RUNNER MERGED/DEPLOYED; LIVE AUDIT OPEN (2026-07-16)
 
 Purpose: run the deployed Item 51 read-only audit against approved existing production projects and record a non-secret, documentation-safe summary proving whether the current live saved-output commercial funnel is ready. This item closes only when both approved chains pass independently.
 
-Runner slice status: this review adds `npm run audit:commercial-funnel` and a pure/testable runner module so the eventual approved production audit is deterministic, fail-closed, environment-only, and documentation-safe. No live audit was run in this slice because approved existing Byron/Kempsey project IDs and the private admin token were not available. The live gate remains OPEN until the approved existing-project-only runbook is executed and both golden chains independently pass.
+Runner deployment status: the fail-closed Item 52 runner merged and deployed in PR #293 at exact merge commit `9e1cffed5c34f12767210c83760adcc0f48327b4` (reviewed head `0188ef8cad25c776f2df8eb63b76d4a92ad477ec`) with successful Vercel deployment `https://vercel.com/robbietalls-projects/plannera-ab/9nknpTUpsUpQpE1cPU7Cju54W6c3`. This is a runner-only deployed status, not a DONE audit result. No live runner execution occurred because approved existing Byron/Kempsey project IDs and the private admin token were unavailable; there was no production mutation. The live gate remains OPEN until the approved existing-project-only runbook is executed and both golden chains independently pass.
 
-Changed files/tests/checks for this runner slice:
+Merged runner slice files/tests/checks:
 
 - `package.json` — adds the `audit:commercial-funnel` operator script.
 - `scripts/audit-commercial-funnel.ts` — CLI wrapper that prints the safe JSON summary and exits with the runner exit code.
@@ -738,14 +738,18 @@ Changed files/tests/checks for this runner slice:
 - `README.md` — operator usage, env names, exit codes, no-token-in-URL/header-only guarantees, no production mutation, and billing/auth deferral.
 - `docs/project-memory/decision-register.md` — DR-021 records the fail-closed live-verification runner policy.
 
-Checks run for this slice:
+Checks recorded for merged PR #293:
 
-- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 6 runner tests passed, including exact nested contract-shape failures and valid non-ready exit 2 coverage.
-- Full requested checks were run in Codex Cloud and are reported in the PR/final review notes.
+- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 6 focused runner tests passed, including exact nested contract-shape failures and valid non-ready exit 2 coverage.
+- PASS: `npm test` — full suite passed with 71 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm run build`.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` in Codex Cloud because no PostgreSQL server was reachable at `localhost:5432`; this is the known Cloud-only vercel-build limitation, not a production audit result.
 
 Production-safe operator runbook:
 
-1. Confirm the audited deployment and code identity before querying production: use merge commit `a7b4c1af4a2a6add435018e1b18e954f30550132` (PR #291) and Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/8TAyJA3FbSpmxz5FfuWvg2CWznfb`.
+1. Confirm the audited deployment and code identity before querying production: use merge commit `9e1cffed5c34f12767210c83760adcc0f48327b4` (PR #293) and Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/9nknpTUpsUpQpE1cPU7Cju54W6c3`. Set `PLANNERA_AUDIT_EXPECTED_COMMIT=9e1cffed5c34f12767210c83760adcc0f48327b4` for the eventual approved run.
 2. Use only approved existing production projects for the two golden chains: Byron `45 Broken Head Road, Byron Bay NSW 2481` with current-site zone `SP3 Tourist`, and Kempsey `52 Belgrave St, Kempsey NSW 2440` with current-site zone `E2 Commercial Centre`.
 3. Never create a project, update a project, generate or regenerate Quick Site Check / Detailed Planning Pack / SEE / referral artefacts, invoke OpenAI, ingest legislation/DCP, or otherwise mutate production data while performing this audit.
 4. Call the deployed protected GET endpoint for each approved project and prefer the header form so the admin secret is not placed in URLs, browser history, analytics, proxy logs, screenshots, or shell history: `curl -sS -H "x-admin-token: $INGEST_ADMIN_SECRET" "https://plannera-ab.vercel.app/api/admin/commercial-funnel-audit?projectId=<approved-existing-project-id>"`.
@@ -753,6 +757,6 @@ Production-safe operator runbook:
 6. In this file, record only the safe audit summary needed to close or keep open the gate: `checkedAt`, project/site identity sufficient to distinguish Byron vs Kempsey without contact data, deployment URL, commit SHA, QSC/DPP/SEE states, exact saved artefact IDs, exact source QSC/DPP IDs, `referralEligibility`, and `nextAction` reason codes.
 7. Treat Byron and Kempsey as independent gates. Byron `45 Broken Head Road` SP3 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, and Kempsey `52 Belgrave St` E2 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, before this item can move to DONE.
 8. Record honest failures exactly as returned: missing, unresolved, stale/mismatched, malformed, legacy, broken-provenance, or other non-ready reason codes are valid audit outcomes and must not be hidden or repaired during the audit run. Do not regenerate anything to make the audit pass.
-9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the deployed PR #291 commit.
+9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the deployed PR #293 merge commit.
 
-Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live result has been captured in repo documentation yet.
+Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live runner execution or live result has been captured in repo documentation yet. Byron and Kempsey must independently pass before this item can move to DONE.
