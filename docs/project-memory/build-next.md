@@ -883,6 +883,7 @@ Implementation in this slice:
 
 - QSC persistence treats height, floor space ratio, and minimum lot size as server-derived controls. A control is Cited only when retrieved LEP text or a server-returned structured Cited control supplies both value and clause reference; otherwise value, ref, detail, source claim, confidence, and interpretation are reset to an honest `Unavailable` control.
 - A verified numeric control requires `lepSource=true`, a present non-empty value, and a non-empty clause reference. A client-supplied `confidence=Cited` or ref cannot satisfy that invariant.
+- Optional QSC setback, parking, and active-frontage/built-form controls are rebuilt from the server-returned DCP controls. A server Cited value/ref becomes a DCP-sourced card; a posted client card without that evidence is reset to an honest DCP `Unavailable` state.
 - Clause 2.3 permissibility provenance is independent: the QSC must have a Cited evidence summary with at least one DB-backed zone objective and at least one land-use entry, plus a saved permissibility result and LEP instrument. Numeric controls alone cannot create a clause 2.3 citation.
 - SEE generation copies sanitised QSC controls and emits LEP citations only for verified controls/permissibility.
 - SEE audit and consultant handoff require an exact current-source snapshot: project/proposal identity, LEP instrument, permissibility, copied controls, DPP clause metadata/body, source excerpts, and all consistency assessments must match the source QSC/DPP. Matching artefact IDs or citation refs alone are insufficient.
@@ -891,7 +892,8 @@ Implementation in this slice:
 
 Focused regression coverage:
 
-- QSC persistence clears forged client numeric controls even when a separate DB-backed zone table keeps the overall LEP summary Cited.
+- QSC persistence clears forged client numeric and optional DCP controls even when a separate DB-backed zone table keeps the overall LEP summary Cited.
+- Server-returned Kempsey E2 DCP controls persist with their exact DCP value, clause ref and source detail without inflating the LEP evidence summary.
 - LEP lookup failure persists honest Unavailable controls rather than fallback client values.
 - SEE generation clears legacy controls lacking server provenance and withholds clause 2.3 when zone-table evidence is absent.
 - Review handoff rejects altered QSC/SEE snapshots and excludes forged refs.
