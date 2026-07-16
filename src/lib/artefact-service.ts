@@ -344,6 +344,30 @@ export const sanitiseQuickSiteLepControls = (
     : unavailableLepControl(controls.minimumLotSize),
 });
 
+export const hasVerifiedLepPermissibilityEvidence = (report: QuickSiteCheckReport) =>
+  Boolean(
+    report.lepEvidenceSummary?.label === "Cited" &&
+    report.lepEvidenceSummary.objectiveCount > 0 &&
+    report.lepEvidenceSummary.landUseEntryCount > 0 &&
+    report.permissibility &&
+    report.lepInstrument?.name,
+  );
+
+const canonicalEvidenceValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalEvidenceValue);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, canonicalEvidenceValue(entry)]),
+  );
+};
+
+const hasSameEvidenceSnapshot = (left: unknown, right: unknown) =>
+  JSON.stringify(canonicalEvidenceValue(left)) === JSON.stringify(canonicalEvidenceValue(right));
+
 const withRealLepControl = (
   control: QuickSiteCheckControl,
   clause: LepClauseContext | null,
@@ -1283,65 +1307,92 @@ export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoC
   return hasApplicableCitation || hasApplicableDcpBody;
 };
 
-const citationMatchesLepClause = (citationRef: string, allowedClauseRefs: Set<string>) => {
-  const normalizedCitation = citationRef.toLowerCase().replace(/\s+/g, " ").trim();
-  return Array.from(allowedClauseRefs).some((clauseRef) => {
-    const normalizedClauseRef = clauseRef.toLowerCase();
-    return (
-      normalizedCitation === normalizedClauseRef ||
-      normalizedCitation.endsWith(`cl. ${normalizedClauseRef}`)
-    );
-  });
-};
-
 export const hasExactSeeEvidenceProvenance = (
   memo: WorkspacePreSeePlanningMemoContent,
   pack: DetailedPlanningPackContent,
   quickSiteCheck: QuickSiteCheckReport,
 ) => {
-  if (!hasApplicableSeeReadinessEvidence(memo)) return false;
-
-  const allowedDcpRefs = new Set(
-    pack.dcpEvidence
-      .flatMap((topic) => topic.citations)
-      .map((citation) => citation.ref.trim())
-      .filter(Boolean),
-  );
-  const memoDcpClauses = memo.applicableControls.dcpClauses ?? [];
   if (
-    memoDcpClauses.length === 0 ||
-    memoDcpClauses.some(
-      (clause) => !clause.ref?.trim() || !allowedDcpRefs.has(clause.ref.trim()),
-    )
+    !hasApplicableSeeReadinessEvidence(memo) ||
+    memo.projectId !== pack.projectId ||
+    memo.proposedWorksSummary.trim() !== pack.proposalBrief.trim() ||
+    memo.sourceDetailedPlanningPack?.commercialReady !== pack.commercialReady
   ) {
     return false;
   }
 
   const verifiedControls = sanitiseQuickSiteLepControls(quickSiteCheck.controls);
-  const allowedLepClauseRefs = new Set(
-    [
-      verifiedControls.heightOfBuilding,
-      verifiedControls.floorSpaceRatio,
-      verifiedControls.minimumLotSize,
-    ]
-      .filter(hasVerifiedLepControlEvidence)
-      .map((control) => control.clauseRef.trim()),
+  const expectedDcpClauses = pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({
+      ref: citation.ref,
+      title: citation.title ?? null,
+      headingPath: citation.headingPath,
+      bodyText: citation.excerpt,
+      score: citation.score,
+    })),
   );
-  if (
-    quickSiteCheck.lepEvidenceSummary?.label === "Cited" &&
-    quickSiteCheck.permissibility &&
-    quickSiteCheck.lepInstrument?.name
-  ) {
-    allowedLepClauseRefs.add("2.3");
-  }
+  const expectedSourceExcerpts = pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({
+      id: `${topic.topicId}:${citation.ref}`,
+      heading: citation.title ?? topic.topicLabel,
+      sourceType: "detailed_planning_pack",
+      content: citation.excerpt,
+      score: citation.score,
+    })),
+  );
+  const instrumentName = quickSiteCheck.lepInstrument?.name ?? null;
+  const citationForControl = (control: QuickSiteCheckControl): SeeSourceCitation[] =>
+    hasVerifiedLepControlEvidence(control) && instrumentName
+      ? [{ ref: `${instrumentName} cl. ${control.clauseRef}`, type: "LEP" }]
+      : [];
+  const permissibilityCitations: SeeSourceCitation[] =
+    hasVerifiedLepPermissibilityEvidence(quickSiteCheck) && instrumentName
+      ? [{ ref: `${instrumentName} cl. 2.3`, type: "LEP" }]
+      : [];
+  const expectedConsistencyAssessment = [
+    {
+      topic: "Land use permissibility",
+      assessment:
+        quickSiteCheck.permissibility?.interpretation ??
+        "Permissibility could not be confirmed from the saved Quick Site Check. Confirm the land use against the LEP before relying on this memo.",
+      citations: permissibilityCitations,
+    },
+    {
+      topic: "Height of building",
+      assessment: verifiedControls.heightOfBuilding.interpretation,
+      citations: citationForControl(verifiedControls.heightOfBuilding),
+    },
+    {
+      topic: "Floor space ratio",
+      assessment: verifiedControls.floorSpaceRatio.interpretation,
+      citations: citationForControl(verifiedControls.floorSpaceRatio),
+    },
+    {
+      topic: "Minimum lot size",
+      assessment: verifiedControls.minimumLotSize.interpretation,
+      citations: citationForControl(verifiedControls.minimumLotSize),
+    },
+    ...pack.topicMatrix.map((topic) => ({
+      topic: topic.topicLabel,
+      assessment: topic.summary,
+      citations: topic.sourceRefs.map((ref) => ({ ref, type: "DCP" as const })),
+    })),
+  ];
 
-  return (memo.consistencyAssessment ?? []).every((item) =>
-    (item.citations ?? []).every((citation) =>
-      citation.type === "DCP"
-        ? allowedDcpRefs.has(citation.ref.trim())
-        : citation.type === "LEP" &&
-          citationMatchesLepClause(citation.ref.trim(), allowedLepClauseRefs),
-    ),
+  return (
+    expectedDcpClauses.length > 0 &&
+    hasSameEvidenceSnapshot(
+      memo.applicableControls.lepInstrument ?? null,
+      quickSiteCheck.lepInstrument ?? null,
+    ) &&
+    hasSameEvidenceSnapshot(
+      memo.applicableControls.permissibility ?? null,
+      quickSiteCheck.permissibility ?? null,
+    ) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.quickSiteControls, verifiedControls) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.dcpClauses, expectedDcpClauses) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.sourceExcerpts, expectedSourceExcerpts) &&
+    hasSameEvidenceSnapshot(memo.consistencyAssessment, expectedConsistencyAssessment)
   );
 };
 
@@ -1438,9 +1489,7 @@ export async function createPreSeePlanningMemoArtefact({
     return ref ? [{ ref, type: "LEP" as const }] : [];
   };
   const permissibilityCitations =
-    quickSiteCheck.lepEvidenceSummary?.label === "Cited" &&
-    quickSiteCheck.permissibility &&
-    lepInstrumentName
+    hasVerifiedLepPermissibilityEvidence(quickSiteCheck) && lepInstrumentName
       ? [{ ref: `${lepInstrumentName} cl. 2.3`, type: "LEP" as const }]
       : [];
 
