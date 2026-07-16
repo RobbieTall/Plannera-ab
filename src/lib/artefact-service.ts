@@ -406,6 +406,54 @@ const withRealLepControl = (
   };
 };
 
+const withRealDcpControl = (
+  control: QuickSiteCheckControl | undefined,
+  label: string,
+  structuredControl?: LepControlValue | null,
+): QuickSiteCheckControl | undefined => {
+  if (!control && !structuredControl) return undefined;
+
+  const baseControl = control ?? {
+    label,
+    value: null,
+    present: false,
+    interpretation: "Not found in retrieved DCP data",
+  };
+  const hasStructuredCitedValue = Boolean(
+    structuredControl?.confidence === "Cited" &&
+    structuredControl.value?.trim() &&
+    structuredControl.clauseRef?.trim(),
+  );
+
+  if (!hasStructuredCitedValue) {
+    return {
+      ...baseControl,
+      label,
+      value: null,
+      present: false,
+      source: "Not in retrieved data",
+      lepSource: false,
+      clauseRef: null,
+      detail: structuredControl?.sourceRef ?? null,
+      confidence: "Unavailable",
+      interpretation: "Not found in retrieved DCP data",
+    };
+  }
+
+  return {
+    ...baseControl,
+    label,
+    value: structuredControl!.value,
+    present: true,
+    source: "dcp",
+    lepSource: false,
+    clauseRef: structuredControl!.clauseRef,
+    detail: structuredControl?.sourceRef ?? null,
+    confidence: "Cited",
+    interpretation: `${label} is ${structuredControl!.value} based on retrieved DCP evidence ${structuredControl?.sourceRef ?? structuredControl!.clauseRef}. Verify the current DCP before lodgement.`,
+  };
+};
+
 const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment: LepEnrichment): QuickSiteCheckReport => {
   const lepClauses = enrichment.lepContext?.clauses ?? [];
   const lepResponse = isRealLepResponse(enrichment.lepResponse) ? enrichment.lepResponse : null;
@@ -465,6 +513,33 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
         lotSizeClause ?? null,
         lepResponse?.controls.minLotSize,
       ),
+      ...(report.controls.setback || lepResponse?.controls.setback
+        ? {
+            setback: withRealDcpControl(
+              report.controls.setback,
+              "Setback",
+              lepResponse?.controls.setback,
+            ),
+          }
+        : {}),
+      ...(report.controls.parking || lepResponse?.controls.parking
+        ? {
+            parking: withRealDcpControl(
+              report.controls.parking,
+              "Parking",
+              lepResponse?.controls.parking,
+            ),
+          }
+        : {}),
+      ...(report.controls.activeFrontageBuiltForm || lepResponse?.controls.activeFrontageBuiltForm
+        ? {
+            activeFrontageBuiltForm: withRealDcpControl(
+              report.controls.activeFrontageBuiltForm,
+              "Active frontage and built form",
+              lepResponse?.controls.activeFrontageBuiltForm,
+            ),
+          }
+        : {}),
     },
     lepEvidenceSummary,
   };
@@ -1756,14 +1831,10 @@ export async function createExpertReviewRequestArtefact({
 
   const lepEvidenceSummary = qsc.lepEvidenceSummary ?? pack.carriedLepEvidenceSummary ?? null;
   const verifiedLepControls = sanitiseQuickSiteLepControls(qsc.controls);
-  const supplementalControls = Object.entries(qsc.controls)
-    .filter(([key]) => !["heightOfBuilding", "floorSpaceRatio", "minimumLotSize"].includes(key))
-    .map(([, control]) => control);
   const controls = [
     verifiedLepControls.heightOfBuilding,
     verifiedLepControls.floorSpaceRatio,
     verifiedLepControls.minimumLotSize,
-    ...supplementalControls,
   ];
   const citedSources = new Map<string, { ref: string; type: "LEP" | "DCP" }>();
   [
