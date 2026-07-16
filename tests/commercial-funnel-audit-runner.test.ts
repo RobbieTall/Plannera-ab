@@ -74,6 +74,23 @@ test("both golden chains ready exits 0 with deterministic safe output and two he
   assertSafeSummaryShape(result.summary);
 });
 
+test("canonical production address variants and LGA names satisfy golden identity", async () => {
+  const byron = payload("byron", {
+    site: { address: "45 Broken Head Rd, Byron Bay NSW 2481, Australia", lgaName: "Byron Shire Council", lgaCode: null, zoneLabel: "SP3 Tourist", zoneCode: "SP3" },
+  });
+  const kempsey = payload("kempsey", {
+    site: { address: "52 Belgrave Street, Kempsey NSW 2440, Australia", lgaName: "Kempsey Shire", lgaCode: null, zoneLabel: "E2 Commercial Centre", zoneCode: "E2" },
+  });
+  const { fn } = fetchFor([byron, kempsey]);
+  const result = await runCommercialFunnelAudit(env, fn);
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.summary.ready, true);
+  assert(!result.summary.projects.byron.runnerValidationReasons.includes("site_address_mismatch"));
+  assert(!result.summary.projects.byron.runnerValidationReasons.includes("site_lga_mismatch"));
+  assert(!result.summary.projects.kempsey.runnerValidationReasons.includes("site_address_mismatch"));
+  assert(!result.summary.projects.kempsey.runnerValidationReasons.includes("site_lga_mismatch"));
+});
+
 test("structurally valid non-ready response remains exit 2", async () => {
   const nonReady = payload("kempsey", { detailedPlanningPack: { state: "needs_expert_review", artefactId: "kempsey-dpp", sourceQuickSiteCheckArtefactId: "kempsey-qsc", citedTopicCount: 1, unresolvedTopics: ["topic"], reasons: ["active_dpp_unresolved_topics"] }, see: { state: "missing", artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: 0, reasons: ["see_not_applicable_for_unresolved_active_pack"] }, referralEligibility: "unresolved_pack_referral", nextAction: { code: "refer_unresolved_pack_for_expert_review", reasonCodes: ["active_dpp_unresolved_topics"] } });
   const { fn } = fetchFor([payload("byron"), nonReady]);
