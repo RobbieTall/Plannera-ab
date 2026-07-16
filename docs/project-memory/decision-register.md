@@ -150,3 +150,12 @@ Status: Active
 Decision: SEE generation requires a current-site, commercial-ready Detailed Planning Pack with an intact cited Quick Site Check provenance chain. Expert referral may branch earlier when the newest current-site Detailed Planning Pack is unresolved: package QSC + DPP, list unresolved topics/questions, and omit SEE rather than pretending commercial readiness. Review packaging must resolve QSC, DPP, and SEE by durable provenance and current-site scope, not by newest artefact type alone.
 
 Reference: docs/project-memory/build-next.md item 50
+
+
+## DR-020 — Billing/Auth Unlock Requires Read-Only Live Chain Audit
+
+Status: Active
+
+Decision: Billing, checkout, subscriptions, auth gating, or paid commercial unlock cannot be justified by artefact existence, local tests, or deployment success. The protected read-only commercial funnel audit plus approved live evidence must prove an exact current-site Quick Site Check → Detailed Planning Pack → SEE/referral chain before the Byron/Kempsey commercial gate can close. Legacy, stale, malformed, forged, cross-site, or broken-provenance artefacts remain history only and must never unlock payment/auth readiness.
+
+Reference: docs/project-memory/build-next.md item 51
