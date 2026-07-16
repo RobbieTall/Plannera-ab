@@ -802,24 +802,32 @@ Checks for this slice:
 Lane status: DONE. Item 52 commercial readiness remains OPEN because the protected run returned valid exit `2`; both approved saved chains are missing.
 
 
-## 54) Live golden identity hardening and saved-output remediation — IN REVIEW (2026-07-16)
+## 54) Live golden identity hardening and saved-output remediation — IDENTITY SLICE DONE/MERGED/DEPLOYED; SAVED-OUTPUT REMEDIATION OPEN (2026-07-16)
 
-Purpose: act on the first valid protected production audit without weakening its fail-closed contract or manufacturing readiness. This slice fixes representation-only identity mismatches, records the live result, and leaves the real missing QSC → DPP → SEE chains visible.
+Purpose: act on the first valid protected production audit without weakening its fail-closed contract or manufacturing readiness. This item separates representation-only identity mismatches from the real missing QSC → DPP → SEE chains.
 
-Current slice:
+Identity slice completion:
 
-- Canonicalise only known safe address presentation differences for golden identity comparison: case/punctuation, `Road`/ `Rd`, `Street`/ `St`, whitespace, and the optional `Australia` suffix. Site number, locality, postcode, zone, and approved project identifier must still match.
-- Accept the audit contract's `lgaName` as a fallback when `lgaCode` is null, after removing council-type suffixes such as `Shire` and `Council`. Missing or conflicting LGA identity still fails.
-- Preserve all real readiness failures. Canonical identity matching cannot upgrade missing, unresolved, stale/mismatched, malformed, uncited, broken-provenance, or legacy artefacts.
-- Add focused runner regression coverage for the exact Byron/Kempsey production formatting observed in run `29492417071`.
-- Reconcile `README.md`, this execution queue, and the decision register with the protected run, safe artifact, auth precedence, and open gate.
-- No local build, production project creation, artefact generation, OpenAI call, ingest, database write, payment/auth work, or production mutation is included.
+- PR #297 merged at exact commit `5cb75a51894aab40e701bff4d3f541cbff85e71d`.
+- Vercel production deployment succeeded at `https://vercel.com/robbietalls-projects/plannera-ab/BWaaGemdMei5UcPDNLUtquWCvdWs`.
+- Golden identity comparison now canonicalises only case/punctuation, `Road`/`Rd`, `Street`/`St`, whitespace, and the optional `Australia` suffix. Site number, locality, postcode, zone, and approved project identifier still must match.
+- The audit contract's canonical `lgaName` is accepted when `lgaCode` is null after removing council-type suffixes such as `Shire` and `Council`. Missing or conflicting LGA identity still fails.
+- Every real readiness failure remains fail-closed. Identity formatting cannot upgrade missing, unresolved, stale/mismatched, malformed, uncited, broken-provenance, or legacy artefacts.
+- Focused regression coverage was added for the exact production address/LGA representations. No local build/tests were run per operator instruction; the remote Vercel preview and merged production deployments passed.
 
-After merge/deploy:
+Post-merge protected evidence:
 
-1. Rerun the same protected read-only audit to confirm the identity-only reasons disappear while the missing-chain reasons remain.
-2. Through the normal user-facing product workflow, use a real user-approved proposal brief for each approved golden project, then save a cited current-site Quick Site Check, generate the Detailed Planning Pack, and generate SEE only when the pack is commercial-ready. This is an intentional production action and must not be performed by the audit or an admin backfill.
+- [Commercial Funnel Live Audit run 29494711998](https://github.com/RobbieTall/Plannera-ab/actions/runs/29494711998) was manually dispatched from `main`, approved through the protected environment, and checked exact merge commit `5cb75a51894aab40e701bff4d3f541cbff85e71d`.
+- Dependency installation, runner execution, JSON validation/print, and artifact upload passed. The controlled runner returned exit `2`, so the final gate failed as designed.
+- Safe artifact `8373903558` is 939 bytes, expires 2026-07-30, and has digest `sha256:603372049b35dda723645bf15b392b753e3a023796d8b6d79a12f58783a1ca32`.
+- Byron `cmrkg5g320000l204s3cz3kj0` passed approved project/address/LGA/SP3 identity validation. Kempsey `cmrkg7izz0005ld04dqz3t6rx` passed approved project/address/LGA/E2 identity validation. The prior `site_address_mismatch` and `site_lga_mismatch` reasons are absent for both.
+- Both projects still truthfully report `quickSiteCheck.state=missing`, `detailedPlanningPack.state=missing`, `see.state=missing`, `referralEligibility=none`, and next action `generate_or_refresh_required_chain`. No production data was mutated.
+
+Remaining saved-output remediation:
+
+1. Obtain a real user-approved proposed-works brief for each approved golden project.
+2. Through the normal user-facing product workflow, save a cited current-site Quick Site Check, generate the Detailed Planning Pack, and generate SEE only when the pack is commercial-ready. This is an intentional production action and must not be performed by the audit or an admin/database backfill.
 3. Rerun the protected audit. Byron and Kempsey must independently return exact current-site provenance and runner exit `0` before Item 52 can close.
 4. Only after that evidence may Item 40 billing/auth/payment gating be reconsidered.
 
-Success signal: the audit distinguishes harmless production formatting from site-identity mistakes, then passes only after genuine normal-product saved chains exist for both approved golden projects.
+Gate status: OPEN for genuine saved outputs only. The audit now cleanly distinguishes site identity from the remaining commercial blocker.
