@@ -676,13 +676,13 @@ Tests/checks for review:
 
 Status reconciliation: Item 50 moved to DONE/MERGED at exact merge commit `b997b8f6f8985f947e7a8d0edef765d4d0ac84d7` (PR #290) and Vercel deployment succeeded for target `https://vercel.com/robbietalls-projects/plannera-ab/DuvyeHc4Zp9SmnDDSgWRmkbMKuMg`. Live saved-output/commercial audit gate remains OPEN; deployment success alone is not live funnel proof. Do not claim live saved-output verification until fresh production-safe Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 paths confirm DPP-derived SEE citations/provenance and referral branching without production data mutation outside the approved QA path. Item 40 billing/auth remains deferred.
 
-## 51) Production-safe commercial funnel readiness audit — IN REVIEW (2026-07-16)
+## 51) Production-safe commercial funnel readiness audit — DONE/MERGED/DEPLOYED (2026-07-16)
 
 Scope: add a protected, read-only operational audit endpoint for an authorised operator to verify one existing project's saved Quick Site Check → Detailed Planning Pack → matching SEE/referral chain without creating projects, generating artefacts, invoking OpenAI, retrieving DCP/LEP, or mutating production data.
 
 Contract:
 
-- `GET /api/admin/commercial-funnel-audit?secret=INGEST_ADMIN_SECRET&projectId=<id>` returns `commercial_funnel_audit.v1` JSON for one explicit project identifier.
+- `GET /api/admin/commercial-funnel-audit?projectId=<id>` returns `commercial_funnel_audit.v1` JSON for one explicit project identifier when authorised with the existing admin secret conventions; production operators should prefer the `x-admin-token: INGEST_ADMIN_SECRET` header instead of putting secrets in URLs or logs.
 - Output includes `checkedAt`, project/site scope, compact QSC/DPP/SEE states, saved artefact IDs, exact source QSC/DPP IDs, cited/applicable evidence counts, unresolved topics, referral eligibility (`none`, `unresolved_pack_referral`, or `quality_chain_referral`), and machine-readable next-action reason codes.
 - The audit is read-only: it may query project/site/artefacts only and must never create, update, upsert, delete, regenerate, retrieve DCP/LEP, call OpenAI, expose full artefact payloads, DCP excerpts, contact details, or secrets.
 - Readiness uses the same current-site/provenance selectors as artefact generation: new quality chains require exact current-site saved QSC → DPP → SEE provenance from Item 50. Legacy, stale, cross-site, malformed, forged, or broken-ID chains remain history and cannot pass.
@@ -708,4 +708,35 @@ Tests/checks for review:
 - PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
 - EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
 
-Remaining gate: OPEN. Use this endpoint against approved existing production Byron/Kempsey projects only; approved live evidence must prove exact current-site QSC → DPP → SEE/referral chains before billing/auth can unlock.
+Deployment reconciliation: Item 51 moved to DONE/MERGED/DEPLOYED on 2026-07-16 at exact merge commit `a7b4c1af4a2a6add435018e1b18e954f30550132` (PR #291). GitHub/Vercel status for that merge commit is success. Vercel deployment target: `https://vercel.com/robbietalls-projects/plannera-ab/8TAyJA3FbSpmxz5FfuWvg2CWznfb`. The merged/deployed PR changed 9 files and deployed the protected read-only endpoint `GET /api/admin/commercial-funnel-audit`.
+
+Final verification evidence preserved for Item 51:
+
+- PASS: `npm run test:vitest -- src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts` — 2 focused audit/route files and 16 tests passed.
+- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — Item 50 generation/golden coverage passed with 33 tests.
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — referral/handoff coverage passed with 2 files and 9 tests.
+- PASS: `npm run lint` — no warnings/errors.
+- PASS: `npx tsc --noEmit --pretty false`.
+- PASS: `npm test` — full suite passed with 65 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
+
+Live saved-output/commercial audit gate: OPEN. Deployment success is not live funnel proof. No approved live Byron/Kempsey audit result has been captured yet, so saved-output/commercial readiness remains unproven and billing/auth/payment remains deferred.
+
+## 52) Approved live Byron/Kempsey commercial funnel audit — NEXT/OPEN (2026-07-16)
+
+Purpose: run the deployed Item 51 read-only audit against approved existing production projects and record a non-secret, documentation-safe summary proving whether the current live saved-output commercial funnel is ready. This item closes only when both approved chains pass independently.
+
+Production-safe operator runbook:
+
+1. Confirm the audited deployment and code identity before querying production: use merge commit `a7b4c1af4a2a6add435018e1b18e954f30550132` (PR #291) and Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/8TAyJA3FbSpmxz5FfuWvg2CWznfb`.
+2. Use only approved existing production projects for the two golden chains: Byron `45 Broken Head Road, Byron Bay NSW 2481` with current-site zone `SP3 Tourist`, and Kempsey `52 Belgrave St, Kempsey NSW 2440` with current-site zone `E2 Commercial Centre`.
+3. Never create a project, update a project, generate or regenerate Quick Site Check / Detailed Planning Pack / SEE / referral artefacts, invoke OpenAI, ingest legislation/DCP, or otherwise mutate production data while performing this audit.
+4. Call the deployed protected GET endpoint for each approved project and prefer the header form so the admin secret is not placed in URLs, browser history, analytics, proxy logs, screenshots, or shell history: `curl -sS -H "x-admin-token: $INGEST_ADMIN_SECRET" "https://plannera-ab.vercel.app/api/admin/commercial-funnel-audit?projectId=<approved-existing-project-id>"`.
+5. Do not commit or paste secrets, full JSON payloads, DCP/LEP excerpts, artefact body text, project owner/contact details, emails, phone numbers, or other contact data into repo docs. Store raw responses only in approved private operational systems if needed.
+6. In this file, record only the safe audit summary needed to close or keep open the gate: `checkedAt`, project/site identity sufficient to distinguish Byron vs Kempsey without contact data, deployment URL, commit SHA, QSC/DPP/SEE states, exact saved artefact IDs, exact source QSC/DPP IDs, `referralEligibility`, and `nextAction` reason codes.
+7. Treat Byron and Kempsey as independent gates. Byron `45 Broken Head Road` SP3 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, and Kempsey `52 Belgrave St` E2 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, before this item can move to DONE.
+8. Record honest failures exactly as returned: missing, unresolved, stale/mismatched, malformed, legacy, broken-provenance, or other non-ready reason codes are valid audit outcomes and must not be hidden or repaired during the audit run. Do not regenerate anything to make the audit pass.
+9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the deployed PR #291 commit.
+
+Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live result has been captured in repo documentation yet.
