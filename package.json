@@ -29,7 +29,8 @@
     "mvp:byron:smoke": "tsx scripts/byron-mvp-smoke.ts",
     "ingest:production": "bash scripts/ingest-production.sh",
     "test:node": "tsx --test tests/*.test.ts",
-    "test:vitest": "vitest run --config vitest.config.ts"
+    "test:vitest": "vitest run --config vitest.config.ts",
+    "audit:commercial-funnel": "tsx scripts/audit-commercial-funnel.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
