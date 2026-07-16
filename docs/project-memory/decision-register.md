@@ -212,3 +212,15 @@ A green deterministic gate proves service integration and provenance invariants 
 
 Reference: docs/project-memory/build-next.md Item 56
 
+## DR-026 — Consultant Evidence Requires Exact Server-Sourced Snapshots
+
+Status: Active
+
+Decision: Client-supplied values, clause references, confidence labels, matching artefact IDs, or plausible citation strings are not provenance. Persisted core LEP controls must be re-derived from server-retrieved evidence and must become Unavailable when a value and clause reference cannot be verified. LEP clause 2.3 may be cited only when the saved Quick Site Check proves a DB-backed zone table through both zone objectives and land-use entries; cited numeric controls do not establish permissibility.
+
+A SEE may advance the commercial audit or consultant-review handoff only when its proposal summary, LEP instrument and permissibility, copied QSC controls, DPP clause metadata and body text, source excerpts, and consistency assessments exactly match its active source QSC/DPP snapshot. Ref-only or ID-only matches fail closed. Review packages rebuild citations from verified source artefacts and must not promote unsupported SEE evidence.
+
+This deterministic invariant is required regression evidence but does not replace the approved live Byron/Kempsey saved-output audit or unlock billing/auth.
+
+Reference: docs/project-memory/build-next.md Item 57
+
