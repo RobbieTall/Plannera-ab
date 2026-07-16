@@ -855,7 +855,7 @@ Approval boundary: creating projects, setting production sites, and generating/s
 
 Success signal: each protected-audit golden ID opens in the normal product workspace for the current requester and produces an honest, provenance-valid funnel result through the same UI and APIs a pilot user would use.
 
-## 56) Deterministic Byron/Kempsey commercial funnel golden CI — IN REVIEW (2026-07-16)
+## 56) Deterministic Byron/Kempsey commercial funnel golden CI — DONE/MERGED (2026-07-16)
 
 Purpose: make the evidence-gated QSC → Detailed Planning Pack → SEE/referral contract an ordinary remote pull-request check while live saved-output work remains blocked. The repository previously relied on Vercel deployment status plus fragmented focused tests; there was no secret-free CI check that persisted both launch-LGA chains through the real artefact services and then evaluated the saved result with the production audit logic.
 
@@ -871,5 +871,34 @@ Implementation in this slice:
 
 Evidence boundary: this is deterministic non-production regression evidence only. It must not be reported as live planning-data accuracy, live saved-output success, deployment success, or production commercial readiness. Item 52 remains OPEN, Item 55 remains blocked on an explicitly approved normal-product production run, and Item 40 billing/auth remains deferred.
 
-Verification for this slice: no local build or test command was run, per operator instruction. The new GitHub Actions check is the authoritative execution surface. Initial review run [29500777658](https://github.com/RobbieTall/Plannera-ab/actions/runs/29500777658), job `87628842665`, passed in 51 seconds: checkout, lifecycle-script-free dependency install, database-free Prisma client generation, and the focused commercial funnel command all completed successfully. The final branch head must retain a green golden gate and Vercel check before merge.
+Verification for this slice: no local build or test command was run, per operator instruction. The GitHub Actions check is the authoritative execution surface. Final-head review run [29501006341](https://github.com/RobbieTall/Plannera-ab/actions/runs/29501006341), job `87629618176`, passed in 50 seconds on `a0c5dc0d94e9b110c01c218921c419ec4aaf169c`; Vercel preview and all PR checks were green. PR #300 merged to `main` at exact merge commit `70edf69eccc5365ee5247efa5f8cefefc5ec7885`.
+
+Lane status: DONE. This deterministic gate is now required regression evidence; Items 52 and 55 remain open at their documented production boundaries.
+
+## 57) Strict persisted LEP and SEE source-snapshot provenance — IN REVIEW (2026-07-17)
+
+Purpose: close a consultant-facing evidence integrity gap left by ref-only provenance checks. A client-shaped QSC control could retain a plausible numeric value, clause reference, and `Cited` label without server evidence; a legacy or altered SEE could also preserve matching QSC/DPP IDs and valid-looking refs while changing copied controls, permissibility, proposal text, DCP bodies, excerpts, or assessments.
+
+Implementation in this slice:
+
+- QSC persistence treats height, floor space ratio, and minimum lot size as server-derived controls. A control is Cited only when retrieved LEP text or a server-returned structured Cited control supplies both value and clause reference; otherwise value, ref, detail, source claim, confidence, and interpretation are reset to an honest `Unavailable` control.
+- A verified numeric control requires `lepSource=true`, a present non-empty value, and a non-empty clause reference. A client-supplied `confidence=Cited` or ref cannot satisfy that invariant.
+- Clause 2.3 permissibility provenance is independent: the QSC must have a Cited evidence summary with at least one DB-backed zone objective and at least one land-use entry, plus a saved permissibility result and LEP instrument. Numeric controls alone cannot create a clause 2.3 citation.
+- SEE generation copies sanitised QSC controls and emits LEP citations only for verified controls/permissibility.
+- SEE audit and consultant handoff require an exact current-source snapshot: project/proposal identity, LEP instrument, permissibility, copied controls, DPP clause metadata/body, source excerpts, and all consistency assessments must match the source QSC/DPP. Matching artefact IDs or citation refs alone are insufficient.
+- Review packages rebuild cited sources from the verified QSC core controls and source DPP; they do not trust a SEE citation list. Unsupported controls become confidence gaps and altered SEE artefacts remain history only.
+- The production read-only audit applies the same exact snapshot helper before returning `quality_chain_referral`.
+
+Focused regression coverage:
+
+- QSC persistence clears forged client numeric controls even when a separate DB-backed zone table keeps the overall LEP summary Cited.
+- LEP lookup failure persists honest Unavailable controls rather than fallback client values.
+- SEE generation clears legacy controls lacking server provenance and withholds clause 2.3 when zone-table evidence is absent.
+- Review handoff rejects altered QSC/SEE snapshots and excludes forged refs.
+- Commercial audit rejects matching-ID SEE payloads with changed control values, DCP body text, permissibility, proposal text, or unsupported clause 2.3 evidence.
+- Existing Byron SP3 and Kempsey E2 commercial golden journeys remain in the focused remote gate.
+
+Evidence boundary: this hardens deterministic persistence and handoff invariants. It does not prove live Byron/Kempsey planning-data accuracy, create production artefacts, close Item 52/55, or unlock Item 40 billing/auth. No local build or test command is run; the secret-free Commercial Funnel Golden Gate and Vercel preview are the review authority.
+
+Verification status: pending the Item 57 pull-request run on the final branch head.
 
