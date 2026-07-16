@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
+import { sanitiseQuickSiteLepControls } from "./artefact-service";
 import { auditCommercialFunnel } from "./commercial-funnel-audit";
 
 const project = { id: "proj", publicId: "pub", title: "Project", address: "45 Broken Head Road, Byron Bay NSW", zoning: "SP3 Tourist", zoningName: "SP3 Tourist", zoningCode: "SP3" };
@@ -10,7 +11,7 @@ const qsc = (id = "qsc", overrides: any = {}, generatedAt = "2026-07-15T00:00:00
   projectId: "proj", generatedAt, site: { address: project.address, lga: "Byron Shire", zoneCode: "SP3", zoneName: "Tourist", zoneLabel: "SP3 Tourist" },
   lepInstrument: { name: "Byron LEP", code: "BYRON", lga: "Byron", source: "ingestion" },
   permissibility: { zoneLabel: "SP3 Tourist", permittedWithoutConsent: [], permittedWithConsent: [], prohibited: [], interpretation: "cited" },
-  controls: { heightOfBuilding: { label: "Height", value: "9m", present: true, source: "lep", clauseRef: "4.3", interpretation: "cited" }, floorSpaceRatio: { label: "FSR", value: "1:1", present: true, source: "lep", clauseRef: "4.4", interpretation: "cited" }, minimumLotSize: { label: "MLS", value: null, present: false, source: null, clauseRef: null, interpretation: "none" } },
+  controls: { heightOfBuilding: { label: "Height", value: "9m", present: true, source: "lep", lepSource: true, clauseRef: "4.3", interpretation: "cited", confidence: "Cited" }, floorSpaceRatio: { label: "FSR", value: "1:1", present: true, source: "lep", lepSource: true, clauseRef: "4.4", interpretation: "cited", confidence: "Cited" }, minimumLotSize: { label: "MLS", value: null, present: false, source: null, lepSource: false, clauseRef: null, interpretation: "none", confidence: "Unavailable" } },
   notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "3 cited", citedControlCount: 3, totalControlCount: 3, landUseEntryCount: 1, objectiveCount: 1, sourceRef: "BYRON" }, ...overrides,
 }, generatedAt);
 const dpp = (id = "dpp", sourceQsc = "qsc", commercialReady = true, generatedAt = "2026-07-15T00:10:00Z", overrides: any = {}) => row(id, "detailed_planning_pack", {
@@ -19,11 +20,32 @@ const dpp = (id = "dpp", sourceQsc = "qsc", commercialReady = true, generatedAt 
   dcpEvidence: commercialReady ? [{ topicId: "setbacks", topicLabel: "Setbacks", status: "Cited", reason: "ok", citations: [{ ref: "D4", title: "D4 Business & Commercial Development", headingPath: ["Part D"], excerpt: "nil / 0m setback applies", score: 1 }] }] : [],
   topicMatrix: commercialReady ? [{ topicId: "setbacks", topicLabel: "Setbacks", status: "Cited", summary: "ok", sourceRefs: ["D4"] }] : [], unresolvedTopics: commercialReady ? [] : ["Setbacks: unavailable"], consultantReviewQuestions: [], nextAction: "next", commercialReady, ...overrides,
 }, generatedAt);
-const see = (id = "see", dppId = "dpp", qscId = "qsc", generatedAt = "2026-07-15T00:20:00Z", overrides: any = {}) => row(id, "pre_see_planning_memo", {
-  memoType: "pre_see_planning_memo", generatedAt, projectId: "proj", siteDescription: { address: project.address, lga: "Byron Shire", zoneCode: "SP3", zoneName: "Tourist", zoneLabel: "SP3 Tourist" }, proposedWorksSummary: "shop fitout",
-  applicableControls: { lepInstrument: null, permissibility: null, quickSiteControls: { height: { clauseRef: "4.3" } }, dcpClauses: [{ ref: "D4", title: "D4 Business & Commercial Development", headingPath: ["Part D"], bodyText: "nil / 0m setback applies", score: 1 }], sourceExcerpts: [], statutoryContext: null, groundingInstructions: [] },
-  consistencyAssessment: [{ topic: "Setbacks", assessment: "ok", citations: [{ ref: "D4", type: "DCP" }] }], limitations: [], sourceDetailedPlanningPack: { artefactId: dppId, title: "DPP", generatedAt: null, commercialReady: true, sourceQuickSiteCheckArtefactId: qscId }, ...overrides,
-}, generatedAt);
+const see = (id = "see", dppId = "dpp", qscId = "qsc", generatedAt = "2026-07-15T00:20:00Z", overrides: any = {}) => {
+  const sourceQsc = qsc(qscId).payload;
+  const verifiedControls = sanitiseQuickSiteLepControls(sourceQsc.controls);
+  return row(id, "pre_see_planning_memo", {
+    memoType: "pre_see_planning_memo", generatedAt, projectId: "proj", siteDescription: { address: project.address, lga: "Byron Shire", zoneCode: "SP3", zoneName: "Tourist", zoneLabel: "SP3 Tourist" }, proposedWorksSummary: "shop fitout",
+    applicableControls: {
+      lepInstrument: sourceQsc.lepInstrument,
+      permissibility: sourceQsc.permissibility,
+      quickSiteControls: verifiedControls,
+      dcpClauses: [{ ref: "D4", title: "D4 Business & Commercial Development", headingPath: ["Part D"], bodyText: "nil / 0m setback applies", score: 1 }],
+      sourceExcerpts: [{ id: "setbacks:D4", heading: "D4 Business & Commercial Development", sourceType: "detailed_planning_pack", content: "nil / 0m setback applies", score: 1 }],
+      statutoryContext: null,
+      groundingInstructions: [],
+    },
+    consistencyAssessment: [
+      { topic: "Land use permissibility", assessment: "cited", citations: [{ ref: "Byron LEP cl. 2.3", type: "LEP" }] },
+      { topic: "Height of building", assessment: "cited", citations: [{ ref: "Byron LEP cl. 4.3", type: "LEP" }] },
+      { topic: "Floor space ratio", assessment: "cited", citations: [{ ref: "Byron LEP cl. 4.4", type: "LEP" }] },
+      { topic: "Minimum lot size", assessment: "Not found in retrieved LEP data", citations: [] },
+      { topic: "Setbacks", assessment: "ok", citations: [{ ref: "D4", type: "DCP" }] },
+    ],
+    limitations: [],
+    sourceDetailedPlanningPack: { artefactId: dppId, title: "DPP", generatedAt: null, commercialReady: true, sourceQuickSiteCheckArtefactId: qscId },
+    ...overrides,
+  }, generatedAt);
+};
 const prismaFor = (artefacts: any[], proj: any = project) => ({
   project: { findFirst: async ({ where }: any) => where.OR.some((x: any) => x.id === "proj" || x.publicId === "pub") ? proj : null, findUnique: async () => ({ ...proj, siteContext }) },
   artefact: { findMany: async () => artefacts, create: async () => { throw new Error("mutation called"); }, update: async () => { throw new Error("mutation called"); }, upsert: async () => { throw new Error("mutation called"); }, delete: async () => { throw new Error("mutation called"); } },
@@ -41,5 +63,66 @@ describe("auditCommercialFunnel", () => {
   it("skips newer stale DPP for older valid current chain", async () => expect(await audit([qsc(), dpp("valid", "qsc", true, "2026-07-15T00:10:00Z"), see("see", "valid", "qsc"), dpp("stale", "qsc", true, "2026-07-15T00:40:00Z", { site: { address: "1 Fake St", lga: "Sydney", lgaCode: "SYDNEY", zoneCode: "R1", zoneName: "Residential", zoneLabel: "R1 Residential" } })])).toMatchObject({ detailedPlanningPack: { artefactId: "valid", state: "ready" }, referralEligibility: "quality_chain_referral" }));
   it("fails stale-only, broken QSC ID, forged payload project, malformed DPP", async () => { for (const rows of [[qsc(), dpp("stale", "qsc", true, "2026-07-15T00:00:00Z", { site: { address: "1 Fake" } })], [qsc(), dpp("broken", "missing")], [qsc(), dpp("forged", "qsc", true, "2026-07-15T00:00:00Z", { projectId: "evil" })], [qsc(), row("bad", "detailed_planning_pack", { nope: true }, "2026-07-15T00:00:00Z")]]) expect(await audit(rows as any)).toMatchObject({ referralEligibility: "none", detailedPlanningPack: { state: "stale_mismatched_malformed" } }); });
   it("rejects mismatched SEE DPP/QSC IDs and malformed/legacy SEE", async () => { for (const badSee of [see("s1", "other", "qsc"), see("s2", "dpp", "other"), row("legacy", "pre_see_planning_memo", { memoType: "pre_see_planning_memo" }, "2026-07-15T00:50:00Z")]) expect(await audit([qsc(), dpp(), badSee])).toMatchObject({ detailedPlanningPack: { state: "ready" }, see: { state: "stale_mismatched_legacy" }, referralEligibility: "none" }); });
+  it("rejects matching-ID SEE payloads with altered source snapshots", async () => {
+    const validSee = see();
+    const payload = validSee.payload;
+    const alteredControls = see("altered-controls", "dpp", "qsc", "2026-07-15T00:20:00Z", {
+      applicableControls: {
+        ...payload.applicableControls,
+        quickSiteControls: {
+          ...payload.applicableControls.quickSiteControls,
+          heightOfBuilding: {
+            ...payload.applicableControls.quickSiteControls.heightOfBuilding,
+            value: "99m",
+          },
+        },
+      },
+    });
+    const alteredDcpBody = see("altered-dcp", "dpp", "qsc", "2026-07-15T00:20:00Z", {
+      applicableControls: {
+        ...payload.applicableControls,
+        dcpClauses: [{ ...payload.applicableControls.dcpClauses[0], bodyText: "Fabricated DCP control." }],
+      },
+    });
+    const alteredPermissibility = see("altered-permissibility", "dpp", "qsc", "2026-07-15T00:20:00Z", {
+      applicableControls: {
+        ...payload.applicableControls,
+        permissibility: { ...payload.applicableControls.permissibility, interpretation: "Fabricated permissibility." },
+      },
+    });
+    const alteredProposal = see("altered-proposal", "dpp", "qsc", "2026-07-15T00:20:00Z", {
+      proposedWorksSummary: "Fabricated proposal.",
+    });
+
+    for (const alteredSee of [alteredControls, alteredDcpBody, alteredPermissibility, alteredProposal]) {
+      expect(await audit([qsc(), dpp(), alteredSee])).toMatchObject({
+        detailedPlanningPack: { state: "ready" },
+        see: { state: "stale_mismatched_legacy" },
+        referralEligibility: "none",
+      });
+    }
+  });
+
+  it("does not allow clause 2.3 without server-backed zone-table evidence", async () => {
+    const numericOnlyQsc = qsc("qsc", {
+      lepEvidenceSummary: {
+        label: "Cited",
+        detail: "Numeric controls only.",
+        citedControlCount: 2,
+        totalControlCount: 2,
+        landUseEntryCount: 0,
+        objectiveCount: 0,
+        sourceRef: "Byron LEP",
+      },
+    });
+    const invalidSee = see();
+
+    expect(await audit([numericOnlyQsc, dpp(), invalidSee])).toMatchObject({
+      detailedPlanningPack: { state: "ready" },
+      see: { state: "stale_mismatched_legacy" },
+      referralEligibility: "none",
+    });
+  });
+
   it("orders generatedAt before capturedAt/createdAt and ignores input order", async () => { const a = dpp("a", "qsc", true, "2026-07-15T00:10:00Z"); const b = dpp("b", "qsc", false, "2026-07-15T00:30:00Z"); expect(await audit([b, qsc(), a])).toMatchObject({ detailedPlanningPack: { artefactId: "b" }, referralEligibility: "unresolved_pack_referral" }); expect(await audit([a, qsc(), b])).toMatchObject({ detailedPlanningPack: { artefactId: "b" } }); });
 });
