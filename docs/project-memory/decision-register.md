@@ -201,3 +201,14 @@ Decision: An admin-auditable project is not a valid end-to-end commercial golden
 When historical golden records are readable only by the protected admin audit, create fresh requester-owned/session-owned pilot projects through the normal production UI after explicit approval. Verify site identity before replacing protected audit project-ID variables. QSC, DPP, SEE, and referral outputs must then be produced through normal provenance and evidence gates; unresolved outputs remain valid product evidence and must not be upgraded.
 
 Reference: docs/project-memory/build-next.md Item 55
+
+## DR-025 — Deterministic Commercial Funnel CI Is Required Regression Evidence
+
+Status: Active
+
+Decision: Every commercial-funnel pull request must pass a secret-free remote golden gate that persists fixed Byron SP3 and Kempsey E2 journeys through the real QSC, Detailed Planning Pack, SEE/referral, and read-only audit services. The gate must also exercise an unresolved evidence branch that blocks SEE and packages an honest consultant referral. It may use deterministic in-memory dependencies, but it must not connect to production, receive production secrets, call models or live retrieval, build/deploy, or mutate external data.
+
+A green deterministic gate proves service integration and provenance invariants only. It does not prove live planning-data quality, normal-workspace accessibility, saved production output, or commercial readiness, and it cannot replace the protected live audit required by DR-020 through DR-024.
+
+Reference: docs/project-memory/build-next.md Item 56
+
