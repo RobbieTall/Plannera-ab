@@ -224,3 +224,12 @@ This deterministic invariant is required regression evidence but does not replac
 
 Reference: docs/project-memory/build-next.md Item 57
 
+
+
+## DR-027 — DPP Topics Require Topic-Relevant DCP Evidence
+
+Status: Active
+
+Decision: A Detailed Planning Pack topic may be marked Cited only when retrieved DCP evidence is both site-applicable and topic-relevant according to that topic's deterministic matcher. Part B, all-development, current-zone, chapter labels, and source references are provenance/scope signals only; they cannot bypass topic matching. Generic local-control rows must contain explicit general/local/all-development/design/site/development-control terms, and unrelated topics remain Unavailable. Commercial readiness remains fail-closed and may be true only when every required DPP topic is genuinely Cited.
+
+Reference: docs/project-memory/build-next.md Item 58

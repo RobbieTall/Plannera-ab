@@ -176,8 +176,8 @@ const seePayload = (overrides: Partial<WorkspacePreSeePlanningMemoContent> = {})
   },
   proposedWorksSummary: "Alterations and additions to tourist accommodation.",
   applicableControls: {
-    lepInstrument: quickSiteCheckPayload.lepInstrument,
-    permissibility: quickSiteCheckPayload.permissibility,
+    lepInstrument: quickSiteCheckPayload.lepInstrument ?? null,
+    permissibility: quickSiteCheckPayload.permissibility ?? null,
     quickSiteControls: sanitiseQuickSiteLepControls(quickSiteCheckPayload.controls),
     dcpClauses: [
       {

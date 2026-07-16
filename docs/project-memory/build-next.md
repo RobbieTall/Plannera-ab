@@ -875,7 +875,7 @@ Verification for this slice: no local build or test command was run, per operato
 
 Lane status: DONE. This deterministic gate is now required regression evidence; Items 52 and 55 remain open at their documented production boundaries.
 
-## 57) Strict persisted LEP and SEE source-snapshot provenance — IN REVIEW (2026-07-17)
+## 57) Strict persisted LEP and SEE source-snapshot provenance — DONE/MERGED (2026-07-17)
 
 Purpose: close a consultant-facing evidence integrity gap left by ref-only provenance checks. A client-shaped QSC control could retain a plausible numeric value, clause reference, and `Cited` label without server evidence; a legacy or altered SEE could also preserve matching QSC/DPP IDs and valid-looking refs while changing copied controls, permissibility, proposal text, DCP bodies, excerpts, or assessments.
 
@@ -902,5 +902,28 @@ Focused regression coverage:
 
 Evidence boundary: this hardens deterministic persistence and handoff invariants. It does not prove live Byron/Kempsey planning-data accuracy, create production artefacts, close Item 52/55, or unlock Item 40 billing/auth. No local build or test command is run; the secret-free Commercial Funnel Golden Gate and Vercel preview are the review authority.
 
-Verification evidence: no local build or test command was run, per operator instruction. Initial PR review run [29505222238](https://github.com/RobbieTall/Plannera-ab/actions/runs/29505222238), job `87644106899`, passed the lifecycle-script-free install, database-free Prisma generation, and complete `test:commercial-funnel` command on head `a906f789e33154156bb753eff0912bce6d5147cd`. Vercel preview `BY9cWkMDtAuZDkioUbo1Y7wQqUUi` also passed. The documentation evidence commit must retain a green final-head golden gate and Vercel check before merge.
+Verification evidence: no local build or test command was run, per operator instruction. Initial PR review run [29505222238](https://github.com/RobbieTall/Plannera-ab/actions/runs/29505222238), job `87644106899`, passed the lifecycle-script-free install, database-free Prisma generation, and complete `test:commercial-funnel` command on head `a906f789e33154156bb753eff0912bce6d5147cd`. Vercel preview `BY9cWkMDtAuZDkioUbo1Y7wQqUUi` also passed. Item 57 merged in PR #301 at exact merge commit `27475cd513c280ea163377ef2973bdfd146dda29`. The documentation evidence commit retained the green final-head golden gate and Vercel check before merge.
 
+
+
+## 58) Topic-specific DCP evidence qualification for commercial DPP — IN REVIEW (2026-07-17)
+
+Purpose: prevent a generic/current-zone Part B DCP row or source-reference-only clause from being promoted as Cited evidence for unrelated paid Detailed Planning Pack topics. Item 57 exact snapshot provenance proves the saved SEE/DPP chain was not altered; it does not, by itself, prove that each DPP topic was genuinely supported by topic-relevant DCP text.
+
+Implementation in this slice:
+
+- DPP generation now passes the required topic ID into `filterSiteApplicableDcpClauses` for every topic instead of a single first-word query token or no topic for local controls.
+- Site applicability still preserves the existing current-zone behaviour and zone/scope conflict exclusions, but Part B/all-development evidence must also match the requested topic through the actual title, heading path, or body text.
+- Deterministic topic matchers cover setbacks/building lines/front-side-rear-street boundary equivalents, parking/access/driveway/loading/service-access equivalents, built-form/active-frontage/street-frontage/shopfront/building-design equivalents, landscaping/open-space/deep-soil/tree-planting equivalents, and explicit general/local/all-development/design/site/development-control terms for local controls.
+- Source refs, Part/chapter labels, current-zone mentions, and generic Part B provenance no longer qualify a DPP topic by themselves. Missing topic evidence remains `Unavailable` with unresolved-topic reasons.
+- `commercialReady` remains fail-closed and is true only when all five required DPP topics are genuinely Cited.
+
+Focused regression coverage:
+
+- A single generic Kempsey E2/current-zone Part B clause returned for every DPP query leaves all five topics Unavailable and `commercialReady=false`.
+- A Part B clause with actual parking/access/loading text qualifies for `parking_access` only and does not populate unrelated topics.
+- The deterministic Byron SP3 and Kempsey E2 commercial-ready golden journeys and the Kempsey unresolved referral branch remain in `npm run test:commercial-funnel`.
+
+Evidence boundary: this is a deterministic DPP evidence-quality hardening slice only. It does not call live planning services, mutate production data, create production projects, close Item 52 or Item 55, or unlock Item 40 billing/auth. Items 52/55 and billing/auth remain explicitly open/deferred.
+
+Verification evidence: Codex Cloud ran and passed `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Build/vercel-build was not run per operator instruction. The final PR head still requires the secret-free Commercial Funnel Golden Gate and Vercel preview to pass before merge.

@@ -550,3 +550,92 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
     "refer_unresolved_pack_for_expert_review",
   );
 });
+
+test("generic current-zone Part B evidence cannot populate unrelated DPP topics", async () => {
+  const prisma = new GoldenPrisma(KEMPSEY);
+  await saveQuickSiteCheck(prisma, KEMPSEY);
+  const deps = {
+    ...serviceDependencies(prisma, KEMPSEY),
+    getDCPContext: async (lgaCode: string) => [{
+      id: "generic-part-b",
+      lgaCode,
+      sourceDocId: "KEMPSEY_DCP_2026",
+      ref: "Part B > Parking and access",
+      title: "Part B administration",
+      headingPath: ["Kempsey DCP 2026", "Part B"],
+      bodyText: "This clause records the current E2 Commercial Centre zone and a source reference for the site.",
+      depth: 2,
+      topicTags: [],
+      numericMeta: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      score: 50,
+    }],
+  };
+
+  const detailedPlanningPack = await createDetailedPlanningPackArtefact({
+    body: {
+      projectId: KEMPSEY.publicId,
+      proposalBrief: KEMPSEY.proposalBrief,
+    },
+    userId: USER_ID,
+    deps: deps as any,
+  });
+
+  assert.equal(detailedPlanningPack.content.commercialReady, false);
+  assert.equal(detailedPlanningPack.content.dcpEvidence.length, 5);
+  assert.equal(
+    detailedPlanningPack.content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status,
+    "Unavailable",
+  );
+  assert.ok(
+    detailedPlanningPack.content.dcpEvidence.every((topic) =>
+      topic.status === "Unavailable" && topic.citations.length === 0
+    ),
+  );
+  assert.equal(detailedPlanningPack.content.unresolvedTopics.length, 5);
+});
+
+test("Part B evidence qualifies only when its heading or body matches the requested topic", async () => {
+  const prisma = new GoldenPrisma(KEMPSEY);
+  await saveQuickSiteCheck(prisma, KEMPSEY);
+  const deps = {
+    ...serviceDependencies(prisma, KEMPSEY),
+    getDCPContext: async (lgaCode: string) => [{
+      id: "part-b-parking",
+      lgaCode,
+      sourceDocId: "KEMPSEY_DCP_2026",
+      ref: "Part B > Parking",
+      title: "Part B parking, access and loading",
+      headingPath: ["Kempsey DCP 2026", "Part B", "Parking and access"],
+      bodyText: "Parking, driveway access, loading and service access controls apply where relevant.",
+      depth: 2,
+      topicTags: ["parking_access"],
+      numericMeta: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      score: 50,
+    }],
+  };
+
+  const detailedPlanningPack = await createDetailedPlanningPackArtefact({
+    body: {
+      projectId: KEMPSEY.publicId,
+      proposalBrief: KEMPSEY.proposalBrief,
+    },
+    userId: USER_ID,
+    deps: deps as any,
+  });
+
+  assert.equal(detailedPlanningPack.content.commercialReady, false);
+  assert.equal(
+    detailedPlanningPack.content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status,
+    "Cited",
+  );
+  assert.deepEqual(
+    detailedPlanningPack.content.dcpEvidence
+      .filter((topic) => topic.topicId !== "parking_access")
+      .map((topic) => topic.status),
+    ["Unavailable", "Unavailable", "Unavailable", "Unavailable"],
+  );
+});
