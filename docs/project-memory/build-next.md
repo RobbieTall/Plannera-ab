@@ -723,9 +723,25 @@ Final verification evidence preserved for Item 51:
 
 Live saved-output/commercial audit gate: OPEN. Deployment success is not live funnel proof. No approved live Byron/Kempsey audit result has been captured yet, so saved-output/commercial readiness remains unproven and billing/auth/payment remains deferred.
 
-## 52) Approved live Byron/Kempsey commercial funnel audit — NEXT/OPEN (2026-07-16)
+## 52) Approved live Byron/Kempsey commercial funnel audit — IN REVIEW/RUNNER SLICE (live gate OPEN) (2026-07-16)
 
 Purpose: run the deployed Item 51 read-only audit against approved existing production projects and record a non-secret, documentation-safe summary proving whether the current live saved-output commercial funnel is ready. This item closes only when both approved chains pass independently.
+
+Runner slice status: this review adds `npm run audit:commercial-funnel` and a pure/testable runner module so the eventual approved production audit is deterministic, fail-closed, environment-only, and documentation-safe. No live audit was run in this slice because approved existing Byron/Kempsey project IDs and the private admin token were not available. The live gate remains OPEN until the approved existing-project-only runbook is executed and both golden chains independently pass.
+
+Changed files/tests/checks for this runner slice:
+
+- `package.json` — adds the `audit:commercial-funnel` operator script.
+- `scripts/audit-commercial-funnel.ts` — CLI wrapper that prints the safe JSON summary and exits with the runner exit code.
+- `src/lib/commercial-funnel-audit-runner.ts` — pure env parsing, URL construction, fetch orchestration, strict response contract validation, golden-chain evaluation, safe summary, and exit-code policy.
+- `tests/commercial-funnel-audit-runner.test.ts` — mocked-fetch/env coverage for ready chains, open gates, broken provenance/evidence/identity/timestamps, missing env, unsafe URLs, deterministic GET order/header/body behaviour, HTTP/network/JSON/malformed failures, token/raw leakage prevention, and allowlisted deterministic output.
+- `README.md` — operator usage, env names, exit codes, no-token-in-URL/header-only guarantees, no production mutation, and billing/auth deferral.
+- `docs/project-memory/decision-register.md` — DR-021 records the fail-closed live-verification runner policy.
+
+Checks run for this slice:
+
+- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 6 runner tests passed, including exact nested contract-shape failures and valid non-ready exit 2 coverage.
+- Full requested checks were run in Codex Cloud and are reported in the PR/final review notes.
 
 Production-safe operator runbook:
 
