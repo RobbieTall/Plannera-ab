@@ -64,7 +64,7 @@ export async function auditCommercialFunnel(projectIdentifier: string, deps: { p
   const projectIdentifiers = [project.id, (project as { publicId?: string | null }).publicId].filter(Boolean);
 
   const [chainResolution, artefacts] = await Promise.all([
-    resolveCurrentDetailedPlanningPackChain({ prismaClient, project: scopedProject as Parameters<typeof resolveCurrentDetailedPlanningPackChain>[0]["project"], requireCommercialReady: false }),
+    resolveCurrentDetailedPlanningPackChain({ prismaClient, project: scopedProject as Parameters<typeof resolveCurrentDetailedPlanningPackChain>[0]["project"] }),
     prismaClient.artefact.findMany({
       where: { projectId: project.id, type: { in: ["quick_site_check", "pre_see_planning_memo"] as ArtefactType[] } },
       orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],

@@ -713,7 +713,6 @@ export async function resolveCurrentDetailedPlanningPackChain({
 }: {
   prismaClient: ArtefactDependencies["prisma"];
   project: ProjectWithOptionalSiteContext;
-  requireCommercialReady: boolean;
 }): Promise<CurrentDetailedPlanningPackChainResolution> {
   const currentScope = currentScopeForProject(project);
   const artefacts = await prismaClient.artefact.findMany({
@@ -784,7 +783,7 @@ async function resolveNewestCurrentDetailedPlanningPack({
   project: ProjectWithOptionalSiteContext;
   requireCommercialReady: boolean;
 }) {
-  const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project, requireCommercialReady });
+  const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project });
   if (resolution.active) {
     if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
     throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
