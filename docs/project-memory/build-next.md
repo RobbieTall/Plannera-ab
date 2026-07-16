@@ -831,3 +831,26 @@ Remaining saved-output remediation:
 4. Only after that evidence may Item 40 billing/auth/payment gating be reconsidered.
 
 Gate status: OPEN for genuine saved outputs only. The audit now cleanly distinguishes site identity from the remaining commercial blocker.
+
+
+## 55) Normal-workspace-accessible production golden projects — BLOCKED ON EXPLICIT PRODUCTION APPROVAL (2026-07-16)
+
+Finding: after Item 54's clean protected audit, both historical approved project records were opened through the deployed normal workspace using their internal IDs and their returned public IDs. All four normal-workspace URLs rendered `Project not found`, while the admin read-only audit continued to resolve both records. No generation or production mutation was attempted.
+
+Root cause: the normal workspace correctly uses requester ownership/session access through `getProjectForRequester`; the admin audit intentionally uses authorised identifier lookup without granting workspace access. The historical QA projects belong to an inaccessible prior requester/session. Admin audit visibility is therefore not proof that an operator can complete the real user funnel.
+
+Decision for the next production action:
+
+- Do not weaken workspace ownership, expose admin-readable projects publicly, claim historical projects across requester boundaries, database-backfill ownership, or add an audit-only generation path.
+- After explicit operator approval, create two fresh pilot projects through the normal production UI under the current requester/session.
+- Use the fixed golden sites: Byron `45 Broken Head Road, Byron Bay NSW 2481` / SP3 and Kempsey `52 Belgrave St, Kempsey NSW 2440` / E2.
+- Use only explicitly approved pilot proposal briefs. Recommended low-complexity briefs:
+  - Byron: `Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.`
+  - Kempsey: `Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.`
+- Save a cited current-site Quick Site Check first. Generate the Detailed Planning Pack from that saved QSC. Generate SEE only if the pack is commercial-ready; otherwise preserve the unresolved pack and exercise the consultant-referral branch honestly.
+- Replace the protected GitHub environment project-ID variables only after each fresh project's site identity and normal workspace access are verified. Never place IDs or secrets in public logs beyond the approved safe summary contract.
+- Rerun the protected audit on the exact deployed commit and record the new safe artifact.
+
+Approval boundary: creating projects, setting production sites, and generating/saving QSC/DPP/SEE or referral artefacts are intentional production mutations and may invoke retrieval/model workflows. They require explicit user approval for these exact two sites and proposal briefs before execution.
+
+Success signal: each protected-audit golden ID opens in the normal product workspace for the current requester and produces an honest, provenance-valid funnel result through the same UI and APIs a pilot user would use.

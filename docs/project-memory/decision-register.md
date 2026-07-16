@@ -190,3 +190,14 @@ Golden identity validation may canonicalise presentation-only address difference
 Operationally, the protected audit credential must match the effective admin-auth value in precedence order: `ADMIN_ACCESS_TOKEN`, then `INGEST_ADMIN_SECRET`, then `ADMIN_SECRET`. Secret values remain outside repository documentation.
 
 Reference: docs/project-memory/build-next.md Item 54
+
+
+## DR-024 — Commercial Golden Projects Must Be Normal-Workspace Accessible
+
+Status: Active
+
+Decision: An admin-auditable project is not a valid end-to-end commercial golden unless the intended requester can open it through the normal product workspace and create artefacts through the same user-facing APIs as a pilot customer. Historical projects tied to an inaccessible session or owner must not be made public, silently claimed, ownership-backfilled, or given an admin generation bypass merely to satisfy an audit.
+
+When historical golden records are readable only by the protected admin audit, create fresh requester-owned/session-owned pilot projects through the normal production UI after explicit approval. Verify site identity before replacing protected audit project-ID variables. QSC, DPP, SEE, and referral outputs must then be produced through normal provenance and evidence gates; unresolved outputs remain valid product evidence and must not be upgraded.
+
+Reference: docs/project-memory/build-next.md Item 55
