@@ -1345,59 +1345,6 @@ export const hasExactSeeEvidenceProvenance = (
   );
 };
 
-const buildControlAssessment = (")}\\b`, "i").test(citationRef),
-  );
-
-export const hasExactSeeEvidenceProvenance = (
-  memo: WorkspacePreSeePlanningMemoContent,
-  pack: DetailedPlanningPackContent,
-  quickSiteCheck: QuickSiteCheckReport,
-) => {
-  if (!hasApplicableSeeReadinessEvidence(memo)) return false;
-
-  const allowedDcpRefs = new Set(
-    pack.dcpEvidence
-      .flatMap((topic) => topic.citations)
-      .map((citation) => citation.ref.trim())
-      .filter(Boolean),
-  );
-  const memoDcpClauses = memo.applicableControls.dcpClauses ?? [];
-  if (
-    memoDcpClauses.length === 0 ||
-    memoDcpClauses.some((clause) => !clause.ref?.trim() || !allowedDcpRefs.has(clause.ref.trim()))
-  ) {
-    return false;
-  }
-
-  const verifiedControls = sanitiseQuickSiteLepControls(quickSiteCheck.controls);
-  const allowedLepClauseRefs = new Set(
-    [
-      verifiedControls.heightOfBuilding,
-      verifiedControls.floorSpaceRatio,
-      verifiedControls.minimumLotSize,
-    ]
-      .filter(hasVerifiedLepControlEvidence)
-      .map((control) => control.clauseRef.trim()),
-  );
-  if (
-    quickSiteCheck.lepEvidenceSummary?.label === "Cited" &&
-    quickSiteCheck.permissibility &&
-    quickSiteCheck.lepInstrument?.name
-  ) {
-    allowedLepClauseRefs.add("2.3");
-  }
-
-  return (memo.consistencyAssessment ?? []).every((item) =>
-    (item.citations ?? []).every((citation) =>
-      citation.type === "DCP"
-        ? allowedDcpRefs.has(citation.ref.trim())
-        : citation.type === "LEP" &&
-          citationMatchesLepClause(citation.ref.trim(), allowedLepClauseRefs),
-    ),
-  );
-};
-
-
 const buildControlAssessment = (
   label: string,
   interpretation: string,
