@@ -749,10 +749,10 @@ Checks recorded for merged PR #293:
 
 Production-safe operator runbook:
 
-1. Confirm the audited deployment and code identity before querying production: use merge commit `9e1cffed5c34f12767210c83760adcc0f48327b4` (PR #293) and Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/9nknpTUpsUpQpE1cPU7Cju54W6c3`. Set `PLANNERA_AUDIT_EXPECTED_COMMIT=9e1cffed5c34f12767210c83760adcc0f48327b4` for the eventual approved run.
+1. Confirm the audited deployment and code identity before querying production. For the protected remote lane added in Item 53, dispatch only from `main` after the exact `main` SHA has a green Vercel deployment; the workflow derives `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`, so operators must not supply an arbitrary expected commit.
 2. Use only approved existing production projects for the two golden chains: Byron `45 Broken Head Road, Byron Bay NSW 2481` with current-site zone `SP3 Tourist`, and Kempsey `52 Belgrave St, Kempsey NSW 2440` with current-site zone `E2 Commercial Centre`.
 3. Never create a project, update a project, generate or regenerate Quick Site Check / Detailed Planning Pack / SEE / referral artefacts, invoke OpenAI, ingest legislation/DCP, or otherwise mutate production data while performing this audit.
-4. Call the deployed protected GET endpoint for each approved project and prefer the header form so the admin secret is not placed in URLs, browser history, analytics, proxy logs, screenshots, or shell history: `curl -sS -H "x-admin-token: $INGEST_ADMIN_SECRET" "https://plannera-ab.vercel.app/api/admin/commercial-funnel-audit?projectId=<approved-existing-project-id>"`.
+4. Use the protected manual GitHub Actions lane from Item 53 rather than local shells, chat, browser calls, or ad hoc HTTP commands. The admin token must stay in the protected GitHub environment secret, project IDs must stay in GitHub variables, and only the validated safe JSON artifact should be downloaded/stored.
 5. Do not commit or paste secrets, full JSON payloads, DCP/LEP excerpts, artefact body text, project owner/contact details, emails, phone numbers, or other contact data into repo docs. Store raw responses only in approved private operational systems if needed.
 6. In this file, record only the safe audit summary needed to close or keep open the gate: `checkedAt`, project/site identity sufficient to distinguish Byron vs Kempsey without contact data, deployment URL, commit SHA, QSC/DPP/SEE states, exact saved artefact IDs, exact source QSC/DPP IDs, `referralEligibility`, and `nextAction` reason codes.
 7. Treat Byron and Kempsey as independent gates. Byron `45 Broken Head Road` SP3 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, and Kempsey `52 Belgrave St` E2 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, before this item can move to DONE.
@@ -760,3 +760,37 @@ Production-safe operator runbook:
 9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the deployed PR #293 merge commit.
 
 Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live runner execution or live result has been captured in repo documentation yet. Byron and Kempsey must independently pass before this item can move to DONE.
+
+## 53) Protected remote commercial funnel audit execution lane — IN REVIEW (2026-07-16)
+
+Purpose: provide a secure, manually dispatched GitHub Actions lane for the already-merged fail-closed Item 52 commercial funnel audit runner, so the approved live Byron/Kempsey audit can be run without pasting the private admin token into chat and without local execution.
+
+Status: IN REVIEW. No live workflow dispatch occurred in Codex, no production endpoint was called, no project IDs were discovered or hardcoded, no projects were created, no production data was mutated, and the Item 52 live saved-output/commercial audit gate remains OPEN. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
+
+Files changed in this slice:
+
+- `.github/workflows/commercial-funnel-live-audit.yml` — adds a `workflow_dispatch`-only protected environment lane requiring exact confirmation `RUN APPROVED READ-ONLY AUDIT`, `main` branch guard, read-only contents permission, non-cancelling concurrency, 10-minute timeout, immutable official action pins, `npm ci --ignore-scripts`, exactly one execution of `./node_modules/.bin/tsx scripts/audit-commercial-funnel.ts`, stdout capture to `commercial-funnel-audit.json`, JSON validation before display/upload, 14-day safe summary artifact retention, and final exit-0-only enforcement.
+- `tests/commercial-funnel-audit-workflow.test.ts` — static Node contract coverage for manual-only trigger, protected environment, main-only guard, approved vars/secret mapping, `github.sha` expected commit, exact runner invocation, forbidden commands/surfaces, JSON validation, safe artifact upload, final gate policy, and official full-SHA action pins.
+- `README.md` — adds protected remote-run setup and operator steps without secret or project values.
+- `docs/project-memory/decision-register.md` — adds DR-022 for the protected manual remote audit lane policy.
+
+Pinned official action SHAs selected for this lane:
+
+- `actions/checkout` v6.0.2 — `de0fac2e4500dabe0009e67214ff5f5447ce83dd`.
+- `actions/setup-node` v6.4.0 — `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
+- `actions/upload-artifact` v7.0.1 — `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`.
+
+Configuration still required before operators can run the lane: create/protect the GitHub environment `commercial-funnel-audit`, add the secret `PLANNERA_AUDIT_ADMIN_TOKEN`, add the variables `PLANNERA_AUDIT_BASE_URL`, `PLANNERA_BYRON_PROJECT_ID`, and `PLANNERA_KEMPSEY_PROJECT_ID`, verify the exact `main` SHA's Vercel deployment is green, and dispatch from `main` with confirmation `RUN APPROVED READ-ONLY AUDIT`. The workflow derives `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`; operators must not supply an arbitrary expected commit.
+
+Checks for this slice:
+
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts` — 6 focused workflow contract tests passed.
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts tests/commercial-funnel-audit-runner.test.ts` — 12 focused workflow plus existing runner tests passed.
+- PASS: `ruby -e "require 'yaml'; YAML.load_file('.github/workflows/commercial-funnel-live-audit.yml'); puts 'YAML parsed'"` — non-executing YAML syntax parse/check completed for `.github/workflows/commercial-funnel-live-audit.yml`.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm test` — full suite passed with 77 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run build`.
+- NOT RERUN FOR REVIEW CORRECTION: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` — intentionally not run again per review instruction; prior Item 53 verification had already recorded the known Codex Cloud `P1001` limitation.
+
+Gate status: OPEN. Item 52 remains LIVE AUDIT OPEN until approved operators run the protected remote lane and the safe artifact proves both Byron SP3 and Kempsey E2 golden chains independently passed on the deployed `main` SHA.
