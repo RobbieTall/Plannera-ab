@@ -900,5 +900,5 @@ Focused regression coverage:
 
 Evidence boundary: this hardens deterministic persistence and handoff invariants. It does not prove live Byron/Kempsey planning-data accuracy, create production artefacts, close Item 52/55, or unlock Item 40 billing/auth. No local build or test command is run; the secret-free Commercial Funnel Golden Gate and Vercel preview are the review authority.
 
-Verification status: pending the Item 57 pull-request run on the final branch head.
+Verification evidence: no local build or test command was run, per operator instruction. Initial PR review run [29505222238](https://github.com/RobbieTall/Plannera-ab/actions/runs/29505222238), job `87644106899`, passed the lifecycle-script-free install, database-free Prisma generation, and complete `test:commercial-funnel` command on head `a906f789e33154156bb753eff0912bce6d5147cd`. Vercel preview `BY9cWkMDtAuZDkioUbo1Y7wQqUUi` also passed. The documentation evidence commit must retain a green final-head golden gate and Vercel check before merge.
 
