@@ -854,3 +854,22 @@ Decision for the next production action:
 Approval boundary: creating projects, setting production sites, and generating/saving QSC/DPP/SEE or referral artefacts are intentional production mutations and may invoke retrieval/model workflows. They require explicit user approval for these exact two sites and proposal briefs before execution.
 
 Success signal: each protected-audit golden ID opens in the normal product workspace for the current requester and produces an honest, provenance-valid funnel result through the same UI and APIs a pilot user would use.
+
+## 56) Deterministic Byron/Kempsey commercial funnel golden CI — IN REVIEW (2026-07-16)
+
+Purpose: make the evidence-gated QSC → Detailed Planning Pack → SEE/referral contract an ordinary remote pull-request check while live saved-output work remains blocked. The repository previously relied on Vercel deployment status plus fragmented focused tests; there was no secret-free CI check that persisted both launch-LGA chains through the real artefact services and then evaluated the saved result with the production audit logic.
+
+Implementation in this slice:
+
+- `tests/commercial-funnel-golden.test.ts` uses an in-memory Prisma-compatible repository and the real `createQuickSiteCheckArtefact`, `createDetailedPlanningPackArtefact`, `createPreSeePlanningMemoArtefact`, `createExpertReviewRequestArtefact`, and `auditCommercialFunnel` functions.
+- The fixed Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 sites use the exact low-complexity pilot briefs recorded in Item 55.
+- Byron and Kempsey each prove a persisted cited QSC → five-topic cited DPP → DPP-derived SEE → consultant handoff → `quality_chain_referral` audit result with exact QSC/DPP/SEE provenance.
+- A separate Kempsey evidence-gap journey removes parking/access evidence, proves the DPP remains unresolved, SEE generation rejects without persistence, the review package omits SEE and disclaims readiness, and the audit returns `unresolved_pack_referral`.
+- `tests/commercial-funnel-golden-workflow.test.ts` fails closed if the workflow gains secrets, a protected environment, database/build/deploy/model/live-audit commands, unpinned actions, or loses the required commercial tests.
+- `npm run test:commercial-funnel` runs the new journeys plus existing QSC persistence, DPP/SEE generation, next-action, referral/handoff, audit helper/route, audit runner, and workflow-contract regressions.
+- `.github/workflows/commercial-funnel-golden.yml` runs that focused command on pull requests, pushes to `main`, and manual dispatch. It uses read-only repository permission, immutable action pins, `npm ci --ignore-scripts`, an explicit database-free Prisma client generation step, no secrets, and no build or production access.
+
+Evidence boundary: this is deterministic non-production regression evidence only. It must not be reported as live planning-data accuracy, live saved-output success, deployment success, or production commercial readiness. Item 52 remains OPEN, Item 55 remains blocked on an explicitly approved normal-product production run, and Item 40 billing/auth remains deferred.
+
+Verification for this slice: no local build or test command was run, per operator instruction. The new GitHub Actions check is the authoritative execution surface and must pass on the review PR before merge.
+
