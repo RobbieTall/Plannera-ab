@@ -57,6 +57,18 @@ const validCount = (v: unknown): v is number => typeof v === "number" && Number.
 const stringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((item) => typeof item === "string");
 const enumValue = <T extends readonly string[]>(v: unknown, values: T): v is T[number] => typeof v === "string" && values.includes(v);
 const canonicalIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) && new Date(v).toISOString() === v;
+const canonicalAddress = (value: string | null) => value
+  ?.toLowerCase()
+  .replace(/\baustralia\b/g, "")
+  .replace(/\broad\b/g, "rd")
+  .replace(/\bstreet\b/g, "st")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim() ?? "";
+const canonicalLga = (value: string | null) => value
+  ?.toUpperCase()
+  .replace(/\b(SHIRE|CITY|REGIONAL|COUNCIL)\b/g, " ")
+  .replace(/[^A-Z0-9]+/g, " ")
+  .trim() ?? "";
 const contractFailure = (reasons: string[]) => reasons.map((reason) => `contract_${reason}`).sort();
 
 export function parseAuditEnv(env: AuditRunnerEnv) {
@@ -145,8 +157,9 @@ function validateContract(payload: unknown): ContractResult {
 function evaluateGolden(audit: AuditContract, requestedId: string, golden: GoldenConfig): ProjectSummary {
   const reasons: string[] = [];
   if (requestedId !== audit.project.id && requestedId !== audit.project.publicId) reasons.push("response_project_id_mismatch");
-  if (audit.site.address !== golden.address) reasons.push("site_address_mismatch");
-  if (audit.site.lgaCode !== golden.lgaCode) reasons.push("site_lga_mismatch");
+  if (canonicalAddress(audit.site.address) !== canonicalAddress(golden.address)) reasons.push("site_address_mismatch");
+  const lgaCandidates = [audit.site.lgaCode, audit.site.lgaName].map(canonicalLga).filter(Boolean);
+  if (!lgaCandidates.includes(canonicalLga(golden.lgaCode))) reasons.push("site_lga_mismatch");
   if (audit.site.zoneCode !== golden.zoneCode) reasons.push("site_zone_mismatch");
   if (audit.quickSiteCheck.state !== "ready") reasons.push("qsc_not_ready");
   if (!nonEmpty(audit.quickSiteCheck.artefactId)) reasons.push("qsc_artefact_missing");

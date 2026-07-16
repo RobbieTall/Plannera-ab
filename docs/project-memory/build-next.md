@@ -759,13 +759,17 @@ Production-safe operator runbook:
 8. Record honest failures exactly as returned: missing, unresolved, stale/mismatched, malformed, legacy, broken-provenance, or other non-ready reason codes are valid audit outcomes and must not be hidden or repaired during the audit run. Do not regenerate anything to make the audit pass.
 9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the exact dispatched main SHA with a green Vercel deployment.
 
-Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live runner execution or live result has been captured in repo documentation yet. Byron and Kempsey must independently pass before this item can move to DONE.
+Protected live evidence (2026-07-16): GitHub Actions [run 29492417071, attempt 2](https://github.com/RobbieTall/Plannera-ab/actions/runs/29492417071) was approved through the `commercial-funnel-audit` environment and audited exact deployed `main` commit `c723a8932e697e7f86860eb57f02f551ab6baf5e`. Dependency install, read-only runner execution, safe JSON validation/print, and artifact upload all passed. The runner returned controlled exit `2`, so the final fail-closed gate failed as designed. Safe artifact `8373345476` is 958 bytes, expires 2026-07-30, and has digest `sha256:7080d322dc8f9d6bd3700e691e0a33fb876a585a751da42b685829b35384fa9b`.
+
+The authenticated audit returned valid contracts for both approved projects. Byron `cmrkg5g320000l204s3cz3kj0` resolved SP3 and Kempsey `cmrkg7izz0005ld04dqz3t6rx` resolved E2, but each reported `quickSiteCheck.state=missing`, `detailedPlanningPack.state=missing`, `see.state=missing`, `referralEligibility=none`, and next action `generate_or_refresh_required_chain` with `qsc_missing`, `dpp_missing`, and `see_missing`. No production data was mutated. The runner also exposed audit-only identity false negatives: production addresses use canonical abbreviations plus `, Australia`, and both safe summaries carried `lgaCode=null`. Item 54 separates those representation issues from the real missing-chain result.
+
+Gate status: OPEN with valid live evidence. Item 52 is no longer awaiting its first execution, but neither Byron nor Kempsey passes. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred until normal-product saved chains pass independently.
 
 ## 53) Protected remote commercial funnel audit execution lane — DONE/MERGED/DEPLOYED (2026-07-16)
 
 Purpose: provide a secure, manually dispatched GitHub Actions lane for the already-merged fail-closed Item 52 commercial funnel audit runner, so the approved live Byron/Kempsey audit can be run without pasting the private admin token into chat and without local execution.
 
-Status: DONE/MERGED/DEPLOYED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. This is a lane-only deployment, not a live audit result. No live workflow dispatch occurred, no production endpoint was called, no project IDs were discovered or hardcoded, no projects were created, no production data was mutated, and the Item 52 live saved-output/commercial audit gate remains OPEN. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
+Status: DONE/MERGED/DEPLOYED/CONFIGURED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. The protected environment was subsequently configured with required-reviewer approval, main-only deployment policy, the private audit secret, and the three required variables. Run `29492417071` proved the lane executes safely; attempt 2 authenticated and produced the valid non-ready Item 52 evidence above. No projects were created and no production data was mutated. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
 
 Files changed in this slice:
 
@@ -780,7 +784,7 @@ Pinned official action SHAs selected for this lane:
 - `actions/setup-node` v6.4.0 — `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
 - `actions/upload-artifact` v7.0.1 — `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`.
 
-Configuration still required before operators can run the lane: create/protect the GitHub environment `commercial-funnel-audit`, add the secret `PLANNERA_AUDIT_ADMIN_TOKEN`, add the variables `PLANNERA_AUDIT_BASE_URL`, `PLANNERA_BYRON_PROJECT_ID`, and `PLANNERA_KEMPSEY_PROJECT_ID`, verify the exact `main` SHA's Vercel deployment is green, and dispatch from `main` with confirmation `RUN APPROVED READ-ONLY AUDIT`. The workflow derives `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`; operators must not supply an arbitrary expected commit.
+Configuration completed on 2026-07-16: the protected GitHub environment `commercial-funnel-audit` has required reviewer `RobbieTall`, administrator bypass disabled, selected-branch policy limited to `main`, secret `PLANNERA_AUDIT_ADMIN_TOKEN`, and variables `PLANNERA_AUDIT_BASE_URL`, `PLANNERA_BYRON_PROJECT_ID`, and `PLANNERA_KEMPSEY_PROJECT_ID`. Secret values remain undocumented. The effective production admin credential follows `ADMIN_ACCESS_TOKEN` → `INGEST_ADMIN_SECRET` → `ADMIN_SECRET` precedence; the audit secret must match the first configured value. The workflow continues to derive `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`.
 
 Checks for this slice:
 
@@ -795,4 +799,27 @@ Checks for this slice:
 - PASS: Vercel reported success for merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` at `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`.
 - NOT RERUN FOR REVIEW CORRECTION: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` — intentionally not run again per review instruction; prior Item 53 verification had already recorded the known Codex Cloud `P1001` limitation.
 
-Gate status: OPEN. Item 52 remains LIVE AUDIT OPEN until approved operators run the protected remote lane and the safe artifact proves both Byron SP3 and Kempsey E2 golden chains independently passed on the deployed `main` SHA.
+Lane status: DONE. Item 52 commercial readiness remains OPEN because the protected run returned valid exit `2`; both approved saved chains are missing.
+
+
+## 54) Live golden identity hardening and saved-output remediation — IN REVIEW (2026-07-16)
+
+Purpose: act on the first valid protected production audit without weakening its fail-closed contract or manufacturing readiness. This slice fixes representation-only identity mismatches, records the live result, and leaves the real missing QSC → DPP → SEE chains visible.
+
+Current slice:
+
+- Canonicalise only known safe address presentation differences for golden identity comparison: case/punctuation, `Road`/ `Rd`, `Street`/ `St`, whitespace, and the optional `Australia` suffix. Site number, locality, postcode, zone, and approved project identifier must still match.
+- Accept the audit contract's `lgaName` as a fallback when `lgaCode` is null, after removing council-type suffixes such as `Shire` and `Council`. Missing or conflicting LGA identity still fails.
+- Preserve all real readiness failures. Canonical identity matching cannot upgrade missing, unresolved, stale/mismatched, malformed, uncited, broken-provenance, or legacy artefacts.
+- Add focused runner regression coverage for the exact Byron/Kempsey production formatting observed in run `29492417071`.
+- Reconcile `README.md`, this execution queue, and the decision register with the protected run, safe artifact, auth precedence, and open gate.
+- No local build, production project creation, artefact generation, OpenAI call, ingest, database write, payment/auth work, or production mutation is included.
+
+After merge/deploy:
+
+1. Rerun the same protected read-only audit to confirm the identity-only reasons disappear while the missing-chain reasons remain.
+2. Through the normal user-facing product workflow, use a real user-approved proposal brief for each approved golden project, then save a cited current-site Quick Site Check, generate the Detailed Planning Pack, and generate SEE only when the pack is commercial-ready. This is an intentional production action and must not be performed by the audit or an admin backfill.
+3. Rerun the protected audit. Byron and Kempsey must independently return exact current-site provenance and runner exit `0` before Item 52 can close.
+4. Only after that evidence may Item 40 billing/auth/payment gating be reconsidered.
+
+Success signal: the audit distinguishes harmless production formatting from site-identity mistakes, then passes only after genuine normal-product saved chains exist for both approved golden projects.
