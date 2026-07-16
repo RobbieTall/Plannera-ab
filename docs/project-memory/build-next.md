@@ -761,11 +761,11 @@ Production-safe operator runbook:
 
 Gate status: OPEN. Awaiting approved live audit summaries for both Byron SP3 and Kempsey E2; no live runner execution or live result has been captured in repo documentation yet. Byron and Kempsey must independently pass before this item can move to DONE.
 
-## 53) Protected remote commercial funnel audit execution lane — IN REVIEW (2026-07-16)
+## 53) Protected remote commercial funnel audit execution lane — DONE/MERGED/DEPLOYED (2026-07-16)
 
 Purpose: provide a secure, manually dispatched GitHub Actions lane for the already-merged fail-closed Item 52 commercial funnel audit runner, so the approved live Byron/Kempsey audit can be run without pasting the private admin token into chat and without local execution.
 
-Status: IN REVIEW. No live workflow dispatch occurred in Codex, no production endpoint was called, no project IDs were discovered or hardcoded, no projects were created, no production data was mutated, and the Item 52 live saved-output/commercial audit gate remains OPEN. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
+Status: DONE/MERGED/DEPLOYED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. This is a lane-only deployment, not a live audit result. No live workflow dispatch occurred, no production endpoint was called, no project IDs were discovered or hardcoded, no projects were created, no production data was mutated, and the Item 52 live saved-output/commercial audit gate remains OPEN. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
 
 Files changed in this slice:
 
@@ -791,6 +791,8 @@ Checks for this slice:
 - PASS: `npx tsc --noEmit`.
 - PASS: `npm test` — full suite passed with 77 Node tests plus 48 Vitest files / 225 Vitest tests.
 - PASS: `npm run build`.
+- PASS: PR #295 squash-merged to `main` at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916`; the reviewed final head was `fb752ea50ae307907549b945f6e7160920a806be` and the merged diff remained exactly five intended files.
+- PASS: Vercel reported success for merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` at `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`.
 - NOT RERUN FOR REVIEW CORRECTION: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` — intentionally not run again per review instruction; prior Item 53 verification had already recorded the known Codex Cloud `P1001` limitation.
 
 Gate status: OPEN. Item 52 remains LIVE AUDIT OPEN until approved operators run the protected remote lane and the safe artifact proves both Byron SP3 and Kempsey E2 golden chains independently passed on the deployed `main` SHA.
