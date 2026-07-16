@@ -4,6 +4,7 @@ import {
   artefactRecencyMs,
   currentScopeForProject,
   hasApplicableSeeReadinessEvidence,
+  hasExactSeeEvidenceProvenance,
   parsePreSeePlanningMemoContent,
   quickSiteCheckReportSchema,
   resolveCurrentDetailedPlanningPackChain,
@@ -121,6 +122,7 @@ export async function auditCommercialFunnel(projectIdentifier: string, deps: { p
     memo.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId === active.quickSiteCheckArtefact.id &&
     isArtefactCurrentForSite(currentScope, preSeeScope(memo)) &&
     isArtefactCurrentForSite(detailedPlanningPackScope(active.pack), preSeeScope(memo)) &&
+    hasExactSeeEvidenceProvenance(memo, active.pack, active.quickSiteCheck) &&
     countApplicableSeeEvidence(memo) > 0,
   )) : undefined;
   const newestSee = seeDiagnostics[0];

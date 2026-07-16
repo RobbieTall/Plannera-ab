@@ -23,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
 import {
   ArtefactValidationError,
   createExpertReviewRequestArtefact,
+  sanitiseQuickSiteLepControls,
 } from "@/lib/artefact-service";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { DetailedPlanningPackContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
@@ -81,6 +82,7 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
       value: "9m",
       present: true,
       source: "Byron LEP 2014",
+      lepSource: true,
       clauseRef: "4.3",
       interpretation: "Cited maximum building height is 9m.",
       confidence: "Cited",
@@ -97,6 +99,7 @@ const quickSiteCheckPayload: QuickSiteCheckReport = {
       value: "40ha",
       present: true,
       source: "Byron LEP 2014",
+      lepSource: true,
       clauseRef: "4.1",
       interpretation: "Minimum lot size is mapped as 40ha.",
       confidence: "Cited",
@@ -173,9 +176,9 @@ const seePayload = (overrides: Partial<WorkspacePreSeePlanningMemoContent> = {})
   },
   proposedWorksSummary: "Alterations and additions to tourist accommodation.",
   applicableControls: {
-    lepInstrument: { name: "Byron LEP 2014" },
-    permissibility: { landUse: "tourist accommodation", status: "permitted with consent", interpretation: "Consent required." },
-    quickSiteControls: {},
+    lepInstrument: quickSiteCheckPayload.lepInstrument,
+    permissibility: quickSiteCheckPayload.permissibility,
+    quickSiteControls: sanitiseQuickSiteLepControls(quickSiteCheckPayload.controls),
     dcpClauses: [
       {
         ref: "Byron DCP 2014 D1.2",
@@ -185,17 +188,40 @@ const seePayload = (overrides: Partial<WorkspacePreSeePlanningMemoContent> = {})
         score: 12,
       },
     ],
-    sourceExcerpts: [],
+    sourceExcerpts: [
+      {
+        id: "tourist_setbacks:Byron DCP 2014 D1.2",
+        heading: "Tourist setbacks",
+        sourceType: "detailed_planning_pack",
+        content: "Setbacks for tourist accommodation must respond to the coastal character.",
+        score: 12,
+      },
+    ],
   },
   consistencyAssessment: [
     {
-      topic: "Building height",
-      assessment: "The proposal should be checked against the 9m height control.",
+      topic: "Land use permissibility",
+      assessment: quickSiteCheckPayload.permissibility!.interpretation,
+      citations: [{ ref: "Byron LEP 2014 cl. 2.3", type: "LEP" }],
+    },
+    {
+      topic: "Height of building",
+      assessment: quickSiteCheckPayload.controls.heightOfBuilding.interpretation,
       citations: [{ ref: "Byron LEP 2014 cl. 4.3", type: "LEP" }],
     },
     {
+      topic: "Floor space ratio",
+      assessment: "Not found in retrieved LEP data",
+      citations: [],
+    },
+    {
+      topic: "Minimum lot size",
+      assessment: quickSiteCheckPayload.controls.minimumLotSize.interpretation,
+      citations: [{ ref: "Byron LEP 2014 cl. 4.1", type: "LEP" }],
+    },
+    {
       topic: "Tourist setbacks",
-      assessment: "Setbacks require planner review against the DCP.",
+      assessment: "SP3 tourist setbacks cited from the DCP.",
       citations: [{ ref: "Byron DCP 2014 D1.2", type: "DCP" }],
     },
   ],
@@ -380,6 +406,60 @@ describe("createExpertReviewRequestArtefact", () => {
     expect(result.content.includedArtefacts.map((artefact) => artefact.type)).toEqual(["quick_site_check", "detailed_planning_pack"]);
     expect(result.content.sourceSeeMemo).toBeNull();
     expect(result.content.missingInputs).toContain("Matching SEE generated from the current Detailed Planning Pack");
+  });
+
+  it("does not promote forged LEP controls or altered SEE snapshots into review evidence", async () => {
+    const forgedQuickSiteCheck: QuickSiteCheckReport = {
+      ...quickSiteCheckPayload,
+      controls: {
+        ...quickSiteCheckPayload.controls,
+        heightOfBuilding: {
+          ...quickSiteCheckPayload.controls.heightOfBuilding,
+          value: "99m",
+          present: true,
+          lepSource: false,
+          clauseRef: "FAKE 4.3",
+          confidence: "Cited",
+          interpretation: "Forged client height.",
+        },
+      },
+    };
+    const baseSee = seePayload();
+    const alteredSee = seePayload({
+      applicableControls: {
+        ...baseSee.applicableControls,
+        quickSiteControls: {
+          ...baseSee.applicableControls.quickSiteControls,
+          heightOfBuilding: {
+            ...baseSee.applicableControls.quickSiteControls.heightOfBuilding,
+            value: "99m",
+          },
+        },
+      },
+    });
+    const { deps } = makeDeps([
+      qscArtefact(forgedQuickSiteCheck),
+      dppArtefact(),
+      seeArtefact(alteredSee),
+    ]);
+
+    const result = await createExpertReviewRequestArtefact(
+      { body: { projectId: project.publicId }, userId: "user-1" },
+      deps,
+    );
+
+    expect(result.content.includedArtefacts.map((artefact) => artefact.type)).toEqual([
+      "quick_site_check",
+      "detailed_planning_pack",
+    ]);
+    expect(result.content.sourceSeeMemo).toBeNull();
+    expect(result.content.citedSources).not.toContainEqual({ ref: "FAKE 4.3", type: "LEP" });
+    expect(result.content.confidenceGaps).toContain(
+      "Height of building: Not found in retrieved LEP data",
+    );
+    expect(result.content.missingInputs).toContain(
+      "Matching SEE generated from the current Detailed Planning Pack",
+    );
   });
 
   it("rejects legacy QSC plus SEE without DPP provenance and persists no review", async () => {

@@ -20,7 +20,8 @@ import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
-import type { QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { QuickSiteCheckControl, QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { LepControlValue } from "@/types/quick-site-check-lep";
 import type { DetailedPlanningPackContent, FeasibilityContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
 
 export const DEV_BYPASS_USER_ID = "dev-bypass-user";
@@ -306,27 +307,151 @@ export const extractNumericControlValue = (clause: LepClauseContext | null) => {
   return null;
 };
 
+const unavailableLepControl = (control: QuickSiteCheckControl): QuickSiteCheckControl => ({
+  ...control,
+  value: null,
+  present: false,
+  source: "Not in retrieved data",
+  lepSource: false,
+  clauseRef: null,
+  detail: null,
+  confidence: "Unavailable",
+  interpretation: "Not found in retrieved LEP data",
+});
+
+export const hasVerifiedLepControlEvidence = (
+  control: QuickSiteCheckControl | null | undefined,
+): control is QuickSiteCheckControl & { value: string; clauseRef: string; lepSource: true } =>
+  Boolean(
+    control?.lepSource === true &&
+    control.present &&
+    control.value?.trim() &&
+    control.clauseRef?.trim(),
+  );
+
+export const sanitiseQuickSiteLepControls = (
+  controls: QuickSiteCheckReport["controls"],
+): QuickSiteCheckReport["controls"] => ({
+  ...controls,
+  heightOfBuilding: hasVerifiedLepControlEvidence(controls.heightOfBuilding)
+    ? { ...controls.heightOfBuilding, confidence: "Cited" }
+    : unavailableLepControl(controls.heightOfBuilding),
+  floorSpaceRatio: hasVerifiedLepControlEvidence(controls.floorSpaceRatio)
+    ? { ...controls.floorSpaceRatio, confidence: "Cited" }
+    : unavailableLepControl(controls.floorSpaceRatio),
+  minimumLotSize: hasVerifiedLepControlEvidence(controls.minimumLotSize)
+    ? { ...controls.minimumLotSize, confidence: "Cited" }
+    : unavailableLepControl(controls.minimumLotSize),
+});
+
+export const hasVerifiedLepPermissibilityEvidence = (report: QuickSiteCheckReport) =>
+  Boolean(
+    report.lepEvidenceSummary?.label === "Cited" &&
+    report.lepEvidenceSummary.objectiveCount > 0 &&
+    report.lepEvidenceSummary.landUseEntryCount > 0 &&
+    report.permissibility &&
+    report.lepInstrument?.name,
+  );
+
+const canonicalEvidenceValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalEvidenceValue);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, canonicalEvidenceValue(entry)]),
+  );
+};
+
+const hasSameEvidenceSnapshot = (left: unknown, right: unknown) =>
+  JSON.stringify(canonicalEvidenceValue(left)) === JSON.stringify(canonicalEvidenceValue(right));
+
 const withRealLepControl = (
-  control: QuickSiteCheckReport["controls"]["heightOfBuilding"],
+  control: QuickSiteCheckControl,
   clause: LepClauseContext | null,
-) => {
-  if (!clause) return { ...control, lepSource: false };
-
+  structuredControl?: LepControlValue | null,
+): QuickSiteCheckControl => {
   const parsedValue = extractNumericControlValue(clause);
-  if (!parsedValue) return { ...control, lepSource: false };
+  const hasStructuredCitedValue = Boolean(
+    structuredControl?.confidence === "Cited" &&
+    structuredControl.value?.trim() &&
+    structuredControl.clauseRef?.trim(),
+  );
 
-  const clauseTitle = clause.title ? `${clause.ref}: ${clause.title}` : clause.ref;
+  if (!parsedValue && !hasStructuredCitedValue) {
+    return unavailableLepControl(control);
+  }
+
+  const value = parsedValue ?? structuredControl!.value;
+  const clauseRef = parsedValue ? clause!.ref : structuredControl!.clauseRef;
+  const sourceDetail = clause
+    ? truncatePromptText(clause.text)
+    : structuredControl?.sourceRef ?? null;
+  const clauseTitle = clause?.title
+    ? `${clauseRef}: ${clause.title}`
+    : clauseRef;
 
   return {
     ...control,
-    value: parsedValue,
+    value,
     present: true,
-    clauseRef: clause.ref,
-    detail: truncatePromptText(clause.text),
+    clauseRef,
+    detail: sourceDetail,
     source: "lep",
     lepSource: true,
-    interpretation: `${control.label} is ${parsedValue} based on retrieved LEP clause ${clauseTitle}. Verify the mapped value against the official LEP map before lodgement.`,
-  } satisfies QuickSiteCheckReport["controls"][keyof QuickSiteCheckReport["controls"]];
+    confidence: "Cited",
+    interpretation: `${control.label} is ${value} based on retrieved LEP evidence ${clauseTitle}. Verify the mapped value against the official LEP map before lodgement.`,
+  };
+};
+
+const withRealDcpControl = (
+  control: QuickSiteCheckControl | undefined,
+  label: string,
+  structuredControl?: LepControlValue | null,
+): QuickSiteCheckControl | undefined => {
+  if (!control && !structuredControl) return undefined;
+
+  const baseControl = control ?? {
+    label,
+    value: null,
+    present: false,
+    interpretation: "Not found in retrieved DCP data",
+  };
+  const hasStructuredCitedValue = Boolean(
+    structuredControl?.confidence === "Cited" &&
+    structuredControl.value?.trim() &&
+    structuredControl.clauseRef?.trim(),
+  );
+
+  if (!hasStructuredCitedValue) {
+    return {
+      ...baseControl,
+      label,
+      value: null,
+      present: false,
+      source: "Not in retrieved data",
+      lepSource: false,
+      clauseRef: null,
+      detail: structuredControl?.sourceRef ?? null,
+      confidence: "Unavailable",
+      interpretation: "Not found in retrieved DCP data",
+    };
+  }
+
+  return {
+    ...baseControl,
+    label,
+    value: structuredControl!.value,
+    present: true,
+    source: "dcp",
+    lepSource: false,
+    clauseRef: structuredControl!.clauseRef,
+    detail: structuredControl?.sourceRef ?? null,
+    confidence: "Cited",
+    interpretation: `${label} is ${structuredControl!.value} based on retrieved DCP evidence ${structuredControl?.sourceRef ?? structuredControl!.clauseRef}. Verify the current DCP before lodgement.`,
+  };
 };
 
 const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment: LepEnrichment): QuickSiteCheckReport => {
@@ -373,9 +498,48 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
       : report.permissibility ?? null,
     controls: {
       ...report.controls,
-      heightOfBuilding: withRealLepControl(report.controls.heightOfBuilding, heightClause ?? null),
-      floorSpaceRatio: withRealLepControl(report.controls.floorSpaceRatio, fsrClause ?? null),
-      minimumLotSize: withRealLepControl(report.controls.minimumLotSize, lotSizeClause ?? null),
+      heightOfBuilding: withRealLepControl(
+        report.controls.heightOfBuilding,
+        heightClause ?? null,
+        lepResponse?.controls.heightOfBuilding,
+      ),
+      floorSpaceRatio: withRealLepControl(
+        report.controls.floorSpaceRatio,
+        fsrClause ?? null,
+        lepResponse?.controls.fsr,
+      ),
+      minimumLotSize: withRealLepControl(
+        report.controls.minimumLotSize,
+        lotSizeClause ?? null,
+        lepResponse?.controls.minLotSize,
+      ),
+      ...(report.controls.setback || lepResponse?.controls.setback
+        ? {
+            setback: withRealDcpControl(
+              report.controls.setback,
+              "Setback",
+              lepResponse?.controls.setback,
+            ),
+          }
+        : {}),
+      ...(report.controls.parking || lepResponse?.controls.parking
+        ? {
+            parking: withRealDcpControl(
+              report.controls.parking,
+              "Parking",
+              lepResponse?.controls.parking,
+            ),
+          }
+        : {}),
+      ...(report.controls.activeFrontageBuiltForm || lepResponse?.controls.activeFrontageBuiltForm
+        ? {
+            activeFrontageBuiltForm: withRealDcpControl(
+              report.controls.activeFrontageBuiltForm,
+              "Active frontage and built form",
+              lepResponse?.controls.activeFrontageBuiltForm,
+            ),
+          }
+        : {}),
     },
     lepEvidenceSummary,
   };
@@ -1202,8 +1366,8 @@ export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoC
   );
   const applicableLepRefs = new Set<string>();
   Object.values(memo.applicableControls.quickSiteControls ?? {}).forEach((control) => {
-    const clauseRef = typeof (control as { clauseRef?: unknown })?.clauseRef === "string" ? ((control as { clauseRef: string }).clauseRef).trim() : "";
-    if (!clauseRef) return;
+    if (!hasVerifiedLepControlEvidence(control as QuickSiteCheckControl)) return;
+    const clauseRef = (control as QuickSiteCheckControl).clauseRef!.trim();
     applicableLepRefs.add(clauseRef);
     applicableLepRefs.add(`cl. ${clauseRef}`);
   });
@@ -1216,6 +1380,95 @@ export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoC
   );
   const hasApplicableDcpBody = applicableDcpRefs.size > 0;
   return hasApplicableCitation || hasApplicableDcpBody;
+};
+
+export const hasExactSeeEvidenceProvenance = (
+  memo: WorkspacePreSeePlanningMemoContent,
+  pack: DetailedPlanningPackContent,
+  quickSiteCheck: QuickSiteCheckReport,
+) => {
+  if (
+    !hasApplicableSeeReadinessEvidence(memo) ||
+    memo.projectId !== pack.projectId ||
+    memo.proposedWorksSummary.trim() !== pack.proposalBrief.trim() ||
+    memo.sourceDetailedPlanningPack?.commercialReady !== pack.commercialReady
+  ) {
+    return false;
+  }
+
+  const verifiedControls = sanitiseQuickSiteLepControls(quickSiteCheck.controls);
+  const expectedDcpClauses = pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({
+      ref: citation.ref,
+      title: citation.title ?? null,
+      headingPath: citation.headingPath,
+      bodyText: citation.excerpt,
+      score: citation.score,
+    })),
+  );
+  const expectedSourceExcerpts = pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({
+      id: `${topic.topicId}:${citation.ref}`,
+      heading: citation.title ?? topic.topicLabel,
+      sourceType: "detailed_planning_pack",
+      content: citation.excerpt,
+      score: citation.score,
+    })),
+  );
+  const instrumentName = quickSiteCheck.lepInstrument?.name ?? null;
+  const citationForControl = (control: QuickSiteCheckControl): SeeSourceCitation[] =>
+    hasVerifiedLepControlEvidence(control) && instrumentName
+      ? [{ ref: `${instrumentName} cl. ${control.clauseRef}`, type: "LEP" }]
+      : [];
+  const permissibilityCitations: SeeSourceCitation[] =
+    hasVerifiedLepPermissibilityEvidence(quickSiteCheck) && instrumentName
+      ? [{ ref: `${instrumentName} cl. 2.3`, type: "LEP" }]
+      : [];
+  const expectedConsistencyAssessment = [
+    {
+      topic: "Land use permissibility",
+      assessment:
+        quickSiteCheck.permissibility?.interpretation ??
+        "Permissibility could not be confirmed from the saved Quick Site Check. Confirm the land use against the LEP before relying on this memo.",
+      citations: permissibilityCitations,
+    },
+    {
+      topic: "Height of building",
+      assessment: verifiedControls.heightOfBuilding.interpretation,
+      citations: citationForControl(verifiedControls.heightOfBuilding),
+    },
+    {
+      topic: "Floor space ratio",
+      assessment: verifiedControls.floorSpaceRatio.interpretation,
+      citations: citationForControl(verifiedControls.floorSpaceRatio),
+    },
+    {
+      topic: "Minimum lot size",
+      assessment: verifiedControls.minimumLotSize.interpretation,
+      citations: citationForControl(verifiedControls.minimumLotSize),
+    },
+    ...pack.topicMatrix.map((topic) => ({
+      topic: topic.topicLabel,
+      assessment: topic.summary,
+      citations: topic.sourceRefs.map((ref) => ({ ref, type: "DCP" as const })),
+    })),
+  ];
+
+  return (
+    expectedDcpClauses.length > 0 &&
+    hasSameEvidenceSnapshot(
+      memo.applicableControls.lepInstrument ?? null,
+      quickSiteCheck.lepInstrument ?? null,
+    ) &&
+    hasSameEvidenceSnapshot(
+      memo.applicableControls.permissibility ?? null,
+      quickSiteCheck.permissibility ?? null,
+    ) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.quickSiteControls, verifiedControls) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.dcpClauses, expectedDcpClauses) &&
+    hasSameEvidenceSnapshot(memo.applicableControls.sourceExcerpts, expectedSourceExcerpts) &&
+    hasSameEvidenceSnapshot(memo.consistencyAssessment, expectedConsistencyAssessment)
+  );
 };
 
 const buildControlAssessment = (
@@ -1289,6 +1542,7 @@ export async function createPreSeePlanningMemoArtefact({
   });
   const proposedWorksSummary = resolvedPack.pack.proposalBrief;
   const quickSiteCheck = resolvedPack.quickSiteCheck;
+  const verifiedQuickSiteControls = sanitiseQuickSiteLepControls(quickSiteCheck.controls);
   const lepInstrumentName = quickSiteCheck.lepInstrument?.name ?? null;
   const siteDescription = {
     address: resolvedPack.pack.site.address ?? quickSiteCheck.site.address ?? projectWithContext.siteContext.formattedAddress ?? null,
@@ -1304,33 +1558,37 @@ export async function createPreSeePlanningMemoArtefact({
   if (!dppCitations.length) {
     throw new ArtefactValidationError("The current Detailed Planning Pack has no applicable cited DCP evidence for SEE generation");
   }
-  const citationForControl = (clauseRef: string | null | undefined) => {
-    if (!clauseRef) return [];
-    const ref = buildLepCitationRef(lepInstrumentName, clauseRef);
+  const citationForControl = (control: QuickSiteCheckControl) => {
+    if (!hasVerifiedLepControlEvidence(control)) return [];
+    const ref = buildLepCitationRef(lepInstrumentName, control.clauseRef);
     return ref ? [{ ref, type: "LEP" as const }] : [];
   };
+  const permissibilityCitations =
+    hasVerifiedLepPermissibilityEvidence(quickSiteCheck) && lepInstrumentName
+      ? [{ ref: `${lepInstrumentName} cl. 2.3`, type: "LEP" as const }]
+      : [];
 
   const controlAssessments = [
     buildControlAssessment(
       "Land use permissibility",
       quickSiteCheck.permissibility?.interpretation ??
         "Permissibility could not be confirmed from the saved Quick Site Check. Confirm the land use against the LEP before relying on this memo.",
-      citationForControl("2.3"),
+      permissibilityCitations,
     ),
     buildControlAssessment(
       "Height of building",
-      quickSiteCheck.controls.heightOfBuilding.interpretation,
-      citationForControl(quickSiteCheck.controls.heightOfBuilding.clauseRef),
+      verifiedQuickSiteControls.heightOfBuilding.interpretation,
+      citationForControl(verifiedQuickSiteControls.heightOfBuilding),
     ),
     buildControlAssessment(
       "Floor space ratio",
-      quickSiteCheck.controls.floorSpaceRatio.interpretation,
-      citationForControl(quickSiteCheck.controls.floorSpaceRatio.clauseRef),
+      verifiedQuickSiteControls.floorSpaceRatio.interpretation,
+      citationForControl(verifiedQuickSiteControls.floorSpaceRatio),
     ),
     buildControlAssessment(
       "Minimum lot size",
-      quickSiteCheck.controls.minimumLotSize.interpretation,
-      citationForControl(quickSiteCheck.controls.minimumLotSize.clauseRef),
+      verifiedQuickSiteControls.minimumLotSize.interpretation,
+      citationForControl(verifiedQuickSiteControls.minimumLotSize),
     ),
     ...resolvedPack.pack.topicMatrix.map((topic) => buildControlAssessment(
       topic.topicLabel,
@@ -1361,7 +1619,7 @@ export async function createPreSeePlanningMemoArtefact({
     applicableControls: {
       lepInstrument: quickSiteCheck.lepInstrument ?? null,
       permissibility: quickSiteCheck.permissibility ?? null,
-      quickSiteControls: quickSiteCheck.controls,
+      quickSiteControls: verifiedQuickSiteControls,
       dcpClauses: dppCitations.map(({ citation }) => ({
         ref: citation.ref,
         title: citation.title ?? null,
@@ -1557,28 +1815,39 @@ export async function createExpertReviewRequestArtefact({
     where: { projectId: project.id, type: "pre_see_planning_memo" as ArtefactType },
     orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
   });
-  const seeMemo = seeCandidates.find((artefact) => {
-    const see = artefact.payload as WorkspacePreSeePlanningMemoContent | null;
-    return Boolean(
+  const seeMemoEntry = seeCandidates
+    .map((artefact) => ({ artefact, see: parsePreSeePlanningMemoContent(artefact.payload) }))
+    .find(({ see }) => Boolean(
       pack.commercialReady === true &&
-      see?.memoType === "pre_see_planning_memo" &&
+      see &&
       see.sourceDetailedPlanningPack?.artefactId === detailedPlanningPack.id &&
       see.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId === quickSiteCheck.id &&
       isArtefactCurrentForSite(currentScope, preSeeScope(see)) &&
-      isArtefactCurrentForSite(detailedPlanningPackScope(pack), preSeeScope(see)),
-    );
-  });
-  const see = seeMemo?.payload as WorkspacePreSeePlanningMemoContent | null | undefined;
+      isArtefactCurrentForSite(detailedPlanningPackScope(pack), preSeeScope(see)) &&
+      hasExactSeeEvidenceProvenance(see, pack, qsc),
+    ));
+  const seeMemo = seeMemoEntry?.artefact;
+  const see = seeMemoEntry?.see;
 
   const lepEvidenceSummary = qsc.lepEvidenceSummary ?? pack.carriedLepEvidenceSummary ?? null;
-  const controls = qsc.controls ? Object.values(qsc.controls) : [];
+  const verifiedLepControls = sanitiseQuickSiteLepControls(qsc.controls);
+  const controls = [
+    verifiedLepControls.heightOfBuilding,
+    verifiedLepControls.floorSpaceRatio,
+    verifiedLepControls.minimumLotSize,
+  ];
   const citedSources = new Map<string, { ref: string; type: "LEP" | "DCP" }>();
-  controls.forEach((control) => {
-    if (control.clauseRef) citedSources.set(`LEP:${control.clauseRef}`, { ref: control.clauseRef, type: "LEP" });
+  [
+    verifiedLepControls.heightOfBuilding,
+    verifiedLepControls.floorSpaceRatio,
+    verifiedLepControls.minimumLotSize,
+  ].filter(hasVerifiedLepControlEvidence).forEach((control) => {
+    citedSources.set(`LEP:${control.clauseRef}`, { ref: control.clauseRef, type: "LEP" });
   });
-  pack.dcpEvidence.forEach((topic) => topic.citations.forEach((citation) => citedSources.set(`DCP:${citation.ref}`, { ref: citation.ref, type: "DCP" })));
-  see?.consistencyAssessment?.forEach((item) =>
-    item.citations?.forEach((citation) => citedSources.set(`${citation.type}:${citation.ref}`, citation)),
+  pack.dcpEvidence.forEach((topic) =>
+    topic.citations.forEach((citation) =>
+      citedSources.set(`DCP:${citation.ref}`, { ref: citation.ref, type: "DCP" }),
+    ),
   );
 
   const confidenceGaps = [
