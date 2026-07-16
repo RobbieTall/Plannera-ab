@@ -93,6 +93,12 @@ Protected remote run path: use the manual **Commercial Funnel Live Audit** GitHu
 
 Latest protected evidence (2026-07-16): [Commercial Funnel Live Audit run 29494711998](https://github.com/RobbieTall/Plannera-ab/actions/runs/29494711998) audited deployed merge commit `5cb75a51894aab40e701bff4d3f541cbff85e71d` after the Item 54 identity hardening. It authenticated and returned controlled exit `2`: both approved projects passed project/address/LGA/zone identity validation, but each had no saved current-site Quick Site Check, Detailed Planning Pack, or SEE artefact, so referral eligibility remained `none`. The safe artifact is `8373903558` with digest `sha256:603372049b35dda723645bf15b392b753e3a023796d8b6d79a12f58783a1ca32`. The commercial and billing/auth gates remain open; the missing chains must be generated through the normal product workflow with real proposal briefs, never fabricated or backfilled by the audit.
 
+### Non-production commercial golden gate
+
+Every pull request and push to `main` runs the secret-free **Commercial Funnel Golden Gate** workflow. It installs dependencies without lifecycle scripts, generates the Prisma client without connecting to a database, and runs `npm run test:commercial-funnel`. The focused suite persists deterministic in-memory Byron SP3 and Kempsey E2 Quick Site Check → Detailed Planning Pack → SEE/referral chains through the real artefact services, then evaluates them with the same read-only audit used for production. It also proves that an unresolved DCP topic blocks SEE and produces an unresolved-pack consultant referral without a false readiness claim.
+
+This workflow never receives production secrets, connects to a database, calls OpenAI, retrieves live planning data, builds/deploys the app, creates a production project, or mutates production data. A green deterministic gate is required regression evidence, but it is not a substitute for the protected live saved-output audit and cannot close Item 52 or unlock billing/auth.
+
 ## Environment variables
 
 Required:
