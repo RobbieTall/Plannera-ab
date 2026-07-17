@@ -28,6 +28,9 @@ test("focused Check promotion is a single same-project artefact save", () => {
   assert.match(workspace, /Create project in Plannera/);
   assert.match(workspace, /isPromotingCheck \|\| promotedCheck/);
   assert.match(workspace, /quickSiteCheckReportsEquivalent/);
+  assert.match(workspace, /!hasLoadedServerArtefacts \|\| isPromotingCheck \|\| promotedCheck/);
+  assert.match(workspace, /Loading saved evidence/);
+  assert.doesNotMatch(workspace, /Creating project…|Project created/);
   assert.match(workspace, /projectId: projectKey, title, type: "quick_site_check", report/);
   assert.doesNotMatch(workspace, /api\/projects\/ensure[\s\S]*Create project in Plannera/);
 });
