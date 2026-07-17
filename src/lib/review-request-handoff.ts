@@ -75,6 +75,22 @@ export function formatReviewRequestHandoff(content: ReviewRequestContent): strin
     pushField(lines, "Commercial ready", pack.commercialReady ? "Yes" : "No — unresolved referral only");
     pushField(lines, "Source Quick Site Check", pack.sourceQuickSiteCheckArtefactId);
     pushField(lines, "Proposal brief", pack.proposalBrief);
+    const citedRequirements = pack.citedRequirements ?? [];
+    if (citedRequirements.length) {
+      lines.push("");
+      lines.push("Cited DCP requirements");
+      lines.push("----------------------");
+      citedRequirements.forEach((requirement) => {
+        const identity = [clean(requirement.ref), clean(requirement.title)].filter(Boolean).join(" — ");
+        const hierarchy = uniqueClean(requirement.headingPath ?? []).join(" > ");
+        lines.push(`- Topic: ${clean(requirement.topicLabel) ?? clean(requirement.topicId) ?? "DCP topic"}`);
+        if (identity) lines.push(`  Citation: ${identity}`);
+        if (hierarchy) lines.push(`  Hierarchy: ${hierarchy}`);
+        const excerpt = clean(requirement.excerpt);
+        if (excerpt) lines.push(`  Exact requirement: ${excerpt}`);
+      });
+      lines.push("");
+    }
     const matrix = (pack.topicMatrix ?? []).map((topic) => `${topic.topicLabel}: ${topic.status}${topic.sourceRefs?.length ? ` (${topic.sourceRefs.join(", ")})` : ""}`);
     pushList(lines, "DCP topic status/source refs", matrix);
     pushList(lines, "Unresolved Detailed Planning Pack topics", pack.unresolvedTopics ?? []);

@@ -8,6 +8,7 @@ import {
   createExpertReviewRequestArtefact,
   createPreSeePlanningMemoArtefact,
   createQuickSiteCheckArtefact,
+  hasExactSeeEvidenceProvenance,
 } from "@/lib/artefact-service";
 import { auditCommercialFunnel } from "@/lib/commercial-funnel-audit";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
@@ -432,6 +433,27 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
     quickSiteCheck.id,
   );
   assert.equal(see.content.applicableControls.dcpClauses.length, 5);
+  const expectedCitations = detailedPlanningPack.content.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({ topic, citation })),
+  );
+  assert.deepEqual(
+    see.content.applicableControls.dcpClauses.map((clause) => clause.bodyText),
+    expectedCitations.map(({ citation }) => citation.excerpt),
+  );
+  assert.deepEqual(
+    see.content.applicableControls.sourceExcerpts.map((excerpt) => excerpt.content),
+    expectedCitations.map(({ citation }) => citation.excerpt),
+  );
+  assert.equal(
+    hasExactSeeEvidenceProvenance(see.content as any, detailedPlanningPack.content, qsc),
+    true,
+  );
+  const tamperedSee = structuredClone(see.content);
+  tamperedSee.applicableControls.dcpClauses[0].bodyText = `${tamperedSee.applicableControls.dcpClauses[0].bodyText} tampered`;
+  assert.equal(
+    hasExactSeeEvidenceProvenance(tamperedSee as any, detailedPlanningPack.content, qsc),
+    false,
+  );
 
   const review = await createExpertReviewRequestArtefact(
     { body: { projectId: fixture.publicId }, userId: USER_ID },
@@ -446,6 +468,20 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
     detailedPlanningPack.artefact.id,
   );
   assert.equal(review.content.sourceSeeMemo?.artefactId, see.artefact.id);
+  assert.deepEqual(
+    review.content.detailedPlanningPack?.citedRequirements?.map((requirement) => ({
+      topicId: requirement.topicId,
+      ref: requirement.ref,
+      headingPath: requirement.headingPath,
+      excerpt: requirement.excerpt,
+    })),
+    expectedCitations.map(({ topic, citation }) => ({
+      topicId: topic.topicId,
+      ref: citation.ref,
+      headingPath: citation.headingPath,
+      excerpt: citation.excerpt,
+    })),
+  );
 
   const audit = await auditCommercialFunnel(fixture.publicId, {
     prisma: prisma as any,
@@ -532,6 +568,13 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
   );
   assert.equal(review.content.sourceSeeMemo, null);
   assert.match(review.content.packageSummary, /No SEE readiness is claimed/);
+  assert.equal(review.content.detailedPlanningPack?.commercialReady, false);
+  assert.equal(review.content.detailedPlanningPack?.citedRequirements?.length, 4);
+  assert.ok(review.content.detailedPlanningPack?.citedRequirements?.every((requirement) => requirement.excerpt.length > 0));
+  assert.equal(
+    review.content.detailedPlanningPack?.citedRequirements?.some((requirement) => requirement.topicId === "parking_access"),
+    false,
+  );
   assert.equal(
     review.content.detailedPlanningPack?.sourceQuickSiteCheckArtefactId,
     quickSiteCheck.id,
