@@ -262,3 +262,14 @@ Status: Active
 Decision: The proposed-works brief captured for a Detailed Planning Pack is part of the active commercial-funnel scope, not merely display text. In the normal workspace, a current-site pack generated for a different brief must not be selected as the active pack for next-action readiness, SEE progression, or expert-review prompting. Normal SEE and expert-review write requests must send the intended DPP artefact ID plus expected proposal brief, and the server must resolve that exact owned current-site DPP with intact cited QSC provenance and matching normalized persisted proposal before writing anything. Explicit source binding must not silently fall back to another/newer DPP. Legacy requests without explicit binding may continue through the existing newest-current resolver only for compatibility, but the normal current workspace path must be exact-bound.
 
 Reference: docs/project-memory/build-next.md Item 61
+
+
+## DR-031 — Displayed Workspace Outputs Are Exact Proposal/DPP Scoped
+
+Status: Active
+
+Decision: Normal-workspace current SEE and Expert Review Request cards, readiness flags, and commercial CTA progression must derive only from outputs that exactly match the active current-site Detailed Planning Pack and its proposed-works brief. A SEE must name the active DPP artefact ID, the active DPP source Quick Site Check artefact ID, and the same normalized proposal summary. An Expert Review Request must name the active DPP, active source QSC, normalized proposal, matching commercial-ready state, and, if it includes a source SEE memo, that SEE must be from the same active DPP.
+
+Changing or clearing the proposal brief intentionally removes the active exact-bound DPP/output set until a non-empty brief matches or regenerates a pack. Old or malformed outputs remain artefact history only and cannot drive current cards, `hasSee`, `hasQualitySee`, readiness, or normal-workspace SEE/review POSTs. Normal current-workspace handlers must stop client-side rather than invoking server legacy compatibility fallback with omitted DPP/proposal bindings.
+
+Reference: docs/project-memory/build-next.md Item 62
