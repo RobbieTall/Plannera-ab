@@ -286,7 +286,7 @@ const dcpTopic = (query: string) => {
       id: "setbacks",
       ref: "Setbacks",
       title: "Setbacks and building alignment",
-      body: "setback building line street side and rear boundary controls apply",
+      body: "The front building line must be retained at nil/0m and side and rear setbacks are to respond to adjoining commercial development",
     };
   }
   if (/parking access/i.test(query)) {
@@ -294,7 +294,7 @@ const dcpTopic = (query: string) => {
       id: "parking_access",
       ref: "Parking",
       title: "Parking, access and loading",
-      body: "parking access driveway and loading controls apply",
+      body: "Provide 1 parking space per 40m2 of gross floor area and ensure driveway and loading access is maintained",
     };
   }
   if (/built form active/i.test(query)) {
@@ -302,7 +302,7 @@ const dcpTopic = (query: string) => {
       id: "built_form",
       ref: "Built form",
       title: "Built form and active frontage",
-      body: "built form active frontage and street frontage controls apply",
+      body: "Active street frontage must be retained and the shopfront is to provide clear glazing to the street",
     };
   }
   if (/landscaping open space/i.test(query)) {
@@ -310,14 +310,14 @@ const dcpTopic = (query: string) => {
       id: "landscaping",
       ref: "Landscaping",
       title: "Landscaping and open space",
-      body: "landscaping open space deep soil and tree planting controls apply",
+      body: "Provide landscaping and maintain existing canopy trees where works affect open space areas",
     };
   }
   return {
     id: "local_controls",
     ref: "Local controls",
     title: "Other local development controls",
-    body: "local controls and proposal design requirements apply",
+    body: "Waste storage and service areas must be screened from the public street",
   };
 };
 
@@ -608,7 +608,7 @@ test("Part B evidence qualifies only when its heading or body matches the reques
       ref: "Part B > Parking",
       title: "Part B parking, access and loading",
       headingPath: ["Kempsey DCP 2026", "Part B", "Parking and access"],
-      bodyText: "Parking, driveway access, loading and service access controls apply where relevant.",
+      bodyText: "Provide 1 parking space per 40m2 of gross floor area and ensure driveway and loading access is maintained.",
       depth: 2,
       topicTags: ["parking_access"],
       numericMeta: null,
