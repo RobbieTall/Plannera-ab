@@ -19,11 +19,11 @@ type QuickSiteCheckModalProps = {
   onToast?: (message: string, variant?: "success" | "error") => void;
 };
 
-const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
+export const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
 
 const formatControlConfidence = (confidence?: string) => confidence ?? "Unavailable";
 
-const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
+export const buildQuickSiteCheckChatMessage = (payload: QuickSiteCheckLepSuccess) => {
   const heading = payload.zone
     ? `Quick Site Check (LEP only) for zone ${payload.zone}`
     : "Quick Site Check (LEP only)";
@@ -66,14 +66,14 @@ const buildChatMessage = (payload: QuickSiteCheckLepSuccess) => {
   return sections.filter(Boolean).join("\n");
 };
 
-const buildArtefactTitle = (payload: QuickSiteCheckLepSuccess) => {
+export const buildQuickSiteCheckArtefactTitle = (payload: QuickSiteCheckLepSuccess) => {
   if (payload.zone) {
     return `Quick Site Check (LEP only) – ${payload.lepName} – Zone ${payload.zone}`;
   }
   return `Quick Site Check (LEP only) – ${payload.lepName}`;
 };
 
-const buildReportFromResult = (projectId: string, payload: QuickSiteCheckLepSuccess): QuickSiteCheckReport => {
+export const buildQuickSiteCheckReportFromResult = (projectId: string, payload: QuickSiteCheckLepSuccess): QuickSiteCheckReport => {
   const placeholderControl = (label: string) => ({
     label,
     value: null,
@@ -215,7 +215,7 @@ export function QuickSiteCheckModal({
 
   const handleInsertToChat = () => {
     if (!result || !onInsertToChat) return;
-    const message = buildChatMessage(result);
+    const message = buildQuickSiteCheckChatMessage(result);
     onInsertToChat(message, { lga: result.lga, zone: result.zone ?? undefined });
   };
 
@@ -226,9 +226,9 @@ export function QuickSiteCheckModal({
       setIsSaving(true);
       setSaveError(null);
       try {
-        const summary = buildChatMessage(result);
-        const title = buildArtefactTitle(result);
-        const report = buildReportFromResult(projectId, result);
+        const summary = buildQuickSiteCheckChatMessage(result);
+        const title = buildQuickSiteCheckArtefactTitle(result);
+        const report = buildQuickSiteCheckReportFromResult(projectId, result);
         const payload: QuickSiteCheckArtefactRequest = {
           projectId,
           title,
