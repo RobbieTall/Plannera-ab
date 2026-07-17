@@ -726,7 +726,7 @@ export async function createDetailedPlanningPackArtefact({
     const clauses = lgaCode
       ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone })
       : [];
-    const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id === "local_controls" ? null : topic.query.split(" ")[0]);
+    const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id);
     return mapDcpTopicEvidence(topic, filtered);
   }));
 
@@ -771,7 +771,7 @@ export async function createDetailedPlanningPackArtefact({
     nextAction: citedTopicCount > 0
       ? "Review unresolved topics with a consultant, then use this pack as the evidence base for SEE/referral preparation."
       : "Treat this as an evidence gap pack: do not progress to commercially ready SEE/referral until DCP evidence is verified.",
-    commercialReady: citedTopicCount > 0 && unresolvedTopics.length === 0,
+    commercialReady: citedTopicCount === DETAILED_PLANNING_PACK_TOPICS.length && unresolvedTopics.length === 0,
   };
 
   const artefact = await deps.prisma.artefact.create({
@@ -1331,11 +1331,29 @@ const APPLICABILITY_CONFLICT_TERMS = /\b(rural zones?|rural land|rural boundary|
 const NSW_ZONE_CODE = /\b(?:RU|R|E|MU|B|IN|SP|RE|C|W|DM)\d[A-Z]?\b/i;
 const dcpEvidenceText = (clause: Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">) =>
   [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n");
+const dcpTopicQualificationText = (clause: Pick<ScoredDcpClause, "title" | "headingPath" | "bodyText">) =>
+  [clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n");
 const zoneCodeFromSiteLabel = (zoneLabel?: string | null, zoneCode?: string | null) =>
   zoneCode?.trim().toUpperCase() || zoneLabel?.match(NSW_ZONE_CODE)?.[0]?.toUpperCase() || null;
 const evidenceMentionsZone = (text: string, zoneCode: string | null) => Boolean(zoneCode && new RegExp(`\\b${zoneCode}\\b`, "i").test(text));
 
-export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabel?: string | null; siteZoneCode?: string | null; controlTopic?: string | null }) => {
+const DCP_TOPIC_MATCHERS: Record<string, RegExp> = {
+  setbacks: /\b(setbacks?|building\s+lines?|(?:street|side|rear|front)\s+(?:boundar(?:y|ies)|alignment|setbacks?))\b/i,
+  parking_access: /\b(car\s+parking|parking|access|driveways?|loading|service\s+access|vehicle\s+access|vehicular\s+access)\b/i,
+  built_form_active_frontage: /\b(built\s+form|active\s+frontages?|street\s+frontages?|shopfronts?|building\s+design|commercial\s+frontages?)\b/i,
+  landscaping_open_space: /\b(landscap(?:e|ing)|open\s+space|deep\s+soil|tree\s+planting|canopy\s+tree|planting)\b/i,
+  local_controls: /\b(general\s+controls?|local\s+controls?|all[-\s]+development|design\s+controls?|site\s+controls?|development\s+controls?|proposal\s+design\s+requirements?)\b/i,
+};
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const dcpEvidenceMatchesTopic = (topicText: string, controlTopic?: string | null) => {
+  if (!controlTopic) return true;
+  const matcher = DCP_TOPIC_MATCHERS[controlTopic] ?? new RegExp(escapeRegex(controlTopic), "i");
+  return matcher.test(topicText);
+};
+
+export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabel?: string | null; siteZoneCode?: string | null; controlTopic?: string | null; topicText?: string | null }) => {
   const zoneCode = zoneCodeFromSiteLabel(params.siteZoneLabel, params.siteZoneCode);
   const isCommercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
   const lines = params.text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -1346,12 +1364,14 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
   const body = lines.length >= 4 ? lines.slice(3).join(" ") : params.text;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(scope) && !evidenceMentionsZone(scope, zoneCode)) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(body) && !evidenceMentionsZone(body, zoneCode)) return false;
-  if (params.controlTopic && !new RegExp(params.controlTopic, "i").test(params.text) && !/\bpart b\b/i.test(params.text)) return false;
+  // Topic qualification explicitly excludes the source ref. Refs remain useful
+  // provenance/citation metadata, but never prove a paid-pack topic by itself.
+  if (!dcpEvidenceMatchesTopic(params.topicText ?? params.text, params.controlTopic)) return false;
   return true;
 };
 
 export const filterSiteApplicableDcpClauses = <T extends Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">>(clauses: T[], site: { zoneLabel?: string | null; zoneCode?: string | null }, controlTopic?: string | null) =>
-  clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, controlTopic }));
+  clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), topicText: dcpTopicQualificationText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, controlTopic }));
 
 export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | Pick<WorkspacePreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null) => {
   if (!memo) return false;
