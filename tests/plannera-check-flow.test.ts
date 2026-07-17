@@ -58,7 +58,12 @@ test("focused check control list retains optional cited and unavailable controls
   const saved = quickSiteCheckReportFromFocusedResult("project", result(), "52 Belgrave St");
   assert.equal("parking" in saved.controls, true);
   assert.equal("activeFrontageBuiltForm" in saved.controls, false);
+  assert.equal(saved.controls.heightOfBuilding.lepSource, true);
+  assert.equal(saved.controls.setback?.lepSource, false);
+  assert.equal(saved.controls.parking?.present, false);
   assert.equal(saved.controls.parking?.source, "Kempsey DCP D4.6");
+  assert.match(saved.controls.parking?.interpretation ?? "", /unavailable in Kempsey DCP D4\.6/);
+  assert.doesNotMatch(saved.controls.setback?.interpretation ?? "", /LEP clause/);
 });
 
 const report = (overrides: Partial<QuickSiteCheckReport> = {}): QuickSiteCheckReport => ({
