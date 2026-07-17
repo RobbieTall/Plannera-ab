@@ -931,9 +931,9 @@ Verification evidence: Codex Cloud ran and passed `npm run test:commercial-funne
 Status reconciliation: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. The existing green gate/Vercel review evidence above remains the Item 58 verification record.
 
 
-## 59) Substantive DCP requirement qualification for paid DPP topics — IN REVIEW (2026-07-17)
+## 59) Substantive DCP requirement qualification for paid DPP topics — DONE/MERGED (2026-07-17)
 
-Purpose: tighten the now-merged Item 58 topic-specific DCP qualification so a paid Detailed Planning Pack topic cannot be sold as Cited when the body merely names the topic or says vague controls apply. Item 59 follows merged Item 58 sequentially: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. Item 59 is ready for sequential PR review and is not merged.
+Purpose: tighten the now-merged Item 58 topic-specific DCP qualification so a paid Detailed Planning Pack topic cannot be sold as Cited when the body merely names the topic or says vague controls apply. Item 59 follows merged Item 58 sequentially: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. Item 59 merged in PR #303 from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
 
 Invariant: a DPP topic may be Cited only when evidence is site-applicable, topic-relevant, has a real source reference, and the clause body itself contains substantive requirement content. Substantive content may be quantitative (number/unit, ratio, percentage, nil/zero, rate) or qualitative when normative control language states a concrete topic-relevant prescription or prohibition. Refs, titles, headings, topic tags, Part/chapter labels, and current-zone metadata may establish provenance/topic classification, but never substantive sufficiency by themselves.
 
@@ -953,9 +953,7 @@ Evidence boundary: reject table-of-contents/index text, headings only, objective
 
 Verification commands for this slice: `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
-Status: IN REVIEW — ready for sequential PR after merged Item 58; not merged.
-
-Status reconciliation (2026-07-17): Item 59 is DONE/MERGED in PR #303 from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
+Status: DONE/MERGED — PR #303 merged from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
 
 ## 60) Exact DCP requirement excerpts through SEE/referral handoff — IN REVIEW (2026-07-17)
 
