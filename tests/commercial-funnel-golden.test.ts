@@ -416,6 +416,8 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
   const see = await createPreSeePlanningMemoArtefact({
     body: {
       projectId: fixture.publicId,
+      sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
+      expectedProposalBrief: ` ${fixture.proposalBrief.replaceAll(" ", "  ")} `,
       proposedWorksSummary: "forged client proposal",
       citations: ["forged citation"],
     },
@@ -454,9 +456,21 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
     hasExactSeeEvidenceProvenance(tamperedSee as any, detailedPlanningPack.content, qsc),
     false,
   );
+  await assert.rejects(
+    () => createPreSeePlanningMemoArtefact({
+      body: {
+        projectId: fixture.publicId,
+        sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
+        expectedProposalBrief: "Different proposed works",
+      },
+      userId: USER_ID,
+      deps: serviceDependencies(prisma, fixture) as any,
+    }),
+    (error) => error instanceof ArtefactValidationError && /different proposed-works brief/.test(error.message),
+  );
 
   const review = await createExpertReviewRequestArtefact(
-    { body: { projectId: fixture.publicId }, userId: USER_ID },
+    { body: { projectId: fixture.publicId, sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id, expectedProposalBrief: fixture.proposalBrief }, userId: USER_ID },
     { prisma: prisma as any },
   );
   assert.deepEqual(
@@ -543,7 +557,7 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
 
   await assert.rejects(
     () => createPreSeePlanningMemoArtefact({
-      body: { projectId: KEMPSEY.publicId },
+      body: { projectId: KEMPSEY.publicId, sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id, expectedProposalBrief: KEMPSEY.proposalBrief },
       userId: USER_ID,
       deps: deps as any,
     }),
@@ -559,7 +573,7 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
   );
 
   const review = await createExpertReviewRequestArtefact(
-    { body: { projectId: KEMPSEY.publicId }, userId: USER_ID },
+    { body: { projectId: KEMPSEY.publicId, sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id, expectedProposalBrief: KEMPSEY.proposalBrief }, userId: USER_ID },
     { prisma: prisma as any },
   );
   assert.deepEqual(

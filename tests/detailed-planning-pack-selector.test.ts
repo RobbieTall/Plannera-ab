@@ -61,6 +61,23 @@ test("selectCurrentSiteDetailedPlanningPackArtefact picks the newest current-sit
   assert.deepEqual(input.map((item) => item.id), ["server-older-pack", "local-regenerated-newer-pack"]);
 });
 
+test("selectCurrentSiteDetailedPlanningPackArtefact ignores packs generated for a different proposed-works brief", () => {
+  const selected = selectCurrentSiteDetailedPlanningPackArtefact([
+    { ...artefact("newer-different-proposal", true, true, "2026-07-15T00:10:00Z"), detailedPlanningPack: { ...pack(true, "2026-07-15T00:10:00Z"), proposalBrief: "Change of use to a neighbourhood shop" } },
+    { ...artefact("older-current-proposal", true, true, "2026-07-15T00:00:00Z"), detailedPlanningPack: pack(true, "2026-07-15T00:00:00Z") },
+  ], { proposalBrief: " Tourist   accommodation alterations " });
+
+  assert.equal(selected?.id, "older-current-proposal");
+});
+
+test("selectCurrentSiteDetailedPlanningPackArtefact returns undefined when only current-site packs are proposal-stale", () => {
+  const selected = selectCurrentSiteDetailedPlanningPackArtefact([
+    artefact("current-site-old-proposal", true, true),
+  ], { proposalBrief: "Change of use to a neighbourhood shop" });
+
+  assert.equal(selected, undefined);
+});
+
 test("selectCurrentSiteDetailedPlanningPackArtefact uses deterministic id fallback for equal or invalid timestamps", () => {
   const selected = selectCurrentSiteDetailedPlanningPackArtefact([
     artefact("pack-a", true, true, "not-a-date"),
