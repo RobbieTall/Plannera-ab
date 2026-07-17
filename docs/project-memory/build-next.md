@@ -1033,6 +1033,8 @@ Item 62 is DONE/MERGED in PR #306 from exact head `02eeadb9c85d4b1a0ae6b6d907136
 
 ## 63) Address-First Quick Site Check Entry and Requester Project Continuity — IN REVIEW
 
+Review state (2026-07-17): PR #307 is open. The Commercial Funnel Golden Gate and Vercel preview checks are green; the rendered address-first entry was visually verified with customer-facing example copy, compact 8px header controls, a content-height scope panel, and nonblank-address button gating. No project submission, production access/mutation, live retrieval, merge, or billing/auth/paywall change was performed.
+
 Purpose: replace the generic AI marketing landing hero with the actual free Quick Site Check entry and make project continuity deterministic for both signed-in and guest/auth-bypass requesters.
 
 Invariant:
