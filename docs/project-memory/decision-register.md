@@ -244,3 +244,13 @@ Decision: Topic matching and provenance are necessary but insufficient for paid 
 Commercial readiness remains fail-closed and may be true only when all required topics pass this substantive body requirement test. This decision follows merged Item 58, which landed in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`; Item 59 is not yet merged.
 
 Reference: docs/project-memory/build-next.md Item 59
+
+## DR-029 — Exact DCP Requirement Excerpts and Self-Contained Consultant Handoff
+
+Status: Active
+
+Decision: Paid Detailed Planning Pack DCP citations must persist only the exact normalized requirement rows that independently satisfy site applicability, topic isolation, and substantive requirement rules. Broad clause bodies, objectives, administrative/index/overview text, generic “controls apply” wording, and unrelated-topic rows must not be saved merely because another row in the same clause qualified. Downstream SEE controls, source excerpts, prompt grounding, and exact-provenance checks must carry those persisted excerpts unchanged.
+
+Expert Review Request payloads must make consultant handoff self-contained by deriving cited DCP requirements only from the selected current Detailed Planning Pack and including topic identity, citation identity/hierarchy, and the exact excerpt in both commercial-ready and unresolved referrals when cited topics exist. Legacy review requests remain valid through optional/default-empty handling.
+
+Reference: docs/project-memory/build-next.md Item 60

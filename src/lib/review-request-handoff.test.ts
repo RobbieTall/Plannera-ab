@@ -59,6 +59,14 @@ const baseContent = (overrides: Partial<ReviewRequestContent> = {}): ReviewReque
     topicMatrix: [{ topicId: "parking", topicLabel: "Parking", status: "Unavailable", summary: "No cited parking clause.", sourceRefs: [] }],
     unresolvedTopics: ["Parking: no cited current DCP clause found."],
     sourceQuickSiteCheckArtefactId: "qsc-1",
+    citedRequirements: [{
+      topicId: "parking_access",
+      topicLabel: "Parking and access",
+      ref: "D4.12",
+      title: "Parking controls",
+      headingPath: ["Part D", "Parking"],
+      excerpt: "Controls: Car parking must provide 2 spaces per dwelling.",
+    }],
   },
   sourceSeeMemo: {
     artefactId: "see-1",
@@ -81,6 +89,11 @@ describe("review request handoff formatter", () => {
     expect(text).toContain("Detailed Planning Pack provenance");
     expect(text).toContain("Commercial ready: No — unresolved referral only");
     expect(text).toContain("Proposal brief: Alterations and additions to tourist accommodation.");
+    expect(text).toContain("Cited DCP requirements");
+    expect(text).toContain("Topic: Parking and access");
+    expect(text).toContain("Citation: D4.12 — Parking controls");
+    expect(text).toContain("Hierarchy: Part D > Parking");
+    expect(text).toContain("Exact requirement: Controls: Car parking must provide 2 spaces per dwelling.");
     expect(text).toContain("Parking: Unavailable");
     expect(text).toContain("Parking: no cited current DCP clause found.");
     expect(text).toContain("SEE provenance");

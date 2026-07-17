@@ -79,6 +79,14 @@ export type ReviewRequestContent = {
     topicMatrix: DetailedPlanningPackContent["topicMatrix"];
     unresolvedTopics: string[];
     sourceQuickSiteCheckArtefactId: string;
+    citedRequirements?: Array<{
+      topicId: string;
+      topicLabel: string;
+      ref: string;
+      title: string | null;
+      headingPath: string[];
+      excerpt: string;
+    }>;
   } | null;
   sourceSeeMemo?: {
     artefactId: string;

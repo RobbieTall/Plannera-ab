@@ -954,3 +954,31 @@ Evidence boundary: reject table-of-contents/index text, headings only, objective
 Verification commands for this slice: `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
 Status: IN REVIEW — ready for sequential PR after merged Item 58; not merged.
+
+Status reconciliation (2026-07-17): Item 59 is DONE/MERGED in PR #303 from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
+
+## 60) Exact DCP requirement excerpts through SEE/referral handoff — IN REVIEW (2026-07-17)
+
+Purpose: close the consultant-inspectability gap between the paid Detailed Planning Pack and downstream SEE/referral handoff. Item 59 correctly decides whether a topic is Cited from a topic-matching substantive sentence/control row, but the saved citation excerpt still used the broader clause body, allowing objectives or unrelated controls to travel into SEE and consultant review text.
+
+Invariant: DPP citation excerpts must contain only the exact normalized sentence/control row(s) that independently match the requested topic and contain a quantitative requirement or genuine qualitative prescription/prohibition. Objective-only, index/admin/overview/topic-list text, generic “controls apply” wording, and controls for other topics must not qualify a topic or appear in that topic's excerpt. SEE `dcpClauses`, `sourceExcerpts`, prompt grounding and exact-provenance checks must carry the persisted excerpt byte-for-byte. Expert Review Request payloads and copied/downloaded handoff text must include the selected current DPP's cited requirements so a consultant can inspect the exact requirement without opening the app.
+
+Focused coverage:
+
+- Mixed active-frontage objective plus parking-only control yields a parking citation whose excerpt is exactly the parking control row, excludes the active-frontage objective, and leaves built-form Unavailable.
+- Newline/table-style rows cannot borrow topic or substance from neighbouring rows; only independently qualifying rows appear.
+- Multiple same-topic qualifying rows from one clause are preserved in deterministic source order and deduplicated; unrelated rows are absent.
+- Quantitative and qualitative controls both yield exact excerpts; vague/objective-only cases remain Unavailable.
+- Byron “should” and headroom examples remain Cited with precise persisted excerpts.
+- SEE copies exact persisted excerpts into `dcpClauses`, `sourceExcerpts`, and prompt inputs, and exact provenance continues to reject tampering.
+- Expert review request payload and exported text contain topic/ref/hierarchy/exact requirement; broad unrelated objective text is absent.
+- Unresolved-pack referrals still include any available exact cited requirements without claiming SEE readiness.
+- Existing Byron SP3 and Kempsey E2 commercial golden journeys plus Item 57/58/59 protections remain in the required verification suite.
+
+Limits: no schema migration, no decorative UI, no billing/auth/paywall, no production access, no production project creation, no live planning-data retrieval, and no production audit completion claim. This does not prove live Byron/Kempsey planning accuracy, billing readiness, or merge status.
+
+Verification commands for this slice: `npm run test:commercial-funnel`, focused review-request handoff tests, directly relevant DPP exact-excerpt tests, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Evidence boundary: local deterministic tests can prove persistence, exact-copy, and provenance invariants only. Protected live saved-output audit and any production readiness claims remain outside this slice.
+
+Status: IN REVIEW — not merged.

@@ -636,16 +636,38 @@ const hasRealDcpSourceRef = (clause: Pick<ScoredDcpClause, "ref">) =>
 const SUBSTANTIVE_DCP_QUANTITATIVE_REQUIREMENT = /(?:\b\d+(?:\.\d+)?\s*(?:m2|m²|m|mm|cm|ha|%|percent|spaces?|bays?|storeys?|levels?|trees?|sqm|sq\s*m|per\s+\d+|:\s*\d+)|\b(?:nil|zero|no\s+minimum|no\s+maximum)\b|\b\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?\b)/i;
 const STRONG_DCP_PRESCRIPTIVE_REQUIREMENT = /\b(?:must|shall|should|is\s+to|are\s+to|is\s+required\s+to|are\s+required\s+to|required\s+to|minimum(?:\s+of)?|maximum(?:\s+of)?|at\s+least|no\s+less\s+than|no\s+more\s+than|may\s+only|permitted\s+only|only\s+permitted|not\s+to|prohibited|not\s+permitted|designed\s+to|be\s+designed\s+to)\b/i;
 const DCP_IMPERATIVE_CONTROL_SENTENCE = /^(?:(?!objectives?\b)[^:]{1,80}:\s*)?(?:controls?\s*[:—-]\s*)?(?:provide|retain|maintain|ensure)\b/i;
-const GENERIC_NON_SUBSTANTIVE_DCP_BODY = /^(?:objectives?\s*[:—-]?\s*)?(?:to\s+)?(?:provide|retain|maintain|ensure|encourage|promote|support)\b.*$/i;
 const ADMIN_ONLY_DCP_BODY = /^(?:table\s+of\s+contents|contents|index|introduction|administration|overview|topics?\s+include|this\s+part\s+applies)\b/i;
 const GENERIC_CONTROLS_APPLY_BODY = /^controls?\s+apply(?:\s+where\s+relevant|\s+as\s+applicable)?\.?$/i;
 
-const dcpRequirementSentences = (body: string) =>
+const dcpRequirementSentences = (body: string) => {
+  const rows: string[] = [];
+  let context: string | null = null;
+
   body
     .replace(/\b(Objectives?|Controls?)\s*:/gi, "\n$1:")
-    .split(/(?<=[.;])\s+|[\n\r]+/)
-    .map((sentence) => sentence.replace(/^[-–—•*\s]+/, "").replace(/\s+/g, " ").trim())
-    .filter(Boolean);
+    .split(/[\n\r]+/)
+    .map((line) => line.replace(/^[-–—•*\s]+/, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      if (/^objectives?\s*[:—-]?$/i.test(line)) {
+        context = "Objectives:";
+        return;
+      }
+      if (/^controls?\s*[:—-]?$/i.test(line)) {
+        context = "Controls:";
+        return;
+      }
+
+      line.split(/(?<=[.;])\s+/).forEach((part) => {
+        const sentence = part.replace(/^[-–—•*\s]+/, "").replace(/\s+/g, " ").trim();
+        if (!sentence) return;
+        const hasExplicitSectionLabel = /^(?:objectives?|controls?)\s*[:—-]/i.test(sentence);
+        rows.push(context && !hasExplicitSectionLabel ? `${context} ${sentence}` : sentence);
+      });
+    });
+
+  return rows;
+};
 
 const isObjectiveOnlyDcpSentence = (sentence: string) =>
   /^(?:objectives?\s*[:—-]\s*)?to\s+(?:provide|retain|maintain|ensure|encourage|promote|support)\b/i.test(sentence) ||
@@ -657,35 +679,51 @@ const hasQualitativePrescriptiveDcpRequirement = (sentence: string) => {
   return DCP_IMPERATIVE_CONTROL_SENTENCE.test(sentence);
 };
 
-const hasSubstantiveDcpRequirement = (clause: Pick<ScoredDcpClause, "bodyText">, controlTopic?: string | null) => {
+const extractQualifyingDcpRequirementRows = (clause: Pick<ScoredDcpClause, "bodyText">, controlTopic?: string | null): string[] => {
   const body = clause.bodyText.trim();
-  if (!body) return false;
+  if (!body) return [];
 
-  return dcpRequirementSentences(body).some((sentence) => {
-    if (isObjectiveOnlyDcpSentence(sentence)) return false;
-    if (!dcpEvidenceMatchesTopic(sentence, controlTopic)) return false;
-    if (ADMIN_ONLY_DCP_BODY.test(sentence) || GENERIC_CONTROLS_APPLY_BODY.test(sentence)) return false;
-    if (SUBSTANTIVE_DCP_QUANTITATIVE_REQUIREMENT.test(sentence)) return true;
-    if (hasQualitativePrescriptiveDcpRequirement(sentence)) return true;
-    if (GENERIC_NON_SUBSTANTIVE_DCP_BODY.test(sentence)) return false;
-    return false;
+  const seen = new Set<string>();
+  const rows: string[] = [];
+
+  dcpRequirementSentences(body).forEach((sentence) => {
+    if (isObjectiveOnlyDcpSentence(sentence)) return;
+    if (!dcpEvidenceMatchesTopic(sentence, controlTopic)) return;
+    if (ADMIN_ONLY_DCP_BODY.test(sentence) || GENERIC_CONTROLS_APPLY_BODY.test(sentence)) return;
+    const hasRequirement =
+      SUBSTANTIVE_DCP_QUANTITATIVE_REQUIREMENT.test(sentence) ||
+      hasQualitativePrescriptiveDcpRequirement(sentence);
+    if (!hasRequirement) return;
+
+    const normalized = sentence.replace(/\s+/g, " ").trim();
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push(normalized);
   });
+
+  return rows;
 };
+
 
 const mapDcpTopicEvidence = (
   topic: (typeof DETAILED_PLANNING_PACK_TOPICS)[number],
   clauses: ScoredDcpClause[],
 ): DetailedPlanningPackContent["dcpEvidence"][number] => {
   const citations = clauses
-    .filter((clause) => hasRealDcpSourceRef(clause) && hasSubstantiveDcpRequirement(clause, topic.id))
-    .slice(0, 3)
-    .map((clause) => ({
-      ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
-      title: clause.title ?? null,
-      headingPath: clause.headingPath ?? [],
-      excerpt: compactExcerpt(clause.bodyText),
-      score: clause.score,
-    }));
+    .flatMap((clause) => {
+      if (!hasRealDcpSourceRef(clause)) return [];
+      const qualifyingRows = extractQualifyingDcpRequirementRows(clause, topic.id);
+      if (!qualifyingRows.length) return [];
+      return [{
+        ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
+        title: clause.title ?? null,
+        headingPath: clause.headingPath ?? [],
+        excerpt: compactExcerpt(qualifyingRows.join(" ")),
+        score: clause.score,
+      }];
+    })
+    .slice(0, 3);
 
   if (!citations.length) {
     return {
@@ -1957,6 +1995,17 @@ export async function createExpertReviewRequestArtefact({
     });
   }
 
+  const citedRequirements = pack.dcpEvidence.flatMap((topic) =>
+    topic.citations.map((citation) => ({
+      topicId: topic.topicId,
+      topicLabel: topic.topicLabel,
+      ref: citation.ref,
+      title: citation.title ?? null,
+      headingPath: citation.headingPath,
+      excerpt: citation.excerpt,
+    })),
+  );
+
   const payload: import("@/types/workspace").ReviewRequestContent = {
     requestType: "expert_review_request",
     generatedAt,
@@ -1981,6 +2030,7 @@ export async function createExpertReviewRequestArtefact({
       topicMatrix: pack.topicMatrix,
       unresolvedTopics: pack.unresolvedTopics,
       sourceQuickSiteCheckArtefactId: quickSiteCheck.id,
+      citedRequirements,
     },
     sourceSeeMemo: seeMemo ? {
       artefactId: seeMemo.id,
