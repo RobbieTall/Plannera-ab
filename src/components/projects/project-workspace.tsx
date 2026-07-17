@@ -66,8 +66,13 @@ import {
 } from "@/lib/commercial-next-action";
 import { highlightText } from "@/lib/highlight-text";
 import {
+  getExactWorkspaceDppBinding,
+  getWorkspaceProposalBriefHydration,
   hasCurrentSiteDetailedPlanningPackProposalMismatch,
   selectCurrentSiteDetailedPlanningPackArtefact,
+  selectCurrentWorkspaceDetailedPlanningPackArtefact,
+  selectExactReviewRequestArtefactForDetailedPlanningPack,
+  selectExactSeeArtefactForDetailedPlanningPack,
 } from "@/lib/detailed-planning-pack-selector";
 import { detailedPlanningPackScope, isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, reviewRequestScope } from "@/lib/site-scoped-artefacts";
 import { getRelativeTime } from "@/lib/relative-time";
@@ -1158,6 +1163,7 @@ export function ProjectWorkspace({
   const [, setIsGeneratingPreSeeMemo] = useState(false);
   const [isGeneratingSee, setIsGeneratingSee] = useState(false);
   const [proposalBrief, setProposalBrief] = useState("");
+  const hasUserEditedProposalBriefRef = useRef(false);
   const [isGeneratingDetailedPack, setIsGeneratingDetailedPack] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
   const commercialPackGateRef = useRef<{
@@ -2826,6 +2832,12 @@ export function ProjectWorkspace({
       return;
     }
 
+    const binding = getExactWorkspaceDppBinding(commercialPackGateRef.current);
+    if (!binding) {
+      showToast("Enter or restore a proposed-works brief and regenerate the Detailed Planning Pack before generating SEE", "error");
+      return;
+    }
+
     setIsGeneratingPreSeeMemo(true);
     setIsGeneratingSee(true);
     try {
@@ -2835,8 +2847,8 @@ export function ProjectWorkspace({
         credentials: "include",
         body: JSON.stringify({
           projectId: projectKey,
-          sourceDetailedPlanningPackArtefactId: commercialPackGateRef.current.sourceDetailedPlanningPackArtefactId,
-          expectedProposalBrief: commercialPackGateRef.current.expectedProposalBrief,
+          sourceDetailedPlanningPackArtefactId: binding.sourceDetailedPlanningPackArtefactId,
+          expectedProposalBrief: binding.expectedProposalBrief,
         }),
       });
 
@@ -2899,6 +2911,12 @@ export function ProjectWorkspace({
     if (!isAuthenticated) {
       showToast("Sign in, then click Draft SEE memo again", "error");
       openAuthModal();
+      return;
+    }
+
+    const binding = getExactWorkspaceDppBinding(commercialPackGateRef.current);
+    if (!binding) {
+      showToast("Enter or restore a proposed-works brief and regenerate the Detailed Planning Pack before generating SEE", "error");
       return;
     }
 
@@ -3083,11 +3101,20 @@ export function ProjectWorkspace({
 
   const latestAnyProposalDetailedPlanningPackArtefact = useMemo(() => selectCurrentSiteDetailedPlanningPackArtefact(siteScopedArtefacts), [siteScopedArtefacts]);
   const latestDetailedPlanningPackArtefact = useMemo(
-    () => selectCurrentSiteDetailedPlanningPackArtefact(siteScopedArtefacts, { proposalBrief }),
+    () => selectCurrentWorkspaceDetailedPlanningPackArtefact(siteScopedArtefacts, proposalBrief),
     [proposalBrief, siteScopedArtefacts],
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
+  useEffect(() => {
+    const hydrationBrief = getWorkspaceProposalBriefHydration({
+      hasLoadedServerArtefacts,
+      hasUserEditedProposalBrief: hasUserEditedProposalBriefRef.current,
+      currentProposalBrief: proposalBrief,
+      newestCurrentSiteSavedProposalBrief: latestAnyProposalDetailedPlanningPack?.proposalBrief,
+    });
+    if (hydrationBrief !== null) setProposalBrief(hydrationBrief);
+  }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack?.proposalBrief, proposalBrief]);
   const hasProposalBriefMismatch = useMemo(
     () => hasCurrentSiteDetailedPlanningPackProposalMismatch(siteScopedArtefacts, proposalBrief),
     [proposalBrief, siteScopedArtefacts],
@@ -3100,11 +3127,10 @@ export function ProjectWorkspace({
     expectedProposalBrief: latestDetailedPlanningPack?.proposalBrief,
   };
 
-  const latestSeeArtefact = useMemo(() => {
-    return siteScopedArtefacts.find((artefact) =>
-      artefact.isCurrentSite !== false && normalisePreSeeMemoContent(artefact.preSeeMemo),
-    );
-  }, [siteScopedArtefacts]);
+  const latestSeeArtefact = useMemo(
+    () => selectExactSeeArtefactForDetailedPlanningPack(siteScopedArtefacts, latestDetailedPlanningPackArtefact),
+    [latestDetailedPlanningPackArtefact, siteScopedArtefacts],
+  );
   const latestSeeContent = useMemo(
     () => normalisePreSeeMemoContent(latestSeeArtefact?.preSeeMemo),
     [latestSeeArtefact],
@@ -3117,11 +3143,10 @@ export function ProjectWorkspace({
   const staleSiteArtefactCount = useMemo(() =>
     siteScopedArtefacts.filter((artefact) => artefact.isCurrentSite === false).length,
   [siteScopedArtefacts]);
-  const latestReviewRequestArtefact = useMemo(() => {
-    return siteScopedArtefacts.find((artefact) =>
-      artefact.isCurrentSite !== false && normaliseReviewRequestContent(artefact.reviewRequest),
-    );
-  }, [siteScopedArtefacts]);
+  const latestReviewRequestArtefact = useMemo(
+    () => selectExactReviewRequestArtefactForDetailedPlanningPack(siteScopedArtefacts, latestDetailedPlanningPackArtefact),
+    [latestDetailedPlanningPackArtefact, siteScopedArtefacts],
+  );
   const latestReviewRequestContent = useMemo(
     () => normaliseReviewRequestContent(latestReviewRequestArtefact?.reviewRequest),
     [latestReviewRequestArtefact],
@@ -3174,7 +3199,13 @@ export function ProjectWorkspace({
       return;
     }
 
-    if (hasProposalBriefMismatch) {
+    const binding = getExactWorkspaceDppBinding(commercialPackGateRef.current);
+    if (!binding) {
+      showToast("Enter or restore a proposed-works brief and regenerate the Detailed Planning Pack before requesting expert review", "error");
+      return;
+    }
+
+    if (commercialPackGateRef.current.hasProposalBriefMismatch) {
       showToast("Regenerate the Detailed Planning Pack for the current proposed-works brief before requesting expert review", "error");
       return;
     }
@@ -3187,8 +3218,8 @@ export function ProjectWorkspace({
         credentials: "include",
         body: JSON.stringify({
           projectId: projectKey,
-          sourceDetailedPlanningPackArtefactId: latestDetailedPlanningPackArtefact?.id,
-          expectedProposalBrief: latestDetailedPlanningPack?.proposalBrief,
+          sourceDetailedPlanningPackArtefactId: binding.sourceDetailedPlanningPackArtefactId,
+          expectedProposalBrief: binding.expectedProposalBrief,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -3218,7 +3249,7 @@ export function ProjectWorkspace({
     } finally {
       setIsRequestingReview(false);
     }
-  }, [addArtefact, hasProposalBriefMismatch, isAuthenticated, latestDetailedPlanningPack?.proposalBrief, latestDetailedPlanningPackArtefact?.id, openAuthModal, projectKey, showToast]);
+  }, [addArtefact, isAuthenticated, openAuthModal, projectKey, showToast]);
 
   const handleCommercialPrimaryAction = useCallback(() => {
     if (commercialNextAction.primaryAction === "set_site") {
@@ -4211,7 +4242,10 @@ export function ProjectWorkspace({
                       <textarea
                         id="proposal-brief"
                         value={proposalBrief}
-                        onChange={(event) => setProposalBrief(event.target.value)}
+                        onChange={(event) => {
+                          hasUserEditedProposalBriefRef.current = true;
+                          setProposalBrief(event.target.value);
+                        }}
                         rows={3}
                         placeholder="e.g. Alterations to an existing commercial premises with shopfront updates and minor internal fitout."
                         className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"

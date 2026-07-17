@@ -982,7 +982,7 @@ Evidence boundary: local deterministic tests can prove persistence, exact-copy, 
 Status: DONE/MERGED — PR #304 merged from exact head `d694d6d0b57c0d4cf39fd25b61afddbbcc9b6eae` at exact merge commit `4ede5ca0b04644876ae48315145852b9e317ee51`.
 
 
-## 61) Proposal-scoped DPP selection in the normal workspace — IN REVIEW (2026-07-17)
+## 61) Proposal-scoped DPP selection in the normal workspace — DONE/MERGED (2026-07-17)
 
 Purpose: close the normal-user workflow gap where a current-site Detailed Planning Pack could remain selected after the user changed the proposed-works brief. The service already persists the brief into the DPP and downstream SEE/referral provenance, but the workspace active-pack selector treated only site scope and recency as active state. A pilot user could therefore edit “what I want to build” and still see the previous pack driving readiness/SEE prompts until they manually noticed the mismatch.
 
@@ -1001,5 +1001,28 @@ Focused coverage:
 Evidence boundary: this is a normal-workspace source-selection plus server write-boundary hardening slice only. Explicit binding is enforced for the normal current workspace requests; compatibility requests that omit both source DPP ID and expected proposal retain the existing newest-current resolver and are documented as legacy only. This does not change database schema, billing/auth/paywall, ownership/session controls, production access, live retrieval, production projects, or live audit status. It does not prove live Byron/Kempsey planning accuracy, close Items 52/55, or unlock Item 40.
 
 Verification commands for this slice: focused selector test, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: DONE/MERGED — PR #305 merged from exact head `694f5d3deeb373857f7b01de0bc087906d2484cc` at exact merge commit `bb874fe4642664fa2ccbc14ffc5475dbf6615467`.
+
+## 62) Exact proposal/DPP-scoped displayed SEE and Expert Review Request readiness — IN REVIEW (2026-07-17)
+
+Purpose: close the remaining normal-workspace display/readiness gap after Item 61. New SEE/referral writes are exact-bound to a selected proposal-matching DPP, but the current Outputs cards and readiness selectors still accepted any current-site SEE or Expert Review Request. Older proposal A outputs could therefore remain visible or advance commercial readiness after a user moved to proposal B on the same site/QSC.
+
+Invariant: current normal-workspace SEE and Expert Review Request outputs are scoped to the active current-site, proposal-matching DPP. A displayed SEE must point to the active DPP artefact ID, the active DPP source Quick Site Check artefact ID, and a normalized proposed-works summary equal to the active DPP proposal, while retaining existing quality checks. A displayed Expert Review Request must point to the active DPP artefact ID, normalized proposal brief, active source QSC, matching `commercialReady` state, and, when present, a source SEE from the same active DPP. Legacy, malformed, forged, different-DPP, different-proposal, or stale-site outputs remain history only. Strict normal-workspace DPP selection fails closed when the proposal brief is empty, and normal SEE/review handlers never POST omitted DPP/proposal bindings.
+
+Focused coverage:
+
+- Newer proposal B DPP plus older proposal A DPP/SEE/review on the same site/QSC: selecting A shows only A exact outputs; selecting B hides A outputs and requires B SEE/referral.
+- Current B pack plus old A SEE with plausible site/QSC/readiness data yields no displayed/current SEE and no SEE quality readiness for B.
+- Forged/legacy SEE without exact DPP ID, or with matching QSC but different proposal, is ignored.
+- Exact B SEE is selected deterministically by generated/captured time with stable ID fallback even when unrelated A SEE artefacts exist.
+- Exact commercial-ready review packages with exact B SEE are selected; unresolved exact B referrals without a SEE remain selectable; A/legacy/malformed review packages are ignored.
+- Untouched reload hydrates the newest current-site saved DPP proposal after server artefacts load; typed edits, including deliberate clearing, are never overwritten.
+- Strict normal-workspace empty proposal state selects no DPP/output and cannot issue SEE/review POSTs without both exact binding fields.
+- Existing Item 61 selection/mismatch behaviour, Byron SP3/Kempsey E2 golden journeys, unresolved referral branch, and exact server-write tests remain in the commercial-funnel suite.
+
+Evidence boundary: this is a client selector/display/readiness and normal-workspace request-boundary hardening slice only. Old outputs remain visible in general artefact history but are scoped out of current Outputs cards/readiness/CTA when they do not exactly match the active proposal/DPP. No schema/migrations, billing/auth/paywall, production access, production mutation, production project creation, live retrieval, live-audit completion claim, broad redesign, or server-only imports into client code.
+
+Verification commands for this slice: focused selector/output tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
 Status: IN REVIEW — not merged.
