@@ -106,7 +106,7 @@ export default function HomePage() {
                 {error ? <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p> : null}
               </form>
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-700">Launch QA examples</p>
+                <p className="text-sm font-semibold text-slate-700">Example addresses</p>
                 <div className="flex flex-wrap gap-2">
                   {launchExampleAddresses.map((example) => (
                     <button key={example} type="button" onClick={() => startSiteCheck(example)} disabled={submitting} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:opacity-60">
@@ -116,7 +116,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <aside id="scope" className="rounded-lg border border-slate-200 bg-slate-50 p-6">
+            <aside id="scope" className="self-start rounded-lg border border-slate-200 bg-slate-50 p-6">
               <h2 className="text-xl font-semibold text-slate-950">What the free check is for</h2>
               <ul className="mt-4 space-y-4 text-sm leading-6 text-slate-700">
                 <li className="flex gap-3"><FileSearch className="mt-1 h-5 w-5 shrink-0 text-blue-700" />Cited NSW site, zone and key LEP control checks for the Byron/Kempsey launch workflow.</li>
