@@ -1065,6 +1065,10 @@ test("SEE binds to explicit source DPP and expected proposal without falling bac
   });
 
   const deps = { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) };
+  const older = await createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-bound", sourceDetailedPlanningPackArtefactId: "proj-see-bound-dpp", expectedProposalBrief: " Older   exact brief. " }, userId: "user-1", deps });
+  assert.equal(older.content.sourceDetailedPlanningPack?.artefactId, "proj-see-bound-dpp");
+  assert.equal(older.content.proposedWorksSummary, "Older exact brief.");
+
   const { content } = await createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-bound", sourceDetailedPlanningPackArtefactId: "proj-see-bound-newer-dpp", expectedProposalBrief: " Newer   different brief. " }, userId: "user-1", deps });
   assert.equal(content.sourceDetailedPlanningPack?.artefactId, "proj-see-bound-newer-dpp");
   assert.equal(content.proposedWorksSummary, "Newer different brief.");
@@ -1073,7 +1077,7 @@ test("SEE binds to explicit source DPP and expected proposal without falling bac
     () => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-bound", sourceDetailedPlanningPackArtefactId: "proj-see-bound-newer-dpp", expectedProposalBrief: "Older exact brief." }, userId: "user-1", deps }),
     /different proposed-works brief/,
   );
-  assert.equal(prisma.artefacts.filter((artefact) => artefact.type === "pre_see_planning_memo").length, 1);
+  assert.equal(prisma.artefacts.filter((artefact) => artefact.type === "pre_see_planning_memo").length, 2);
 });
 
 test("unresolved DPP blocks SEE and persists no memo", async () => {

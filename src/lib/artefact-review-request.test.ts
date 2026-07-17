@@ -396,6 +396,22 @@ describe("createExpertReviewRequestArtefact", () => {
       proposalBrief: "Selected unresolved shopfront works.",
       unresolvedTopics: ["Parking and access: no current DCP clause found."],
     });
+    const { deps: olderDeps } = makeDeps([
+      qscArtefact(),
+      dppArtefact(olderPack),
+      dppArtefact(unresolvedPack, { id: "newer-dpp-id" }),
+    ]);
+    const olderResult = await createExpertReviewRequestArtefact({
+      body: {
+        projectId: project.publicId,
+        sourceDetailedPlanningPackArtefactId: "dpp-id",
+        expectedProposalBrief: " Older   ready works. ",
+      },
+      userId: "user-1",
+    }, olderDeps);
+    expect(olderResult.content.detailedPlanningPack?.artefactId).toBe("dpp-id");
+    expect(olderResult.content.detailedPlanningPack?.proposalBrief).toBe("Older ready works.");
+
     const { deps, artefactCreate } = makeDeps([
       qscArtefact(),
       dppArtefact(olderPack),

@@ -982,6 +982,7 @@ export async function resolveCurrentDetailedPlanningPackChain({
   const sawPack = parsedPacks.length > 0;
   let sawCurrentPack = false;
   let sawUnreadyCurrentPack = false;
+  let active: CurrentDetailedPlanningPackChain | null = null;
   const candidates: CurrentDetailedPlanningPackChainResolution["candidates"] = [];
   for (const { artefact, pack } of parsedPacks) {
     if (!pack) {
@@ -1008,11 +1009,13 @@ export async function resolveCurrentDetailedPlanningPackChain({
     );
     candidates.push({ artefact, pack, quickSiteCheckArtefact: qscEntry?.artefact, quickSiteCheck: qscEntry?.report, validProvenance });
     if (!validProvenance) continue;
-    sawUnreadyCurrentPack = !pack.commercialReady;
-    return { active: { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report }, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+    if (!active) {
+      active = { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report };
+      sawUnreadyCurrentPack = !pack.commercialReady;
+    }
   }
 
-  return { active: null, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+  return { active, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
 }
 
 async function resolveNewestCurrentDetailedPlanningPack({
