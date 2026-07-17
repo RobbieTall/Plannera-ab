@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { deleteProjectForUser, getProjectForRequester, renameProjectForRequester } from "@/lib/projects";
+import { deleteProjectForRequester, getProjectForRequester, renameProjectForRequester } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = getSessionFromRequest(request);
 
-  if (!session?.userId) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const deletion = await deleteProjectForUser(session.userId, params.projectId);
+  const deletion = await deleteProjectForRequester(params.projectId, session.userId ?? null, session.sessionId);
 
   if (!deletion.count || deletion.count === 0) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });

@@ -192,6 +192,42 @@ export const listProjectsForUser = async (
   return projects.map(sanitizeProjectListItem);
 };
 
+export const listProjectsForRequester = async (
+  userId: string | null,
+  sessionId: string,
+): Promise<ProjectListItem[]> => {
+  if (userId) {
+    return listProjectsForUser(userId, sessionId);
+  }
+
+  const projects = await prisma.project.findMany({
+    where: { sessionId, userId: null },
+    orderBy: { updatedAt: "desc" },
+    select: projectListSelect,
+  });
+
+  return projects.map(sanitizeProjectListItem);
+};
+
+export const deleteProjectForRequester = async (
+  projectId: string,
+  userId: string | null,
+  sessionId: string | null,
+) => {
+  const ownershipFilter = userId ? { userId } : sessionId ? { sessionId, userId: null } : null;
+
+  if (!ownershipFilter) {
+    return { count: 0 } as Prisma.BatchPayload;
+  }
+
+  return prisma.project.deleteMany({
+    where: {
+      id: projectId,
+      ...ownershipFilter,
+    },
+  });
+};
+
 export const createProjectForUser = async (userId: string, title?: string): Promise<ProjectListItem> => {
   const resolvedTitle = title?.trim() || "Untitled project";
 

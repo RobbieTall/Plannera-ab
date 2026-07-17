@@ -273,3 +273,14 @@ Decision: Normal-workspace current SEE and Expert Review Request cards, readines
 Changing or clearing the proposal brief intentionally removes the active exact-bound DPP/output set until a non-empty brief matches or regenerates a pack. Old or malformed outputs remain artefact history only and cannot drive current cards, `hasSee`, `hasQualitySee`, readiness, or normal-workspace SEE/review POSTs. Normal current-workspace handlers must stop client-side rather than invoking server legacy compatibility fallback with omitted DPP/proposal bindings.
 
 Reference: docs/project-memory/build-next.md Item 62
+
+
+## DR-032 — Address-First Commercial Entry and Truthful Requester UI
+
+Status: Active
+
+Decision: The normal homepage must present the real free Quick Site Check task in the first viewport: Plannera and Quick Site Check naming, a labelled Site address input, and a Run free site check action. Launch examples are limited to 45 Broken Head Road, Byron Bay NSW 2481 and 52 Belgrave St, Kempsey NSW 2440, with copy restricted to cited NSW Byron/Kempsey pilot scope and the four-step Site → Quick Site Check → Detailed Planning Pack → SEE/referral journey. Decorative/fabricated readiness, timeline, risk, document-count, monitoring, template, or consultant-directory claims must not be shown unless backed by current normal product state.
+
+Auth-bypass entitlement is not the same as an actual signed-in NextAuth user. UI chrome may preserve `isAuthenticated`/`requireAuth` compatibility for protected actions, but must use a truthful signed-in state before showing Sign out. My Projects is canonical at `/projects` and must be requester-scoped: signed-in users see owned projects after safe session-project claiming, while guests/bypass requesters see only current anonymous-session projects. The canonical Projects UI should stay operational and compact, with truthful guest copy and a single New site check action rather than decorative stats, dark hero panels, or unsupported project-management claims.
+
+Reference: docs/project-memory/build-next.md Item 63

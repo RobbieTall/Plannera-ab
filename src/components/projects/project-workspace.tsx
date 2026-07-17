@@ -3300,7 +3300,7 @@ export function ProjectWorkspace({
           {isAuthenticated ? (
             <button
               type="button"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/projects")}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
             >
               ← My Projects

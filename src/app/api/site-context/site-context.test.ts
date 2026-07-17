@@ -364,7 +364,7 @@ describe("site-context api validation", () => {
   it("persists zoning from a resolver candidate zone when the spatial lookup returns no zoning", async () => {
     const candidate = {
       id: "candidate-zoned",
-      formattedAddress: "32 Smith St, Kempsey NSW 2440, Australia",
+      formattedAddress: "52 Belgrave St, Kempsey NSW 2440, Australia",
       provider: "google" as const,
       latitude: -31.0802,
       longitude: 152.8421,

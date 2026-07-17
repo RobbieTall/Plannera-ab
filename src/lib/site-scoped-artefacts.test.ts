@@ -14,7 +14,7 @@ describe("site-scoped artefact matching", () => {
           zoneCode: "R2",
         },
         {
-          address: "32 Smith St, Kempsey NSW 2440",
+          address: "52 Belgrave St, Kempsey NSW 2440",
           lga: "KEMPSEY",
           zoneLabel: "Zone E2 Commercial Centre",
           zoneCode: "E2",
@@ -27,7 +27,7 @@ describe("site-scoped artefact matching", () => {
     expect(
       isArtefactCurrentForSite(
         {
-          address: "32 Smith St, Kempsey NSW 2440",
+          address: "52 Belgrave St, Kempsey NSW 2440",
           lgaName: "Kempsey Shire",
           lgaCode: "KEMPSEY",
           zoneLabel: "Zone E2 Commercial Centre",
@@ -47,14 +47,14 @@ describe("site-scoped artefact matching", () => {
     expect(
       isArtefactCurrentForSite(
         {
-          address: "32 Smith Street, Kempsey NSW 2440, Australia",
+          address: "52 Belgrave Street, Kempsey NSW 2440, Australia",
           lgaName: "Kempsey Shire",
           lgaCode: "KEMPSEY",
           zoneLabel: "E2 Commercial Centre",
           zoneCode: "E2",
         },
         {
-          address: "32 Smith St Kempsey NSW 2440",
+          address: "52 Belgrave St Kempsey NSW 2440",
           lga: "KEMPSEY",
           zoneLabel: "Zone E2",
           zoneCode: "E2",

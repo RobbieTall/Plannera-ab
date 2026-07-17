@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
+import { createProjectForRequester, listProjectsForRequester } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   const session = getSessionFromRequest(request);
 
-  if (!session?.userId) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const project = await createProjectForUser(session.userId, parsedBody.data.title);
+    const project = await createProjectForRequester(session.sessionId, session.userId, parsedBody.data.title);
     return NextResponse.json({
       project: {
         ...project,
@@ -40,12 +40,12 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const session = getSessionFromRequest(request);
 
-  if (!session?.userId) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const projects = await listProjectsForUser(session.userId, session.sessionId);
+    const projects = await listProjectsForRequester(session.userId ?? null, session.sessionId);
     return NextResponse.json({
       projects: projects.map((project) => ({
         ...project,

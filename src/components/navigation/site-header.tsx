@@ -16,7 +16,7 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ navigation }: SiteHeaderProps) {
-  const { isAuthenticated, openAuthModal } = useAuthGuard();
+  const { isSignedIn, openAuthModal } = useAuthGuard();
 
   return (
     <>
@@ -34,10 +34,10 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            {isAuthenticated ? (
+            {isSignedIn ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/projects"
                   className="hidden rounded-full border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
                 >
                   My Projects
@@ -48,6 +48,12 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
               </>
             ) : (
               <>
+                <Link
+                  href="/projects"
+                  className="hidden rounded-full border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
+                >
+                  My Projects
+                </Link>
                 <button
                   type="button"
                   onClick={() => openAuthModal()}
