@@ -56,8 +56,8 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
       <SiteHeader navigation={[]} />
       <main className="flex-1">
-        <section className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-4xl flex-col justify-center px-4 py-5 sm:px-6 sm:py-8 lg:px-8" aria-labelledby="check-heading">
-          <div className="space-y-6">
+        <section className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-4xl flex-col justify-center px-4 py-4 sm:px-6 sm:py-8 lg:px-8" aria-labelledby="check-heading">
+          <div className="space-y-5">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800">
               <MapPin className="h-4 w-4" /> Plannera Check
             </p>
