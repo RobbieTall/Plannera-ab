@@ -294,3 +294,14 @@ Decision: Plannera Check is the mobile-first acquisition surface of Plannera, no
 The workspace commercial path is the shared-product sequence Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff. Its displayed stage state must derive from current-site/proposal/exact-DPP evidence and the existing commercial next-action result. It must not create a parallel readiness truth, infer readiness from artefact existence alone, introduce A$2 microtransactions, or make global traffic-light certainty claims. Future DCP Deep Dive purchase work, if approved, must bind to the claimed project, exact site snapshot, and proposal intent. Billing, price, Stripe, quotas, credits, checkout, entitlements, auth policy, PWA/native implementation, consultant sending, and the promotion gate remain deferred.
 
 Reference: docs/project-memory/build-next.md Item 64
+
+
+## DR-034 — Same-Project Focused Plannera Check Promotion
+
+Status: Active
+
+Decision: The premium mobile Plannera Check acquisition flow is a focused mode of the existing requester-scoped workspace, entered through a small query contract and not through a separate app, project, resolver, backend, or evidence system. It may auto-run Quick Site Check only after the current workspace has confirmed real site context with LGA plus parcel, coordinates, or zoning identity and site-context mutations are enabled; manual address-only fallback is insufficient. Progress language may describe only real states: requester project creation/loading, site resolution, planning-control retrieval, and evidence-view preparation.
+
+The reveal must preserve cited and unavailable evidence exactly: site/LGA/LEP/zone identity, key controls, source references, zone objectives, permissibility, and highlighted clauses are shown without turning missing evidence into success. After useful value, **Create project in Plannera** is the evidence-preserving promotion action: it saves the displayed Quick Site Check snapshot through the existing same-project artefact path or reuses an equivalent current-site saved snapshot, then enters the full workspace. Billing, price, Stripe, quotas, credits, checkout, entitlements, auth policy, PWA/native work, and consultant sending remain outside this slice.
+
+Reference: docs/project-memory/build-next.md Item 65

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 interface WorkspacePageProps {
   params: { id: string };
-  searchParams?: { prompt?: string; initialAddress?: string };
+  searchParams?: { prompt?: string; initialAddress?: string; check?: string };
 }
 
 const buildWorkspaceProject = (project: PrismaProject): Project => {
@@ -107,6 +107,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Wor
       project={workspaceProject}
       initialPrompt={searchParams?.prompt}
       initialAddress={searchParams?.initialAddress}
+      focusedCheck={searchParams?.check === "1"}
     />
   );
 }
