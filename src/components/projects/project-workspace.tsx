@@ -3479,7 +3479,7 @@ export function ProjectWorkspace({
   }, [focusedCheckStatus, runFocusedCheck]);
 
   const promoteFocusedCheck = useCallback(async () => {
-    if (!focusedCheckResult || isPromotingCheck || promotedCheck) {
+    if (!focusedCheckResult || isPromotingCheck || promotedCheck || !hasLoadedServerArtefacts) {
       if (promotedCheck) router.replace(`/projects/${projectKey}/workspace`);
       return;
     }
@@ -3513,7 +3513,7 @@ export function ProjectWorkspace({
     } finally {
       setIsPromotingCheck(false);
     }
-  }, [focusedCheckResult, handleQuickSiteCheckArtefactSaved, isPromotingCheck, project.name, projectKey, promotedCheck, router, siteContext?.formattedAddress, siteScopedArtefacts]);
+  }, [focusedCheckResult, handleQuickSiteCheckArtefactSaved, hasLoadedServerArtefacts, isPromotingCheck, project.name, projectKey, promotedCheck, router, siteContext?.formattedAddress, siteScopedArtefacts]);
 
   const handleCommercialDominantAction = useCallback(() => {
     if (commercialDominantAction.kind === "expert_review") {
@@ -3710,8 +3710,8 @@ export function ProjectWorkspace({
                   </div>
                 </details>
 
-                <button type="button" onClick={() => void promoteFocusedCheck()} disabled={isPromotingCheck || promotedCheck} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
-                  {isPromotingCheck ? "Creating project…" : promotedCheck ? "Project created" : "Create project in Plannera"}
+                <button type="button" onClick={() => void promoteFocusedCheck()} disabled={!hasLoadedServerArtefacts || isPromotingCheck || promotedCheck} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                  {!hasLoadedServerArtefacts ? "Loading saved evidence…" : isPromotingCheck ? "Saving check…" : promotedCheck ? "Opening workspace…" : "Create project in Plannera"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </section>
