@@ -8,6 +8,8 @@ describe("homepage commercial entry copy", () => {
     expect(source).toContain("Plannera Quick Site Check");
     expect(source).toContain("Site address");
     expect(source).toContain("Run free site check");
+    expect(source).toContain("Example addresses");
+    expect(source).not.toContain("Launch QA examples");
     expect(source).toContain("45 Broken Head Road, Byron Bay NSW 2481");
     expect(source).toContain("52 Belgrave St, Kempsey NSW 2440");
     expect(source).not.toContain("32 Smith St, Kempsey NSW 2440");
@@ -25,6 +27,15 @@ describe("homepage commercial entry copy", () => {
     expect(source).not.toContain("Low-med");
     expect(source).not.toContain("6-10 wk");
     expect(source).not.toContain("8 items");
+  });
+});
+
+
+describe("homepage operational styling", () => {
+  it("keeps the header within the Item 63 radius rule and prevents the scope panel stretching", () => {
+    const headerSource = readFileSync("src/components/navigation/site-header.tsx", "utf8");
+    expect(headerSource).not.toContain("rounded-full");
+    expect(source).toContain("self-start rounded-lg border border-slate-200 bg-slate-50 p-6");
   });
 });
 
