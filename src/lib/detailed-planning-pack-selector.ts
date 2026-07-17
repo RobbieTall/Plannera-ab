@@ -7,6 +7,18 @@ const packTimestampMs = (artefact: WorkspaceArtefact) => {
   return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
 };
 
+export const normalizeProposalBriefForComparison = (brief?: string | null) =>
+  (brief ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+
+export const isDetailedPlanningPackForProposalBrief = (
+  artefact: WorkspaceArtefact,
+  proposalBrief?: string | null,
+) => {
+  const normalized = normalizeProposalBriefForComparison(proposalBrief);
+  if (!normalized) return true;
+  return normalizeProposalBriefForComparison(artefact.detailedPlanningPack?.proposalBrief) === normalized;
+};
+
 const comparePackRecency = (left: WorkspaceArtefact, right: WorkspaceArtefact) => {
   const leftTimestamp = packTimestampMs(left);
   const rightTimestamp = packTimestampMs(right);
@@ -14,12 +26,16 @@ const comparePackRecency = (left: WorkspaceArtefact, right: WorkspaceArtefact) =
   return left.id.localeCompare(right.id);
 };
 
-export const selectCurrentSiteDetailedPlanningPackArtefact = (artefacts: WorkspaceArtefact[]) =>
+export const selectCurrentSiteDetailedPlanningPackArtefact = (
+  artefacts: WorkspaceArtefact[],
+  options: { proposalBrief?: string | null } = {},
+) =>
   artefacts.reduce<WorkspaceArtefact | undefined>((latest, artefact) => {
     if (
       artefact.isCurrentSite === false ||
       artefact.type !== "detailed_planning_pack" ||
-      artefact.detailedPlanningPack?.packType !== "detailed_planning_pack"
+      artefact.detailedPlanningPack?.packType !== "detailed_planning_pack" ||
+      !isDetailedPlanningPackForProposalBrief(artefact, options.proposalBrief)
     ) {
       return latest;
     }
@@ -27,3 +43,13 @@ export const selectCurrentSiteDetailedPlanningPackArtefact = (artefacts: Workspa
     if (!latest || comparePackRecency(artefact, latest) > 0) return artefact;
     return latest;
   }, undefined);
+
+export const hasCurrentSiteDetailedPlanningPackProposalMismatch = (
+  artefacts: WorkspaceArtefact[],
+  proposalBrief?: string | null,
+) => {
+  if (!normalizeProposalBriefForComparison(proposalBrief)) return false;
+  const latestAnyProposal = selectCurrentSiteDetailedPlanningPackArtefact(artefacts);
+  if (!latestAnyProposal) return false;
+  return !selectCurrentSiteDetailedPlanningPackArtefact(artefacts, { proposalBrief });
+};

@@ -45,6 +45,7 @@ test("commercial funnel test command covers generation, referral, audit and work
     "tests/map-snapshot.test.ts",
     "tests/commercial-next-action.test.ts",
     "tests/quick-site-check-evidence.test.ts",
+    "tests/detailed-planning-pack-selector.test.ts",
     "tests/commercial-funnel-audit-runner.test.ts",
     "src/lib/artefact-review-request.test.ts",
     "src/lib/review-request-handoff.test.ts",

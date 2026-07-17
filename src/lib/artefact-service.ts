@@ -982,6 +982,7 @@ export async function resolveCurrentDetailedPlanningPackChain({
   const sawPack = parsedPacks.length > 0;
   let sawCurrentPack = false;
   let sawUnreadyCurrentPack = false;
+  let active: CurrentDetailedPlanningPackChain | null = null;
   const candidates: CurrentDetailedPlanningPackChainResolution["candidates"] = [];
   for (const { artefact, pack } of parsedPacks) {
     if (!pack) {
@@ -1008,23 +1009,58 @@ export async function resolveCurrentDetailedPlanningPackChain({
     );
     candidates.push({ artefact, pack, quickSiteCheckArtefact: qscEntry?.artefact, quickSiteCheck: qscEntry?.report, validProvenance });
     if (!validProvenance) continue;
-    sawUnreadyCurrentPack = !pack.commercialReady;
-    return { active: { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report }, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+    if (!active) {
+      active = { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report };
+      sawUnreadyCurrentPack = !pack.commercialReady;
+    }
   }
 
-  return { active: null, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+  return { active, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
 }
 
 async function resolveNewestCurrentDetailedPlanningPack({
   prismaClient,
   project,
   requireCommercialReady,
+  sourceDetailedPlanningPackArtefactId,
+  expectedProposalBrief,
 }: {
   prismaClient: ArtefactDependencies["prisma"];
   project: ProjectWithOptionalSiteContext;
   requireCommercialReady: boolean;
+  sourceDetailedPlanningPackArtefactId?: string | null;
+  expectedProposalBrief?: string | null;
 }) {
   const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project });
+  if (sourceDetailedPlanningPackArtefactId || expectedProposalBrief?.trim()) {
+    if (!sourceDetailedPlanningPackArtefactId || !expectedProposalBrief?.trim()) {
+      throw new ArtefactValidationError("Provide both source Detailed Planning Pack artefact ID and expected proposal brief before continuing.");
+    }
+
+    const candidate = resolution.candidates.find(({ artefact }) => artefact.id === sourceDetailedPlanningPackArtefactId);
+    if (!candidate) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack was not found in this project. Regenerate the pack before continuing.");
+    }
+    if (!candidate.pack) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack is malformed. Regenerate the pack before continuing.");
+    }
+    if (!candidate.validProvenance || !candidate.quickSiteCheckArtefact || !candidate.quickSiteCheck) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack is stale, cross-site, or missing its cited Quick Site Check provenance. Regenerate the pack before continuing.");
+    }
+    if (normalizeProposalBriefForBinding(candidate.pack.proposalBrief) !== normalizeProposalBriefForBinding(expectedProposalBrief)) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack was generated for a different proposed-works brief. Regenerate the pack before continuing.");
+    }
+    if (requireCommercialReady && !candidate.pack.commercialReady) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
+    }
+    return {
+      artefact: candidate.artefact,
+      pack: candidate.pack,
+      quickSiteCheckArtefact: candidate.quickSiteCheckArtefact,
+      quickSiteCheck: candidate.quickSiteCheck,
+    };
+  }
+
   if (resolution.active) {
     if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
     throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
@@ -1294,7 +1330,21 @@ const generateSeeArtefactSchema = z.object({
   projectId: z.string().trim().min(1, "projectId is required"),
   title: z.string().trim().max(200).optional(),
   proposedWorksSummary: z.string().trim().max(4000).optional(),
+  sourceDetailedPlanningPackArtefactId: z.string().trim().min(1).optional(),
+  expectedProposalBrief: z.string().trim().max(2000).optional(),
 });
+
+const sourceDetailedPlanningPackBindingSchema = z.object({
+  sourceDetailedPlanningPackArtefactId: z.string().trim().min(1).optional(),
+  expectedProposalBrief: z.string().trim().max(2000).optional(),
+}).refine((value) => {
+  const hasSource = Boolean(value.sourceDetailedPlanningPackArtefactId);
+  const hasExpectedProposal = Boolean(value.expectedProposalBrief?.trim());
+  return hasSource === hasExpectedProposal;
+}, { message: "Provide both source Detailed Planning Pack artefact ID and expected proposal brief" });
+
+const normalizeProposalBriefForBinding = (brief?: string | null) =>
+  (brief ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 
 export type SeeSourceCitation = {
   ref: string;
@@ -1617,7 +1667,7 @@ export async function createPreSeePlanningMemoArtefact({
     throw new ArtefactValidationError(message);
   }
 
-  const { projectId, title } = parsed.data;
+  const { projectId, title, sourceDetailedPlanningPackArtefactId, expectedProposalBrief } = parsed.data;
   const project = await assertProjectAccess(deps.prisma, projectId, userId);
   const projectWithContext = await deps.prisma.project.findUnique({
     where: { id: project.id },
@@ -1636,6 +1686,8 @@ export async function createPreSeePlanningMemoArtefact({
     prismaClient: deps.prisma,
     project: projectWithContext,
     requireCommercialReady: true,
+    sourceDetailedPlanningPackArtefactId,
+    expectedProposalBrief,
   });
   const proposedWorksSummary = resolvedPack.pack.proposalBrief;
   const quickSiteCheck = resolvedPack.quickSiteCheck;
@@ -1887,7 +1939,9 @@ export async function createExpertReviewRequestArtefact({
   body: unknown;
   userId: string;
 }, deps: { prisma: unknown } = { prisma }) {
-  const parsed = z.object({ projectId: z.string().trim().min(1) }).safeParse(body);
+  const parsed = z.object({
+    projectId: z.string().trim().min(1),
+  }).merge(sourceDetailedPlanningPackBindingSchema).safeParse(body);
   if (!parsed.success) {
     throw new ArtefactValidationError(parsed.error.issues[0]?.message ?? "Invalid review request payload");
   }
@@ -1901,6 +1955,8 @@ export async function createExpertReviewRequestArtefact({
     prismaClient,
     project: projectWithContext,
     requireCommercialReady: false,
+    sourceDetailedPlanningPackArtefactId: parsed.data.sourceDetailedPlanningPackArtefactId,
+    expectedProposalBrief: parsed.data.expectedProposalBrief,
   });
   const qsc = resolvedPack.quickSiteCheck;
   const pack = resolvedPack.pack;

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectCurrentSiteDetailedPlanningPackArtefact } from "../src/lib/detailed-planning-pack-selector";
+import {
+  hasCurrentSiteDetailedPlanningPackProposalMismatch,
+  selectCurrentSiteDetailedPlanningPackArtefact,
+} from "../src/lib/detailed-planning-pack-selector";
 import type { DetailedPlanningPackContent, WorkspaceArtefact } from "../src/types/workspace";
 
 const pack = (commercialReady: boolean, generatedAt = "2026-07-15T00:00:00Z"): DetailedPlanningPackContent => ({
@@ -59,6 +62,44 @@ test("selectCurrentSiteDetailedPlanningPackArtefact picks the newest current-sit
 
   assert.equal(selected?.id, "local-regenerated-newer-pack");
   assert.deepEqual(input.map((item) => item.id), ["server-older-pack", "local-regenerated-newer-pack"]);
+});
+
+test("selectCurrentSiteDetailedPlanningPackArtefact ignores packs generated for a different proposed-works brief", () => {
+  const selected = selectCurrentSiteDetailedPlanningPackArtefact([
+    { ...artefact("newer-different-proposal", true, true, "2026-07-15T00:10:00Z"), detailedPlanningPack: { ...pack(true, "2026-07-15T00:10:00Z"), proposalBrief: "Change of use to a neighbourhood shop" } },
+    { ...artefact("older-current-proposal", true, true, "2026-07-15T00:00:00Z"), detailedPlanningPack: pack(true, "2026-07-15T00:00:00Z") },
+  ], { proposalBrief: " Tourist   accommodation alterations " });
+
+  assert.equal(selected?.id, "older-current-proposal");
+  assert.equal(hasCurrentSiteDetailedPlanningPackProposalMismatch([
+    { ...artefact("newer-different-proposal", true, true, "2026-07-15T00:10:00Z"), detailedPlanningPack: { ...pack(true, "2026-07-15T00:10:00Z"), proposalBrief: "Change of use to a neighbourhood shop" } },
+    { ...artefact("older-current-proposal", true, true, "2026-07-15T00:00:00Z"), detailedPlanningPack: pack(true, "2026-07-15T00:00:00Z") },
+  ], " Tourist   accommodation alterations "), false);
+});
+
+test("proposal mismatch is false for a matching unresolved pack so expert review can use it", () => {
+  const selected = selectCurrentSiteDetailedPlanningPackArtefact([
+    { ...artefact("newer-different-ready-proposal", true, true, "2026-07-15T00:10:00Z"), detailedPlanningPack: { ...pack(true, "2026-07-15T00:10:00Z"), proposalBrief: "Change of use to a neighbourhood shop" } },
+    { ...artefact("older-current-unresolved-proposal", true, false, "2026-07-15T00:00:00Z"), detailedPlanningPack: pack(false, "2026-07-15T00:00:00Z") },
+  ], { proposalBrief: "Tourist accommodation alterations" });
+
+  assert.equal(selected?.id, "older-current-unresolved-proposal");
+  assert.equal(selected?.detailedPlanningPack?.commercialReady, false);
+  assert.equal(hasCurrentSiteDetailedPlanningPackProposalMismatch([
+    { ...artefact("newer-different-ready-proposal", true, true, "2026-07-15T00:10:00Z"), detailedPlanningPack: { ...pack(true, "2026-07-15T00:10:00Z"), proposalBrief: "Change of use to a neighbourhood shop" } },
+    { ...artefact("older-current-unresolved-proposal", true, false, "2026-07-15T00:00:00Z"), detailedPlanningPack: pack(false, "2026-07-15T00:00:00Z") },
+  ], "Tourist accommodation alterations"), false);
+});
+
+test("selectCurrentSiteDetailedPlanningPackArtefact returns undefined when only current-site packs are proposal-stale", () => {
+  const selected = selectCurrentSiteDetailedPlanningPackArtefact([
+    artefact("current-site-old-proposal", true, true),
+  ], { proposalBrief: "Change of use to a neighbourhood shop" });
+
+  assert.equal(selected, undefined);
+  assert.equal(hasCurrentSiteDetailedPlanningPackProposalMismatch([
+    artefact("current-site-old-proposal", true, true),
+  ], "Change of use to a neighbourhood shop"), true);
 });
 
 test("selectCurrentSiteDetailedPlanningPackArtefact uses deterministic id fallback for equal or invalid timestamps", () => {

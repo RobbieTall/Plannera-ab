@@ -254,3 +254,11 @@ Decision: Paid Detailed Planning Pack DCP citations must persist only the exact 
 Expert Review Request payloads must make consultant handoff self-contained by deriving cited DCP requirements only from the selected current Detailed Planning Pack and including topic identity, citation identity/hierarchy, and the exact excerpt in both commercial-ready and unresolved referrals when cited topics exist. Legacy review requests remain valid through optional/default-empty handling.
 
 Reference: docs/project-memory/build-next.md Item 60
+
+## DR-030 — Proposed-Works Brief Is Active DPP Scope
+
+Status: Active
+
+Decision: The proposed-works brief captured for a Detailed Planning Pack is part of the active commercial-funnel scope, not merely display text. In the normal workspace, a current-site pack generated for a different brief must not be selected as the active pack for next-action readiness, SEE progression, or expert-review prompting. Normal SEE and expert-review write requests must send the intended DPP artefact ID plus expected proposal brief, and the server must resolve that exact owned current-site DPP with intact cited QSC provenance and matching normalized persisted proposal before writing anything. Explicit source binding must not silently fall back to another/newer DPP. Legacy requests without explicit binding may continue through the existing newest-current resolver only for compatibility, but the normal current workspace path must be exact-bound.
+
+Reference: docs/project-memory/build-next.md Item 61

@@ -955,7 +955,7 @@ Verification commands for this slice: `npm run test:commercial-funnel`, `npm run
 
 Status: DONE/MERGED — PR #303 merged from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
 
-## 60) Exact DCP requirement excerpts through SEE/referral handoff — IN REVIEW (2026-07-17)
+## 60) Exact DCP requirement excerpts through SEE/referral handoff — DONE/MERGED (2026-07-17)
 
 Purpose: close the consultant-inspectability gap between the paid Detailed Planning Pack and downstream SEE/referral handoff. Item 59 correctly decides whether a topic is Cited from a topic-matching substantive sentence/control row, but the saved citation excerpt still used the broader clause body, allowing objectives or unrelated controls to travel into SEE and consultant review text.
 
@@ -978,5 +978,28 @@ Limits: no schema migration, no decorative UI, no billing/auth/paywall, no produ
 Verification commands for this slice: `npm run test:commercial-funnel`, focused review-request handoff tests, directly relevant DPP exact-excerpt tests, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
 Evidence boundary: local deterministic tests can prove persistence, exact-copy, and provenance invariants only. Protected live saved-output audit and any production readiness claims remain outside this slice.
+
+Status: DONE/MERGED — PR #304 merged from exact head `d694d6d0b57c0d4cf39fd25b61afddbbcc9b6eae` at exact merge commit `4ede5ca0b04644876ae48315145852b9e317ee51`.
+
+
+## 61) Proposal-scoped DPP selection in the normal workspace — IN REVIEW (2026-07-17)
+
+Purpose: close the normal-user workflow gap where a current-site Detailed Planning Pack could remain selected after the user changed the proposed-works brief. The service already persists the brief into the DPP and downstream SEE/referral provenance, but the workspace active-pack selector treated only site scope and recency as active state. A pilot user could therefore edit “what I want to build” and still see the previous pack driving readiness/SEE prompts until they manually noticed the mismatch.
+
+Invariant: the active normal-workspace Detailed Planning Pack must match both the current site and the current proposed-works brief when a brief is present. Current-site packs generated for a different brief remain saved history, but are proposal-stale for next-action readiness and downstream SEE/referral prompting. The workspace must surface the mismatch and normal SEE/expert-review write requests must send the intended DPP artefact ID plus expected proposal brief. The server must resolve that exact owned current-site DPP, verify intact cited QSC provenance and normalized proposal equality, and reject missing, stale-site, wrong-project, forged-ID, malformed, unresolved-for-SEE, or proposal-mismatched inputs before persistence without falling back to another/newer pack.
+
+Focused coverage:
+
+- The shared DPP selector still ignores different-site stale packs and chooses the newest matching current-site pack deterministically.
+- When a current proposal brief is supplied, a newer current-site pack for a different brief is ignored in favour of an older matching pack.
+- When only current-site packs for different briefs exist, the selector returns no active pack, so SEE/readiness progression fails closed until regeneration.
+- SEE service coverage binds generation to an explicit selected DPP/proposal, proves normalized proposal equality, rejects mismatches without a second persistence, and does not fall back to a different pack when an explicit source is supplied.
+- Expert-review service coverage binds an unresolved referral to the explicit selected DPP/proposal, preserves the honest no-SEE-readiness branch, and rejects proposal mismatches without persistence.
+- The commercial golden journey now sends explicit source DPP/proposal bindings for commercial-ready SEE/review and unresolved referral branches, and includes mismatch rejection.
+- `npm run test:commercial-funnel` includes the selector, exact-source SEE, unresolved referral, audit, and handoff coverage.
+
+Evidence boundary: this is a normal-workspace source-selection plus server write-boundary hardening slice only. Explicit binding is enforced for the normal current workspace requests; compatibility requests that omit both source DPP ID and expected proposal retain the existing newest-current resolver and are documented as legacy only. This does not change database schema, billing/auth/paywall, ownership/session controls, production access, live retrieval, production projects, or live audit status. It does not prove live Byron/Kempsey planning accuracy, close Items 52/55, or unlock Item 40.
+
+Verification commands for this slice: focused selector test, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
 Status: IN REVIEW — not merged.

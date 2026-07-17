@@ -388,6 +388,66 @@ describe("createExpertReviewRequestArtefact", () => {
     ]));
   });
 
+  it("binds expert review to the explicit unresolved source DPP and rejects proposal mismatch without persistence", async () => {
+    const olderPack = dppPayload({ proposalBrief: "Older ready works." });
+    const unresolvedPack = dppPayload({
+      generatedAt: "2026-07-10T01:30:00.000Z",
+      commercialReady: false,
+      proposalBrief: "Selected unresolved shopfront works.",
+      unresolvedTopics: ["Parking and access: no current DCP clause found."],
+    });
+    const { deps: olderDeps } = makeDeps([
+      qscArtefact(),
+      dppArtefact(olderPack),
+      dppArtefact(unresolvedPack, { id: "newer-dpp-id" }),
+    ]);
+    const olderResult = await createExpertReviewRequestArtefact({
+      body: {
+        projectId: project.publicId,
+        sourceDetailedPlanningPackArtefactId: "dpp-id",
+        expectedProposalBrief: " Older   ready works. ",
+      },
+      userId: "user-1",
+    }, olderDeps);
+    expect(olderResult.content.detailedPlanningPack?.artefactId).toBe("dpp-id");
+    expect(olderResult.content.detailedPlanningPack?.proposalBrief).toBe("Older ready works.");
+
+    const { deps, artefactCreate } = makeDeps([
+      qscArtefact(),
+      dppArtefact(olderPack),
+      dppArtefact(unresolvedPack, { id: "newer-dpp-id" }),
+    ]);
+
+    const result = await createExpertReviewRequestArtefact({
+      body: {
+        projectId: project.publicId,
+        sourceDetailedPlanningPackArtefactId: "newer-dpp-id",
+        expectedProposalBrief: " Selected   unresolved shopfront works. ",
+      },
+      userId: "user-1",
+    }, deps);
+
+    expect(result.content.includedArtefacts.map((artefact) => artefact.id)).toEqual(["quick-site-check-id", "newer-dpp-id"]);
+    expect(result.content.detailedPlanningPack?.proposalBrief).toBe("Selected unresolved shopfront works.");
+    expect(result.content.detailedPlanningPack?.commercialReady).toBe(false);
+
+    const { deps: mismatchDeps, artefactCreate: mismatchArtefactCreate } = makeDeps([
+      qscArtefact(),
+      dppArtefact(olderPack),
+      dppArtefact(unresolvedPack, { id: "newer-dpp-id" }),
+    ]);
+    await expect(createExpertReviewRequestArtefact({
+      body: {
+        projectId: project.publicId,
+        sourceDetailedPlanningPackArtefactId: "newer-dpp-id",
+        expectedProposalBrief: "Older ready works.",
+      },
+      userId: "user-1",
+    }, mismatchDeps)).rejects.toThrow(/different proposed-works brief/);
+    expect(artefactCreate).toHaveBeenCalledTimes(1);
+    expect(mismatchArtefactCreate).not.toHaveBeenCalled();
+  });
+
   it("does not package a SEE from another DPP or site", async () => {
     const mismatchedSee = seePayload({
       siteDescription: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneName: "Commercial Centre", zoneLabel: "E2 – Commercial Centre" },
