@@ -16,7 +16,7 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ navigation }: SiteHeaderProps) {
-  const { isAuthenticated, openAuthModal } = useAuthGuard();
+  const { isSignedIn, openAuthModal } = useAuthGuard();
 
   return (
     <>
@@ -26,32 +26,38 @@ export function SiteHeader({ navigation }: SiteHeaderProps) {
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          <nav className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-white/70 p-1 text-sm font-medium text-slate-600 shadow-sm shadow-slate-200/60 md:flex">
+          <nav className="hidden items-center gap-1 rounded-lg border border-slate-200/80 bg-white/70 p-1 text-sm font-medium text-slate-600 shadow-sm shadow-slate-200/60 md:flex">
             {navigation.map((item) => (
-              <Link key={item.href} href={item.href} className="rounded-full px-3 py-1.5 transition hover:bg-slate-100 hover:text-slate-950">
+              <Link key={item.href} href={item.href} className="rounded-lg px-3 py-1.5 transition hover:bg-slate-100 hover:text-slate-950">
                 {item.label}
               </Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            {isAuthenticated ? (
+            {isSignedIn ? (
               <>
                 <Link
-                  href="/dashboard"
-                  className="hidden rounded-full border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
+                  href="/projects"
+                  className="hidden rounded-lg border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
                 >
                   My Projects
                 </Link>
-                <SignOutButton className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800">
+                <SignOutButton className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
                   Sign out
                 </SignOutButton>
               </>
             ) : (
               <>
+                <Link
+                  href="/projects"
+                  className="hidden rounded-lg border border-slate-200/90 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 sm:inline-flex"
+                >
+                  My Projects
+                </Link>
                 <button
                   type="button"
                   onClick={() => openAuthModal()}
-                  className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800"
+                  className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
                 >
                   Sign in
                 </button>

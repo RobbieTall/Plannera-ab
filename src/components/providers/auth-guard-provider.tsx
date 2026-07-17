@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
@@ -24,6 +24,7 @@ interface AuthGuardContextValue {
   openAuthModal: (action?: PendingAuthAction) => void;
   closeAuthModal: () => void;
   isAuthenticated: boolean;
+  isSignedIn: boolean;
   isAuthModalOpen: boolean;
 }
 
@@ -37,7 +38,8 @@ export function AuthGuardProvider({ children }: { children: ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const pendingActionRef = useRef<PendingAuthAction | null>(null);
 
-  const isAuthenticated = AUTH_BYPASS_ACTIVE ? true : status === "authenticated" && Boolean(session?.user);
+  const isSignedIn = status === "authenticated" && Boolean(session?.user);
+  const isAuthenticated = AUTH_BYPASS_ACTIVE ? true : isSignedIn;
 
   const callbackUrl = useMemo(() => {
     const search = searchParams.toString();
@@ -96,8 +98,8 @@ export function AuthGuardProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ requireAuth, openAuthModal, closeAuthModal, isAuthenticated, isAuthModalOpen }),
-    [closeAuthModal, isAuthModalOpen, isAuthenticated, openAuthModal, requireAuth],
+    () => ({ requireAuth, openAuthModal, closeAuthModal, isAuthenticated, isSignedIn, isAuthModalOpen }),
+    [closeAuthModal, isAuthModalOpen, isAuthenticated, isSignedIn, openAuthModal, requireAuth],
   );
 
   return (

@@ -4,8 +4,8 @@ Plannera is an AI-powered NSW planning intelligence platform. It turns planning 
 
 ## Features
 
-### Quick Site Check
-Real LEP zone identification, permissibility table (permitted / prohibited / consent required), and key development standards (height limit, FSR, minimum lot size) — sourced from ingested LEP clause data, not AI guessing. Each data point carries a **Cited**, **Inferred**, or **Unavailable** confidence label. Results in under 5 seconds.
+### Address-first free Quick Site Check
+The homepage now starts with the usable Plannera Quick Site Check entry: a labelled **Site address** field and **Run free site check** action. The supported launch QA examples are limited to `45 Broken Head Road, Byron Bay NSW 2481` and `52 Belgrave St, Kempsey NSW 2440`. The free check is scoped honestly to cited NSW planning checks for the Byron/Kempsey launch path: site, zone, and key LEP controls first, with proposal-specific DCP detail following in the Detailed Planning Pack. It provides planning information for early scoping and does not replace legal or professional planning advice.
 
 ### Workspace Chat
 Every assistant response cites the relevant LEP clause (e.g. "Byron LEP 2014 cl. 4.3") when LEP data is available. A "Sources (n)" section appears below each bubble. Each response carries a **confidence badge** (green for score >= 0.7, amber for 0.4-0.69, red for < 0.4).
@@ -83,7 +83,7 @@ Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 
 ## Commercial pilot funnel
 
-Near-term revenue is deliberately focused on a tight Byron/Kempsey funnel: **free Quick Site Check → proposal-aware, cited Detailed Planning Pack → consultant-ready SEE/referral**. The Project Workspace remains the retention layer, but the sellable step is now the Detailed Planning Pack, persisted as its own `detailed_planning_pack` artefact type: it carries the saved Quick Site Check LEP evidence forward, asks for a concise proposed-works brief, and separates cited DCP evidence from unresolved topics before SEE/referral.
+Near-term revenue is deliberately focused on a tight Byron/Kempsey funnel: **Site → free Quick Site Check → proposal-aware, cited Detailed Planning Pack → consultant-ready SEE/referral**. The Project Workspace remains the retention layer, but the sellable step is now the Detailed Planning Pack, persisted as its own `detailed_planning_pack` artefact type: it carries the saved Quick Site Check LEP evidence forward, asks for a concise proposed-works brief, and separates cited DCP evidence from unresolved topics before SEE/referral.
 
 The normal workspace treats the proposed-works brief as part of the active evidence scope. If the user edits the brief after saving a Detailed Planning Pack, the saved pack is shown as proposal-stale for next-action purposes and the workspace prompts regeneration before SEE or expert-review handoff. Normal SEE and expert-review write requests also bind to the selected DPP artefact ID plus expected proposal brief at the server boundary; missing, stale-site, wrong-project, forged-ID, unresolved-for-SEE, or proposal-mismatched inputs fail before persistence rather than falling back to another pack.
 

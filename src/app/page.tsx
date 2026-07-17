@@ -3,308 +3,147 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Clock3, FileText, Sparkles, Users } from "lucide-react";
+import { ArrowRight, ClipboardCheck, FileSearch, MapPin, Send } from "lucide-react";
 
 import { SiteHeader } from "@/components/navigation/site-header";
+import { buildWorkspaceSeedQuery, launchExampleAddresses } from "@/lib/landing-entry";
 
-const navigation: { label: string; href: string }[] = [
-  { label: "Product", href: "#product" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "About", href: "#about" },
+const navigation = [
+  { label: "Quick Site Check", href: "#quick-site-check" },
+  { label: "Journey", href: "#journey" },
+  { label: "Scope", href: "#scope" },
 ];
 
-const featureHighlights: { title: string; description: string }[] = [
-  {
-    title: "Know what matters first",
-    description: "Start with likely controls, risks, documents and approval paths instead of a blank page.",
-  },
-  {
-    title: "Keep evidence in one place",
-    description: "Attach source material, site context and notes so every answer has the same project memory.",
-  },
-  {
-    title: "Move from chat to action",
-    description: "Turn questions into saved summaries, planning memos and next steps your team can use.",
-  },
+const journey = [
+  { title: "Site", description: "Start with one launch-path NSW address so the workspace has the correct site seed." },
+  { title: "Quick Site Check", description: "Run the free check for site, zone and key LEP controls with cited NSW planning sources." },
+  { title: "Detailed Planning Pack", description: "Use proposal-specific DCP detail and provenance when the proposal is ready to test." },
+  { title: "SEE / referral", description: "Move cited outputs into a consultant-ready SEE or referral handoff when the evidence supports it." },
 ];
-
-const examplePrompts = [
-  "Mixed-use development in Australia",
-  "Dual occupancy on a suburban block",
-  "Secondary dwelling for family in the backyard",
-  "Mixed-use concept on a 1,000sqm site",
-];
-
-const quickStats = [
-  {
-    label: "DA approval timelines tracked",
-    description: "Live monitoring across NSW, QLD & VIC",
-    icon: Sparkles,
-  },
-  {
-    label: "Document templates",
-    description: "Planning reports, checklists and letters",
-    icon: FileText,
-  },
-  {
-    label: "Consultant directory",
-    description: "Planners, certifiers and heritage experts",
-    icon: Users,
-  },
-];
-
-const pathwaySteps = [
-  "Planning controls scanned",
-  "Approval pathway drafted",
-  "Consultant pack assembled",
-];
-
-async function startProjectFromPrompt(
-  prompt: string,
-  opts?: {
-    setSubmitting?: (v: boolean) => void;
-    setPrompt?: (v: string) => void;
-    router?: ReturnType<typeof useRouter>;
-  },
-) {
-  const trimmed = prompt.trim();
-  if (!trimmed) return;
-
-  const { setSubmitting, setPrompt, router } = opts ?? {};
-
-  if (setSubmitting) setSubmitting(true);
-
-  try {
-    if (setPrompt) setPrompt(trimmed);
-
-    const res = await fetch("/api/projects/ensure", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: trimmed }),
-    });
-
-    if (!res.ok) {
-      console.error("Failed to ensure project from landing", await res.text());
-      return;
-    }
-
-    const data = await res.json();
-    const projectId = data?.project?.id as string | undefined;
-    if (!projectId || !router) return;
-
-    const seedQuery = new URLSearchParams({ prompt: trimmed, initialAddress: trimmed }).toString();
-    router.push(`/projects/${projectId}/workspace?${seedQuery}`);
-  } catch (error) {
-    console.error("startProjectFromPrompt error", error);
-  } finally {
-    if (setSubmitting) setSubmitting(false);
-  }
-}
 
 export default function HomePage() {
   const router = useRouter();
-  const [prompt, setPrompt] = useState("");
+  const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (submitting) return;
+  async function startSiteCheck(rawAddress: string) {
+    const trimmed = rawAddress.trim();
+    if (!trimmed || submitting) return;
 
-    await startProjectFromPrompt(prompt, { setSubmitting, router, setPrompt });
+    setSubmitting(true);
+    setError(null);
+    setAddress(trimmed);
+
+    try {
+      const response = await fetch("/api/projects/ensure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to start a Quick Site Check. Please try again.");
+      }
+
+      const payload = await response.json();
+      const projectId = payload?.project?.id;
+      const query = buildWorkspaceSeedQuery(trimmed);
+      if (!projectId || !query) {
+        throw new Error("Unable to open the site workspace. Please try again.");
+      }
+
+      router.push(`/projects/${projectId}/workspace?${query}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to start a Quick Site Check. Please try again.");
+      setSubmitting(false);
+    }
   }
 
-  async function handleExampleClick(title: string) {
-    await startProjectFromPrompt(title, { setSubmitting, setPrompt, router });
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await startSiteCheck(address);
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,#eff6ff,transparent_34rem),linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-950">
+    <div className="flex min-h-screen flex-col bg-white text-slate-950">
       <SiteHeader navigation={navigation} />
-
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <div id="product">
-            <section className="space-y-5">
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-blue-950/20 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(96,165,250,0.34),transparent_26rem),radial-gradient(circle_at_82%_12%,rgba(14,165,233,0.18),transparent_22rem),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(15,23,42,0.88)_48%,rgba(30,64,175,0.72))]" />
-                <div className="relative z-10 grid items-center gap-7 lg:grid-cols-[1.05fr,0.95fr]">
-                  <div className="max-w-2xl space-y-5">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100 shadow-sm backdrop-blur">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                      AI Planning Copilot
-                    </div>
-                    <div className="space-y-3">
-                      <h1 className="text-balance text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
-                        Navigate planning approvals with AI-level clarity.
-                      </h1>
-                      <p className="max-w-xl text-base leading-7 text-blue-100/90 sm:text-lg">
-                        Describe the site once. Plannera tightens the brief, surfaces likely controls, and turns early
-                        uncertainty into a practical pathway before your first consultant call.
-                      </p>
-                    </div>
-                    <form
-                      onSubmit={handleSubmit}
-                      className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.12] p-2 shadow-2xl shadow-slate-950/20 backdrop-blur sm:flex sm:items-center sm:gap-2"
-                    >
-                      <input
-                        type="text"
-                        value={prompt}
-                        onChange={(event) => setPrompt(event.target.value)}
-                        placeholder="Enter a site address or project idea…"
-                        className="min-h-12 w-full rounded-2xl border border-transparent bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 shadow-inner shadow-slate-200/60 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-400/20 sm:flex-1"
-                      />
-                      <button
-                        type="submit"
-                        disabled={submitting || !prompt.trim()}
-                        className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-500 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-950/20 transition hover:-translate-y-0.5 hover:bg-blue-400 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-400 sm:mt-0 sm:w-auto"
-                      >
-                        {submitting ? "Starting..." : "Generate pathway"}
-                        <ArrowRight className={`h-4 w-4 ${submitting ? "animate-pulse" : ""}`} />
-                      </button>
-                    </form>
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200/90">Try an example</p>
-                      <div className="flex flex-wrap gap-2">
-                        {examplePrompts.map((example) => (
-                          <button
-                            key={example}
-                            type="button"
-                            onClick={() => handleExampleClick(example)}
-                            disabled={submitting}
-                            className="rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-2 text-left text-xs font-medium text-white/90 transition hover:border-white/45 hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {example}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.75rem] border border-white/[0.14] bg-white/10 p-3 shadow-2xl shadow-slate-950/25 backdrop-blur-xl">
-                    <div className="rounded-[1.35rem] bg-white p-4 text-slate-950 shadow-inner shadow-slate-200/80 sm:p-5">
-                      <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace preview</p>
-                          <h2 className="mt-1 text-xl font-semibold tracking-[-0.03em] text-slate-950">Approval pathway</h2>
-                        </div>
-                        <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Ready</div>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl bg-slate-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Risk</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-950">Low-med</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Timeline</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-950">6-10 wk</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Docs</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-950">8 items</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-2.5">
-                        {pathwaySteps.map((step) => (
-                          <div key={step} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500" />
-                            <span className="text-sm font-medium text-slate-700">{step}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 rounded-2xl bg-slate-950 p-4 text-white">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
-                          <Clock3 className="h-4 w-4" />
-                          Next best action
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-200">
-                          Confirm zoning overlays, then brief a town planner with a one-page scope and evidence list.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 rounded-[1.5rem] border border-white bg-white/90 p-3 shadow-sm shadow-slate-200/70 md:grid-cols-3">
-                {quickStats.map((stat) => (
-                  <div key={stat.label} className="flex items-center gap-3 rounded-[1.15rem] px-3 py-3 transition hover:bg-slate-50">
-                    <div className="rounded-2xl bg-blue-50 p-2.5 text-blue-600">
-                      <stat.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{stat.label}</p>
-                      <p className="text-xs leading-5 text-slate-500">{stat.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <section id="how-it-works" className="mt-12 space-y-6">
-            <div className="grid gap-4 md:grid-cols-[0.8fr,1.2fr] md:items-end">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">After you start</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950">A calmer way to scope a planning decision</h2>
-              </div>
-              <p className="text-base leading-7 text-slate-600 md:max-w-2xl">
-                Enter a site or project idea and get a focused workspace for the early decisions: what to check, what to prepare,
-                and what to ask next.
+        <section id="quick-site-check" className="border-b border-slate-200 bg-white">
+          <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-16">
+            <div className="space-y-6">
+              <p className="inline-flex items-center gap-2 rounded border border-emerald-700/20 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-900">
+                <MapPin className="h-4 w-4" /> Plannera Quick Site Check
               </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {featureHighlights.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-5 shadow-sm shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80"
-                >
-                  <h3 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{feature.description}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section id="about" className="mt-12 rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-6 text-white shadow-xl shadow-slate-200/80 sm:p-8">
-            <div className="grid gap-5 md:grid-cols-[0.85fr,1.15fr] md:items-center">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Next step</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">From idea to an approval-ready brief</h2>
-              </div>
               <div className="space-y-4">
-                <p className="text-base leading-7 text-slate-200">
-                  Use the workspace to set the site, ask planning questions, save useful answers, and build the source pack
-                  your planner, consultant or investor needs to review the opportunity.
+                <h1 className="text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl">
+                  Run a free Quick Site Check for a launch-path NSW address.
+                </h1>
+                <p className="max-w-2xl text-base leading-7 text-slate-700">
+                  Plannera is piloting cited NSW planning checks for the Byron and Kempsey launch path. The free check covers site, zone and key LEP controls; proposal-specific DCP detail follows in the Detailed Planning Pack.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => handleExampleClick(examplePrompts[0])}
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  Open a sample workspace
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="max-w-2xl rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <label htmlFor="site-address" className="block text-sm font-semibold text-slate-900">Site address</label>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    id="site-address"
+                    value={address}
+                    onChange={(event) => setAddress(event.target.value)}
+                    autoComplete="street-address"
+                    placeholder="45 Broken Head Road, Byron Bay NSW 2481"
+                    className="min-h-12 flex-1 rounded-lg border border-slate-300 bg-white px-4 text-base text-slate-950 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                  />
+                  <button
+                    type="submit"
+                    disabled={submitting || !address.trim()}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {submitting ? "Starting…" : "Run free site check"}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+                {error ? <p role="alert" className="mt-3 text-sm font-medium text-red-700">{error}</p> : null}
+              </form>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-slate-700">Example addresses</p>
+                <div className="flex flex-wrap gap-2">
+                  {launchExampleAddresses.map((example) => (
+                    <button key={example} type="button" onClick={() => startSiteCheck(example)} disabled={submitting} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:opacity-60">
+                      {example}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </section>
-        </div>
-      </main>
-
-      <footer className="border-t border-slate-200/80 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-5 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <span>© {new Date().getFullYear()} Plannera.ai. Built with Next.js 14.</span>
-          <div className="flex gap-4">
-            <Link href="https://nextjs.org" className="transition hover:text-slate-700">
-              Next.js
-            </Link>
-            <Link href="https://tailwindcss.com" className="transition hover:text-slate-700">
-              Tailwind CSS
-            </Link>
+            <aside id="scope" className="self-start rounded-lg border border-slate-200 bg-slate-50 p-6">
+              <h2 className="text-xl font-semibold text-slate-950">What the free check is for</h2>
+              <ul className="mt-4 space-y-4 text-sm leading-6 text-slate-700">
+                <li className="flex gap-3"><FileSearch className="mt-1 h-5 w-5 shrink-0 text-blue-700" />Cited NSW site, zone and key LEP control checks for the Byron/Kempsey launch workflow.</li>
+                <li className="flex gap-3"><ClipboardCheck className="mt-1 h-5 w-5 shrink-0 text-emerald-800" />A clean workspace seed for proposal-aware DCP review in the Detailed Planning Pack.</li>
+                <li className="flex gap-3"><Send className="mt-1 h-5 w-5 shrink-0 text-slate-700" />Planning information to support early scoping, not legal or professional planning advice.</li>
+              </ul>
+            </aside>
           </div>
+        </section>
+
+        <section id="journey" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold text-slate-950">The four-step commercial journey</h2>
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
+            {journey.map((step, index) => (
+              <div key={step.title} className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-blue-700">{index + 1}</p>
+                <h3 className="mt-2 text-base font-semibold text-slate-950">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+          <span>© {new Date().getFullYear()} Plannera.ai</span>
+          <Link href="/projects" className="font-medium text-slate-700 hover:text-slate-950">My Projects</Link>
         </div>
       </footer>
     </div>

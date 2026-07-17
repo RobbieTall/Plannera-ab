@@ -1026,3 +1026,35 @@ Evidence boundary: this is a client selector/display/readiness and normal-worksp
 Verification commands for this slice: focused selector/output tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
 
 Status: IN REVIEW — not merged.
+
+## 62) Exact Proposal/DPP Scoped Current Outputs — DONE/MERGED ✓
+
+Item 62 is DONE/MERGED in PR #306 from exact head `02eeadb9c85d4b1a0ae6b6d907136e6c40ec1c32` at exact merge commit `e66f0543d3e3c268e1a52c71624eac40de4de061`. The evidence/provenance funnel is now exact proposal/DPP scoped for normal current-workspace SEE and expert-review outputs. This does not close Items 52/55 live completion and does not enable Item 40 billing/auth/paywall.
+
+## 63) Address-First Quick Site Check Entry and Requester Project Continuity — IN REVIEW
+
+Review state (2026-07-17): PR #307 is open. The Commercial Funnel Golden Gate and Vercel preview checks are green; the rendered address-first entry was visually verified with customer-facing example copy, compact 8px header controls, a content-height scope panel, and nonblank-address button gating. No project submission, production access/mutation, live retrieval, merge, or billing/auth/paywall change was performed.
+
+Purpose: replace the generic AI marketing landing hero with the actual free Quick Site Check entry and make project continuity deterministic for both signed-in and guest/auth-bypass requesters.
+
+Invariant:
+- First viewport names Plannera and Quick Site Check, labels the primary input `Site address`, and uses `Run free site check` as the primary action.
+- Landing submission preserves `/api/projects/ensure` → `/projects/{id}/workspace?prompt=...&initialAddress=...` with trimmed, safely encoded address seeds, duplicate-submit protection, and retryable on-page errors.
+- Launch examples are only `45 Broken Head Road, Byron Bay NSW 2481` and `52 Belgrave St, Kempsey NSW 2440`; no generic Australia prompts or broad nationwide-readiness claims.
+- Copy states the Byron/Kempsey NSW pilot scope, the free site/zone/key-LEP-control coverage, DPP follow-up for proposal-specific DCP detail, and the professional-advice limitation.
+- Auth-bypass entitlement remains compatible for protected actions but is not treated as an actual signed-in NextAuth state in UI chrome. Sign out appears only for actual signed-in users.
+- `/projects` is the canonical requester-scoped project list; `/dashboard` redirects for compatibility. Signed-in requesters see user-owned projects after safe session claim, while guests see only current anonymous-session projects. Deletes are requester-scoped and server-authoritative. The Projects route uses compact operational chrome, a simple workspace list, truthful guest copy, and one primary `New site check` action without decorative stats or generic SaaS project-management claims.
+
+Focused coverage:
+- Landing copy/helper tests for literal labels/actions, exact examples, honest pilot/DPP/advice copy, removed fabricated claims, empty-address prevention, and encoded workspace seed query.
+- Auth guard test proving bypass `isAuthenticated` remains true while `isSignedIn` remains false for guest/bypass UI chrome.
+- Requester project service and API tests for guest-only current-session listing, signed-in safe claim/list, requester-scoped create/delete, and ignoring client-supplied owner/session identity.
+- Commercial-funnel golden tests remain required.
+
+Evidence boundary: no schema/migrations, production auth/paywall/billing, production access/mutation/project creation, live retrieval, live-audit completion claim, consultant sending, or broad workspace redesign. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Verification commands:
+- `npx vitest run --config vitest.config.ts src/lib/landing-entry.test.ts src/app/page.content.test.ts src/app/projects/(authenticated)/page.content.test.ts src/components/providers/auth-guard-provider.test.tsx src/lib/projects.requester-scope.test.ts src/app/api/projects/route.test.ts src/app/api/projects/[projectId]/route.test.ts`
+- `npm run test:commercial-funnel`
+- `npm run lint`
+- `npx tsc --noEmit`

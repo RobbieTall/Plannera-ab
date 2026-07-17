@@ -34,31 +34,58 @@ export async function AuthenticatedAppLayout({ children, requireSession = true }
     resolvedSession?.user?.name?.slice(0, 2).toUpperCase() ??
     resolvedSession?.user?.email?.slice(0, 2).toUpperCase() ??
     "PL";
-  const displayName = resolvedSession?.user?.name ?? resolvedSession?.user?.email ?? "Guest";
+  const displayName = resolvedSession?.user?.name ?? resolvedSession?.user?.email ?? null;
+
+  if (!requireSession) {
+    return (
+      <div className="min-h-screen bg-white text-slate-950">
+        <header className="border-b border-slate-200 bg-white">
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+            <Link href="/" className="flex items-center gap-2 text-slate-950">
+              <Logo className="h-6 w-auto" />
+              <span className="sr-only">Home</span>
+            </Link>
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <span>{displayName ?? "Projects in this browser"}</span>
+              {resolvedSession ? (
+                <SignOutButton className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </SignOutButton>
+              ) : null}
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-100">
       <aside className="hidden w-72 flex-col border-r border-slate-200 bg-white/80 px-6 py-8 backdrop-blur lg:flex">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+        <Link href="/projects" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-base font-semibold text-white">
             PL
           </span>
           Plannera
         </Link>
         <p className="mt-6 text-sm text-slate-500">
-          Coordinate planning, feasibility, and delivery with clarity.
+          Continue Quick Site Checks and cited planning outputs.
         </p>
         <div className="mt-8 flex flex-1 flex-col">
           <MainNavigation />
         </div>
         <div className="mt-8 rounded-3xl bg-slate-900/90 p-5 text-white">
           <p className="text-sm font-medium">Need something new?</p>
-          <p className="mt-1 text-xs text-slate-200">Create a project brief and invite your team in seconds.</p>
+          <p className="mt-1 text-xs text-slate-200">Start with a launch-path site address from the homepage.</p>
           <Link
-            href="#create-project"
+            href="/"
             className="mt-4 inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
           >
-            Start a new project
+            Start a site check
           </Link>
         </div>
       </aside>
@@ -76,7 +103,7 @@ export async function AuthenticatedAppLayout({ children, requireSession = true }
                 </div>
                 <div className="leading-tight text-white">
                   <p className="text-sm font-medium text-slate-300">Welcome back</p>
-                  <p className="text-base font-semibold">{displayName}</p>
+                  <p className="text-base font-semibold">{displayName ?? "Planner"}</p>
                 </div>
               </div>
             </div>

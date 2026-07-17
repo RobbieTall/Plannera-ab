@@ -56,7 +56,7 @@ describe("createFeasibilityArtefact", () => {
 
     const result = await createFeasibilityArtefact(
       "public-project",
-      "32 Smith St, Kempsey NSW 2440",
+      "52 Belgrave St, Kempsey NSW 2440",
       "commercial alterations",
       { lga: "Kempsey Shire", zone: "E2 – Commercial Centre" },
       undefined,
