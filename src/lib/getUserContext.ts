@@ -12,7 +12,7 @@ export type UserContext = {
 /**
  * Resolves the current requester context for server components and route handlers.
  * - Always returns the sessionId from our session cookie (creating one if needed).
- * - If the user is authenticated via NextAuth, surfaces their userId; otherwise null.
+ * - Surfaces a server-trusted userId from NextAuth first, then the signed session payload; otherwise null.
  */
 export const getUserContext = async (): Promise<UserContext> => {
   const sessionContext = getSessionContext();
