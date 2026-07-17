@@ -43,3 +43,13 @@ export const selectCurrentSiteDetailedPlanningPackArtefact = (
     if (!latest || comparePackRecency(artefact, latest) > 0) return artefact;
     return latest;
   }, undefined);
+
+export const hasCurrentSiteDetailedPlanningPackProposalMismatch = (
+  artefacts: WorkspaceArtefact[],
+  proposalBrief?: string | null,
+) => {
+  if (!normalizeProposalBriefForComparison(proposalBrief)) return false;
+  const latestAnyProposal = selectCurrentSiteDetailedPlanningPackArtefact(artefacts);
+  if (!latestAnyProposal) return false;
+  return !selectCurrentSiteDetailedPlanningPackArtefact(artefacts, { proposalBrief });
+};

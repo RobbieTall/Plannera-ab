@@ -66,7 +66,7 @@ import {
 } from "@/lib/commercial-next-action";
 import { highlightText } from "@/lib/highlight-text";
 import {
-  isDetailedPlanningPackForProposalBrief,
+  hasCurrentSiteDetailedPlanningPackProposalMismatch,
   selectCurrentSiteDetailedPlanningPackArtefact,
 } from "@/lib/detailed-planning-pack-selector";
 import { detailedPlanningPackScope, isArtefactCurrentForSite, preSeeScope, quickSiteCheckScope, reviewRequestScope } from "@/lib/site-scoped-artefacts";
@@ -3088,10 +3088,9 @@ export function ProjectWorkspace({
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
-  const hasProposalBriefMismatch = Boolean(
-    proposalBrief.trim() &&
-    latestAnyProposalDetailedPlanningPackArtefact &&
-    !isDetailedPlanningPackForProposalBrief(latestAnyProposalDetailedPlanningPackArtefact, proposalBrief),
+  const hasProposalBriefMismatch = useMemo(
+    () => hasCurrentSiteDetailedPlanningPackProposalMismatch(siteScopedArtefacts, proposalBrief),
+    [proposalBrief, siteScopedArtefacts],
   );
   const hasQualityDetailedPlanningPack = latestDetailedPlanningPack?.commercialReady === true;
   commercialPackGateRef.current = {
