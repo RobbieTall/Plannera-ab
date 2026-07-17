@@ -630,15 +630,54 @@ const compactExcerpt = (text: string, maxLength = 520) => {
   return compact.length > maxLength ? `${compact.slice(0, maxLength).trimEnd()}…` : compact;
 };
 
-const hasRealDcpSourceRef = (clause: Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">) =>
-  Boolean((clause.ref && clause.ref.trim()) || (clause.title && clause.title.trim()) || clause.headingPath?.some((part) => part.trim()));
+const hasRealDcpSourceRef = (clause: Pick<ScoredDcpClause, "ref">) =>
+  Boolean(clause.ref?.trim());
+
+const SUBSTANTIVE_DCP_QUANTITATIVE_REQUIREMENT = /(?:\b\d+(?:\.\d+)?\s*(?:m2|m²|m|mm|cm|ha|%|percent|spaces?|bays?|storeys?|levels?|trees?|sqm|sq\s*m|per\s+\d+|:\s*\d+)|\b(?:nil|zero|no\s+minimum|no\s+maximum)\b|\b\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?\b)/i;
+const STRONG_DCP_PRESCRIPTIVE_REQUIREMENT = /\b(?:must|shall|should|is\s+to|are\s+to|is\s+required\s+to|are\s+required\s+to|required\s+to|minimum(?:\s+of)?|maximum(?:\s+of)?|at\s+least|no\s+less\s+than|no\s+more\s+than|may\s+only|permitted\s+only|only\s+permitted|not\s+to|prohibited|not\s+permitted|designed\s+to|be\s+designed\s+to)\b/i;
+const DCP_IMPERATIVE_CONTROL_SENTENCE = /^(?:(?!objectives?\b)[^:]{1,80}:\s*)?(?:controls?\s*[:—-]\s*)?(?:provide|retain|maintain|ensure)\b/i;
+const GENERIC_NON_SUBSTANTIVE_DCP_BODY = /^(?:objectives?\s*[:—-]?\s*)?(?:to\s+)?(?:provide|retain|maintain|ensure|encourage|promote|support)\b.*$/i;
+const ADMIN_ONLY_DCP_BODY = /^(?:table\s+of\s+contents|contents|index|introduction|administration|overview|topics?\s+include|this\s+part\s+applies)\b/i;
+const GENERIC_CONTROLS_APPLY_BODY = /^controls?\s+apply(?:\s+where\s+relevant|\s+as\s+applicable)?\.?$/i;
+
+const dcpRequirementSentences = (body: string) =>
+  body
+    .replace(/\b(Objectives?|Controls?)\s*:/gi, "\n$1:")
+    .split(/(?<=[.;])\s+|[\n\r]+/)
+    .map((sentence) => sentence.replace(/^[-–—•*\s]+/, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+const isObjectiveOnlyDcpSentence = (sentence: string) =>
+  /^(?:objectives?\s*[:—-]\s*)?to\s+(?:provide|retain|maintain|ensure|encourage|promote|support)\b/i.test(sentence) ||
+  /^objectives?\s*[:—-]/i.test(sentence);
+
+const hasQualitativePrescriptiveDcpRequirement = (sentence: string) => {
+  if (isObjectiveOnlyDcpSentence(sentence)) return false;
+  if (STRONG_DCP_PRESCRIPTIVE_REQUIREMENT.test(sentence)) return true;
+  return DCP_IMPERATIVE_CONTROL_SENTENCE.test(sentence);
+};
+
+const hasSubstantiveDcpRequirement = (clause: Pick<ScoredDcpClause, "bodyText">, controlTopic?: string | null) => {
+  const body = clause.bodyText.trim();
+  if (!body) return false;
+
+  return dcpRequirementSentences(body).some((sentence) => {
+    if (isObjectiveOnlyDcpSentence(sentence)) return false;
+    if (!dcpEvidenceMatchesTopic(sentence, controlTopic)) return false;
+    if (ADMIN_ONLY_DCP_BODY.test(sentence) || GENERIC_CONTROLS_APPLY_BODY.test(sentence)) return false;
+    if (SUBSTANTIVE_DCP_QUANTITATIVE_REQUIREMENT.test(sentence)) return true;
+    if (hasQualitativePrescriptiveDcpRequirement(sentence)) return true;
+    if (GENERIC_NON_SUBSTANTIVE_DCP_BODY.test(sentence)) return false;
+    return false;
+  });
+};
 
 const mapDcpTopicEvidence = (
   topic: (typeof DETAILED_PLANNING_PACK_TOPICS)[number],
   clauses: ScoredDcpClause[],
 ): DetailedPlanningPackContent["dcpEvidence"][number] => {
   const citations = clauses
-    .filter(hasRealDcpSourceRef)
+    .filter((clause) => hasRealDcpSourceRef(clause) && hasSubstantiveDcpRequirement(clause, topic.id))
     .slice(0, 3)
     .map((clause) => ({
       ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
@@ -653,7 +692,7 @@ const mapDcpTopicEvidence = (
       topicId: topic.id,
       topicLabel: topic.label,
       status: "Unavailable",
-      reason: "No proposal- and zone-applicable DCP clause with a real source reference was retrieved for this topic.",
+      reason: "No current retrieved, zone-applicable DCP clause with a real source reference and substantive body requirement was retrieved for this topic.",
       citations: [],
     };
   }
@@ -662,7 +701,7 @@ const mapDcpTopicEvidence = (
     topicId: topic.id,
     topicLabel: topic.label,
     status: "Cited",
-    reason: "Retrieved DCP evidence survived current zone/proposal applicability filtering.",
+    reason: "Retrieved DCP evidence survived current zone/topic filtering and contains a substantive requirement in the clause body.",
     citations,
   };
 };
@@ -1339,10 +1378,10 @@ const evidenceMentionsZone = (text: string, zoneCode: string | null) => Boolean(
 
 const DCP_TOPIC_MATCHERS: Record<string, RegExp> = {
   setbacks: /\b(setbacks?|building\s+lines?|(?:street|side|rear|front)\s+(?:boundar(?:y|ies)|alignment|setbacks?))\b/i,
-  parking_access: /\b(car\s+parking|parking|access|driveways?|loading|service\s+access|vehicle\s+access|vehicular\s+access)\b/i,
+  parking_access: /\b(car\s+parking|parking|access|driveways?|loading|service\s+access|vehicle\s+access|vehicular\s+access|car\s+spaces?|cars|accessible\s+spaces?|resident\s+spaces?|visitor\s+spaces?|bicycle\s+parking|motorcycle\s+space)\b/i,
   built_form_active_frontage: /\b(built\s+form|active\s+frontages?|street\s+frontages?|shopfronts?|building\s+design|commercial\s+frontages?)\b/i,
   landscaping_open_space: /\b(landscap(?:e|ing)|open\s+space|deep\s+soil|tree\s+planting|canopy\s+tree|planting)\b/i,
-  local_controls: /\b(general\s+controls?|local\s+controls?|all[-\s]+development|design\s+controls?|site\s+controls?|development\s+controls?|proposal\s+design\s+requirements?)\b/i,
+  local_controls: /\b(general\s+controls?|local\s+controls?|all[-\s]+development|design\s+controls?|site\s+controls?|development\s+controls?|proposal\s+design\s+requirements?|waste\s+storage|service\s+areas?|screen(?:ed|ing))\b/i,
 };
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

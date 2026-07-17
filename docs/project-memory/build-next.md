@@ -906,7 +906,7 @@ Verification evidence: no local build or test command was run, per operator inst
 
 
 
-## 58) Topic-specific DCP evidence qualification for commercial DPP — IN REVIEW (2026-07-17)
+## 58) Topic-specific DCP evidence qualification for commercial DPP — DONE/MERGED (2026-07-17)
 
 Purpose: prevent a generic/current-zone Part B DCP row or source-reference-only clause from being promoted as Cited evidence for unrelated paid Detailed Planning Pack topics. Item 57 exact snapshot provenance proves the saved SEE/DPP chain was not altered; it does not, by itself, prove that each DPP topic was genuinely supported by topic-relevant DCP text.
 
@@ -926,4 +926,31 @@ Focused regression coverage:
 
 Evidence boundary: this is a deterministic DPP evidence-quality hardening slice only. It does not call live planning services, mutate production data, create production projects, close Item 52 or Item 55, or unlock Item 40 billing/auth. Items 52/55 and billing/auth remain explicitly open/deferred.
 
-Verification evidence: Codex Cloud ran and passed `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Build/vercel-build was not run per operator instruction. The final PR head still requires the secret-free Commercial Funnel Golden Gate and Vercel preview to pass before merge.
+Verification evidence: Codex Cloud ran and passed `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Build/vercel-build was not run per operator instruction. The final PR head still required the secret-free Commercial Funnel Golden Gate and Vercel preview to pass before merge.
+
+Status reconciliation: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. The existing green gate/Vercel review evidence above remains the Item 58 verification record.
+
+
+## 59) Substantive DCP requirement qualification for paid DPP topics — IN REVIEW (2026-07-17)
+
+Purpose: tighten the now-merged Item 58 topic-specific DCP qualification so a paid Detailed Planning Pack topic cannot be sold as Cited when the body merely names the topic or says vague controls apply. Item 59 follows merged Item 58 sequentially: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. Item 59 is ready for sequential PR review and is not merged.
+
+Invariant: a DPP topic may be Cited only when evidence is site-applicable, topic-relevant, has a real source reference, and the clause body itself contains substantive requirement content. Substantive content may be quantitative (number/unit, ratio, percentage, nil/zero, rate) or qualitative when normative control language states a concrete topic-relevant prescription or prohibition. Refs, titles, headings, topic tags, Part/chapter labels, and current-zone metadata may establish provenance/topic classification, but never substantive sufficiency by themselves.
+
+Focused coverage:
+
+- A current-zone Part B parking clause with parking/access/loading words and the vague body “Parking, driveway access, loading and service access controls apply where relevant.” remains `Unavailable`, has no citations, and keeps `commercialReady=false`.
+- Title/heading/ref-only numeric-looking or topic text cannot satisfy substance when the body is only overview/admin text.
+- A mixed objectives-plus-controls body qualifies when the body contains a genuine numeric or strong prescriptive control for the intended topic.
+- Objective-only “To ensure/provide…” prose remains `Unavailable`, and an objective sentence for one topic cannot be paired with a separate substantive control sentence for another topic.
+- A substantive requirement containing “where relevant” still qualifies when the same sentence/control row states a concrete topic-relevant control.
+- Checked-in Byron DCP B4 examples using “should” and headroom bodies whose body text says “cars” / “accessible spaces” qualify `parking_access` without relying on heading metadata alone for substance.
+- A quantitative parking requirement qualifies `parking_access` only.
+- A qualitative prescriptive active-frontage/built-form requirement qualifies `built_form_active_frontage` only.
+- Byron SP3 and Kempsey E2 commercial-ready golden journeys, unresolved referral branch, Item 57 forged-snapshot tests, and Item 58 topic-isolation tests remain preserved in the focused commercial-funnel suite.
+
+Evidence boundary: reject table-of-contents/index text, headings only, objectives, overviews, administrative/topic-listing text, and generic “controls apply where relevant” statements. Repository evidence remains limited for real Kempsey PDF body shapes because the checked-in Kempsey HTML is a placeholder and 2026 Kempsey ingestion fetches live PDFs at ingest time. Do not add schema/migrations, billing/auth/paywall, production access, live retrieval, production projects, or production mutation. This deterministic hardening does not prove live planning-data accuracy, close Item 52/55, or unlock Item 40 billing/auth.
+
+Verification commands for this slice: `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: IN REVIEW — ready for sequential PR after merged Item 58; not merged.

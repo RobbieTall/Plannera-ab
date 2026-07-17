@@ -1156,6 +1156,186 @@ test("creates a Detailed Planning Pack from server-side saved QSC and filtered D
   assert.match(content.dcpEvidence.flatMap((topic) => topic.citations).map((citation) => citation.excerpt).join("\n"), /nil\/0m/);
 });
 
+
+test("Detailed Planning Pack leaves vague parking/access body unavailable despite topic and zone text", async () => {
+  const prisma = new MockPrisma({ "proj-vague-parking": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-vague-parking",
+    projectId: "proj-vague-parking",
+    type: "quick_site_check",
+    title: "Quick Site Check — 52 Belgrave St",
+    payload: {
+      projectId: "proj-vague-parking",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-vague-parking", proposalBrief: "Commercial shopfront with parking and loading access" },
+    userId: "user-1",
+    deps: {
+      prisma: prisma as any,
+      getDCPContext: async () => ([{
+        id: "vague-parking",
+        lgaCode: "KEMPSEY",
+        sourceDocId: "KEMPSEY_DCP_2026",
+        ref: "Part B Parking",
+        title: "E2 parking, driveway access, loading and service access",
+        headingPath: ["Kempsey DCP 2026", "Part B", "Parking and access"],
+        bodyText: "Parking, driveway access, loading and service access controls apply where relevant.",
+        depth: 2,
+        topicTags: ["parking_access"],
+        numericMeta: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        score: 80,
+      }]),
+    } as any,
+  });
+
+  const parking = content.dcpEvidence.find((topic) => topic.topicId === "parking_access");
+  assert.equal(parking?.status, "Unavailable");
+  assert.deepEqual(parking?.citations, []);
+  assert.equal(content.commercialReady, false);
+});
+
+test("Detailed Planning Pack requires substantive body text rather than title heading or ref-only topic proof", async () => {
+  const prisma = new MockPrisma({ "proj-ref-only": ["user-1"] });
+  prisma.artefacts.push({
+    id: "qsc-ref-only",
+    projectId: "proj-ref-only",
+    type: "quick_site_check",
+    title: "Quick Site Check — 52 Belgrave St",
+    payload: {
+      projectId: "proj-ref-only",
+      generatedAt: "2026-07-15T00:00:00Z",
+      site: { address: "52 Belgrave St, Kempsey NSW 2440", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" },
+      lepInstrument: null,
+      permissibility: null,
+      controls: {
+        heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" },
+        floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" },
+        minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" },
+      },
+      notes: [],
+      nextSteps: [],
+      lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" },
+    } satisfies QuickSiteCheckReport,
+  });
+
+  const { content } = await createDetailedPlanningPackArtefact({
+    body: { projectId: "proj-ref-only", proposalBrief: "Commercial fitout with parking" },
+    userId: "user-1",
+    deps: { prisma: prisma as any, getDCPContext: async () => ([{
+      id: "ref-only",
+      lgaCode: "KEMPSEY",
+      sourceDocId: "KEMPSEY_DCP_2026",
+      ref: "D4 parking 1 space per 40m2",
+      title: "Parking requirement 1 space per 40m2",
+      headingPath: ["Parking and access", "1 space per 40m2"],
+      bodyText: "This section provides an overview of parking controls.",
+      depth: 2,
+      topicTags: ["parking_access"],
+      numericMeta: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      score: 90,
+    }]) } as any,
+  });
+
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Unavailable");
+});
+
+test("Detailed Planning Pack qualifies quantitative parking requirement for parking/access only", async () => {
+  const prisma = new MockPrisma({ "proj-quant-parking": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-quant-parking", projectId: "proj-quant-parking", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-quant-parking", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-quant-parking", proposalBrief: "Commercial parking" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "quant", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.5", title: "Parking and access", headingPath: ["Part D", "Parking"], bodyText: "Provide 1 parking space per 40m2 of gross floor area for commercial premises.", depth: 2, topicTags: ["parking_access"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "parking_access").every((topic) => topic.status === "Unavailable"));
+});
+
+test("Detailed Planning Pack qualifies qualitative active-frontage requirement for built-form topic only", async () => {
+  const prisma = new MockPrisma({ "proj-qual-frontage": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-qual-frontage", projectId: "proj-qual-frontage", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-qual-frontage", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-qual-frontage", proposalBrief: "Active frontage shopfront" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "frontage", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.6", title: "Built form and active frontage", headingPath: ["Part D", "Active frontage"], bodyText: "Active street frontage must be retained and shopfront glazing is to address the public street.", depth: 2, topicTags: ["built_form_active_frontage"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "built_form_active_frontage")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "built_form_active_frontage").every((topic) => topic.status === "Unavailable"));
+});
+
+
+
+test("Detailed Planning Pack accepts checked-in Byron should-style parking/access control", async () => {
+  const prisma = new MockPrisma({ "proj-byron-should": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-byron-should", projectId: "proj-byron-should", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-byron-should", generatedAt: "2026-07-15T00:00:00Z", site: { address: "45 Broken Head Road", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed SP3 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 2, sourceRef: "Byron LEP 2014 — Zone SP3" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-byron-should", proposalBrief: "Tourist accommodation access" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async (_lgaCode: string, query: string) => (/parking access/i.test(query) ? [{ id: "byron-should", lgaCode: "BYRON", sourceDocId: "BYRON_DCP_2014", ref: "B4.1.4", title: "B4.1.4 Transport hierarchy", headingPath: ["Chapter B4 Traffic, Parking and Access", "B4.1.4 Transport hierarchy"], bodyText: "Site planning should prioritise walking and cycling before private vehicles, with bicycle parking provided near entrances and street frontage.", depth: 4, topicTags: ["parking"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }] : []) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "parking_access").every((topic) => topic.status === "Unavailable"));
+});
+
+test("Detailed Planning Pack accepts checked-in Byron headroom body where cars/spaces carry the parking topic", async () => {
+  const prisma = new MockPrisma({ "proj-byron-headroom": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-byron-headroom", projectId: "proj-byron-headroom", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-byron-headroom", generatedAt: "2026-07-15T00:00:00Z", site: { address: "45 Broken Head Road", lga: "Byron Shire", zoneCode: "SP3", zoneLabel: "SP3 – Tourist" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed SP3 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 2, sourceRef: "Byron LEP 2014 — Zone SP3" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-byron-headroom", proposalBrief: "Tourist accommodation parking layout" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async (_lgaCode: string, query: string) => (/parking access/i.test(query) ? [{ id: "byron-headroom", lgaCode: "BYRON", sourceDocId: "BYRON_DCP_2014", ref: "B4.4.2", title: "B4.4.2 Headroom", headingPath: ["Chapter B4 Traffic, Parking and Access", "B4.4 Parking layout and design", "B4.4.2 Headroom"], bodyText: "Minimum clear headroom is 2.2 m for cars, 2.4 m for accessible spaces and 3.5 m where small rigid vehicles are permitted.", depth: 4, topicTags: ["parking"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }] : []) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "parking_access").every((topic) => topic.status === "Unavailable"));
+});
+
+test("Detailed Planning Pack qualifies mixed objective plus numeric control for intended topic", async () => {
+  const prisma = new MockPrisma({ "proj-mixed-control": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-mixed-control", projectId: "proj-mixed-control", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-mixed-control", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-mixed-control", proposalBrief: "Commercial parking" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "mixed", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.7", title: "Parking and access", headingPath: ["Part D", "Parking"], bodyText: "Objectives: To ensure parking supports commercial centre access. Controls: Development must provide 1 parking space per 40m2 of gross floor area.", depth: 2, topicTags: ["parking_access"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "parking_access").every((topic) => topic.status === "Unavailable"));
+});
+
+
+test("Detailed Planning Pack does not cross-promote active-frontage objective with parking-only control", async () => {
+  const prisma = new MockPrisma({ "proj-cross-promote": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-cross-promote", projectId: "proj-cross-promote", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-cross-promote", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-cross-promote", proposalBrief: "Commercial active frontage and parking" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "cross-promote", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.10", title: "Built form, active frontage and parking", headingPath: ["Part D", "Commercial centres"], bodyText: "Objectives: To encourage active street frontage. Controls: Car parking must provide 2 spaces per dwelling.", depth: 2, topicTags: ["built_form_active_frontage", "parking_access"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "built_form_active_frontage")?.status, "Unavailable");
+  assert.ok(content.dcpEvidence.filter((topic) => !["parking_access", "built_form_active_frontage"].includes(topic.topicId)).every((topic) => topic.status === "Unavailable"));
+  assert.equal(content.commercialReady, false);
+});
+
+test("Detailed Planning Pack keeps newline-separated objective rows from borrowing parking controls", async () => {
+  const prisma = new MockPrisma({ "proj-newline-cross-promote": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-newline-cross-promote", projectId: "proj-newline-cross-promote", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-newline-cross-promote", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-newline-cross-promote", proposalBrief: "Commercial active frontage and parking" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "newline-cross-promote", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.11", title: "Built form, active frontage and parking", headingPath: ["Part D", "Commercial centres"], bodyText: "Objectives: To encourage active street frontage\nControls: Car parking must provide 2 spaces per dwelling.", depth: 2, topicTags: ["built_form_active_frontage", "parking_access"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "built_form_active_frontage")?.status, "Unavailable");
+  assert.ok(content.dcpEvidence.filter((topic) => !["parking_access", "built_form_active_frontage"].includes(topic.topicId)).every((topic) => topic.status === "Unavailable"));
+  assert.equal(content.commercialReady, false);
+});
+
+test("Detailed Planning Pack rejects objective-only provide/ensure body as non-substantive", async () => {
+  const prisma = new MockPrisma({ "proj-objective-only": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-objective-only", projectId: "proj-objective-only", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-objective-only", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-objective-only", proposalBrief: "Active frontage shopfront" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "objective-only", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.8", title: "Built form and active frontage", headingPath: ["Part D", "Active frontage"], bodyText: "Objectives: To ensure active street frontages and to provide attractive shopfronts in commercial centres.", depth: 2, topicTags: ["built_form_active_frontage"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "built_form_active_frontage")?.status, "Unavailable");
+  assert.equal(content.commercialReady, false);
+});
+
+test("Detailed Planning Pack accepts substantive requirement that includes where relevant", async () => {
+  const prisma = new MockPrisma({ "proj-where-relevant": ["user-1"] });
+  prisma.artefacts.push({ id: "qsc-where-relevant", projectId: "proj-where-relevant", type: "quick_site_check", title: "Quick Site Check", payload: { projectId: "proj-where-relevant", generatedAt: "2026-07-15T00:00:00Z", site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "E2 – Commercial Centre" }, lepInstrument: null, permissibility: null, controls: { heightOfBuilding: { label: "Height", value: null, present: false, interpretation: "Unavailable" }, floorSpaceRatio: { label: "FSR", value: null, present: false, interpretation: "Unavailable" }, minimumLotSize: { label: "MLS", value: null, present: false, interpretation: "Unavailable" } }, notes: [], nextSteps: [], lepEvidenceSummary: { label: "Cited", detail: "DB-backed E2 zone table", citedControlCount: 0, totalControlCount: 3, landUseEntryCount: 4, objectiveCount: 6, sourceRef: "Kempsey LEP 2013 — Zone E2" } } satisfies QuickSiteCheckReport });
+  const { content } = await createDetailedPlanningPackArtefact({ body: { projectId: "proj-where-relevant", proposalBrief: "Commercial service access" }, userId: "user-1", deps: { prisma: prisma as any, getDCPContext: async () => ([{ id: "where-relevant", lgaCode: "KEMPSEY", sourceDocId: "KEMPSEY_DCP_2026", ref: "D4.9", title: "Parking and access", headingPath: ["Part D", "Parking and access"], bodyText: "Vehicle access must be designed to maintain safe loading and service access where relevant to the proposed commercial use.", depth: 2, topicTags: ["parking_access"], numericMeta: null, createdAt: new Date(), updatedAt: new Date(), score: 100 }]) } as any });
+  assert.equal(content.dcpEvidence.find((topic) => topic.topicId === "parking_access")?.status, "Cited");
+  assert.ok(content.dcpEvidence.filter((topic) => topic.topicId !== "parking_access").every((topic) => topic.status === "Unavailable"));
+});
+
 test("rejects Detailed Planning Pack generation without cited saved QSC evidence", async () => {
   const prisma = new MockPrisma({ "proj-weak": ["user-1"] });
   prisma.artefacts.push({
