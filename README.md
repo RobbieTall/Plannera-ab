@@ -81,6 +81,12 @@ Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 `POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
 `POST /api/admin/ingest-council-dcp?lga=KEMPSEY&secret=INGEST_ADMIN_SECRET`
 
+## Plannera Check boundary
+
+Plannera Check is Plannera’s mobile-first acquisition surface inside this same Next.js app. It reuses the existing session/requester project, SiteContext, Quick Site Check, Detailed Planning Pack, SEE, referral, evidence, and artefact services; it is not a separate product, subscription, repository, database, or duplicated backend. A free check can live in a session-owned project as an ephemeral technical container, then the user-facing promotion is to create or save that same evidence snapshot as a Plannera project before any later project/site/proposal-bound DCP Deep Dive offer. Pricing, checkout, credits, quotas, entitlements, auth-policy changes, PWA/native work, and consultant sending remain deferred.
+
+The workspace now makes the shared planning path visible as **Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff**. The navigator reflects the existing evidence-derived commercial next action and exact current-site/proposal/DPP selectors; it does not add pricing, readiness claims, or a separate certainty score.
+
 ## Commercial pilot funnel
 
 Near-term revenue is deliberately focused on a tight Byron/Kempsey funnel: **Site → free Quick Site Check → proposal-aware, cited Detailed Planning Pack → consultant-ready SEE/referral**. The Project Workspace remains the retention layer, but the sellable step is now the Detailed Planning Pack, persisted as its own `detailed_planning_pack` artefact type: it carries the saved Quick Site Check LEP evidence forward, asks for a concise proposed-works brief, and separates cited DCP evidence from unresolved topics before SEE/referral.

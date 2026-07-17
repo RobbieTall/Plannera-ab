@@ -1058,3 +1058,31 @@ Verification commands:
 - `npm run test:commercial-funnel`
 - `npm run lint`
 - `npx tsc --noEmit`
+
+## 64) In-workspace commercial funnel navigator and Plannera Check product boundary — IN REVIEW (2026-07-17)
+
+Stacking: Item 64 is stacked on the exact Item 63 open-PR head `791a4b567d715a4b8b825c0c43d3b544717aa7ed` from PR #307.
+
+Purpose: make the real in-workspace commercial sequence visible without adding a parallel readiness system: Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff. Also record that Plannera Check is an in-product acquisition surface, not a separate product/backend, and clean only the workspace shell/planning-path surface so the workspace is truthful and mobile-safe.
+
+Invariant:
+- Stage state is derived from current-site/proposal/exact-DPP evidence and the existing `buildCommercialNextAction` result, not from artefact existence alone.
+- Stage states are deterministic and limited to complete, current, review needed, and upcoming.
+- A current-site unresolved DPP exposes expert review/review-needed without marking SEE ready.
+- The dominant next action reuses existing handlers; DPP generation focuses the proposed-works brief when blank rather than issuing a doomed request.
+- Stage controls scroll/focus the existing site, Quick Site Check, Detailed Planning Pack, SEE, and expert-review output sections with accessible navigation semantics.
+- Feasibility remains available outside the primary four-stage revenue path.
+- The workspace shell uses restrained white/charcoal/source-blue/forest accents, compact project/site chrome, truthful `isSignedIn` sign-out UI, and visible `/projects` access for guests and signed-in requesters.
+
+Focused coverage:
+- Pure stage mapping for `set_site`, `run_quick_site_check`, `generate_detailed_pack` absent/unresolved pack, `generate_see`, and `export_or_review`.
+- Current/completed stage mapping fails closed when quality flags are false.
+- Unresolved pack exposes review needed without SEE readiness.
+- Workspace static coverage for the four literal stage labels, accessible planning-path nav, target anchors/focus behavior, one primary next action, truthful `isSignedIn` chrome, `/projects` access for guests, and absence of the removed radial gradient, giant dark hero, unsupported Get help/Share workspace controls, and nested commercial card wall.
+- Existing commercial-next-action, proposal/DPP selector, QSC/DPP/SEE/referral, auth, and golden-funnel coverage remain required.
+
+Evidence boundary: no schema/migrations, production access/mutation, production project creation, live retrieval, live audit, payment/price/checkout/credit/quota work, auth enablement/policy broadening, native/PWA implementation, consultant sending, readiness claim, merge, or deployed API access. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Verification commands for this slice: focused stage/static tests, existing commercial-next-action tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`.
+
+Status: IN REVIEW — not merged.

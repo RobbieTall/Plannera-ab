@@ -12,7 +12,11 @@ import {
   useTransition,
 } from "react";
 import {
+  AlertTriangle,
+  ArrowRight,
   Check,
+  CheckCircle2,
+  Circle,
   Copy,
   Download,
   FileSpreadsheet,
@@ -27,7 +31,6 @@ import {
   Mail,
   MapPin,
   Moon,
-  Notebook,
   Plus,
   RefreshCcw,
   Save,
@@ -64,6 +67,12 @@ import {
   buildCommercialNextAction,
   type CommercialReadinessStatus,
 } from "@/lib/commercial-next-action";
+import {
+  buildCommercialFunnelStages,
+  selectCommercialFunnelActiveStage,
+  type CommercialFunnelStage,
+  type CommercialFunnelStageState,
+} from "@/lib/commercial-funnel-stages";
 import { highlightText } from "@/lib/highlight-text";
 import {
   getExactWorkspaceDppBinding,
@@ -250,7 +259,7 @@ function ProjectTitleEditor({
       onChange={(event) => setTitle(event.target.value)}
       onBlur={handleBlur}
       disabled={isPending}
-      className="mt-1.5 w-full max-w-xl bg-transparent text-2xl font-semibold tracking-[-0.03em] text-white outline-none ring-0 transition placeholder:text-slate-400 focus:border-b focus:border-blue-200 sm:text-3xl"
+      className="mt-1.5 w-full max-w-xl bg-transparent text-2xl font-semibold text-slate-950 outline-none ring-0 transition placeholder:text-slate-400 focus:border-b focus:border-blue-600 dark:text-white dark:focus:border-blue-200 sm:text-3xl"
     />
   );
 }
@@ -869,16 +878,20 @@ function deriveSignalsFromAssistantPayload({
 }
 
 function OutputSection({
+  id,
+  sectionRef,
   title,
   action,
   children,
 }: {
+  id?: string;
+  sectionRef?: React.Ref<HTMLElement>;
   title: string;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-slate-100 py-5 last:border-b-0 dark:border-slate-800">
+    <section id={id} ref={sectionRef} tabIndex={id ? -1 : undefined} className="scroll-mt-24 border-b border-slate-100 py-5 outline-none last:border-b-0 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-800">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
           {title}
@@ -1078,6 +1091,83 @@ function ReviewRequestCard({
   );
 }
 
+
+const funnelStateClasses: Record<CommercialFunnelStageState, string> = {
+  complete: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  current: "border-blue-300 bg-blue-50 text-blue-800 ring-1 ring-blue-200 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-100",
+  needs_review: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100",
+  upcoming: "border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+};
+
+const funnelStateLabels: Record<CommercialFunnelStageState, string> = {
+  complete: "Complete",
+  current: "Current",
+  needs_review: "Review needed",
+  upcoming: "Upcoming",
+};
+
+const funnelStateIcons: Record<CommercialFunnelStageState, typeof Circle> = {
+  complete: CheckCircle2,
+  current: ArrowRight,
+  needs_review: AlertTriangle,
+  upcoming: Circle,
+};
+
+function CommercialFunnelNavigator({
+  stages,
+  primaryLabel,
+  onPrimaryAction,
+  onStageSelect,
+}: {
+  stages: CommercialFunnelStage[];
+  primaryLabel: string;
+  onPrimaryAction: () => void;
+  onStageSelect: (stage: CommercialFunnelStage) => void;
+}) {
+  const currentStage = selectCommercialFunnelActiveStage(stages);
+
+  return (
+    <nav aria-label="Planning path" className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Planning path</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff</p>
+        </div>
+        <button
+          type="button"
+          onClick={onPrimaryAction}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+        >
+          {primaryLabel}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+      <ol className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {stages.map((stage) => {
+          const Icon = funnelStateIcons[stage.state];
+          const isCurrent = stage.id === currentStage?.id;
+          return (
+            <li key={stage.id}>
+              <button
+                type="button"
+                onClick={() => onStageSelect(stage)}
+                aria-current={isCurrent ? "step" : undefined}
+                className={cn("flex min-h-16 w-full items-start gap-2 rounded-lg border p-2.5 text-left transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500", funnelStateClasses[stage.state])}
+              >
+                <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{stage.label}</span>
+                  <span className="mt-1 block text-[11px] font-medium">{funnelStateLabels[stage.state]}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 const readinessStatusClasses: Record<CommercialReadinessStatus, string> = {
   Confirmed:
     "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
@@ -1098,7 +1188,7 @@ export function ProjectWorkspace({
 }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { requireAuth, openAuthModal, isAuthenticated } = useAuthGuard();
+  const { requireAuth, openAuthModal, isAuthenticated, isSignedIn } = useAuthGuard();
   const {
     getChatHistory,
     saveChatHistory,
@@ -1216,6 +1306,10 @@ export function ProjectWorkspace({
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const quickSiteCheckSectionRef = useRef<HTMLElement | null>(null);
+  const detailedPlanningPackSectionRef = useRef<HTMLElement | null>(null);
+  const seeSectionRef = useRef<HTMLElement | null>(null);
+  const reviewSectionRef = useRef<HTMLElement | null>(null);
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
   const initialPromptAppliedRef = useRef(false);
@@ -3192,6 +3286,43 @@ export function ProjectWorkspace({
     ],
   );
 
+  const commercialFunnelStages = useMemo(
+    () => buildCommercialFunnelStages({
+      nextAction: commercialNextAction,
+      hasConfirmedSite: Boolean(siteContext),
+      hasQualityQuickSiteCheck,
+      hasDetailedPlanningPack: Boolean(latestDetailedPlanningPack),
+      hasQualityDetailedPlanningPack,
+      hasQualitySee,
+    }),
+    [commercialNextAction, hasQualityDetailedPlanningPack, hasQualityQuickSiteCheck, hasQualitySee, latestDetailedPlanningPack, siteContext],
+  );
+
+  const hasUnresolvedDetailedPlanningPack = Boolean(latestDetailedPlanningPack) && !hasQualityDetailedPlanningPack;
+  const commercialDominantAction = useMemo(() => {
+    if (commercialNextAction.primaryAction === "generate_detailed_pack" && hasUnresolvedDetailedPlanningPack && commercialNextAction.secondaryLabel) {
+      return { label: commercialNextAction.secondaryLabel, kind: "expert_review" as const };
+    }
+
+    return { label: commercialNextAction.primaryLabel, kind: "primary" as const };
+  }, [commercialNextAction.primaryAction, commercialNextAction.primaryLabel, commercialNextAction.secondaryLabel, hasUnresolvedDetailedPlanningPack]);
+
+  const focusWorkspaceTarget = useCallback((targetId: string) => {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => target.focus({ preventScroll: true }), 250);
+  }, []);
+
+  const handleCommercialStageSelect = useCallback((stage: CommercialFunnelStage) => {
+    if (stage.id === "site") {
+      openManualSiteSelection();
+      window.setTimeout(() => siteSearchInputRef.current?.focus(), 0);
+      return;
+    }
+    focusWorkspaceTarget(stage.targetId);
+  }, [focusWorkspaceTarget, openManualSiteSelection]);
+
   const handleRequestExpertReview = useCallback(async () => {
     if (!isAuthenticated) {
       showToast("Sign in, then request expert review", "error");
@@ -3253,7 +3384,8 @@ export function ProjectWorkspace({
 
   const handleCommercialPrimaryAction = useCallback(() => {
     if (commercialNextAction.primaryAction === "set_site") {
-      siteSearchInputRef.current?.focus();
+      openManualSiteSelection();
+      window.setTimeout(() => siteSearchInputRef.current?.focus(), 0);
       showToast("Enter and confirm a Byron or Kempsey address to continue");
       return;
     }
@@ -3264,6 +3396,11 @@ export function ProjectWorkspace({
     }
 
     if (commercialNextAction.primaryAction === "generate_detailed_pack") {
+      if (!proposalBrief.trim()) {
+        focusWorkspaceTarget("proposal-brief");
+        showToast("Enter a proposed-works brief before generating the Detailed Planning Pack", "error");
+        return;
+      }
       void generateDetailedPlanningPack();
       return;
     }
@@ -3273,8 +3410,20 @@ export function ProjectWorkspace({
       return;
     }
 
-    showToast("Use the SEE panel Copy or Download button, or request expert review");
-  }, [commercialNextAction.primaryAction, generateDetailedPlanningPack, handleGeneratePreSeeMemo, showToast]);
+    if (commercialNextAction.primaryAction === "export_or_review") {
+      focusWorkspaceTarget("workspace-see-section");
+      return;
+    }
+  }, [commercialNextAction.primaryAction, focusWorkspaceTarget, generateDetailedPlanningPack, handleGeneratePreSeeMemo, openManualSiteSelection, proposalBrief, showToast]);
+
+  const handleCommercialDominantAction = useCallback(() => {
+    if (commercialDominantAction.kind === "expert_review") {
+      void handleRequestExpertReview();
+      return;
+    }
+
+    handleCommercialPrimaryAction();
+  }, [commercialDominantAction.kind, handleCommercialPrimaryAction, handleRequestExpertReview]);
   const activeStaleArtefact = staleArtefactTypes[0];
   const activeNotification = notifications[0];
   const outputStatusKind =
@@ -3290,22 +3439,19 @@ export function ProjectWorkspace({
     : false;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto bg-[radial-gradient(circle_at_top_left,#eff6ff,transparent_30rem)] px-4 pb-5 pt-3 text-slate-900 transition-colors sm:px-6 lg:px-8 dark:bg-slate-950 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
-      <div className="sticky top-3 z-30 flex flex-wrap items-center justify-between gap-2 rounded-[1.5rem] border border-white/80 bg-white/85 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/85 dark:text-white">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto bg-white px-4 pb-5 pt-3 text-slate-900 transition-colors sm:px-6 lg:px-8 dark:bg-slate-950 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
+      <div className="sticky top-3 z-30 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/80 bg-white/85 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/85 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          {isAuthenticated ? (
-            <button
-              type="button"
-              onClick={() => router.push("/projects")}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-            >
-              ← My Projects
-            </button>
-          ) : null}
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+          >
+            ← Projects
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -3321,12 +3467,8 @@ export function ProjectWorkspace({
             )}
             {isDarkMode ? "Light mode" : "Dark mode"}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
-            <Sparkles className="h-4 w-4" />
-            Get help
-          </button>
-          {isAuthenticated ? (
-            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
+          {isSignedIn ? (
+            <SignOutButton className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-500">
               <LogOut className="h-4 w-4" />
               Logout
             </SignOutButton>
@@ -3335,7 +3477,7 @@ export function ProjectWorkspace({
               <button
                 type="button"
                 onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
               >
                 Sign in
               </button>
@@ -3344,29 +3486,25 @@ export function ProjectWorkspace({
         </div>
       </div>
 
-      <div className="rounded-[1.75rem] border border-white/80 bg-slate-950 p-5 text-white shadow-2xl shadow-blue-950/10 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-[260px] flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
               Project workspace
             </p>
             <ProjectTitleEditor
               projectId={project.id}
               initialTitle={project.name}
             />
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               Your command centre for site context, source material, chat
               decisions and approval-ready outputs.
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-2xl bg-white px-3.5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50">
-            <Notebook className="h-4 w-4" />
-            Share workspace
-          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin className="h-4 w-4 text-slate-500" />
           <span>{siteContext?.formattedAddress ?? (hasPendingInitialSiteConfirmation ? "Confirming site…" : "No site set")}</span>
@@ -3416,9 +3554,16 @@ export function ProjectWorkspace({
         ) : null}
       </div>
 
+      <CommercialFunnelNavigator
+        stages={commercialFunnelStages}
+        primaryLabel={commercialDominantAction.label}
+        onPrimaryAction={handleCommercialDominantAction}
+        onStageSelect={handleCommercialStageSelect}
+      />
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid flex-1 min-h-0 items-stretch gap-4 overflow-hidden xl:grid-cols-[280px_minmax(0,1fr)_340px]">
-          <section className="flex flex-col rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <section className="flex flex-col rounded-lg border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
@@ -3562,7 +3707,7 @@ export function ProjectWorkspace({
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -3629,6 +3774,7 @@ export function ProjectWorkspace({
                         <div className="relative flex-1">
                           <input
                             type="text"
+                            id="workspace-site-control"
                             ref={siteSearchInputRef}
                             value={siteSearchQuery}
                             onChange={(event) => {
@@ -4014,7 +4160,7 @@ export function ProjectWorkspace({
           </section>
 
           <section className="flex flex-col md:h-full md:min-h-0">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/90 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/80 bg-white/90 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
               <header className="shrink-0 px-5 pt-5">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   Outputs
@@ -4091,57 +4237,28 @@ export function ProjectWorkspace({
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5">
-                <section className="border-b border-slate-100 py-5 dark:border-slate-800">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-200">
-                      Byron/Kempsey commercial path
-                    </p>
-                    <h2 className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
-                      {commercialNextAction.heading}
-                    </h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      {commercialNextAction.description}
-                    </p>
-                    <div className="mt-3 grid gap-2">
-                      {commercialNextAction.items.map((item) => (
-                        <div
-                          key={item.label}
-                          className="rounded-xl border border-white/70 bg-white/70 p-2.5 text-xs dark:border-slate-700/70 dark:bg-slate-900/50"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-800 dark:text-slate-100">
-                              {item.label}
-                            </span>
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                                readinessStatusClasses[item.status],
-                              )}
-                            >
-                              {item.status}
-                            </span>
-                          </div>
-                          <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">
-                            {item.detail}
-                          </p>
-                        </div>
-                      ))}
+                <section className="border-b border-slate-100 py-4 dark:border-slate-800" aria-label="Next planning path action">
+                  <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Next action</p>
+                      <h2 className="mt-1 font-semibold text-slate-950 dark:text-white">{commercialNextAction.heading}</h2>
+                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{commercialNextAction.description}</p>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={handleCommercialPrimaryAction}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        onClick={handleCommercialDominantAction}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                       >
-                        {commercialNextAction.primaryLabel}
-                        <Sparkles className="h-3 w-3" />
+                        {commercialDominantAction.label}
+                        <ArrowRight className="h-3 w-3" aria-hidden />
                       </button>
-                      {commercialNextAction.secondaryLabel ? (
+                      {commercialNextAction.secondaryLabel && commercialDominantAction.kind !== "expert_review" ? (
                         <button
                           type="button"
                           onClick={() => void handleRequestExpertReview()}
                           disabled={isRequestingReview}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                         >
                           {isRequestingReview ? "Packaging review…" : commercialNextAction.secondaryLabel}
                         </button>
@@ -4150,6 +4267,8 @@ export function ProjectWorkspace({
                   </div>
                 </section>
                 <OutputSection
+                  id="workspace-qsc-section"
+                  sectionRef={quickSiteCheckSectionRef}
                   title="Quick Site Check"
                   action={
                     hasSiteContext ? (
@@ -4216,6 +4335,8 @@ export function ProjectWorkspace({
                 </OutputSection>
 
                 <OutputSection
+                  id="workspace-dpp-section"
+                  sectionRef={detailedPlanningPackSectionRef}
                   title="Detailed Planning Pack"
                   action={
                     hasSiteContext ? (
@@ -4281,6 +4402,8 @@ export function ProjectWorkspace({
                 </OutputSection>
 
                 <OutputSection
+                  id="workspace-see-section"
+                  sectionRef={seeSectionRef}
                   title="Statement of Env. Effects"
                   action={
                     hasSiteContext ? (
@@ -4317,7 +4440,7 @@ export function ProjectWorkspace({
                   )}
                 </OutputSection>
 
-                <OutputSection title="Expert Review Request">
+                <OutputSection id="workspace-review-section" sectionRef={reviewSectionRef} title="Expert Review Request">
                   {latestReviewRequestArtefact && latestReviewRequestContent ? (
                     <ReviewRequestCard
                       artefact={latestReviewRequestArtefact}
