@@ -57,7 +57,7 @@ export default function HomePage() {
       <SiteHeader navigation={[]} />
       <main className="flex-1">
         <section className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-4xl flex-col justify-center px-4 py-4 sm:px-6 sm:py-8 lg:px-8" aria-labelledby="check-heading">
-          <div className="space-y-5">
+          <div className="space-y-4">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800">
               <MapPin className="h-4 w-4" /> Plannera Check
             </p>
@@ -66,7 +66,7 @@ export default function HomePage() {
                 Run a free Quick Site Check.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-slate-700">
-                Enter a site address to reveal available NSW planning controls with cited or unavailable evidence. Pilot coverage is focused on Byron and Kempsey. Early planning information only; not legal or professional planning advice.
+                Reveal available NSW planning controls with cited or unavailable evidence. Pilot coverage is focused on Byron and Kempsey. Early planning information only; not legal or professional planning advice.
               </p>
             </div>
 
