@@ -95,16 +95,24 @@ export function quickSiteCheckReportsEquivalent(a: QuickSiteCheckReport | null |
 }
 
 export function quickSiteCheckReportFromFocusedResult(projectId: string, result: QuickSiteCheckLepSuccess, address?: string | null): QuickSiteCheckReport {
-  const toReportControl = (label: string, control: LepControlValue | null | undefined) => ({
-    label,
-    value: control?.value ?? null,
-    present: Boolean(control?.value),
-    lepSource: Boolean(control?.value),
-    source: control?.sourceRef ?? null,
-    clauseRef: control?.clauseRef,
-    interpretation: control?.value ? `${label} extracted from LEP clause ${control.clauseRef}.` : "Unavailable in the current Quick Site Check evidence.",
-    confidence: control?.confidence ?? "Unavailable" as const,
-  });
+  const toReportControl = (label: string, control: LepControlValue | null | undefined, isLepSource: boolean) => {
+    const isAvailable = Boolean(control?.value && control.confidence !== "Unavailable" && control.value.trim().toLowerCase() !== "unavailable");
+    const source = control?.sourceRef ?? null;
+    return {
+      label,
+      value: control?.value ?? null,
+      present: isAvailable,
+      lepSource: isAvailable && isLepSource,
+      source,
+      clauseRef: control?.clauseRef,
+      interpretation: isAvailable
+        ? `${label} extracted from ${source ?? `planning control ${control?.clauseRef ?? "source"}`}.`
+        : source
+          ? `${label} is unavailable in ${source}.`
+          : "Unavailable in the current Quick Site Check evidence.",
+      confidence: control?.confidence ?? "Unavailable" as const,
+    };
+  };
 
   return {
     projectId,
@@ -113,12 +121,12 @@ export function quickSiteCheckReportFromFocusedResult(projectId: string, result:
     lepInstrument: { name: result.lepName, lga: result.lga, source: "ingestion" },
     permissibility: result.permissibility ? { zoneLabel: result.zone ? `Zone ${result.zone}` : null, permittedWithoutConsent: result.permissibility.permittedWithoutConsent, permittedWithConsent: result.permissibility.permittedWithConsent, prohibited: result.permissibility.prohibited, interpretation: "Extracted from LEP zone table (permitted uses and prohibitions)." } : null,
     controls: {
-      heightOfBuilding: toReportControl("Height of buildings", result.controls.heightOfBuilding),
-      floorSpaceRatio: toReportControl("Floor space ratio", result.controls.fsr),
-      minimumLotSize: toReportControl("Minimum lot size", result.controls.minLotSize),
-      ...(result.controls.setback != null ? { setback: toReportControl("Setback", result.controls.setback) } : {}),
-      ...(result.controls.parking != null ? { parking: toReportControl("Parking", result.controls.parking) } : {}),
-      ...(result.controls.activeFrontageBuiltForm != null ? { activeFrontageBuiltForm: toReportControl("Active frontage / built form", result.controls.activeFrontageBuiltForm) } : {}),
+      heightOfBuilding: toReportControl("Height of buildings", result.controls.heightOfBuilding, true),
+      floorSpaceRatio: toReportControl("Floor space ratio", result.controls.fsr, true),
+      minimumLotSize: toReportControl("Minimum lot size", result.controls.minLotSize, true),
+      ...(result.controls.setback != null ? { setback: toReportControl("Setback", result.controls.setback, false) } : {}),
+      ...(result.controls.parking != null ? { parking: toReportControl("Parking", result.controls.parking, false) } : {}),
+      ...(result.controls.activeFrontageBuiltForm != null ? { activeFrontageBuiltForm: toReportControl("Active frontage / built form", result.controls.activeFrontageBuiltForm, false) } : {}),
     },
     notes: result.objectives,
     nextSteps: ["Review highlighted LEP clauses (Parts 4–6).", result.zone ? `Confirm mapping overlays and constraints for zone ${result.zone}.` : "Confirm zoning and rerun Quick Site Check."],
