@@ -8,8 +8,6 @@ import { ArrowRight, MapPin } from "lucide-react";
 import { SiteHeader } from "@/components/navigation/site-header";
 import { buildWorkspaceSeedQuery, launchExampleAddresses } from "@/lib/landing-entry";
 
-const navigation = [{ label: "My Projects", href: "/projects" }];
-
 export default function HomePage() {
   const router = useRouter();
   const [address, setAddress] = useState("");
@@ -56,9 +54,9 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-950">
-      <SiteHeader navigation={navigation} />
+      <SiteHeader navigation={[]} />
       <main className="flex-1">
-        <section className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-4xl flex-col justify-center px-4 py-8 sm:px-6 lg:px-8" aria-labelledby="check-heading">
+        <section className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-4xl flex-col justify-center px-4 py-5 sm:px-6 sm:py-8 lg:px-8" aria-labelledby="check-heading">
           <div className="space-y-6">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800">
               <MapPin className="h-4 w-4" /> Plannera Check
@@ -68,7 +66,7 @@ export default function HomePage() {
                 Run a free Quick Site Check.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-slate-700">
-                Enter a site address to resolve the real project workspace, retrieve available NSW planning controls, and reveal cited or unavailable evidence. Pilot coverage is focused on Byron and Kempsey. This is planning information for early scoping, not legal or professional planning advice.
+                Enter a site address to reveal available NSW planning controls with cited or unavailable evidence. Pilot coverage is focused on Byron and Kempsey. Early planning information only; not legal or professional planning advice.
               </p>
             </div>
 
