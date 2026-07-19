@@ -1113,3 +1113,25 @@ Integration invariant: a PR is not considered present on `main` merely because G
 Verification required before merge: PR #310 must be mergeable and independently pass Vercel plus Commercial Funnel Golden Gate. No local build, production access/mutation, production project creation, ingestion, billing/auth implementation, or merge is performed by this item.
 
 Status: IN REVIEW — Items 64/65 are stack-merged but not yet present on `main`.
+
+
+## 67) Live funnel correction: property-mapped LEP controls and requester project continuity — IN REVIEW (2026-07-19)
+
+Post-merge verification: integration PR #310 merged into `main` at exact merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`. Its tree is exactly the reviewed Item 64/65 tree `bf6868ff4f752cdd874d0498dea8c415b97abcf9`; Item 66 is therefore DONE/MERGED.
+
+Trigger: a real user acceptance run of the approved Byron preset `45 Broken Head Road, Byron Bay NSW 2481` exposed two release-blocking gaps. The focused Check showed Height, FSR, and Minimum lot size as unavailable even though the official NSW EPI Primary Planning Layers service returns property-specific Byron LEP 2014 values at the resolved point: 9m from the Height of Buildings Map, 0.3:1 from the Floor Space Ratio Map, and 40ha from the Lot Size Map. The same run also created a project that appeared in My Projects but failed to open because the list preferred `publicId` while the requester workspace lookup matched only internal `id`.
+
+Invariant:
+- Property-specific mapped LEP controls come from the official NSW EPI spatial layers for the confirmed coordinates, selected against the resolved LEP instrument/LGA, and carry the map name plus statutory clause as source evidence.
+- Missing, ambiguous, malformed, non-LEP, or failed map responses remain null/unavailable; no zone-wide value is invented from generic clause text.
+- Official property map values outrank generic clause-text extraction and legacy project payload controls.
+- Every requester-scoped project route must accept internal `id` and `publicId` under the same user/session ownership predicate. Guest session identity must never match a project owned by another user.
+- The commercial golden gate includes the official-map parser, Byron focused-control regression, ordinary report source semantics, and requester `publicId` continuity tests.
+
+Evidence boundary: the live acceptance lookup and official NSW map queries were read-only. No production project was created, modified, deleted, claimed, or audited by this item. No schema, billing, auth-policy, PWA/native, DCP pricing, or consultant-send change is included. No local build is run.
+
+Status: IN REVIEW — implementation branch `codex/fix-live-qsc-controls-and-project-continuity`.
+
+## 68) Intent-aware Quick Site Check handoff — QUEUED AFTER ITEM 67
+
+The current free Quick Site Check is address/site scoped; proposed development does not currently alter the first result. Proposal intent is collected later as the workspace proposed-works brief and scopes the Detailed Planning Pack. The next product slice must make that relationship explicit by capturing a concise development intent before promotion, testing it against cited zone permissibility without pretending that fuzzy text is a statutory land-use classification, and carrying the exact intent into the same project's DPP brief. It must not delay or contaminate the property-specific mapped LEP controls fixed in Item 67.

@@ -316,3 +316,16 @@ Decision: GitHub's merged flag is insufficient evidence that a stacked change is
 After a parent PR lands, each remaining stacked PR must either be retargeted/rebased onto `main` before merge or be carried through one explicit integration PR whose base is `main`. Before advancing the commercial sequence, verify PR base, merge commit, `main` reachability/tree, changed-file scope, mergeability, and required checks. This prevents a green, merged feature-branch stack from being mistaken for deployed product capability.
 
 Reference: docs/project-memory/build-next.md Item 66
+
+
+## DR-036 — Property Controls Come From Spatial LEP Maps; Project Identity Is Dual-Key
+
+Status: Active
+
+Decision: Height of buildings, floor space ratio, and minimum lot size are property-specific mapped LEP controls. Generic clauses 4.1, 4.3, and 4.4 establish the control and refer to maps, but clause text alone is not evidence of the value at a confirmed property. Quick Site Check must query the official NSW EPI primary planning layers at the confirmed coordinates, select the current LEP feature against the resolved instrument/LGA, and cite the instrument, map, and clause. Spatial values outrank generic clause-text extraction and legacy client/project payload values. Missing, failed, or ambiguous map evidence remains unavailable.
+
+A Plannera project has both an internal database `id` and an optional `publicId`. Any user-facing link may emit either identifier, so requester-scoped reads and claims must resolve both through one ownership predicate. Matching an identifier never weakens user/session ownership, and a guest session may match only unowned projects from that same session.
+
+The free Check remains site scoped. Development intent is a separate proposal input that may drive cited permissibility interpretation and the Detailed Planning Pack only after its classification contract is explicit; it must not be used to manufacture property controls.
+
+Reference: docs/project-memory/build-next.md Items 67–68

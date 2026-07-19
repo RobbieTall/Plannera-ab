@@ -58,7 +58,7 @@ function NotFoundState() {
     <div className="mx-auto flex max-w-3xl flex-col gap-3 px-6 py-12">
       <p className="text-2xl font-semibold text-slate-900">Project not found</p>
       <p className="text-sm text-slate-600">
-        Create a new planning workspace from the homepage or revisit an existing project from your dashboard.
+        Create a new planning workspace from the homepage or revisit an existing project from My Projects.
       </p>
       <div className="flex flex-wrap gap-3">
         <Link
@@ -68,10 +68,10 @@ function NotFoundState() {
           Back to homepage
         </Link>
         <Link
-          href="/dashboard"
+          href="/projects"
           className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          Go to dashboard
+          Go to My Projects
         </Link>
       </div>
     </div>

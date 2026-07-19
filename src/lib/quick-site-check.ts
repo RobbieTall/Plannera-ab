@@ -82,11 +82,13 @@ const controlFromLepResult = (label: string, control: LepControlValue | null | u
     label,
     value: control.value,
     present: true,
-    source: "LEP clause database",
+    source: control.sourceRef ?? "LEP clause database",
     lepSource: true,
     clauseRef: control.clauseRef,
     detail: null,
-    interpretation: `${label} is cited as ${control.value} from LEP clause ${control.clauseRef}.`,
+    interpretation: control.sourceRef
+      ? `${label} is cited as ${control.value} from ${control.sourceRef}.`
+      : `${label} is cited as ${control.value} from LEP clause ${control.clauseRef}.`,
     confidence: control.confidence,
   };
 };

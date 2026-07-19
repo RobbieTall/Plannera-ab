@@ -10,6 +10,7 @@ import type {
 } from "@/types/quick-site-check-lep";
 
 import { prisma } from "../prisma";
+import { getMappedPlanningControlsForSite } from "../nsw-planning-controls";
 import { findProjectByExternalId, normalizeProjectId } from "../project-identifiers";
 import { serializeSiteContext } from "../site-context";
 import { getInstrumentConfig } from "../legislation/config";
@@ -1029,9 +1030,18 @@ export const buildQuickSiteCheckLep = async (
       } satisfies QuickSiteCheckLepResponse;
     }
 
-    const [storedObjectives, storedLandUses] = await Promise.all([
+    const coords =
+      typeof siteContext?.latitude === "number" && typeof siteContext?.longitude === "number"
+        ? { lat: siteContext.latitude, lng: siteContext.longitude }
+        : null;
+    const [storedObjectives, storedLandUses, mappedPlanningControls] = await Promise.all([
       prisma.lepZoneObjective.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
       prisma.lepZoneLandUse.findMany({ where: { instrumentId: lepInstrument.id, zoneCode } }),
+      getMappedPlanningControlsForSite({
+        coords,
+        instrumentName: lepInstrument.name,
+        lga,
+      }),
     ]);
 
     const hasStoredZoneData = storedObjectives.length > 0 || storedLandUses.length > 0;
@@ -1566,9 +1576,9 @@ export const buildQuickSiteCheckLep = async (
         }
       : null;
     const controls = {
-      heightOfBuilding: heightOfBuilding ?? heightOfBuildingFromLepData,
-      fsr: fsr ?? fsrFromLepData,
-      minLotSize: minLotSize ?? minLotSizeFromLepData,
+      heightOfBuilding: mappedPlanningControls.heightOfBuilding ?? heightOfBuilding ?? heightOfBuildingFromLepData,
+      fsr: mappedPlanningControls.fsr ?? fsr ?? fsrFromLepData,
+      minLotSize: mappedPlanningControls.minLotSize ?? minLotSize ?? minLotSizeFromLepData,
       zoneObjectives: zoneSummary.objectives.length ? zoneSummary.objectives : null,
       setback: kempseyDcpControls.setback,
       parking: kempseyDcpControls.parking,

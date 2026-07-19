@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     dCPClause: { findMany: vi.fn() },
   },
   findProjectByExternalId: vi.fn(),
+  getMappedPlanningControlsForSite: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.prisma }));
@@ -24,10 +25,15 @@ vi.mock("@/lib/project-identifiers", () => ({
   findProjectByExternalId: mocks.findProjectByExternalId,
 }));
 vi.mock("@/lib/site-context", () => ({
-  serializeSiteContext: (_siteContext: unknown, project: { lgaName?: string; zoningCode?: string }) => ({
+  serializeSiteContext: (_siteContext: unknown, project: { lgaName?: string; zoningCode?: string; latitude?: number; longitude?: number }) => ({
     lgaName: project.lgaName ?? "Byron",
     zoningCode: project.zoningCode ?? "R2",
+    latitude: project.latitude ?? -28.6751352,
+    longitude: project.longitude ?? 153.6124394,
   }),
+}));
+vi.mock("@/lib/nsw-planning-controls", () => ({
+  getMappedPlanningControlsForSite: mocks.getMappedPlanningControlsForSite,
 }));
 vi.mock("@/lib/legislation/config", () => ({ getInstrumentConfig: () => null }));
 vi.mock("@/lib/lep/lep-search", () => ({ buildLepInstrumentFilter: (lga: string) => ({ lga }) }));
@@ -61,6 +67,45 @@ describe("buildQuickSiteCheckLep", () => {
     mocks.prisma.lepZoneObjective.findMany.mockResolvedValue([]);
     mocks.prisma.lepZoneLandUse.findMany.mockResolvedValue([]);
     mocks.prisma.dCPClause.findMany.mockResolvedValue([]);
+    mocks.getMappedPlanningControlsForSite.mockResolvedValue({
+      heightOfBuilding: null,
+      fsr: null,
+      minLotSize: null,
+    });
+  });
+
+  it("prefers property-specific official LEP map controls for the Byron preset", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({
+      id: "project-1",
+      lgaName: "Byron",
+      zoningCode: "SP3",
+      latitude: -28.6751352,
+      longitude: 153.6124394,
+      lepData: null,
+    });
+    mocks.prisma.clause.findMany.mockResolvedValue([
+      clause("4.1", "Minimum lot size", "The minimum lot size is shown on the Lot Size Map."),
+      clause("4.3", "Height of buildings", "The maximum height is shown on the Height of Buildings Map."),
+      clause("4.4", "Floor space ratio", "The maximum FSR is shown on the Floor Space Ratio Map."),
+    ]);
+    mocks.getMappedPlanningControlsForSite.mockResolvedValue({
+      heightOfBuilding: { value: "9m", clauseRef: "4.3", sourceRef: "Byron Local Environmental Plan 2014 · Height of Buildings Map · Clause 4.3", confidence: "Cited" },
+      fsr: { value: "0.3:1", clauseRef: "4.4", sourceRef: "Byron Local Environmental Plan 2014 · Floor Space Ratio Map · Clause 4.4", confidence: "Cited" },
+      minLotSize: { value: "40 ha", clauseRef: "4.1", sourceRef: "Byron Local Environmental Plan 2014 · Lot Size Map · Clause 4.1", confidence: "Cited" },
+    });
+
+    const result = await buildQuickSiteCheckLep("project-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.controls.heightOfBuilding?.value).toBe("9m");
+    expect(result.controls.fsr?.value).toBe("0.3:1");
+    expect(result.controls.minLotSize?.value).toBe("40 ha");
+    expect(mocks.getMappedPlanningControlsForSite).toHaveBeenCalledWith({
+      coords: { lat: -28.6751352, lng: 153.6124394 },
+      instrumentName: "Byron LEP 2014",
+      lga: "Byron",
+    });
   });
 
   it("extracts cited Part 4 controls from ingested clause rows", async () => {
