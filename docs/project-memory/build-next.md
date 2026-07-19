@@ -1115,7 +1115,7 @@ Verification completed: PR #310 was mergeable and independently passed Vercel pl
 Status: DONE/MERGED — PR #310 integrated Items 64/65 into `main` at exact merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`.
 
 
-## 67) Live funnel correction: property-mapped LEP controls and requester project continuity — IN REVIEW (2026-07-19)
+## 67) Live funnel correction: property-mapped LEP controls and requester project continuity — DONE/MERGED (2026-07-19)
 
 Post-merge verification: integration PR #310 merged into `main` at exact merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`. Its tree is exactly the reviewed Item 64/65 tree `bf6868ff4f752cdd874d0498dea8c415b97abcf9`; Item 66 is therefore DONE/MERGED.
 
@@ -1130,8 +1130,35 @@ Invariant:
 
 Evidence boundary: the live acceptance lookup and official NSW map queries were read-only. No production project was created, modified, deleted, claimed, or audited by this item. No schema, billing, auth-policy, PWA/native, DCP pricing, or consultant-send change is included. No local build is run.
 
-Status: IN REVIEW — implementation branch `codex/fix-live-qsc-controls-and-project-continuity`.
+Status: DONE/MERGED — PR #311 merged into `main` at exact merge commit `bda25cd7c8a1a70b13af3bae95b649e808933a73`. Its implementation includes source head `e361b3b2ac66095e59fd608461d58460459b4bf8`, the Byron regression correction `6dd4da201e60d71bf0cf1b3402bd843e581e3dba`, and documentation reconciliation `58a60fb0fbe278e90ea5fe8b2fd191169edce39f`.
 
-## 68) Intent-aware Quick Site Check handoff — QUEUED AFTER ITEM 67
+Post-merge user acceptance on the deployed PR environment succeeded for requester project `proj-798cf4b41f0e44bc8e`: the project was created, appeared in My Projects, reopened through the project menu, and displayed cited property-mapped Byron controls at 41 Julian Rocks Dr (9m height, 0.5:1 FSR, 600m² minimum lot size) with Byron LEP map/clause references. This proves the reported project-continuity defect and mapped-control reveal were corrected in the deployed merged tree; it does not replace the still-open protected production commercial-funnel audit in Item 52.
 
-The current free Quick Site Check is address/site scoped; proposed development does not currently alter the first result. Proposal intent is collected later as the workspace proposed-works brief and scopes the Detailed Planning Pack. The next product slice must make that relationship explicit by capturing a concise development intent before promotion, testing it against cited zone permissibility without pretending that fuzzy text is a statutory land-use classification, and carrying the exact intent into the same project's DPP brief. It must not delay or contaminate the property-specific mapped LEP controls fixed in Item 67.
+## 68) Intent-aware Quick Site Check handoff — IN REVIEW (2026-07-19)
+
+Purpose: preserve the property-first value reveal while closing the missing proposal-intent handoff between free Plannera Check and the paid Detailed Planning Pack.
+
+Invariant:
+- Property-specific mapped LEP controls remain site/coordinate scoped and are retrieved before intent capture; proposal wording cannot alter or manufacture height, FSR, minimum-lot-size, zone or source evidence.
+- Focused Check requires one concise user-provided development description before **Create project in Plannera** promotion.
+- A permissibility pathway is `Cited` only when normalized case, whitespace and dash variants produce exactly one complete statutory land-use-term match in the server-retrieved DB-backed current-zone table. Substrings, fuzzy prose, fallback tables, absent zones and duplicate cross-path matches remain `Unresolved` with no assigned pathway.
+- An exact term match still states that the proposal must satisfy the statutory land-use definition and other controls; it is not a development approval or professional advice claim.
+- The Quick Site Check artefact persists the exact compacted user description plus the server-recomputed assessment. Client-supplied status, pathway, matched term, citation and detail are never trusted.
+- Promotion reuses the same requester project and evidence snapshot. The saved intent seeds the normal workspace proposed-works brief immediately and after reload when no saved DPP brief already establishes a later active proposal.
+- Changing the workspace brief after promotion remains supported and continues to trigger the existing exact proposal/DPP mismatch and regeneration rules.
+
+Focused coverage:
+- Exact without-consent, with-consent and prohibited statutory terms; case/whitespace/dash normalization; fuzzy prose, fallback evidence and ambiguous duplicate matches.
+- Focused report persistence/fingerprint semantics and exact intent extraction for DPP hydration.
+- Forged client classification replaced by the server-derived current-zone assessment at QSC persistence.
+- Focused UI requires intent, exposes cited versus unresolved language, saves intent in the same QSC request, and hydrates the DPP brief without a second project or URL-only state.
+
+Evidence boundary: no schema/migration, billing, price, checkout, credits, auth-policy change, production data mutation, production project creation, local application build, fuzzy/AI statutory classification, or change to property-map control retrieval. This does not close Item 52 or enable Item 40.
+
+Verification for review: focused intent/static/persistence tests, `npm run lint`, `npx tsc --noEmit`, `npm run test:commercial-funnel`, and the existing secret-free Commercial Funnel Golden Gate. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: IN REVIEW — PR #312 is ready for review from implementation commit `269e8650242ad72ece135081b925e0931d42c1dd` on branch `codex/implement-item-68-intent-aware-check`. The remote commit tree `09148f5150aa7b727d36cd074603443cc79674ff` exactly matches the locally reviewed tree. Commercial Funnel Golden Gate run `29673828185` passed and Vercel reported deployment success. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` passed; no local application build or production access/mutation was performed.
+
+## 69) Consolidate Basic Feasibility into the evidence funnel — QUEUED AFTER ITEM 68
+
+The current standalone Basic Feasibility panel can produce a weaker, disconnected proposal verdict than the cited Quick Site Check → Detailed Planning Pack path shown immediately above it. Preserve useful feasibility logic, but remove the competing launch-workspace truth path. The intended sequence is Property Check → proposal intent → Detailed Planning Pack → Planning Feasibility Summary → SEE / consultant referral. The future summary must derive from the exact current-site QSC, exact active proposal/DPP and their evidence states; it must not issue a second AI-only permissibility answer, bypass unresolved DCP topics, or overwrite historical feasibility artefacts.

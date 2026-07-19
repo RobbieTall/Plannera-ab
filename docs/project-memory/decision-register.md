@@ -329,3 +329,25 @@ A Plannera project has both an internal database `id` and an optional `publicId`
 The free Check remains site scoped. Development intent is a separate proposal input that may drive cited permissibility interpretation and the Detailed Planning Pack only after its classification contract is explicit; it must not be used to manufacture property controls.
 
 Reference: docs/project-memory/build-next.md Items 67–68
+
+
+## DR-037 — Development Intent Is User-Provided; Permissibility Matching Is Exact and Server-Verified
+
+Status: Active
+
+Decision: Plannera Check remains property first. Site identity and mapped LEP controls are resolved and revealed independently of proposal wording. Before same-project promotion, the user supplies a concise proposed-development description that is persisted with the Quick Site Check and carried unchanged into the existing Detailed Planning Pack brief.
+
+Plannera may label that intent with a cited zone permissibility pathway only when the server-retrieved, DB-backed current-zone land-use table contains exactly one complete statutory term matching the normalized input. Case, whitespace and dash variants may normalize; substrings, fuzzy descriptions, fallback evidence, duplicate cross-path terms, missing zones and absent tables remain `Unresolved`. Even an exact term match is a cited table match, not proof that the factual proposal satisfies the statutory definition or that approval will be granted. Client-supplied classification, pathway, match, citation and explanatory text are recomputed at Quick Site Check persistence.
+
+Reference: docs/project-memory/build-next.md Item 68
+
+
+## DR-038 — Launch Feasibility Must Be Derived From the Single Commercial Evidence Path
+
+Status: Active
+
+Decision: The standalone Basic Feasibility experience must not remain a competing source of planning truth beside the commercial funnel. Its useful assessment logic should be consolidated into a Planning Feasibility Summary derived from the exact current-site Quick Site Check, active proposal and exact Detailed Planning Pack after Item 68. The launch sequence is Property Check → proposal intent → Detailed Planning Pack → Planning Feasibility Summary → SEE / consultant referral.
+
+The consolidated summary must preserve cited/unresolved evidence, fail closed when the DPP is unresolved or mismatched, and never issue a second ungrounded permissibility answer. Existing feasibility artefacts remain history until a dedicated review-ready consolidation slice replaces the standalone launch panel.
+
+Reference: docs/project-memory/build-next.md Item 69

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFocusedCheckControlList, getFocusedCheckEligibility, quickSiteCheckFingerprint, quickSiteCheckReportFromFocusedResult, quickSiteCheckReportsEquivalent } from "../src/lib/plannera-check-flow";
+import { assessQuickSiteCheckDevelopmentIntent, buildFocusedCheckControlList, getFocusedCheckEligibility, quickSiteCheckFingerprint, quickSiteCheckIntentForProposal, quickSiteCheckReportFromFocusedResult, quickSiteCheckReportsEquivalent } from "../src/lib/plannera-check-flow";
 import type { SiteContextSummary } from "../src/types/site";
 import type { QuickSiteCheckReport } from "../src/types/quick-site-check";
 import type { QuickSiteCheckLepSuccess } from "../src/types/quick-site-check-lep";
@@ -66,6 +66,67 @@ test("focused check control list retains optional cited and unavailable controls
   assert.doesNotMatch(saved.controls.setback?.interpretation ?? "", /LEP clause/);
 });
 
+test("development intent becomes cited only for one exact statutory land-use term", () => {
+  const citedResult = result({
+    landUse: {
+      withoutConsent: ["Home occupations"],
+      withConsent: ["Centre-based child care facilities"],
+      prohibited: ["Eco-tourist facilities"],
+    },
+  });
+  const assessment = assessQuickSiteCheckDevelopmentIntent("  centre‑based   child care facilities ", citedResult);
+
+  assert.deepEqual(assessment, {
+    description: "centre‑based child care facilities",
+    status: "Cited",
+    pathway: "permitted_with_consent",
+    statutoryLandUse: "Centre-based child care facilities",
+    sourceRef: "Kempsey LEP 2013 Land Use Table, Zone E2 (cl. 2.3)",
+    detail: "Exact statutory term match: “Centre-based child care facilities” is listed as permitted with consent. The proposal must still satisfy that land-use definition and any other applicable controls.",
+  });
+
+  assert.equal(assessQuickSiteCheckDevelopmentIntent("home occupations", citedResult)?.pathway, "permitted_without_consent");
+  assert.equal(assessQuickSiteCheckDevelopmentIntent("Eco-tourist facilities", citedResult)?.pathway, "prohibited");
+});
+
+test("development intent remains unresolved for fuzzy, fallback and ambiguous matches", () => {
+  const citedResult = result({
+    landUse: {
+      withoutConsent: ["Home occupations"],
+      withConsent: ["Secondary dwellings"],
+      prohibited: [],
+    },
+  });
+
+  const fuzzy = assessQuickSiteCheckDevelopmentIntent("Build a secondary dwelling behind the house", citedResult);
+  assert.equal(fuzzy?.status, "Unresolved");
+  assert.equal(fuzzy?.pathway, "unresolved");
+  assert.equal(fuzzy?.statutoryLandUse, null);
+
+  const fallback = assessQuickSiteCheckDevelopmentIntent("Secondary dwellings", { ...citedResult, dataSource: "fallback" });
+  assert.equal(fallback?.status, "Unresolved");
+  assert.equal(fallback?.sourceRef, null);
+
+  const ambiguous = assessQuickSiteCheckDevelopmentIntent("Home occupations", {
+    ...citedResult,
+    landUse: { withoutConsent: ["Home occupations"], withConsent: ["Home occupations"], prohibited: [] },
+  });
+  assert.equal(ambiguous?.status, "Unresolved");
+  assert.equal(ambiguous?.statutoryLandUse, null);
+});
+
+test("focused report carries the exact intent and its conservative assessment", () => {
+  const saved = quickSiteCheckReportFromFocusedResult("project", result({
+    landUse: { withoutConsent: [], withConsent: ["Commercial premises"], prohibited: [] },
+  }), "52 Belgrave St", " Commercial   premises ");
+
+  assert.equal(saved.developmentIntent?.description, "Commercial premises");
+  assert.equal(saved.developmentIntent?.status, "Cited");
+  assert.equal(saved.developmentIntent?.pathway, "permitted_with_consent");
+  assert.equal(quickSiteCheckIntentForProposal(saved), "Commercial premises");
+  assert.equal(quickSiteCheckIntentForProposal({ ...saved, developmentIntent: null }), null);
+});
+
 const report = (overrides: Partial<QuickSiteCheckReport> = {}): QuickSiteCheckReport => ({
   projectId: "project", generatedAt: "2026-01-01T00:00:00Z",
   site: { address: "52 Belgrave St", lga: "Kempsey Shire", zoneCode: "E2", zoneLabel: "Zone E2" },
@@ -90,4 +151,5 @@ test("quick site check equivalence detects changed source, changed control and d
   assert.equal(quickSiteCheckReportsEquivalent(report(), report({ controls: { ...report().controls, heightOfBuilding: { ...report().controls.heightOfBuilding, source: "Different source", clauseRef: "4.3", value: "11 m" } } })), false);
   assert.equal(quickSiteCheckReportsEquivalent(report(), report({ controls: { ...report().controls, heightOfBuilding: { ...report().controls.heightOfBuilding, value: "12 m" } } })), false);
   assert.equal(quickSiteCheckReportsEquivalent(report(), report({ site: { ...report().site, address: "45 Broken Head Road" } })), false);
+  assert.equal(quickSiteCheckReportsEquivalent(report(), report({ developmentIntent: { description: "Commercial premises", status: "Cited", pathway: "permitted_with_consent", statutoryLandUse: "Commercial premises", sourceRef: "Kempsey LEP", detail: "Exact match" } })), false);
 });

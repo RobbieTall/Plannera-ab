@@ -8,6 +8,7 @@ import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
+import { assessQuickSiteCheckDevelopmentIntent } from "@/lib/plannera-check-flow";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
 import { serializeSiteContext } from "@/lib/site-context";
@@ -83,6 +84,15 @@ const quickSiteCheckEvidenceSummarySchema = z.object({
   sourceRef: z.string(),
 });
 
+const quickSiteCheckDevelopmentIntentSchema = z.object({
+  description: z.string().trim().min(1).max(500),
+  status: z.enum(["Cited", "Unresolved"]),
+  pathway: z.enum(["permitted_without_consent", "permitted_with_consent", "prohibited", "unresolved"]),
+  statutoryLandUse: z.string().nullable(),
+  sourceRef: z.string().nullable(),
+  detail: z.string(),
+});
+
 export const quickSiteCheckReportSchema = z
   .object({
     projectId: z.string().trim().min(1),
@@ -124,6 +134,7 @@ export const quickSiteCheckReportSchema = z
     notes: z.array(z.string()),
     nextSteps: z.array(z.string()),
     lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
+    developmentIntent: quickSiteCheckDevelopmentIntentSchema.nullable().optional().default(null),
   })
   .passthrough();
 
@@ -475,6 +486,10 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
   }
 
   const lepEvidenceSummary = lepResponse ? summariseQuickSiteCheckEvidence(lepResponse) : null;
+  const developmentIntent = assessQuickSiteCheckDevelopmentIntent(
+    report.developmentIntent?.description ?? "",
+    lepResponse,
+  );
 
   return {
     ...report,
@@ -542,6 +557,7 @@ const applyRealLepEnrichmentToReport = (report: QuickSiteCheckReport, enrichment
         : {}),
     },
     lepEvidenceSummary,
+    developmentIntent,
   };
 };
 

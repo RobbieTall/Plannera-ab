@@ -28,6 +28,19 @@ export type QuickSiteCheckPermissibility = {
   interpretation: string;
 };
 
+export type QuickSiteCheckDevelopmentIntent = {
+  description: string;
+  status: "Cited" | "Unresolved";
+  pathway:
+    | "permitted_without_consent"
+    | "permitted_with_consent"
+    | "prohibited"
+    | "unresolved";
+  statutoryLandUse: string | null;
+  sourceRef: string | null;
+  detail: string;
+};
+
 export type QuickSiteCheckReport = {
   projectId: string;
   generatedAt: string;
@@ -57,6 +70,7 @@ export type QuickSiteCheckReport = {
   notes: string[];
   nextSteps: string[];
   lepEvidenceSummary?: QuickSiteCheckEvidenceSummary | null;
+  developmentIntent?: QuickSiteCheckDevelopmentIntent | null;
 };
 
 export type QuickSiteCheckResponse = {

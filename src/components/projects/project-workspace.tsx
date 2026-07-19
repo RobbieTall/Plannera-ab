@@ -96,10 +96,12 @@ import { useLgaCoverageStatus } from "@/hooks/use-lga-coverage-status";
 import { cn } from "@/lib/utils";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import {
+  assessQuickSiteCheckDevelopmentIntent,
   buildFocusedCheckControlList,
   getFocusedCheckEligibility,
   quickSiteCheckReportFromFocusedResult,
   quickSiteCheckReportsEquivalent,
+  quickSiteCheckIntentForProposal,
 } from "@/lib/plannera-check-flow";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
 import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/types/quick-site-check";
@@ -1269,10 +1271,12 @@ export function ProjectWorkspace({
   const [focusedCheckStatus, setFocusedCheckStatus] = useState<"waiting" | "loading" | "ready" | "error">("waiting");
   const [focusedCheckResult, setFocusedCheckResult] = useState<QuickSiteCheckLepSuccess | null>(null);
   const [focusedCheckError, setFocusedCheckError] = useState<string | null>(null);
+  const [focusedDevelopmentIntent, setFocusedDevelopmentIntent] = useState("");
   const [isPromotingCheck, setIsPromotingCheck] = useState(false);
   const [promotedCheck, setPromotedCheck] = useState(false);
   const focusedCheckRunRef = useRef(false);
   const focusedCheckResultRef = useRef<HTMLElement | null>(null);
+  const focusedIntentInputRef = useRef<HTMLInputElement | null>(null);
   const commercialPackGateRef = useRef<{
     hasProposalBriefMismatch: boolean;
     hasQualityDetailedPlanningPack: boolean;
@@ -2023,6 +2027,18 @@ export function ProjectWorkspace({
   const focusedCheckEligibility = useMemo(() => getFocusedCheckEligibility({ focusedCheck, siteContextLoaded, siteContext, siteContextMutationsDisabled }), [focusedCheck, siteContextLoaded, siteContext, siteContextMutationsDisabled]);
   const focusedCheckControls = useMemo(() => focusedCheckResult ? buildFocusedCheckControlList(focusedCheckResult) : [], [focusedCheckResult]);
   const focusedCheckEvidenceSummary = useMemo(() => focusedCheckResult ? summariseQuickSiteCheckEvidence(focusedCheckResult) : null, [focusedCheckResult]);
+  const focusedDevelopmentIntentAssessment = useMemo(
+    () => assessQuickSiteCheckDevelopmentIntent(focusedDevelopmentIntent, focusedCheckResult),
+    [focusedCheckResult, focusedDevelopmentIntent],
+  );
+  const focusedStatutoryLandUses = useMemo(() => {
+    if (!focusedCheckResult) return [];
+    return Array.from(new Set([
+      ...focusedCheckResult.landUse.withoutConsent,
+      ...focusedCheckResult.landUse.withConsent,
+      ...focusedCheckResult.landUse.prohibited,
+    ])).sort((left, right) => left.localeCompare(right));
+  }, [focusedCheckResult]);
 
   const runFocusedCheck = useCallback(async () => {
     if (!focusedCheck || !focusedCheckEligibility.eligible || focusedCheckRunRef.current) return;
@@ -3254,15 +3270,22 @@ export function ProjectWorkspace({
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
+  const latestCurrentSiteQuickSiteCheckArtefact = useMemo(() => siteScopedArtefacts.find((artefact) =>
+    artefact.isCurrentSite !== false && normaliseMemoLabel(artefact.title).includes("quick site check"),
+  ), [siteScopedArtefacts]);
+  const savedQuickSiteCheckIntent = useMemo(
+    () => quickSiteCheckIntentForProposal(normaliseQuickSiteCheckReport(latestCurrentSiteQuickSiteCheckArtefact?.quickSiteCheck)),
+    [latestCurrentSiteQuickSiteCheckArtefact],
+  );
   useEffect(() => {
     const hydrationBrief = getWorkspaceProposalBriefHydration({
       hasLoadedServerArtefacts,
       hasUserEditedProposalBrief: hasUserEditedProposalBriefRef.current,
       currentProposalBrief: proposalBrief,
-      newestCurrentSiteSavedProposalBrief: latestAnyProposalDetailedPlanningPack?.proposalBrief,
+      newestCurrentSiteSavedProposalBrief: latestAnyProposalDetailedPlanningPack?.proposalBrief ?? savedQuickSiteCheckIntent,
     });
     if (hydrationBrief !== null) setProposalBrief(hydrationBrief);
-  }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack?.proposalBrief, proposalBrief]);
+  }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack?.proposalBrief, proposalBrief, savedQuickSiteCheckIntent]);
   const hasProposalBriefMismatch = useMemo(
     () => hasCurrentSiteDetailedPlanningPackProposalMismatch(siteScopedArtefacts, proposalBrief),
     [proposalBrief, siteScopedArtefacts],
@@ -3283,11 +3306,7 @@ export function ProjectWorkspace({
     () => normalisePreSeeMemoContent(latestSeeArtefact?.preSeeMemo),
     [latestSeeArtefact],
   );
-  const latestQuickSiteCheckArtefact = useMemo(() => {
-    return siteScopedArtefacts.find((artefact) =>
-      artefact.isCurrentSite !== false && normaliseMemoLabel(artefact.title).includes("quick site check"),
-    );
-  }, [siteScopedArtefacts]);
+  const latestQuickSiteCheckArtefact = latestCurrentSiteQuickSiteCheckArtefact;
   const staleSiteArtefactCount = useMemo(() =>
     siteScopedArtefacts.filter((artefact) => artefact.isCurrentSite === false).length,
   [siteScopedArtefacts]);
@@ -3483,14 +3502,22 @@ export function ProjectWorkspace({
       if (promotedCheck) router.replace(`/projects/${projectKey}/workspace`);
       return;
     }
+    const intent = focusedDevelopmentIntent.replace(/\s+/g, " ").trim();
+    if (!intent) {
+      setFocusedCheckError("Add the development you are considering before creating the project.");
+      window.setTimeout(() => focusedIntentInputRef.current?.focus(), 0);
+      return;
+    }
     setIsPromotingCheck(true);
     setFocusedCheckError(null);
     try {
       const summary = buildQuickSiteCheckChatMessage(focusedCheckResult);
       const title = buildQuickSiteCheckArtefactTitle(focusedCheckResult);
-      const report = quickSiteCheckReportFromFocusedResult(projectKey, focusedCheckResult, siteContext?.formattedAddress ?? project.name);
+      const report = quickSiteCheckReportFromFocusedResult(projectKey, focusedCheckResult, siteContext?.formattedAddress ?? project.name, intent);
       const equivalentSaved = siteScopedArtefacts.find((artefact) => artefact.isCurrentSite !== false && quickSiteCheckReportsEquivalent(normaliseQuickSiteCheckReport(artefact.quickSiteCheck), report));
       if (equivalentSaved) {
+        hasUserEditedProposalBriefRef.current = true;
+        setProposalBrief(intent);
         setPromotedCheck(true);
         router.replace(`/projects/${projectKey}/workspace`);
         return;
@@ -3505,6 +3532,8 @@ export function ProjectWorkspace({
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Unable to save Quick Site Check");
       handleQuickSiteCheckArtefactSaved(title, summary, report);
+      hasUserEditedProposalBriefRef.current = true;
+      setProposalBrief(intent);
       setPromotedCheck(true);
       router.replace(`/projects/${projectKey}/workspace`);
     } catch (error) {
@@ -3513,7 +3542,7 @@ export function ProjectWorkspace({
     } finally {
       setIsPromotingCheck(false);
     }
-  }, [focusedCheckResult, handleQuickSiteCheckArtefactSaved, hasLoadedServerArtefacts, isPromotingCheck, project.name, projectKey, promotedCheck, router, siteContext?.formattedAddress, siteScopedArtefacts]);
+  }, [focusedCheckResult, focusedDevelopmentIntent, handleQuickSiteCheckArtefactSaved, hasLoadedServerArtefacts, isPromotingCheck, project.name, projectKey, promotedCheck, router, siteContext?.formattedAddress, siteScopedArtefacts]);
 
   const handleCommercialDominantAction = useCallback(() => {
     if (commercialDominantAction.kind === "expert_review") {
@@ -3671,7 +3700,7 @@ export function ProjectWorkspace({
               {!focusedCheckEligibility.eligible ? focusedCheckEligibility.message : focusedCheckStatus === "loading" ? "Retrieving planning controls and preparing the evidence view…" : focusedCheckStatus === "ready" ? "Quick Site Check evidence is ready." : focusedCheckStatus === "error" ? "The check could not be completed." : focusedCheckEligibility.message}
             </div>
 
-            {focusedCheckError ? <div className="space-y-3 border-y border-rose-200 bg-rose-50 py-3 text-sm font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100"><p role="alert">{focusedCheckError}</p><button type="button" onClick={retryFocusedCheck} disabled={focusedCheckStatus === "loading" || !focusedCheckEligibility.eligible} className="inline-flex min-h-11 items-center rounded-md border border-rose-300 bg-white px-3 text-sm font-semibold text-rose-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-rose-950 dark:text-rose-100">Retry check</button></div> : null}
+            {focusedCheckError ? <div className="space-y-3 border-y border-rose-200 bg-rose-50 py-3 text-sm font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100"><p role="alert">{focusedCheckError}</p>{focusedCheckStatus === "error" ? <button type="button" onClick={retryFocusedCheck} disabled={!focusedCheckEligibility.eligible} className="inline-flex min-h-11 items-center rounded-md border border-rose-300 bg-white px-3 text-sm font-semibold text-rose-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-rose-950 dark:text-rose-100">Retry check</button> : null}</div> : null}
 
             {focusedCheckResult ? (
               <section ref={focusedCheckResultRef} tabIndex={-1} className="space-y-5 outline-none motion-safe:animate-[plannera-check-reveal_180ms_ease-out]" aria-labelledby="focused-check-result-title">
@@ -3710,7 +3739,39 @@ export function ProjectWorkspace({
                   </div>
                 </details>
 
-                <button type="button" onClick={() => void promoteFocusedCheck()} disabled={!hasLoadedServerArtefacts || isPromotingCheck || promotedCheck} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                <div className="space-y-3 border-b border-slate-200 pb-5 dark:border-slate-800">
+                  <div>
+                    <label htmlFor="focused-development-intent" className="text-sm font-semibold text-slate-950 dark:text-white">What are you considering?</label>
+                    <p id="focused-development-intent-note" className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">Exact statutory land-use matches can be cited. Other descriptions remain unresolved.</p>
+                  </div>
+                  <input
+                    ref={focusedIntentInputRef}
+                    id="focused-development-intent"
+                    list="focused-statutory-land-uses"
+                    value={focusedDevelopmentIntent}
+                    onChange={(event) => {
+                      setFocusedDevelopmentIntent(event.target.value);
+                      if (focusedCheckStatus === "ready") setFocusedCheckError(null);
+                    }}
+                    maxLength={500}
+                    autoComplete="off"
+                    aria-describedby="focused-development-intent-note"
+                    placeholder="e.g. Secondary dwelling"
+                    className="min-h-12 w-full rounded-md border border-slate-300 bg-white px-4 text-base text-slate-950 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  />
+                  <datalist id="focused-statutory-land-uses">
+                    {focusedStatutoryLandUses.map((landUse) => <option key={landUse} value={landUse} />)}
+                  </datalist>
+                  {focusedDevelopmentIntentAssessment ? (
+                    <div className={cn("rounded-md border px-3 py-3 text-sm", focusedDevelopmentIntentAssessment.status === "Cited" ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100" : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100")}>
+                      <p className="font-semibold">{focusedDevelopmentIntentAssessment.status === "Cited" ? "Cited statutory term match" : "Permissibility unresolved"}</p>
+                      <p className="mt-1 leading-5">{focusedDevelopmentIntentAssessment.detail}</p>
+                      {focusedDevelopmentIntentAssessment.sourceRef ? <p className="mt-1 break-words text-xs opacity-80">{focusedDevelopmentIntentAssessment.sourceRef}</p> : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <button type="button" onClick={() => void promoteFocusedCheck()} disabled={!hasLoadedServerArtefacts || !focusedDevelopmentIntent.trim() || isPromotingCheck || promotedCheck} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
                   {!hasLoadedServerArtefacts ? "Loading saved evidence…" : isPromotingCheck ? "Saving check…" : promotedCheck ? "Opening workspace…" : "Create project in Plannera"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
@@ -4475,6 +4536,13 @@ export function ProjectWorkspace({
                           <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">
                             {latestQuickSiteCheckArtefact.quickSiteCheck.lepEvidenceSummary.detail}
                           </p>
+                        </div>
+                      ) : null}
+                      {latestQuickSiteCheckArtefact.quickSiteCheck?.developmentIntent ? (
+                        <div className="mt-3 border-t border-slate-200 pt-3 text-xs dark:border-slate-700">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100">Proposed development: {latestQuickSiteCheckArtefact.quickSiteCheck.developmentIntent.description}</p>
+                          <p className={cn("mt-1", latestQuickSiteCheckArtefact.quickSiteCheck.developmentIntent.status === "Cited" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")}>{latestQuickSiteCheckArtefact.quickSiteCheck.developmentIntent.status === "Cited" ? "Cited statutory term match" : "Permissibility unresolved"}</p>
+                          <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">{latestQuickSiteCheckArtefact.quickSiteCheck.developmentIntent.detail}</p>
                         </div>
                       ) : null}
                       <p className="mt-3 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
