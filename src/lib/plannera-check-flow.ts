@@ -1,5 +1,5 @@
 import type { SiteContextSummary } from "@/types/site";
-import type { QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { QuickSiteCheckDevelopmentIntent, QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { LepControlValue, QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 
@@ -8,6 +8,68 @@ export type FocusedCheckEligibility = {
   reason: "ordinary_mode" | "pending" | "mutations_disabled" | "missing_lga" | "unconfirmed_site" | "ready";
   message: string;
 };
+
+const normalizeStatutoryLandUse = (value: string) =>
+  value
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-AU")
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const compactIntent = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const pathwayDetail: Record<Exclude<QuickSiteCheckDevelopmentIntent["pathway"], "unresolved">, string> = {
+  permitted_without_consent: "permitted without consent",
+  permitted_with_consent: "permitted with consent",
+  prohibited: "prohibited",
+};
+
+export function assessQuickSiteCheckDevelopmentIntent(
+  value: string,
+  result: QuickSiteCheckLepSuccess | null,
+): QuickSiteCheckDevelopmentIntent | null {
+  const description = compactIntent(value);
+  if (!description) return null;
+
+  const unresolved = (detail: string, sourceRef: string | null = null): QuickSiteCheckDevelopmentIntent => ({
+    description,
+    status: "Unresolved",
+    pathway: "unresolved",
+    statutoryLandUse: null,
+    sourceRef,
+    detail,
+  });
+
+  if (!result || result.dataSource !== "db_clauses" || !result.zone) {
+    return unresolved("No cited zone land-use table was available to classify this description.");
+  }
+
+  const sourceRef = `${result.lepName} Land Use Table, Zone ${result.zone} (cl. 2.3)`;
+  const normalizedIntent = normalizeStatutoryLandUse(description);
+  const candidates = [
+    ...result.landUse.withoutConsent.map((statutoryLandUse) => ({ pathway: "permitted_without_consent" as const, statutoryLandUse })),
+    ...result.landUse.withConsent.map((statutoryLandUse) => ({ pathway: "permitted_with_consent" as const, statutoryLandUse })),
+    ...result.landUse.prohibited.map((statutoryLandUse) => ({ pathway: "prohibited" as const, statutoryLandUse })),
+  ].filter(({ statutoryLandUse }) => normalizeStatutoryLandUse(statutoryLandUse) === normalizedIntent);
+
+  if (candidates.length !== 1) {
+    return unresolved(
+      "This description does not exactly match one statutory land-use term in the cited zone table. No permissibility pathway has been assigned.",
+      sourceRef,
+    );
+  }
+
+  const match = candidates[0];
+  return {
+    description,
+    status: "Cited",
+    pathway: match.pathway,
+    statutoryLandUse: match.statutoryLandUse,
+    sourceRef,
+    detail: `Exact statutory term match: “${match.statutoryLandUse}” is listed as ${pathwayDetail[match.pathway]}. The proposal must still satisfy that land-use definition and any other applicable controls.`,
+  };
+}
 
 const hasText = (value: unknown) => typeof value === "string" && value.trim().length > 0;
 
@@ -86,6 +148,7 @@ export function quickSiteCheckFingerprint(report: QuickSiteCheckReport): string 
     controls: report.controls,
     notes: report.notes,
     evidence: report.lepEvidenceSummary ?? null,
+    developmentIntent: report.developmentIntent ?? null,
   }));
 }
 
@@ -94,7 +157,17 @@ export function quickSiteCheckReportsEquivalent(a: QuickSiteCheckReport | null |
   return quickSiteCheckFingerprint(a) === quickSiteCheckFingerprint(b);
 }
 
-export function quickSiteCheckReportFromFocusedResult(projectId: string, result: QuickSiteCheckLepSuccess, address?: string | null): QuickSiteCheckReport {
+export function quickSiteCheckIntentForProposal(report: QuickSiteCheckReport | null | undefined): string | null {
+  const description = report?.developmentIntent?.description.replace(/\s+/g, " ").trim();
+  return description || null;
+}
+
+export function quickSiteCheckReportFromFocusedResult(
+  projectId: string,
+  result: QuickSiteCheckLepSuccess,
+  address?: string | null,
+  developmentIntent?: string | null,
+): QuickSiteCheckReport {
   const toReportControl = (label: string, control: LepControlValue | null | undefined, isLepSource: boolean) => {
     const isAvailable = Boolean(control?.value && control.confidence !== "Unavailable" && control.value.trim().toLowerCase() !== "unavailable");
     const source = control?.sourceRef ?? null;
@@ -131,5 +204,6 @@ export function quickSiteCheckReportFromFocusedResult(projectId: string, result:
     notes: result.objectives,
     nextSteps: ["Review highlighted LEP clauses (Parts 4–6).", result.zone ? `Confirm mapping overlays and constraints for zone ${result.zone}.` : "Confirm zoning and rerun Quick Site Check."],
     lepEvidenceSummary: summariseQuickSiteCheckEvidence(result),
+    developmentIntent: assessQuickSiteCheckDevelopmentIntent(developmentIntent ?? "", result),
   };
 }

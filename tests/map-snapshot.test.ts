@@ -303,6 +303,14 @@ test("creates a quick_site_check artefact enriched with real LEP values", async 
     },
     notes: [],
     nextSteps: [],
+    developmentIntent: {
+      description: "Dwelling houses",
+      status: "Cited",
+      pathway: "prohibited",
+      statutoryLandUse: "Industries",
+      sourceRef: "Forged client source",
+      detail: "Forged client classification.",
+    },
   };
 
   const artefact = await createQuickSiteCheckArtefact({
@@ -365,6 +373,14 @@ test("creates a quick_site_check artefact enriched with real LEP values", async 
   assert.equal(payload.lepEvidenceSummary?.objectiveCount, 1);
   assert.equal(payload.lepEvidenceSummary?.landUseEntryCount, 3);
   assert.equal(payload.lepEvidenceSummary?.citedControlCount, 3);
+  assert.deepEqual(payload.developmentIntent, {
+    description: "Dwelling houses",
+    status: "Cited",
+    pathway: "permitted_with_consent",
+    statutoryLandUse: "Dwelling houses",
+    sourceRef: "Byron LEP 2014 Land Use Table, Zone R2 (cl. 2.3)",
+    detail: "Exact statutory term match: “Dwelling houses” is listed as permitted with consent. The proposal must still satisfy that land-use definition and any other applicable controls.",
+  });
 });
 
 test("persists server-verified DCP controls without promoting them into the LEP summary", async () => {

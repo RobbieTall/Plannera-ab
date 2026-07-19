@@ -35,6 +35,16 @@ test("focused Check promotion is a single same-project artefact save", () => {
   assert.doesNotMatch(workspace, /api\/projects\/ensure[\s\S]*Create project in Plannera/);
 });
 
+test("focused Check captures durable proposal intent before promotion", () => {
+  assert.match(workspace, /id="focused-development-intent"/);
+  assert.match(workspace, /What are you considering\?/);
+  assert.match(workspace, /assessQuickSiteCheckDevelopmentIntent/);
+  assert.match(workspace, /!focusedDevelopmentIntent\.trim\(\)/);
+  assert.match(workspace, /quickSiteCheckReportFromFocusedResult\(projectKey, focusedCheckResult, siteContext\?\.formattedAddress \?\? project\.name, intent\)/);
+  assert.match(workspace, /quickSiteCheckIntentForProposal/);
+  assert.match(workspace, /newestCurrentSiteSavedProposalBrief: latestAnyProposalDetailedPlanningPack\?\.proposalBrief \?\? savedQuickSiteCheckIntent/);
+});
+
 test("ordinary workspace remains available outside focused Check mode", () => {
   assert.match(workspace, /CommercialFunnelNavigator/);
   assert.match(workspace, /focusedCheck \? \(/);
