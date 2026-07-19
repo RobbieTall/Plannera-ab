@@ -1059,7 +1059,7 @@ Verification commands:
 - `npm run lint`
 - `npx tsc --noEmit`
 
-## 64) In-workspace commercial funnel navigator and Plannera Check product boundary — STACK-MERGED; MAIN INTEGRATION IN REVIEW (2026-07-17)
+## 64) In-workspace commercial funnel navigator and Plannera Check product boundary — DONE/MERGED VIA PR #310 (2026-07-19)
 
 Stacking: Item 64 was implemented on exact Item 63 head `791a4b567d715a4b8b825c0c43d3b544717aa7ed`. PR #308 merged into the Item 63 feature branch on 2026-07-17, not into `main`; integration PR #310 now carries the reviewed Item 64/65 tree to `main`.
 
@@ -1085,9 +1085,9 @@ Evidence boundary: no schema/migrations, production access/mutation, production 
 
 Verification commands for this slice: focused stage/static tests, existing commercial-next-action tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`.
 
-Status: PR #308 MERGED INTO STACK — not yet on `main`; integration PR #310 is IN REVIEW.
+Status: DONE/MERGED — PR #308 was stack-merged and the reviewed Item 64 tree reached `main` through PR #310 at merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`.
 
-## 65) Premium mobile Plannera Check acquisition and evidence reveal — STACK-MERGED; MAIN INTEGRATION IN REVIEW
+## 65) Premium mobile Plannera Check acquisition and evidence reveal — DONE/MERGED VIA PR #310 (2026-07-19)
 
 Implementation PR [#309](https://github.com/RobbieTall/Plannera-ab/pull/309) merged on 2026-07-17 into the Item 64 feature branch, not into `main`. Final reviewed Item 65 head `713f4462e004cf1c14b0c47ab00803f854e53bb6` is carried to `main` by integration PR #310. Its implementation tree began at commit `0e153fe574a4f849190595b057d044e220018d86`, exactly one commit above Item 64 head `bdc9c4a8023510a00faaae90e387650fd6d4962d`; subsequent commits record review corrections and publication metadata. The homepage remains the real product entry with one labelled Site address field, one dominant **Run free site check** action, honest Byron/Kempsey pilot disclosure, and only the approved Byron/Kempsey launch examples. Submitting an address now opens the existing requester-scoped project workspace with a small `check=1` focused-mode query contract rather than a parallel app or backend.
 
@@ -1097,12 +1097,12 @@ After the reveal, the dominant CTA is **Create project in Plannera**. It saves t
 
 Explicit deferrals: no Prisma/schema, billing, price, Stripe, credits, quotas, entitlements, auth-policy, PWA/native, consultant sending, production configuration, production API/data mutation, separate product/app/backend, readiness score, or evidence-truth changes.
 
-Tests/checks run in this slice: `npm run test:vitest -- src/lib/landing-entry.test.ts src/app/page.content.test.ts`; `npx tsx --test tests/plannera-check-flow.test.ts tests/plannera-check-acquisition-static.test.ts`; `npm run test:commercial-funnel`; `npm run lint`; `npx tsc --noEmit`; `git diff --check`. No build was run. PR #309 is stack-merged; no `main` integration or live approval is claimed until PR #310 merges.
+Tests/checks run in this slice: `npm run test:vitest -- src/lib/landing-entry.test.ts src/app/page.content.test.ts`; `npx tsx --test tests/plannera-check-flow.test.ts tests/plannera-check-acquisition-static.test.ts`; `npm run test:commercial-funnel`; `npm run lint`; `npx tsc --noEmit`; `git diff --check`. No build was run. PR #309 was stack-merged and the reviewed Item 65 tree reached `main` through PR #310 at merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`.
 
 Remote UI QA completed against source head `452f58335f1f8681eef99a61ef6e847b788746ad` on Vercel preview `https://plannera-2nvmuhksg-robbietalls-projects.vercel.app/`: 320×800, 390×844, and 1440×900 all showed no horizontal overflow; the next-step content was visible in the first viewport; homepage/header controls met the 44px target; long launch addresses wrapped without overlap; and desktop exposed one header-level **My Projects** action. The commercial golden gate and Vercel deployment both passed for that source head.
 
 
-## 66) Integrate stack-merged Items 64–65 into main — IN REVIEW (2026-07-17)
+## 66) Integrate stack-merged Items 64–65 into main — DONE/MERGED (2026-07-19)
 
 Merge-state audit after PRs #307, #308, and #309 were merged found that only #307 had `main` as its base. PR #308 merged into the Item 63 feature branch and PR #309 merged into the Item 64 feature branch. GitHub therefore reported all three PRs merged while `main` still contained only Item 63 at merge commit `b1273aee59d6d1d66f33d2b96ec76dd8c0e018ac`.
 
@@ -1110,9 +1110,9 @@ Integration PR [#310](https://github.com/RobbieTall/Plannera-ab/pull/310) target
 
 Integration invariant: a PR is not considered present on `main` merely because GitHub reports it merged. The merge commit must be reachable from `main`, or an explicit integration PR targeting `main` must merge and the resulting `main` tree must be verified. Future stacked PRs must be retargeted to `main` after their parent lands, or closed through one explicit final integration PR; merge state and main reachability must be checked before documentation says live or merged.
 
-Verification required before merge: PR #310 must be mergeable and independently pass Vercel plus Commercial Funnel Golden Gate. No local build, production access/mutation, production project creation, ingestion, billing/auth implementation, or merge is performed by this item.
+Verification completed: PR #310 was mergeable and independently passed Vercel plus Commercial Funnel Golden Gate. Post-merge comparison proves merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa` has the exact reviewed tree `bf6868ff4f752cdd874d0498dea8c415b97abcf9`. No local build, production access/mutation, production project creation, ingestion, or billing/auth implementation was performed by this item.
 
-Status: IN REVIEW — Items 64/65 are stack-merged but not yet present on `main`.
+Status: DONE/MERGED — PR #310 integrated Items 64/65 into `main` at exact merge commit `76c0a7a2e99e12e9731de2e401436d2b8c9292fa`.
 
 
 ## 67) Live funnel correction: property-mapped LEP controls and requester project continuity — IN REVIEW (2026-07-19)
