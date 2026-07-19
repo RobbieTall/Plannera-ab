@@ -36,7 +36,7 @@ describe("FeasibilityPanel", () => {
     expect(screen.getByText(/planning status/i)).toBeTruthy();
     expect(screen.getByText(/Proceed with caution/)).toBeTruthy();
     expect(screen.getByText(/LEP development standards/)).toBeTruthy();
-    expect(screen.getByText(/Cited/)).toBeTruthy();
+    expect(screen.getByText("Cited")).toBeTruthy();
   });
 
   it("posts only the exact server binding for the active DCP pack", async () => {
@@ -60,7 +60,7 @@ describe("FeasibilityPanel", () => {
     render(<FeasibilityPanel {...props} />);
     fireEvent.click(screen.getByRole("button", { name: /build summary/i }));
 
-    expect(await screen.findByText(/Review needed/)).toBeTruthy();
+    expect(await screen.findByText("Review needed")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/artefacts/generate-feasibility",
       expect.objectContaining({
