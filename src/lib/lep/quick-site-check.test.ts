@@ -79,9 +79,11 @@ describe("buildQuickSiteCheckLep", () => {
       id: "project-1",
       lgaName: "Byron",
       zoningCode: "SP3",
+      lepData: null,
+    });
+    mocks.prisma.siteContext.findUnique.mockResolvedValue({
       latitude: -28.6751352,
       longitude: 153.6124394,
-      lepData: null,
     });
     mocks.prisma.clause.findMany.mockResolvedValue([
       clause("4.1", "Minimum lot size", "The minimum lot size is shown on the Lot Size Map."),
