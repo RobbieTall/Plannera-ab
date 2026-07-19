@@ -343,11 +343,11 @@ Replaced the placeholder review CTA with a working expert review request workflo
 
 Success signal: clicking Request expert review after Quick Site Check + SEE saves an expert review package artefact instead of showing placeholder guidance.
 
-## 40) Paid export/review conversion gate — OUT OF SCOPE FOR NOW
+## 40) Paid export/review conversion gate — REOPENED BY COMMERCIAL-LAUNCH GOAL; IMPLEMENTATION GATED
 
 Add the smallest billing-aware gate around SEE download and expert review request submission so users can preview readiness, then choose paid export or planner review without changing the underlying artefact generation flow.
 
-Do not build billing, payment, paywall, account-tier, or paid conversion logic until the commercialisation scope explicitly re-opens this item.
+The commercial-launch goal now explicitly includes a project-bound paid DCP pack, so paid conversion is no longer an indefinite non-goal. Implementation remains gated: do not build or enable billing, payment, paywall, account-tier, or paid unlock logic until the sequential evidence path reaches Item 72 below. Item 69 must land, privacy-minimal conversion measurement must be defined, and the protected live Byron/Kempsey golden acceptance must pass before payment can control DPP access.
 
 ## 41) Surface saved expert review requests in Outputs — ✅ DONE (2026-07-13)
 
@@ -1134,7 +1134,7 @@ Status: DONE/MERGED — PR #311 merged into `main` at exact merge commit `bda25c
 
 Post-merge user acceptance on the deployed PR environment succeeded for requester project `proj-798cf4b41f0e44bc8e`: the project was created, appeared in My Projects, reopened through the project menu, and displayed cited property-mapped Byron controls at 41 Julian Rocks Dr (9m height, 0.5:1 FSR, 600m² minimum lot size) with Byron LEP map/clause references. This proves the reported project-continuity defect and mapped-control reveal were corrected in the deployed merged tree; it does not replace the still-open protected production commercial-funnel audit in Item 52.
 
-## 68) Intent-aware Quick Site Check handoff — IN REVIEW (2026-07-19)
+## 68) Intent-aware Quick Site Check handoff — DONE/MERGED (2026-07-19)
 
 Purpose: preserve the property-first value reveal while closing the missing proposal-intent handoff between free Plannera Check and the paid Detailed Planning Pack.
 
@@ -1157,8 +1157,82 @@ Evidence boundary: no schema/migration, billing, price, checkout, credits, auth-
 
 Verification for review: focused intent/static/persistence tests, `npm run lint`, `npx tsc --noEmit`, `npm run test:commercial-funnel`, and the existing secret-free Commercial Funnel Golden Gate. Do not run `npm run build` or `npm run vercel-build` for this item.
 
-Status: IN REVIEW — PR #312 is ready for review from implementation commit `269e8650242ad72ece135081b925e0931d42c1dd` on branch `codex/implement-item-68-intent-aware-check`. The remote commit tree `09148f5150aa7b727d36cd074603443cc79674ff` exactly matches the locally reviewed tree. Commercial Funnel Golden Gate run `29673828185` passed and Vercel reported deployment success. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` passed; no local application build or production access/mutation was performed.
+Status: DONE/MERGED — PR #312 merged into `main` at exact merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a` on 2026-07-19. Its reviewed remote head was `385fdbbeda507ac9a5f534450a433c4b4cf6fe54`; Commercial Funnel Golden Gate run `29673911590` and Vercel passed on that final head. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` also passed; no local application build or production access/mutation was performed.
 
-## 69) Consolidate Basic Feasibility into the evidence funnel — QUEUED AFTER ITEM 68
+## 69) Consolidate Basic Feasibility into the evidence funnel — READY TO MERGE: PR #313 (2026-07-19)
 
-The current standalone Basic Feasibility panel can produce a weaker, disconnected proposal verdict than the cited Quick Site Check → Detailed Planning Pack path shown immediately above it. Preserve useful feasibility logic, but remove the competing launch-workspace truth path. The intended sequence is Property Check → proposal intent → Detailed Planning Pack → Planning Feasibility Summary → SEE / consultant referral. The future summary must derive from the exact current-site QSC, exact active proposal/DPP and their evidence states; it must not issue a second AI-only permissibility answer, bypass unresolved DCP topics, or overwrite historical feasibility artefacts.
+Purpose: remove the disconnected Basic Feasibility truth path that accepted a second browser-provided development type/site context and ran a fresh AI statutory lookup beside stronger saved Quick Site Check and Detailed Planning Pack evidence. Preserve the useful decision-summary function as one deterministic, proposal-bound Planning Feasibility Summary.
+
+Invariant:
+- The normal launch sequence is Property Check → proposal intent → Detailed Planning Pack → Planning Feasibility Summary → SEE / consultant referral.
+- A summary request contains only project ID, exact source DPP artefact ID, and expected proposal brief. The authenticated server resolves requester access, current site, exact proposal equality, and intact cited QSC provenance before persistence.
+- Address, zone, LGA, development type, verdict, confidence, citations, and site context supplied by the browser are ignored by the strict schema and cannot influence the saved result.
+- The summary is deterministic and makes no model or fresh LEP/DCP retrieval call. It carries cited LEP land-use/control evidence and every saved DPP topic state from the exact chain.
+- The decision calculation lives in a framework/database-free module; the authenticated artefact service resolves ownership and provenance, then passes only the exact persisted chain into that pure calculation.
+- `Blocked` is available only for an exact cited prohibited QSC land-use term whose saved description exactly equals the active DPP proposal. Missing/mismatched intent, absent mapped controls, or unresolved DPP topics fail closed to `Review needed`; an early-planning summary never claims approval.
+- Only a `planning_feasibility_summary` whose DPP artefact ID and normalized proposal match the active workspace pack is displayed. Legacy and different-proposal feasibility artefacts remain history only.
+- The standalone development-type selector and second AI go/no-go endpoint behavior are removed; the summary appears immediately after the active DPP and before SEE/referral.
+
+Focused coverage:
+- Exact cited prohibition produces `blocked`; unresolved DCP evidence produces `unresolved`, never `proceed`.
+- Server generation persists the exact DPP/QSC provenance and ignores forged client address/verdict fields.
+- Proposal mismatch is rejected before persistence rather than falling back to another pack.
+- UI has no second development-type combobox, posts only the exact DPP/proposal binding, and renders cited/unavailable evidence states without decorative verdict icons.
+
+Evidence boundary: PR #313 targets `main` from implementation commit `61ee750e69dfbe68669a2af9db92db3b92b5e3f2`, whose parent is the exact Item 68 merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a`. Its initial GitHub tree SHA `9d8a3b456cc4a3b4206da420d8bceb42245d2e08` exactly matched the locally verified tree before the PR was opened. The code-bearing reviewed head is `1cd63292b0f5fa2f12b03b8c3888152d6d183e71`; it includes a test-only exact-text assertion correction after the first Linux run exposed two ambiguous React queries. It adds no schema/migration, billing, checkout, credits, auth-policy change, production access/mutation, production project, live retrieval, consultant sending, or local application build. Existing legacy feasibility artefacts are retained as history.
+
+Verification: local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` passed before publication, together with twenty pure Planning Feasibility Summary and selector tests through Node 22 native TypeScript transformation. After the assertion correction, focused ESLint and `git diff --check` passed locally; a later full local typecheck was polluted only by four untracked stale ` 2` file copies that are absent from GitHub and remain excluded from this PR. On clean code-bearing head `1cd63292b0f5fa2f12b03b8c3888152d6d183e71`, authoritative Commercial Funnel Golden Gate run `29677217105` passed all 49 tests across nine files, including server-generation and React runtime coverage, and Vercel deployment `8qczxPfX6cFBL8AfVC5qxMVh2yEx` succeeded. The following documentation-only commit records this evidence and changes no application or test behavior.
+
+## 70) Privacy-minimal commercial funnel measurement — QUEUED AFTER ITEM 69
+
+Trigger: the commercial-launch goal requires conversion analytics, but the repository currently has no analytics SDK, event service/model, canonical event taxonomy, deduplication contract, or privacy/telemetry disclosure. Do not choose a vendor or scatter browser click tracking through the workspace before the measurement contract exists.
+
+Required contract:
+- Measure successful state transitions, not optimistic clicks: site resolved, quality-valid Quick Site Check saved, same-project promotion completed, exact proposal/DPP generated, DPP unresolved, Planning Feasibility Summary generated, exact SEE generated, expert review package generated, and handoff copied/downloaded.
+- Define funnel versions and conversion denominators explicitly: Check started → quality Check; quality Check → project promotion; promoted project → DPP; DPP → feasibility summary; commercial-ready DPP → SEE; any DPP → expert referral.
+- Server-confirmed writes are authoritative for persisted milestones. Client events are limited to impressions or non-persisting interactions and can never claim generation/payment/referral success.
+- Event properties must exclude raw addresses, parcel identifiers, coordinates, proposal text, clause excerpts, chat text, names, email addresses, secrets, and uploaded-document content. Use opaque requester/project identifiers only where retention/consent policy permits; coarse launch-LGA/zone/coverage state may be included only after privacy review.
+- Every event has a stable name, schema version, occurred-at time, source, funnel version and idempotency key. Retries, refreshes, hydration and duplicate button presses must not inflate conversion.
+- Internal/test/bypass traffic and golden/audit runs must be identifiable and excluded from customer conversion reporting without trusting a browser-supplied flag.
+- Define retention, access, deletion, consent/disclosure and vendor/data-location requirements before production collection. No analytics SDK or new production telemetry ships until those requirements are reviewed and the repository contains truthful user-facing privacy disclosure.
+
+Evidence boundary: Item 70 is a queued contract and implementation slice, not permission to enable billing, cookies, third-party analytics, marketing pixels, user profiling, production telemetry, or auth/paywall. It must follow Item 69 sequentially and use a schema migration only if a reviewed first-party event ledger is chosen.
+
+## 71) Current-release protected Byron/Kempsey golden acceptance — REQUIRED BEFORE PAYMENT
+
+Current evidence: deterministic CI proves exact Byron SP3 and Kempsey E2 QSC → DPP → SEE/referral behavior, but the latest protected production audit remains exit `2` because the approved historical projects have no saved chains. The later user acceptance at 41 Julian Rocks Dr proves requester project continuity and mapped Byron controls in a deployed environment, but it is not the approved `45 Broken Head Road` SP3 golden chain and does not prove Kempsey E2, exact DPP/SEE/referral provenance, or the current-release two-project gate.
+
+Required completion evidence:
+- Item 68 and Item 69 are merged, reachable from `main`, and green on the secret-free Commercial Funnel Golden Gate and Vercel.
+- Under explicit operator approval, two requester-accessible projects are exercised through the normal product UI using the fixed Item 55 Byron/Kempsey sites and approved proposal briefs. This is the only step that intentionally creates production outputs; the audit itself remains read-only.
+- The protected `commercial-funnel-audit` workflow runs from the exact deployed `main` SHA using approved environment variables and returns exit `0` for both independent chains, with only the allowlisted safe artifact retained.
+- Byron and Kempsey each prove current-site cited QSC, exact proposal/QSC-bound DPP, and either exact commercial-ready SEE plus referral or an honest unresolved-pack referral. Identity, citation quality and provenance failures remain fail-closed.
+
+Boundary: Codex must not create, regenerate, claim, backfill or alter the production golden projects under the standing goal instruction. Item 71 needs explicit operator execution/approval for those normal-product mutations; no code change may weaken that boundary merely to close the gate.
+
+## 72) Exact project-bound one-time DCP pack purchase — QUEUED AFTER ITEM 71
+
+Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The currently discussed customer offer is an A$29 DCP Deep Dive, but the final product name, tax treatment and price must be operator-confirmed against the commercialisation document before production checkout is enabled.
+
+Required contract:
+- Checkout is offered only after same-project promotion and a quality-valid current-site QSC plus non-empty proposal brief. The server creates a purchase intent from the owned project, exact QSC artefact ID, normalized proposal fingerprint, product/version and server-configured price; none is accepted from browser display state.
+- Payment-provider checkout and webhook handling are server-side, signature-verified and idempotent. A redirect/success page never grants access by itself.
+- The durable entitlement names the purchaser/requester, project, site/QSC snapshot, proposal fingerprint, product version, amount/currency, provider transaction and lifecycle state. It cannot unlock another project, changed site or materially changed proposal.
+- DPP generation verifies the paid entitlement at the server boundary before retrieval/persistence. Evidence qualification and `commercialReady` remain exactly fail-closed; payment purchases the analysis, not a favourable result.
+- Retries for the same paid scope are idempotent and the regeneration/refund policy is explicit. Failed or unavailable evidence produces the promised resolution path without silently consuming value or fabricating controls.
+- Test/bypass/admin operation is explicit and server-derived, excluded from customer conversion, and impossible to activate with client fields. Secrets, transaction details and contact data never enter artefact text or analytics properties.
+
+Verification must cover forged checkout fields, replayed webhooks, duplicate delivery, cross-user/project/site/proposal reuse, changed proposal, cancelled/failed/refunded states, guest-to-account claiming, DPP generation without entitlement, and successful exact-scope generation. No payment provider or production price is selected by this documentation item.
+
+## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
+
+Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.
+
+Minimum launch delivery contract:
+- A user explicitly consents to submit one exact saved review-request artefact and supplies only the contact details required for follow-up. The server re-resolves project ownership and exact current DPP/QSC/SEE provenance; stale or changed proposals cannot be submitted.
+- Submission persists an immutable package snapshot plus operational status (`submitted`, `acknowledged`, `assigned`, `needs_information`, `declined`, `closed`) and a non-secret audit trail. Retries are idempotent and cannot send duplicate referrals.
+- The initial delivery target may be a truthful human-operated Plannera referral queue. Do not claim automated matching, consultant availability, response times, credentials or quote competition until those systems and disclosures exist.
+- User-facing confirmation distinguishes “package saved”, “submitted to Plannera”, “sent to consultant”, and “consultant acknowledged”. Copy/download remains available but cannot advance delivery status.
+- Contact information and package contents are excluded from analytics events and require reviewed retention, access, deletion and disclosure handling.
+
+Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.

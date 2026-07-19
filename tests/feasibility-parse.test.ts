@@ -1,130 +1,140 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createFeasibilityArtefact, parseFeasibilityModelJson } from "../src/lib/artefact-service";
+import {
+  DEV_BYPASS_USER_ID,
+  ArtefactValidationError,
+  createPlanningFeasibilitySummaryArtefact,
+} from "../src/lib/artefact-service";
+import type { QuickSiteCheckReport } from "../src/types/quick-site-check";
+import type { DetailedPlanningPackContent } from "../src/types/workspace";
 
-describe("parseFeasibilityModelJson", () => {
-  it("returns null for non-JSON model output so callers keep feasibility unresolved", () => {
-    const result = parseFeasibilityModelJson("The site looks promising, proceed.", "secondary dwelling");
-    assert.equal(result, null);
-  });
+const generatedAt = "2026-07-19T00:00:00.000Z";
+const artefactBase = (id: string, type: string, payload: unknown) => ({
+  id,
+  projectId: "db-project",
+  createdById: null,
+  type,
+  title: id,
+  source: "41 Julian Rocks Dr",
+  sourceUrl: null,
+  fileName: null,
+  filePath: null,
+  mimeType: null,
+  sizeBytes: null,
+  overlays: [],
+  notes: null,
+  payload,
+  staleAt: null,
+  staleReason: null,
+  capturedAt: new Date(generatedAt),
+  createdAt: new Date(generatedAt),
+  updatedAt: new Date(generatedAt),
+}) as any;
 
-  it("rejects schema-invalid JSON instead of promoting it to success", () => {
-    const result = parseFeasibilityModelJson(
-      JSON.stringify({
-        developmentType: "secondary dwelling",
-        overallVerdict: "proceed",
-        summary: "Looks fine",
-        items: [],
-        generatedAt: "2026-07-13T00:00:00.000Z",
-      }),
-      "secondary dwelling",
-    );
-    assert.equal(result, null);
-  });
-
-  it("accepts valid cited feasibility JSON", () => {
-    const result = parseFeasibilityModelJson(
-      JSON.stringify({
-        developmentType: "commercial",
-        overallVerdict: "caution",
-        summary: "Cited controls found.",
-        items: [
-          {
-            label: "Permissibility",
-            verdict: "caution",
-            detail: "Consent required.",
-            confidence: "cited",
-            source: "Byron LEP 2014 cl. 2.3",
-          },
-        ],
-        generatedAt: "2026-07-13T00:00:00.000Z",
-      }),
-      "commercial",
-    );
-    assert.equal(result?.overallVerdict, "caution");
-    assert.equal(result?.items[0]?.confidence, "cited");
-  });
+const qsc = (pathway: "permitted_with_consent" | "prohibited" = "permitted_with_consent"): QuickSiteCheckReport => ({
+  projectId: "db-project",
+  generatedAt,
+  site: { address: "41 Julian Rocks Dr", lga: "Byron", zoneCode: "R2", zoneName: "Low Density Residential", zoneLabel: "R2 - Low Density Residential" },
+  lepInstrument: { name: "Byron Local Environmental Plan 2014", code: "BYRON_LEP_2014", lga: "Byron", source: "ingestion" },
+  permissibility: null,
+  controls: {
+    heightOfBuilding: { label: "Height", value: "9m", present: true, source: "Byron LEP 2014 Height of Buildings Map", lepSource: true, clauseRef: "Clause 4.3", detail: null, interpretation: "Maximum mapped height" },
+    floorSpaceRatio: { label: "FSR", value: "0.5:1", present: true, source: "Byron LEP 2014 Floor Space Ratio Map", lepSource: true, clauseRef: "Clause 4.4", detail: null, interpretation: "Maximum mapped FSR" },
+    minimumLotSize: { label: "Minimum lot size", value: "600 m2", present: true, source: "Byron LEP 2014 Lot Size Map", lepSource: true, clauseRef: "Clause 4.1", detail: null, interpretation: "Mapped minimum lot size" },
+  },
+  notes: [],
+  nextSteps: [],
+  lepEvidenceSummary: { label: "Cited", detail: "Cited LEP evidence", citedControlCount: 3, totalControlCount: 3, landUseEntryCount: 1, objectiveCount: 2, sourceRef: "Byron Local Environmental Plan 2014 Zone R2" },
+  developmentIntent: {
+    description: "Dwelling houses",
+    status: "Cited",
+    pathway,
+    statutoryLandUse: "Dwelling houses",
+    sourceRef: "Byron Local Environmental Plan 2014 Zone R2 Land Use Table",
+    detail: pathway === "prohibited" ? "Dwelling houses are prohibited in Zone R2." : "Dwelling houses are permitted with consent in Zone R2.",
+  },
 });
 
-describe("createFeasibilityArtefact", () => {
-  it("normalises Kempsey LGA for DCP retrieval and overrides stale model timestamps", async () => {
-    const staleModelTimestamp = "2024-06-13T00:00:00.000Z";
-    const before = Date.now();
-    let statutoryArgs: Record<string, unknown> | null = null;
-    let savedPayload: unknown = null;
+const pack = (status: "Cited" | "Unavailable" = "Cited"): DetailedPlanningPackContent => ({
+  packType: "detailed_planning_pack",
+  generatedAt,
+  projectId: "db-project",
+  site: { address: "41 Julian Rocks Dr", lga: "Byron", lgaCode: "BYRON", zoneCode: "R2", zoneName: "Low Density Residential", zoneLabel: "R2 - Low Density Residential" },
+  proposalBrief: "Dwelling houses",
+  sourceQuickSiteCheck: { artefactId: "qsc-1", title: "Quick Site Check", generatedAt, lepEvidenceSummary: qsc().lepEvidenceSummary },
+  carriedLepEvidenceSummary: qsc().lepEvidenceSummary ?? null,
+  dcpEvidence: [{ topicId: "setbacks", topicLabel: "Setbacks", status, reason: status === "Cited" ? "Control found" : "No applicable clause found", citations: status === "Cited" ? [{ ref: "Byron DCP 2014 Part A", title: "Setbacks", headingPath: [], excerpt: "A setback applies.", score: 1 }] : [] }],
+  topicMatrix: [{ topicId: "setbacks", topicLabel: "Setbacks", status, summary: status === "Cited" ? "Apply the cited setback control." : "Setback requirement remains unresolved.", sourceRefs: status === "Cited" ? ["Byron DCP 2014 Part A"] : [] }],
+  unresolvedTopics: status === "Cited" ? [] : ["Setbacks"],
+  consultantReviewQuestions: [],
+  nextAction: "Review controls.",
+  commercialReady: status === "Cited",
+});
 
-    const result = await createFeasibilityArtefact(
-      "public-project",
-      "52 Belgrave St, Kempsey NSW 2440",
-      "commercial alterations",
-      { lga: "Kempsey Shire", zone: "E2 – Commercial Centre" },
-      undefined,
-      ({
+describe("createPlanningFeasibilitySummaryArtefact", () => {
+  it("persists a server-derived summary bound to the exact current DCP pack", async () => {
+    const report = qsc();
+    const detailedPack = pack();
+    const qscArtefact = artefactBase("qsc-1", "quick_site_check", report);
+    const dppArtefact = artefactBase("dpp-1", "detailed_planning_pack", detailedPack);
+    let savedPayload: unknown = null;
+    const project = { id: "db-project", publicId: "public-project", title: "Test", address: "41 Julian Rocks Dr", siteContext: null };
+
+    const result = await createPlanningFeasibilitySummaryArtefact({
+      body: {
+        projectId: "public-project",
+        sourceDetailedPlanningPackArtefactId: "dpp-1",
+        expectedProposalBrief: "Dwelling houses",
+        overallVerdict: "proceed",
+        address: "forged address",
+      },
+      userId: DEV_BYPASS_USER_ID,
+      deps: {
         prisma: {
           project: {
-            findFirst: async () => ({ id: "db-project" }),
-            findUnique: async () => ({ id: "db-project" }),
+            findFirst: async () => project,
+            findUnique: async () => ({ ...project, siteContext: { formattedAddress: "41 Julian Rocks Dr", lgaName: "Byron", lgaCode: "BYRON", zone: "R2 - Low Density Residential" } }),
           },
           artefact: {
-            findMany: async () => [],
+            findMany: async () => [dppArtefact, qscArtefact],
             create: async ({ data }: { data: { payload: unknown } }) => {
               savedPayload = data.payload;
-              return { id: "artefact-1" };
+              return artefactBase("feasibility-1", "feasibility", data.payload);
             },
           },
-        },
-        buildStatutoryContextBlock: async (args: Record<string, unknown>) => {
-          statutoryArgs = args;
-          return {
-            dcpClauses: [
-              {
-                clauseNumber: "KEMPSEY DCP 2026 Part D 1.2",
-                heading: "Business and Commercial Development",
-                body: "Part D 1.2 applies to E2 Commercial Centre sites; numeric side setbacks are not specified in this excerpt.",
-              },
-            ],
-            lepClauses: [
-              {
-                clauseKey: "4.3",
-                heading: "Height of buildings",
-                value: "The height of a building is not to exceed the maximum height shown on the Height of Buildings Map.",
-                instrumentName: "Kempsey Local Environmental Plan 2013",
-              },
-            ],
-            seppClauses: [],
-            sourceTypes: ["cited"],
-            promptBlock:
-              "DCP PROVISIONS:\n- [KEMPSEY DCP 2026 Part D 1.2] Business and Commercial Development: applies to E2 Commercial Centre sites.",
-          };
-        },
-        callModel: async (_model: string, messages: Array<{ content: unknown }>) => {
-          const prompt = messages.map((message) => String(message.content)).join("\n");
-          assert.match(prompt, /KEMPSEY DCP 2026 Part D 1\.2/);
-          return JSON.stringify({
-            developmentType: "commercial alterations",
-            overallVerdict: "caution",
-            summary: "DCP context was retrieved, but numeric values remain unavailable.",
-            items: [
-              {
-                label: "DCP controls",
-                verdict: "unresolved",
-                detail: "Part D 1.2 was retrieved but did not specify numeric side setbacks.",
-                confidence: "cited",
-                source: "Kempsey DCP 2026 Part D 1.2",
-              },
-            ],
-            generatedAt: staleModelTimestamp,
-          });
-        },
-      } as any),
-    );
+        } as any,
+      },
+    });
 
-    assert.equal(result.artefactId, "artefact-1");
-    assert.equal(statutoryArgs?.["lgaCode"], "KEMPSEY");
-    assert.equal(statutoryArgs?.["siteZone"], "E2 – Commercial Centre");
-    assert.notEqual(result.content.generatedAt, staleModelTimestamp);
-    assert.ok(new Date(result.content.generatedAt).getTime() >= before);
-    assert.equal((savedPayload as { generatedAt?: string }).generatedAt, result.content.generatedAt);
+    assert.equal(result.artefact.id, "feasibility-1");
+    assert.notEqual(result.content.overallVerdict, "proceed");
+    assert.equal((savedPayload as { sourceDetailedPlanningPack?: { artefactId?: string } }).sourceDetailedPlanningPack?.artefactId, "dpp-1");
+  });
+
+  it("rejects a proposal brief that does not match the selected pack", async () => {
+    const report = qsc();
+    const detailedPack = pack();
+    const project = { id: "db-project", publicId: "public-project", title: "Test", address: "41 Julian Rocks Dr" };
+
+    await assert.rejects(
+      createPlanningFeasibilitySummaryArtefact({
+        body: { projectId: "public-project", sourceDetailedPlanningPackArtefactId: "dpp-1", expectedProposalBrief: "Dual occupancy" },
+        userId: DEV_BYPASS_USER_ID,
+        deps: {
+          prisma: {
+            project: {
+              findFirst: async () => project,
+              findUnique: async () => ({ ...project, siteContext: { formattedAddress: "41 Julian Rocks Dr", lgaName: "Byron", lgaCode: "BYRON", zone: "R2" } }),
+            },
+            artefact: {
+              findMany: async () => [artefactBase("dpp-1", "detailed_planning_pack", detailedPack), artefactBase("qsc-1", "quick_site_check", report)],
+              create: async () => artefactBase("never", "feasibility", {}),
+            },
+          } as any,
+        },
+      }),
+      (error: unknown) => error instanceof ArtefactValidationError && /different proposed-works brief/i.test(error.message),
+    );
   });
 });

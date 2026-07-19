@@ -79,7 +79,7 @@ A compact register of active product/architecture decisions.
 
 Status: Active
 
-Decision: Byron Shire and Kempsey Shire are the two designated production test LGAs for Plannera's initial live customer release. All core features (Quick Site Check, Workspace Chat, SEE Builder, Basic Feasibility) must function with real, cited planning controls for these two councils before auth, paywall, or broader LGA expansion is enabled. Byron is the primary test LGA (LEP + DCP + SEPPs wired). Kempsey is the secondary test LGA (LEP + SEPPs wired; DCP pending item 24).
+Decision: Byron Shire and Kempsey Shire are the two designated production test LGAs for Plannera's initial live customer release. All launch-path features (Quick Site Check, Detailed Planning Pack, Planning Feasibility Summary, SEE Builder, and consultant referral) must function with real, cited planning controls for these two councils before auth, paywall, or broader LGA expansion is enabled. Byron is the primary test LGA and Kempsey is the secondary test LGA; current ingestion/coverage truth is tracked in `build-next.md`, not frozen in this older decision's original rollout wording.
 
 Rationale: These two LGAs represent different coastal NSW planning contexts — Byron is a high-demand lifestyle/development market; Kempsey is a regional council without a proprietary GIS platform. Together they validate the full feature set across different data availability profiles.
 
@@ -89,7 +89,7 @@ Reference: docs/project-memory/build-next.md items 24–28
 
 Status: Active
 
-Decision: Authentication (magic-link email), user accounts, and any paywall or subscription features must not be enabled in production until Quick Site Check, Workspace Chat, SEE Builder, and Basic Feasibility all produce predominantly Cited (not Inferred) responses for Byron Bay and Kempsey addresses. The product must work before it is closed off.
+Decision: Authentication (magic-link email), user accounts, and any paywall or subscription features must not be enabled in production until the Quick Site Check → Detailed Planning Pack → Planning Feasibility Summary → SEE/referral path produces predominantly Cited, exact-bound outputs for the approved Byron and Kempsey journeys. The product must work before it is closed off.
 
 Reference: docs/project-memory/build-next.md item 28
 
@@ -348,6 +348,39 @@ Status: Active
 
 Decision: The standalone Basic Feasibility experience must not remain a competing source of planning truth beside the commercial funnel. Its useful assessment logic should be consolidated into a Planning Feasibility Summary derived from the exact current-site Quick Site Check, active proposal and exact Detailed Planning Pack after Item 68. The launch sequence is Property Check → proposal intent → Detailed Planning Pack → Planning Feasibility Summary → SEE / consultant referral.
 
-The consolidated summary must preserve cited/unresolved evidence, fail closed when the DPP is unresolved or mismatched, and never issue a second ungrounded permissibility answer. Existing feasibility artefacts remain history until a dedicated review-ready consolidation slice replaces the standalone launch panel.
+The consolidated summary must preserve cited/unresolved evidence, fail closed when the DPP is unresolved or mismatched, and never issue a second ungrounded permissibility answer. Its strict write request carries only the project, exact DPP artefact and expected proposal; the server resolves ownership, current-site scope, QSC provenance and proposal equality. `Blocked` requires an exact cited prohibited intent bound to the same proposal. Legacy and different-proposal feasibility artefacts remain history and cannot drive the active workspace output.
 
 Reference: docs/project-memory/build-next.md Item 69
+
+
+## DR-039 — Commercial Conversion Is Measured From Authoritative Outcomes
+
+Status: Active
+
+Decision: Plannera's launch funnel must be measured from successful evidence-state transitions, not browser clicks or artefact existence. Persisted milestones such as a quality-valid Quick Site Check, same-project promotion, exact proposal/DPP generation, evidence-derived feasibility summary, exact SEE and expert-review package are server-confirmed outcomes. Client-only events may describe an impression or interaction but cannot claim that generation, payment or referral succeeded.
+
+The event contract must be versioned, idempotent, test/bypass-aware and privacy-minimal. Raw addresses, parcel/coordinate data, proposal/chat text, clause excerpts, personal/contact details, secrets and uploaded content are prohibited event properties. Retention, access, deletion, disclosure/consent, vendor and data-location requirements must be reviewed before production collection. No analytics SDK, marketing pixel or ad hoc click-tracking implementation precedes that contract.
+
+Reference: docs/project-memory/build-next.md Item 70
+
+
+## DR-040 — Payment Purchases Exact-Scope Analysis, Never Planning Certainty
+
+Status: Active
+
+Decision: a one-time DCP purchase may unlock generation only for one owned project, exact current-site Quick Site Check snapshot, normalized proposal fingerprint and product version recorded by a signature-verified, idempotent server payment flow. Browser redirects, displayed prices, client fields and artefact existence cannot create entitlement. Changing project, site or material proposal scope requires the documented regeneration/new-purchase policy.
+
+Payment never upgrades evidence confidence, suppresses unresolved topics or guarantees approval. The same DPP citation qualification, provenance and commercial-readiness rules apply to paid and unpaid/test generation. Production payment remains disabled until the protected current-release Byron/Kempsey golden gate passes.
+
+Reference: docs/project-memory/build-next.md Items 40, 71–72
+
+
+## DR-041 — Consultant-Ready Packaging Is Not Referral Delivery
+
+Status: Active
+
+Decision: a saved, copied or downloaded Expert Review Request is a consultant-ready package, not proof that Plannera transmitted it, matched a consultant, obtained acknowledgement or completed a referral. Delivery status may advance only from an owned, exact-provenance submission through a server-authoritative, idempotent operational workflow with explicit user consent and truthful status labels.
+
+The first launch workflow may use a human-operated Plannera referral queue, but the product must not claim automated matching, consultant availability, credentials, quote competition or response SLAs until those capabilities and disclosures are real.
+
+Reference: docs/project-memory/build-next.md Item 73
