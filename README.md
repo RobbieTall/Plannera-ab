@@ -5,7 +5,7 @@ Plannera is an AI-powered NSW planning intelligence platform. It turns planning 
 ## Features
 
 ### Address-first free Quick Site Check
-The homepage now starts with the usable Plannera Quick Site Check entry: a labelled **Site address** field and **Run free site check** action. The supported launch QA examples are limited to `45 Broken Head Road, Byron Bay NSW 2481` and `52 Belgrave St, Kempsey NSW 2440`. The free check is scoped honestly to cited NSW planning checks for the Byron/Kempsey launch path: site, zone, and key LEP controls first, with proposal-specific DCP detail following in the Detailed Planning Pack. It provides planning information for early scoping and does not replace legal or professional planning advice.
+The homepage now starts with the usable Plannera Quick Site Check entry: a labelled **Site address** field and **Run free site check** action. The supported launch QA examples are limited to `45 Broken Head Road, Byron Bay NSW 2481` and `52 Belgrave St, Kempsey NSW 2440`. The free check is scoped honestly to cited NSW planning checks for the Byron/Kempsey launch path: site, zone, and key LEP controls first, with proposal-specific DCP detail following in the Detailed Planning Pack. Submitting the homepage address opens focused Plannera Check mode inside the same requester-scoped project, waits for confirmed site context with LGA plus parcel, coordinate or zoning identity, reveals the real cited/unavailable evidence inline, and uses **Create project in Plannera** to save that exact Quick Site Check snapshot before continuing into the full workspace. It provides planning information for early scoping and does not replace legal or professional planning advice.
 
 ### Workspace Chat
 Every assistant response cites the relevant LEP clause (e.g. "Byron LEP 2014 cl. 4.3") when LEP data is available. A "Sources (n)" section appears below each bubble. Each response carries a **confidence badge** (green for score >= 0.7, amber for 0.4-0.69, red for < 0.4).
@@ -80,6 +80,12 @@ npm run ingest:sepps         # ingests all NSW SEPPs (state-wide, applies to bot
 Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 `POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
 `POST /api/admin/ingest-council-dcp?lga=KEMPSEY&secret=INGEST_ADMIN_SECRET`
+
+## Plannera Check boundary
+
+Plannera Check is Plannera’s mobile-first acquisition surface inside this same Next.js app. It reuses the existing session/requester project, SiteContext, Quick Site Check, Detailed Planning Pack, SEE, referral, evidence, and artefact services; it is not a separate product, subscription, repository, database, or duplicated backend. A free check can live in a session-owned project as an ephemeral technical container, then the user-facing promotion is to create or save that same evidence snapshot as a Plannera project before any later project/site/proposal-bound DCP Deep Dive offer. Pricing, checkout, credits, quotas, entitlements, auth-policy changes, PWA/native work, and consultant sending remain deferred.
+
+The workspace now makes the shared planning path visible as **Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff**. The navigator reflects the existing evidence-derived commercial next action and exact current-site/proposal/DPP selectors; it does not add pricing, readiness claims, or a separate certainty score.
 
 ## Commercial pilot funnel
 

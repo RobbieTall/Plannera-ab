@@ -5,16 +5,16 @@ const source = readFileSync("src/app/page.tsx", "utf8") + readFileSync("src/lib/
 
 describe("homepage commercial entry copy", () => {
   it("renders literal Quick Site Check address entry and honest pilot/DPP copy", () => {
-    expect(source).toContain("Plannera Quick Site Check");
+    expect(source).toContain("Plannera Check");
     expect(source).toContain("Site address");
     expect(source).toContain("Run free site check");
-    expect(source).toContain("Example addresses");
+    expect(source).toContain("Approved launch examples");
     expect(source).not.toContain("Launch QA examples");
     expect(source).toContain("45 Broken Head Road, Byron Bay NSW 2481");
     expect(source).toContain("52 Belgrave St, Kempsey NSW 2440");
     expect(source).not.toContain("32 Smith St, Kempsey NSW 2440");
-    expect(source).toContain("cited NSW planning checks for the Byron and Kempsey launch path");
-    expect(source).toContain("proposal-specific DCP detail follows in the Detailed Planning Pack");
+    expect(source).toContain("Pilot coverage is focused on Byron and Kempsey");
+    expect(source).toContain("The same project and evidence continue into Detailed Planning Pack");
     expect(source).toContain("not legal or professional planning advice");
   });
 
@@ -35,7 +35,8 @@ describe("homepage operational styling", () => {
   it("keeps the header within the Item 63 radius rule and prevents the scope panel stretching", () => {
     const headerSource = readFileSync("src/components/navigation/site-header.tsx", "utf8");
     expect(headerSource).not.toContain("rounded-full");
-    expect(source).toContain("self-start rounded-lg border border-slate-200 bg-slate-50 p-6");
+    expect(source).not.toContain("grid gap-3 md:grid-cols-4");
+    expect(source).not.toContain("self-start rounded-lg border border-slate-200 bg-slate-50 p-6");
   });
 });
 

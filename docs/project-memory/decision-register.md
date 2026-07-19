@@ -284,3 +284,35 @@ Decision: The normal homepage must present the real free Quick Site Check task i
 Auth-bypass entitlement is not the same as an actual signed-in NextAuth user. UI chrome may preserve `isAuthenticated`/`requireAuth` compatibility for protected actions, but must use a truthful signed-in state before showing Sign out. My Projects is canonical at `/projects` and must be requester-scoped: signed-in users see owned projects after safe session-project claiming, while guests/bypass requesters see only current anonymous-session projects. The canonical Projects UI should stay operational and compact, with truthful guest copy and a single New site check action rather than decorative stats, dark hero panels, or unsupported project-management claims.
 
 Reference: docs/project-memory/build-next.md Item 63
+
+## DR-033 — Plannera Check Is Shared Product Acquisition, Workspace Funnel Is Evidence-Derived
+
+Status: Active
+
+Decision: Plannera Check is the mobile-first acquisition surface of Plannera, not a separate subscription product, repository, database, duplicated backend, or independent checkout surface. The free check may use the existing session-owned project as an ephemeral technical container, but the user-facing promotion boundary after useful Quick Site Check value is “Create project in Plannera” / “Save as a Plannera project”. Account claiming or promotion must reuse the exact project and evidence snapshot rather than creating a duplicate project.
+
+The workspace commercial path is the shared-product sequence Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff. Its displayed stage state must derive from current-site/proposal/exact-DPP evidence and the existing commercial next-action result. It must not create a parallel readiness truth, infer readiness from artefact existence alone, introduce A$2 microtransactions, or make global traffic-light certainty claims. Future DCP Deep Dive purchase work, if approved, must bind to the claimed project, exact site snapshot, and proposal intent. Billing, price, Stripe, quotas, credits, checkout, entitlements, auth policy, PWA/native implementation, consultant sending, and the promotion gate remain deferred.
+
+Reference: docs/project-memory/build-next.md Item 64
+
+
+## DR-034 — Same-Project Focused Plannera Check Promotion
+
+Status: Active
+
+Decision: The premium mobile Plannera Check acquisition flow is a focused mode of the existing requester-scoped workspace, entered through a small query contract and not through a separate app, project, resolver, backend, or evidence system. It may auto-run Quick Site Check only after the current workspace has confirmed real site context with LGA plus parcel, coordinates, or zoning identity and site-context mutations are enabled; manual address-only fallback is insufficient. Progress language may describe only real states: requester project creation/loading, site resolution, planning-control retrieval, and evidence-view preparation.
+
+The reveal must preserve cited and unavailable evidence exactly: site/LGA/LEP/zone identity, key controls, source references, zone objectives, permissibility, and highlighted clauses are shown without turning missing evidence into success. After useful value, **Create project in Plannera** is the evidence-preserving promotion action: it saves the displayed Quick Site Check snapshot through the existing same-project artefact path or reuses an equivalent current-site saved snapshot, then enters the full workspace. Billing, price, Stripe, quotas, credits, checkout, entitlements, auth policy, PWA/native work, and consultant sending remain outside this slice.
+
+Reference: docs/project-memory/build-next.md Item 65
+
+
+## DR-035 — Main Reachability Is the Merge Truth for Stacked Pull Requests
+
+Status: Active
+
+Decision: GitHub's merged flag is insufficient evidence that a stacked change is present on `main`. A sequential PR merged into another feature branch is stack-merged only. Documentation, release claims, and the next implementation base may call an item main-integrated only after its merge commit or equivalent tree is reachable from `main` and the resulting `main` state is verified.
+
+After a parent PR lands, each remaining stacked PR must either be retargeted/rebased onto `main` before merge or be carried through one explicit integration PR whose base is `main`. Before advancing the commercial sequence, verify PR base, merge commit, `main` reachability/tree, changed-file scope, mergeability, and required checks. This prevents a green, merged feature-branch stack from being mistaken for deployed product capability.
+
+Reference: docs/project-memory/build-next.md Item 66
