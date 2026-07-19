@@ -1159,7 +1159,7 @@ Verification for review: focused intent/static/persistence tests, `npm run lint`
 
 Status: DONE/MERGED — PR #312 merged into `main` at exact merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a` on 2026-07-19. Its reviewed remote head was `385fdbbeda507ac9a5f534450a433c4b4cf6fe54`; Commercial Funnel Golden Gate run `29673911590` and Vercel passed on that final head. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` also passed; no local application build or production access/mutation was performed.
 
-## 69) Consolidate Basic Feasibility into the evidence funnel — READY FOR REVIEW (2026-07-19)
+## 69) Consolidate Basic Feasibility into the evidence funnel — IN REVIEW: PR #313 (2026-07-19)
 
 Purpose: remove the disconnected Basic Feasibility truth path that accepted a second browser-provided development type/site context and ran a fresh AI statutory lookup beside stronger saved Quick Site Check and Detailed Planning Pack evidence. Preserve the useful decision-summary function as one deterministic, proposal-bound Planning Feasibility Summary.
 
@@ -1179,9 +1179,9 @@ Focused coverage:
 - Proposal mismatch is rejected before persistence rather than falling back to another pack.
 - UI has no second development-type combobox, posts only the exact DPP/proposal binding, and renders cited/unavailable evidence states without decorative verdict icons.
 
-Evidence boundary: this successor change is rebased directly onto Item 68 merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a` and is ready for a sequential PR targeting `main`. It adds no schema/migration, billing, checkout, credits, auth-policy change, production access/mutation, production project, live retrieval, consultant sending, or local application build. Existing legacy feasibility artefacts are retained as history.
+Evidence boundary: PR #313 targets `main` from one implementation commit, `61ee750e69dfbe68669a2af9db92db3b92b5e3f2`, whose parent is the exact Item 68 merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a`. Its GitHub tree SHA `9d8a3b456cc4a3b4206da420d8bceb42245d2e08` exactly matched the locally verified tree before the PR was opened. It adds no schema/migration, billing, checkout, credits, auth-policy change, production access/mutation, production project, live retrieval, consultant sending, or local application build. Existing legacy feasibility artefacts are retained as history.
 
-Local verification after rebase onto merged `main`: `npm run lint`, `npx tsc --noEmit`, and `git diff --check` pass. Twenty tests across the pure Planning Feasibility Summary calculation and exact DPP/SEE/feasibility/review selectors also pass through Node 22 native TypeScript transformation with a temporary extension/alias loader outside the repository, including exact prohibition, unresolved DCP and changed-proposal invalidation. The server-generation and React runtime tests are updated but remain unexecuted locally because the downloaded macOS `esbuild`/`tsx` runtime is unavailable in this sandbox; the secret-free Linux Commercial Funnel Golden Gate is authoritative after publication.
+Local verification after rebase onto merged `main`: `npm run lint`, `npx tsc --noEmit`, and `git diff --check` pass. Twenty tests across the pure Planning Feasibility Summary calculation and exact DPP/SEE/feasibility/review selectors also pass through Node 22 native TypeScript transformation with a temporary extension/alias loader outside the repository, including exact prohibition, unresolved DCP and changed-proposal invalidation. The server-generation and React runtime tests are updated but remain unexecuted locally because the downloaded macOS `esbuild`/`tsx` runtime is unavailable in this sandbox; the secret-free Linux Commercial Funnel Golden Gate and Vercel checks on the final PR #313 head are authoritative and remain pending at publication time.
 
 ## 70) Privacy-minimal commercial funnel measurement — QUEUED AFTER ITEM 69
 
