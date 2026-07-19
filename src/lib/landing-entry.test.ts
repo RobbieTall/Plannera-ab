@@ -16,6 +16,6 @@ describe("landing Quick Site Check entry", () => {
 
   it("trims and safely encodes both prompt and initialAddress", () => {
     const query = buildWorkspaceSeedQuery("  45 Broken Head Road, Byron Bay NSW 2481  ");
-    expect(query).toBe("prompt=45+Broken+Head+Road%2C+Byron+Bay+NSW+2481&initialAddress=45+Broken+Head+Road%2C+Byron+Bay+NSW+2481");
+    expect(query).toBe("prompt=45+Broken+Head+Road%2C+Byron+Bay+NSW+2481&initialAddress=45+Broken+Head+Road%2C+Byron+Bay+NSW+2481&check=1");
   });
 });

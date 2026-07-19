@@ -12,7 +12,11 @@ import {
   useTransition,
 } from "react";
 import {
+  AlertTriangle,
+  ArrowRight,
   Check,
+  CheckCircle2,
+  Circle,
   Copy,
   Download,
   FileSpreadsheet,
@@ -27,7 +31,6 @@ import {
   Mail,
   MapPin,
   Moon,
-  Notebook,
   Plus,
   RefreshCcw,
   Save,
@@ -42,7 +45,7 @@ import { useRouter } from "next/navigation";
 
 import { MapsToolsModal } from "@/components/projects/maps-tools-modal";
 import { MessageReactionBar } from "@/components/projects/message-reaction-bar";
-import { QuickSiteCheckModal } from "@/components/projects/quick-site-check-modal";
+import { QuickSiteCheckModal, buildQuickSiteCheckArtefactTitle, buildQuickSiteCheckChatMessage, formatList } from "@/components/projects/quick-site-check-modal";
 import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
@@ -64,6 +67,12 @@ import {
   buildCommercialNextAction,
   type CommercialReadinessStatus,
 } from "@/lib/commercial-next-action";
+import {
+  buildCommercialFunnelStages,
+  selectCommercialFunnelActiveStage,
+  type CommercialFunnelStage,
+  type CommercialFunnelStageState,
+} from "@/lib/commercial-funnel-stages";
 import { highlightText } from "@/lib/highlight-text";
 import {
   getExactWorkspaceDppBinding,
@@ -85,8 +94,16 @@ import {
 import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
 import { useLgaCoverageStatus } from "@/hooks/use-lga-coverage-status";
 import { cn } from "@/lib/utils";
+import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
+import {
+  buildFocusedCheckControlList,
+  getFocusedCheckEligibility,
+  quickSiteCheckReportFromFocusedResult,
+  quickSiteCheckReportsEquivalent,
+} from "@/lib/plannera-check-flow";
 import type { SiteCandidate, SiteContextSummary } from "@/types/site";
-import type { QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/types/quick-site-check";
+import type { QuickSiteCheckLepResponse, QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 import type {
   UserTier,
   FeasibilityContent,
@@ -105,6 +122,7 @@ interface ProjectWorkspaceProps {
   project: Project;
   initialPrompt?: string | null;
   initialAddress?: string | null;
+  focusedCheck?: boolean;
 }
 
 type SiteSelectionState = {
@@ -250,7 +268,7 @@ function ProjectTitleEditor({
       onChange={(event) => setTitle(event.target.value)}
       onBlur={handleBlur}
       disabled={isPending}
-      className="mt-1.5 w-full max-w-xl bg-transparent text-2xl font-semibold tracking-[-0.03em] text-white outline-none ring-0 transition placeholder:text-slate-400 focus:border-b focus:border-blue-200 sm:text-3xl"
+      className="mt-1.5 w-full max-w-xl bg-transparent text-2xl font-semibold text-slate-950 outline-none ring-0 transition placeholder:text-slate-400 focus:border-b focus:border-blue-600 dark:text-white dark:focus:border-blue-200 sm:text-3xl"
     />
   );
 }
@@ -869,16 +887,20 @@ function deriveSignalsFromAssistantPayload({
 }
 
 function OutputSection({
+  id,
+  sectionRef,
   title,
   action,
   children,
 }: {
+  id?: string;
+  sectionRef?: React.Ref<HTMLElement>;
   title: string;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-slate-100 py-5 last:border-b-0 dark:border-slate-800">
+    <section id={id} ref={sectionRef} tabIndex={id ? -1 : undefined} className="scroll-mt-24 border-b border-slate-100 py-5 outline-none last:border-b-0 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-800">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
           {title}
@@ -1078,6 +1100,83 @@ function ReviewRequestCard({
   );
 }
 
+
+const funnelStateClasses: Record<CommercialFunnelStageState, string> = {
+  complete: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  current: "border-blue-300 bg-blue-50 text-blue-800 ring-1 ring-blue-200 dark:border-blue-400/40 dark:bg-blue-500/10 dark:text-blue-100",
+  needs_review: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100",
+  upcoming: "border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+};
+
+const funnelStateLabels: Record<CommercialFunnelStageState, string> = {
+  complete: "Complete",
+  current: "Current",
+  needs_review: "Review needed",
+  upcoming: "Upcoming",
+};
+
+const funnelStateIcons: Record<CommercialFunnelStageState, typeof Circle> = {
+  complete: CheckCircle2,
+  current: ArrowRight,
+  needs_review: AlertTriangle,
+  upcoming: Circle,
+};
+
+function CommercialFunnelNavigator({
+  stages,
+  primaryLabel,
+  onPrimaryAction,
+  onStageSelect,
+}: {
+  stages: CommercialFunnelStage[];
+  primaryLabel: string;
+  onPrimaryAction: () => void;
+  onStageSelect: (stage: CommercialFunnelStage) => void;
+}) {
+  const currentStage = selectCommercialFunnelActiveStage(stages);
+
+  return (
+    <nav aria-label="Planning path" className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Planning path</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff</p>
+        </div>
+        <button
+          type="button"
+          onClick={onPrimaryAction}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 sm:w-auto dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+        >
+          {primaryLabel}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+      <ol className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {stages.map((stage) => {
+          const Icon = funnelStateIcons[stage.state];
+          const isCurrent = stage.id === currentStage?.id;
+          return (
+            <li key={stage.id}>
+              <button
+                type="button"
+                onClick={() => onStageSelect(stage)}
+                aria-current={isCurrent ? "step" : undefined}
+                className={cn("flex min-h-16 w-full items-start gap-2 rounded-lg border p-2.5 text-left transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500", funnelStateClasses[stage.state])}
+              >
+                <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{stage.label}</span>
+                  <span className="mt-1 block text-[11px] font-medium">{funnelStateLabels[stage.state]}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 const readinessStatusClasses: Record<CommercialReadinessStatus, string> = {
   Confirmed:
     "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
@@ -1095,10 +1194,11 @@ export function ProjectWorkspace({
   project,
   initialPrompt,
   initialAddress,
+  focusedCheck = false,
 }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { requireAuth, openAuthModal, isAuthenticated } = useAuthGuard();
+  const { requireAuth, openAuthModal, isAuthenticated, isSignedIn } = useAuthGuard();
   const {
     getChatHistory,
     saveChatHistory,
@@ -1166,6 +1266,13 @@ export function ProjectWorkspace({
   const hasUserEditedProposalBriefRef = useRef(false);
   const [isGeneratingDetailedPack, setIsGeneratingDetailedPack] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
+  const [focusedCheckStatus, setFocusedCheckStatus] = useState<"waiting" | "loading" | "ready" | "error">("waiting");
+  const [focusedCheckResult, setFocusedCheckResult] = useState<QuickSiteCheckLepSuccess | null>(null);
+  const [focusedCheckError, setFocusedCheckError] = useState<string | null>(null);
+  const [isPromotingCheck, setIsPromotingCheck] = useState(false);
+  const [promotedCheck, setPromotedCheck] = useState(false);
+  const focusedCheckRunRef = useRef(false);
+  const focusedCheckResultRef = useRef<HTMLElement | null>(null);
   const commercialPackGateRef = useRef<{
     hasProposalBriefMismatch: boolean;
     hasQualityDetailedPlanningPack: boolean;
@@ -1216,6 +1323,10 @@ export function ProjectWorkspace({
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const siteSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const quickSiteCheckSectionRef = useRef<HTMLElement | null>(null);
+  const detailedPlanningPackSectionRef = useRef<HTMLElement | null>(null);
+  const seeSectionRef = useRef<HTMLElement | null>(null);
+  const reviewSectionRef = useRef<HTMLElement | null>(null);
   const suggestionAbortRef = useRef<AbortController | null>(null);
   const suggestionTimeoutRef = useRef<number | null>(null);
   const initialPromptAppliedRef = useRef(false);
@@ -1908,6 +2019,43 @@ export function ProjectWorkspace({
     },
     [applySessionSignals, projectKey, saveChatHistory],
   );
+
+  const focusedCheckEligibility = useMemo(() => getFocusedCheckEligibility({ focusedCheck, siteContextLoaded, siteContext, siteContextMutationsDisabled }), [focusedCheck, siteContextLoaded, siteContext, siteContextMutationsDisabled]);
+  const focusedCheckControls = useMemo(() => focusedCheckResult ? buildFocusedCheckControlList(focusedCheckResult) : [], [focusedCheckResult]);
+  const focusedCheckEvidenceSummary = useMemo(() => focusedCheckResult ? summariseQuickSiteCheckEvidence(focusedCheckResult) : null, [focusedCheckResult]);
+
+  const runFocusedCheck = useCallback(async () => {
+    if (!focusedCheck || !focusedCheckEligibility.eligible || focusedCheckRunRef.current) return;
+    focusedCheckRunRef.current = true;
+    setFocusedCheckStatus("loading");
+    setFocusedCheckError(null);
+    try {
+      const response = await fetch("/api/tools/quick-site-check-lep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: projectKey }),
+      });
+      const payload: QuickSiteCheckLepResponse = await response.json();
+      if (!response.ok || !payload.ok) {
+        setFocusedCheckStatus("error");
+        setFocusedCheckError(payload.ok ? "Unable to run Quick Site Check" : payload.message);
+        focusedCheckRunRef.current = false;
+        return;
+      }
+      setFocusedCheckResult(payload);
+      setFocusedCheckStatus("ready");
+      window.setTimeout(() => focusedCheckResultRef.current?.focus(), 0);
+    } catch (error) {
+      console.error("[focused-check] failed", error);
+      setFocusedCheckStatus("error");
+      setFocusedCheckError("Unable to run Quick Site Check right now.");
+      focusedCheckRunRef.current = false;
+    }
+  }, [focusedCheckEligibility.eligible, focusedCheck, projectKey]);
+
+  useEffect(() => {
+    void runFocusedCheck();
+  }, [runFocusedCheck]);
 
   const showToast = useCallback(
     (message: string, variant: "success" | "error" = "success") => {
@@ -3192,6 +3340,43 @@ export function ProjectWorkspace({
     ],
   );
 
+  const commercialFunnelStages = useMemo(
+    () => buildCommercialFunnelStages({
+      nextAction: commercialNextAction,
+      hasConfirmedSite: Boolean(siteContext),
+      hasQualityQuickSiteCheck,
+      hasDetailedPlanningPack: Boolean(latestDetailedPlanningPack),
+      hasQualityDetailedPlanningPack,
+      hasQualitySee,
+    }),
+    [commercialNextAction, hasQualityDetailedPlanningPack, hasQualityQuickSiteCheck, hasQualitySee, latestDetailedPlanningPack, siteContext],
+  );
+
+  const hasUnresolvedDetailedPlanningPack = Boolean(latestDetailedPlanningPack) && !hasQualityDetailedPlanningPack;
+  const commercialDominantAction = useMemo(() => {
+    if (commercialNextAction.primaryAction === "generate_detailed_pack" && hasUnresolvedDetailedPlanningPack && commercialNextAction.secondaryLabel) {
+      return { label: commercialNextAction.secondaryLabel, kind: "expert_review" as const };
+    }
+
+    return { label: commercialNextAction.primaryLabel, kind: "primary" as const };
+  }, [commercialNextAction.primaryAction, commercialNextAction.primaryLabel, commercialNextAction.secondaryLabel, hasUnresolvedDetailedPlanningPack]);
+
+  const focusWorkspaceTarget = useCallback((targetId: string) => {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => target.focus({ preventScroll: true }), 250);
+  }, []);
+
+  const handleCommercialStageSelect = useCallback((stage: CommercialFunnelStage) => {
+    if (stage.id === "site") {
+      openManualSiteSelection();
+      window.setTimeout(() => siteSearchInputRef.current?.focus(), 0);
+      return;
+    }
+    focusWorkspaceTarget(stage.targetId);
+  }, [focusWorkspaceTarget, openManualSiteSelection]);
+
   const handleRequestExpertReview = useCallback(async () => {
     if (!isAuthenticated) {
       showToast("Sign in, then request expert review", "error");
@@ -3253,7 +3438,8 @@ export function ProjectWorkspace({
 
   const handleCommercialPrimaryAction = useCallback(() => {
     if (commercialNextAction.primaryAction === "set_site") {
-      siteSearchInputRef.current?.focus();
+      openManualSiteSelection();
+      window.setTimeout(() => siteSearchInputRef.current?.focus(), 0);
       showToast("Enter and confirm a Byron or Kempsey address to continue");
       return;
     }
@@ -3264,6 +3450,11 @@ export function ProjectWorkspace({
     }
 
     if (commercialNextAction.primaryAction === "generate_detailed_pack") {
+      if (!proposalBrief.trim()) {
+        focusWorkspaceTarget("proposal-brief");
+        showToast("Enter a proposed-works brief before generating the Detailed Planning Pack", "error");
+        return;
+      }
       void generateDetailedPlanningPack();
       return;
     }
@@ -3273,8 +3464,65 @@ export function ProjectWorkspace({
       return;
     }
 
-    showToast("Use the SEE panel Copy or Download button, or request expert review");
-  }, [commercialNextAction.primaryAction, generateDetailedPlanningPack, handleGeneratePreSeeMemo, showToast]);
+    if (commercialNextAction.primaryAction === "export_or_review") {
+      focusWorkspaceTarget("workspace-see-section");
+      return;
+    }
+  }, [commercialNextAction.primaryAction, focusWorkspaceTarget, generateDetailedPlanningPack, handleGeneratePreSeeMemo, openManualSiteSelection, proposalBrief, showToast]);
+
+  const retryFocusedCheck = useCallback(() => {
+    if (focusedCheckStatus === "loading") return;
+    focusedCheckRunRef.current = false;
+    setFocusedCheckResult(null);
+    setFocusedCheckError(null);
+    void runFocusedCheck();
+  }, [focusedCheckStatus, runFocusedCheck]);
+
+  const promoteFocusedCheck = useCallback(async () => {
+    if (!focusedCheckResult || isPromotingCheck || promotedCheck || !hasLoadedServerArtefacts) {
+      if (promotedCheck) router.replace(`/projects/${projectKey}/workspace`);
+      return;
+    }
+    setIsPromotingCheck(true);
+    setFocusedCheckError(null);
+    try {
+      const summary = buildQuickSiteCheckChatMessage(focusedCheckResult);
+      const title = buildQuickSiteCheckArtefactTitle(focusedCheckResult);
+      const report = quickSiteCheckReportFromFocusedResult(projectKey, focusedCheckResult, siteContext?.formattedAddress ?? project.name);
+      const equivalentSaved = siteScopedArtefacts.find((artefact) => artefact.isCurrentSite !== false && quickSiteCheckReportsEquivalent(normaliseQuickSiteCheckReport(artefact.quickSiteCheck), report));
+      if (equivalentSaved) {
+        setPromotedCheck(true);
+        router.replace(`/projects/${projectKey}/workspace`);
+        return;
+      }
+      const payload: QuickSiteCheckArtefactRequest = { projectId: projectKey, title, type: "quick_site_check", report };
+      const response = await fetch(`/api/projects/${projectKey}/artefacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Unable to save Quick Site Check");
+      handleQuickSiteCheckArtefactSaved(title, summary, report);
+      setPromotedCheck(true);
+      router.replace(`/projects/${projectKey}/workspace`);
+    } catch (error) {
+      setFocusedCheckError(error instanceof Error ? error.message : "Unable to save Quick Site Check");
+      window.setTimeout(() => focusedCheckResultRef.current?.focus(), 0);
+    } finally {
+      setIsPromotingCheck(false);
+    }
+  }, [focusedCheckResult, handleQuickSiteCheckArtefactSaved, hasLoadedServerArtefacts, isPromotingCheck, project.name, projectKey, promotedCheck, router, siteContext?.formattedAddress, siteScopedArtefacts]);
+
+  const handleCommercialDominantAction = useCallback(() => {
+    if (commercialDominantAction.kind === "expert_review") {
+      void handleRequestExpertReview();
+      return;
+    }
+
+    handleCommercialPrimaryAction();
+  }, [commercialDominantAction.kind, handleCommercialPrimaryAction, handleRequestExpertReview]);
   const activeStaleArtefact = staleArtefactTypes[0];
   const activeNotification = notifications[0];
   const outputStatusKind =
@@ -3290,22 +3538,19 @@ export function ProjectWorkspace({
     : false;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto bg-[radial-gradient(circle_at_top_left,#eff6ff,transparent_30rem)] px-4 pb-5 pt-3 text-slate-900 transition-colors sm:px-6 lg:px-8 dark:bg-slate-950 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
-      <div className="sticky top-3 z-30 flex flex-wrap items-center justify-between gap-2 rounded-[1.5rem] border border-white/80 bg-white/85 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/85 dark:text-white">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-1 flex-col gap-4 overflow-y-auto bg-white px-4 pb-5 pt-3 text-slate-900 transition-colors sm:px-6 lg:px-8 dark:bg-slate-950 dark:text-slate-100 xl:max-h-screen xl:overflow-hidden">
+      <div className="sticky top-3 z-30 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/80 bg-white/85 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-900/85 dark:text-white">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-inherit">
             <Logo className="h-6 w-auto" />
             <span className="sr-only">Home</span>
           </Link>
-          {isAuthenticated ? (
-            <button
-              type="button"
-              onClick={() => router.push("/projects")}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
-            >
-              ← My Projects
-            </button>
-          ) : null}
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:text-white"
+          >
+            ← Projects
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -3321,12 +3566,8 @@ export function ProjectWorkspace({
             )}
             {isDarkMode ? "Light mode" : "Dark mode"}
           </button>
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
-            <Sparkles className="h-4 w-4" />
-            Get help
-          </button>
-          {isAuthenticated ? (
-            <SignOutButton className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:border-slate-500">
+          {isSignedIn ? (
+            <SignOutButton className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-500">
               <LogOut className="h-4 w-4" />
               Logout
             </SignOutButton>
@@ -3335,7 +3576,7 @@ export function ProjectWorkspace({
               <button
                 type="button"
                 onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
               >
                 Sign in
               </button>
@@ -3344,29 +3585,25 @@ export function ProjectWorkspace({
         </div>
       </div>
 
-      <div className="rounded-[1.75rem] border border-white/80 bg-slate-950 p-5 text-white shadow-2xl shadow-blue-950/10 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-white">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-[260px] flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
               Project workspace
             </p>
             <ProjectTitleEditor
               projectId={project.id}
               initialTitle={project.name}
             />
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               Your command centre for site context, source material, chat
               decisions and approval-ready outputs.
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-2xl bg-white px-3.5 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50">
-            <Notebook className="h-4 w-4" />
-            Share workspace
-          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/80 bg-white/90 px-3.5 py-2.5 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin className="h-4 w-4 text-slate-500" />
           <span>{siteContext?.formattedAddress ?? (hasPendingInitialSiteConfirmation ? "Confirming site…" : "No site set")}</span>
@@ -3416,9 +3653,83 @@ export function ProjectWorkspace({
         ) : null}
       </div>
 
+      <style jsx global>{`@keyframes plannera-check-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } @media (prefers-reduced-motion: reduce) { .motion-safe\:animate-\[plannera-check-reveal_180ms_ease-out\] { animation: none !important; } }`}</style>
+
+      {focusedCheck ? (
+        <main className="min-h-0 flex-1 overflow-y-auto bg-white px-1 py-2 dark:bg-slate-950" aria-labelledby="focused-check-title">
+          <div className="mx-auto max-w-3xl space-y-5">
+            <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Plannera Check</p>
+                <h2 id="focused-check-title" className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">Free Quick Site Check</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">We use the same project workspace and the confirmed site context. The check runs only after the site is resolved.</p>
+              </div>
+              <Link href="/" className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:text-slate-100">Change address</Link>
+            </div>
+
+            <div aria-live="polite" className="rounded-md border-y border-slate-200 bg-slate-50 py-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+              {!focusedCheckEligibility.eligible ? focusedCheckEligibility.message : focusedCheckStatus === "loading" ? "Retrieving planning controls and preparing the evidence view…" : focusedCheckStatus === "ready" ? "Quick Site Check evidence is ready." : focusedCheckStatus === "error" ? "The check could not be completed." : focusedCheckEligibility.message}
+            </div>
+
+            {focusedCheckError ? <div className="space-y-3 border-y border-rose-200 bg-rose-50 py-3 text-sm font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100"><p role="alert">{focusedCheckError}</p><button type="button" onClick={retryFocusedCheck} disabled={focusedCheckStatus === "loading" || !focusedCheckEligibility.eligible} className="inline-flex min-h-11 items-center rounded-md border border-rose-300 bg-white px-3 text-sm font-semibold text-rose-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-rose-950 dark:text-rose-100">Retry check</button></div> : null}
+
+            {focusedCheckResult ? (
+              <section ref={focusedCheckResultRef} tabIndex={-1} className="space-y-5 outline-none motion-safe:animate-[plannera-check-reveal_180ms_ease-out]" aria-labelledby="focused-check-result-title">
+                <div className="border-y border-slate-200 py-4 dark:border-slate-800">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Site identity</p>
+                  <h3 id="focused-check-result-title" className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{siteContext?.formattedAddress ?? project.name}</h3>
+                  <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">{focusedCheckResult.lga} · {focusedCheckResult.lepName} · {focusedCheckResult.zone ? `Zone ${focusedCheckResult.zone}` : "Zone unavailable"}</p>
+                </div>
+
+                <div className="border-b border-slate-200 pb-4 dark:border-slate-800">
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Evidence quality: {focusedCheckEvidenceSummary?.label ?? "Unavailable"}</p>
+                  <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">{focusedCheckEvidenceSummary?.detail}</p>
+                  <p className="mt-1 break-words text-xs text-slate-500 dark:text-slate-400">{focusedCheckEvidenceSummary?.sourceRef}</p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {focusedCheckControls.map((control) => (
+                    <div key={control.key} className="rounded-md border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{control.label}</p>
+                      <p className="mt-1 break-words text-base font-semibold text-slate-950 dark:text-white">{control.value}</p>
+                      <p className={cn("mt-1 break-words text-xs", control.confidence === "Cited" ? "text-emerald-700 dark:text-emerald-300" : control.confidence === "Unavailable" ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400")}>{control.confidence}{control.sourceRef ? ` · ${control.sourceRef}` : ""}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <details className="border-y border-slate-200 py-4 dark:border-slate-800">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-900 dark:text-slate-100">Zone objectives, permissibility and highlighted clauses</summary>
+                  <div className="mt-3 space-y-4 text-sm text-slate-700 dark:text-slate-200">
+                    <div><p className="font-semibold">Zone objectives</p><ul className="mt-1 list-disc space-y-1 pl-5">{formatList(focusedCheckResult.objectives).map((item) => <li className="break-words" key={item}>{item}</li>)}</ul></div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div><p className="font-semibold text-emerald-700">Permitted without consent</p><ul className="mt-1 list-disc space-y-1 pl-5">{formatList(focusedCheckResult.landUse.withoutConsent).map((item) => <li className="break-words" key={item}>{item}</li>)}</ul></div>
+                      <div><p className="font-semibold text-amber-700">Permitted with consent</p><ul className="mt-1 list-disc space-y-1 pl-5">{formatList(focusedCheckResult.landUse.withConsent).map((item) => <li className="break-words" key={item}>{item}</li>)}</ul></div>
+                      <div><p className="font-semibold text-rose-700">Prohibited</p><ul className="mt-1 list-disc space-y-1 pl-5">{formatList(focusedCheckResult.landUse.prohibited).map((item) => <li className="break-words" key={item}>{item}</li>)}</ul></div>
+                    </div>
+                    {([{ label: "Part 4", clauses: focusedCheckResult.part4 }, { label: "Part 5", clauses: focusedCheckResult.part5 }, { label: "Part 6", clauses: focusedCheckResult.part6 }] as const).map(({ label, clauses }) => <div key={label}><p className="font-semibold">{label}</p>{clauses.length ? <ul className="mt-1 space-y-1">{clauses.map((clause) => <li className="break-words" key={`${clause.part}-${clause.clauseNumber}`}><span className="font-semibold">{clause.clauseNumber}</span> — {clause.heading} — {clause.textSnippet}</li>)}</ul> : <p className="text-slate-500">No clauses highlighted.</p>}</div>)}
+                  </div>
+                </details>
+
+                <button type="button" onClick={() => void promoteFocusedCheck()} disabled={!hasLoadedServerArtefacts || isPromotingCheck || promotedCheck} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto">
+                  {!hasLoadedServerArtefacts ? "Loading saved evidence…" : isPromotingCheck ? "Saving check…" : promotedCheck ? "Opening workspace…" : "Create project in Plannera"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </section>
+            ) : null}
+          </div>
+        </main>
+      ) : (
+        <>
+      <CommercialFunnelNavigator
+        stages={commercialFunnelStages}
+        primaryLabel={commercialDominantAction.label}
+        onPrimaryAction={handleCommercialDominantAction}
+        onStageSelect={handleCommercialStageSelect}
+      />
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid flex-1 min-h-0 items-stretch gap-4 overflow-hidden xl:grid-cols-[280px_minmax(0,1fr)_340px]">
-          <section className="flex flex-col rounded-[1.5rem] border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <section className="flex flex-col rounded-lg border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <div className="shrink-0 space-y-4">
               <header className="flex items-center justify-between">
                 <div>
@@ -3562,7 +3873,7 @@ export function ProjectWorkspace({
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/80 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-0">
             <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -3629,6 +3940,7 @@ export function ProjectWorkspace({
                         <div className="relative flex-1">
                           <input
                             type="text"
+                            id="workspace-site-control"
                             ref={siteSearchInputRef}
                             value={siteSearchQuery}
                             onChange={(event) => {
@@ -4014,7 +4326,7 @@ export function ProjectWorkspace({
           </section>
 
           <section className="flex flex-col md:h-full md:min-h-0">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/90 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/80 bg-white/90 shadow-sm shadow-slate-200/70 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-900">
               <header className="shrink-0 px-5 pt-5">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   Outputs
@@ -4091,57 +4403,28 @@ export function ProjectWorkspace({
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-5">
-                <section className="border-b border-slate-100 py-5 dark:border-slate-800">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-200">
-                      Byron/Kempsey commercial path
-                    </p>
-                    <h2 className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
-                      {commercialNextAction.heading}
-                    </h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      {commercialNextAction.description}
-                    </p>
-                    <div className="mt-3 grid gap-2">
-                      {commercialNextAction.items.map((item) => (
-                        <div
-                          key={item.label}
-                          className="rounded-xl border border-white/70 bg-white/70 p-2.5 text-xs dark:border-slate-700/70 dark:bg-slate-900/50"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-800 dark:text-slate-100">
-                              {item.label}
-                            </span>
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                                readinessStatusClasses[item.status],
-                              )}
-                            >
-                              {item.status}
-                            </span>
-                          </div>
-                          <p className="mt-1 leading-4 text-slate-500 dark:text-slate-400">
-                            {item.detail}
-                          </p>
-                        </div>
-                      ))}
+                <section className="border-b border-slate-100 py-4 dark:border-slate-800" aria-label="Next planning path action">
+                  <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Next action</p>
+                      <h2 className="mt-1 font-semibold text-slate-950 dark:text-white">{commercialNextAction.heading}</h2>
+                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{commercialNextAction.description}</p>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={handleCommercialPrimaryAction}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        onClick={handleCommercialDominantAction}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                       >
-                        {commercialNextAction.primaryLabel}
-                        <Sparkles className="h-3 w-3" />
+                        {commercialDominantAction.label}
+                        <ArrowRight className="h-3 w-3" aria-hidden />
                       </button>
-                      {commercialNextAction.secondaryLabel ? (
+                      {commercialNextAction.secondaryLabel && commercialDominantAction.kind !== "expert_review" ? (
                         <button
                           type="button"
                           onClick={() => void handleRequestExpertReview()}
                           disabled={isRequestingReview}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                         >
                           {isRequestingReview ? "Packaging review…" : commercialNextAction.secondaryLabel}
                         </button>
@@ -4150,6 +4433,8 @@ export function ProjectWorkspace({
                   </div>
                 </section>
                 <OutputSection
+                  id="workspace-qsc-section"
+                  sectionRef={quickSiteCheckSectionRef}
                   title="Quick Site Check"
                   action={
                     hasSiteContext ? (
@@ -4216,6 +4501,8 @@ export function ProjectWorkspace({
                 </OutputSection>
 
                 <OutputSection
+                  id="workspace-dpp-section"
+                  sectionRef={detailedPlanningPackSectionRef}
                   title="Detailed Planning Pack"
                   action={
                     hasSiteContext ? (
@@ -4281,6 +4568,8 @@ export function ProjectWorkspace({
                 </OutputSection>
 
                 <OutputSection
+                  id="workspace-see-section"
+                  sectionRef={seeSectionRef}
                   title="Statement of Env. Effects"
                   action={
                     hasSiteContext ? (
@@ -4317,7 +4606,7 @@ export function ProjectWorkspace({
                   )}
                 </OutputSection>
 
-                <OutputSection title="Expert Review Request">
+                <OutputSection id="workspace-review-section" sectionRef={reviewSectionRef} title="Expert Review Request">
                   {latestReviewRequestArtefact && latestReviewRequestContent ? (
                     <ReviewRequestCard
                       artefact={latestReviewRequestArtefact}
@@ -4374,6 +4663,9 @@ export function ProjectWorkspace({
           </section>
         </div>
       </div>
+
+        </>
+      )}
 
       <QuickSiteCheckModal
         open={isQuickSiteCheckOpen}

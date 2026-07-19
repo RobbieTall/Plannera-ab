@@ -1058,3 +1058,58 @@ Verification commands:
 - `npm run test:commercial-funnel`
 - `npm run lint`
 - `npx tsc --noEmit`
+
+## 64) In-workspace commercial funnel navigator and Plannera Check product boundary — STACK-MERGED; MAIN INTEGRATION IN REVIEW (2026-07-17)
+
+Stacking: Item 64 was implemented on exact Item 63 head `791a4b567d715a4b8b825c0c43d3b544717aa7ed`. PR #308 merged into the Item 63 feature branch on 2026-07-17, not into `main`; integration PR #310 now carries the reviewed Item 64/65 tree to `main`.
+
+Purpose: make the real in-workspace commercial sequence visible without adding a parallel readiness system: Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff. Also record that Plannera Check is an in-product acquisition surface, not a separate product/backend, and clean only the workspace shell/planning-path surface so the workspace is truthful and mobile-safe.
+
+Invariant:
+- Stage state is derived from current-site/proposal/exact-DPP evidence and the existing `buildCommercialNextAction` result, not from artefact existence alone.
+- Stage states are deterministic and limited to complete, current, review needed, and upcoming.
+- A current-site unresolved DPP exposes expert review/review-needed without marking SEE ready.
+- The dominant next action reuses existing handlers; DPP generation focuses the proposed-works brief when blank rather than issuing a doomed request.
+- Stage controls scroll/focus the existing site, Quick Site Check, Detailed Planning Pack, SEE, and expert-review output sections with accessible navigation semantics.
+- Feasibility remains available outside the primary four-stage revenue path.
+- The workspace shell uses restrained white/charcoal/source-blue/forest accents, compact project/site chrome, truthful `isSignedIn` sign-out UI, and visible `/projects` access for guests and signed-in requesters.
+
+Focused coverage:
+- Pure stage mapping for `set_site`, `run_quick_site_check`, `generate_detailed_pack` absent/unresolved pack, `generate_see`, and `export_or_review`.
+- Current/completed stage mapping fails closed when quality flags are false.
+- Unresolved pack exposes review needed without SEE readiness.
+- Workspace static coverage for the four literal stage labels, accessible planning-path nav, target anchors/focus behavior, one primary next action, truthful `isSignedIn` chrome, `/projects` access for guests, and absence of the removed radial gradient, giant dark hero, unsupported Get help/Share workspace controls, and nested commercial card wall.
+- Existing commercial-next-action, proposal/DPP selector, QSC/DPP/SEE/referral, auth, and golden-funnel coverage remain required.
+
+Evidence boundary: no schema/migrations, production access/mutation, production project creation, live retrieval, live audit, payment/price/checkout/credit/quota work, auth enablement/policy broadening, native/PWA implementation, consultant sending, readiness claim, merge, or deployed API access. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Verification commands for this slice: focused stage/static tests, existing commercial-next-action tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`.
+
+Status: PR #308 MERGED INTO STACK — not yet on `main`; integration PR #310 is IN REVIEW.
+
+## 65) Premium mobile Plannera Check acquisition and evidence reveal — STACK-MERGED; MAIN INTEGRATION IN REVIEW
+
+Implementation PR [#309](https://github.com/RobbieTall/Plannera-ab/pull/309) merged on 2026-07-17 into the Item 64 feature branch, not into `main`. Final reviewed Item 65 head `713f4462e004cf1c14b0c47ab00803f854e53bb6` is carried to `main` by integration PR #310. Its implementation tree began at commit `0e153fe574a4f849190595b057d044e220018d86`, exactly one commit above Item 64 head `bdc9c4a8023510a00faaae90e387650fd6d4962d`; subsequent commits record review corrections and publication metadata. The homepage remains the real product entry with one labelled Site address field, one dominant **Run free site check** action, honest Byron/Kempsey pilot disclosure, and only the approved Byron/Kempsey launch examples. Submitting an address now opens the existing requester-scoped project workspace with a small `check=1` focused-mode query contract rather than a parallel app or backend.
+
+Focused Plannera Check mode reuses the current workspace site-context path, waits for focused mode, enabled site-context mutations, LGA identity, and confirmed spatial/planning identity (parcel, coordinates, or zoning) before calling the existing Quick Site Check endpoint; manual address-only fallback remains blocked with recoverable copy. Progress copy is limited to real states: creating/loading the requester project, resolving the site, retrieving planning controls, and preparing the evidence view. The reveal is inline and mobile-safe, with site identity, LGA/LEP/zone identity, evidence-quality source details, all returned structured controls including optional setback, parking, and active frontage/built form, accessible disclosure for objectives/permissibility/highlighted clauses, and honest unavailable/error states.
+
+After the reveal, the dominant CTA is **Create project in Plannera**. It saves the displayed Quick Site Check through the existing project artefact path for the same project and transitions into the ordinary full workspace without creating another project or reconstructing a different evidence snapshot. Duplicate submission is disabled, equivalent current-site saved QSC snapshots are reused instead of posted again, retry is available after failed checks, and save errors remain recoverable. Ordinary non-Check workspace entry remains unchanged and the Item 64 evidence-derived planning path remains the normal workspace path after promotion.
+
+Explicit deferrals: no Prisma/schema, billing, price, Stripe, credits, quotas, entitlements, auth-policy, PWA/native, consultant sending, production configuration, production API/data mutation, separate product/app/backend, readiness score, or evidence-truth changes.
+
+Tests/checks run in this slice: `npm run test:vitest -- src/lib/landing-entry.test.ts src/app/page.content.test.ts`; `npx tsx --test tests/plannera-check-flow.test.ts tests/plannera-check-acquisition-static.test.ts`; `npm run test:commercial-funnel`; `npm run lint`; `npx tsc --noEmit`; `git diff --check`. No build was run. PR #309 is stack-merged; no `main` integration or live approval is claimed until PR #310 merges.
+
+Remote UI QA completed against source head `452f58335f1f8681eef99a61ef6e847b788746ad` on Vercel preview `https://plannera-2nvmuhksg-robbietalls-projects.vercel.app/`: 320×800, 390×844, and 1440×900 all showed no horizontal overflow; the next-step content was visible in the first viewport; homepage/header controls met the 44px target; long launch addresses wrapped without overlap; and desktop exposed one header-level **My Projects** action. The commercial golden gate and Vercel deployment both passed for that source head.
+
+
+## 66) Integrate stack-merged Items 64–65 into main — IN REVIEW (2026-07-17)
+
+Merge-state audit after PRs #307, #308, and #309 were merged found that only #307 had `main` as its base. PR #308 merged into the Item 63 feature branch and PR #309 merged into the Item 64 feature branch. GitHub therefore reported all three PRs merged while `main` still contained only Item 63 at merge commit `b1273aee59d6d1d66f33d2b96ec76dd8c0e018ac`.
+
+Integration PR [#310](https://github.com/RobbieTall/Plannera-ab/pull/310) targets `main` from final reviewed Item 65 branch `codex/implement-premium-mobile-plannera-check`. Before this documentation update, its exact head was `713f4462e004cf1c14b0c47ab00803f854e53bb6`; merge base is Item 63 reviewed head `791a4b567d715a4b8b825c0c43d3b544717aa7ed`. The audited compare contains only the reviewed Item 64 funnel navigator, Item 65 focused Plannera Check flow, their focused tests, and their README/boundary/project-memory documentation.
+
+Integration invariant: a PR is not considered present on `main` merely because GitHub reports it merged. The merge commit must be reachable from `main`, or an explicit integration PR targeting `main` must merge and the resulting `main` tree must be verified. Future stacked PRs must be retargeted to `main` after their parent lands, or closed through one explicit final integration PR; merge state and main reachability must be checked before documentation says live or merged.
+
+Verification required before merge: PR #310 must be mergeable and independently pass Vercel plus Commercial Funnel Golden Gate. No local build, production access/mutation, production project creation, ingestion, billing/auth implementation, or merge is performed by this item.
+
+Status: IN REVIEW — Items 64/65 are stack-merged but not yet present on `main`.

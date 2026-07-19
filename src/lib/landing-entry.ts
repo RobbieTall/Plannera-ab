@@ -6,5 +6,5 @@ export const launchExampleAddresses = [
 export function buildWorkspaceSeedQuery(address: string) {
   const trimmed = address.trim();
   if (!trimmed) return null;
-  return new URLSearchParams({ prompt: trimmed, initialAddress: trimmed }).toString();
+  return new URLSearchParams({ prompt: trimmed, initialAddress: trimmed, check: "1" }).toString();
 }
