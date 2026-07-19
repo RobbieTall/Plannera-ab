@@ -1157,7 +1157,7 @@ Evidence boundary: no schema/migration, billing, price, checkout, credits, auth-
 
 Verification for review: focused intent/static/persistence tests, `npm run lint`, `npx tsc --noEmit`, `npm run test:commercial-funnel`, and the existing secret-free Commercial Funnel Golden Gate. Do not run `npm run build` or `npm run vercel-build` for this item.
 
-Status: IN REVIEW — implementation branch `codex/implement-item-68-intent-aware-check`.
+Status: IN REVIEW — PR #312 is ready for review from implementation commit `269e8650242ad72ece135081b925e0931d42c1dd` on branch `codex/implement-item-68-intent-aware-check`. The remote commit tree `09148f5150aa7b727d36cd074603443cc79674ff` exactly matches the locally reviewed tree. Commercial Funnel Golden Gate run `29673828185` passed and Vercel reported deployment success. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` passed; no local application build or production access/mutation was performed.
 
 ## 69) Consolidate Basic Feasibility into the evidence funnel — QUEUED AFTER ITEM 68
 
