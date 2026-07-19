@@ -80,6 +80,7 @@ import {
   hasCurrentSiteDetailedPlanningPackProposalMismatch,
   selectCurrentSiteDetailedPlanningPackArtefact,
   selectCurrentWorkspaceDetailedPlanningPackArtefact,
+  selectExactPlanningFeasibilityArtefactForDetailedPlanningPack,
   selectExactReviewRequestArtefactForDetailedPlanningPack,
   selectExactSeeArtefactForDetailedPlanningPack,
 } from "@/lib/detailed-planning-pack-selector";
@@ -559,6 +560,9 @@ const normaliseFeasibilityContent = (
     ? parsedValue.overallVerdict
     : null;
   const summary = readString(parsedValue.summary);
+  const proposalBrief = readString(parsedValue.proposalBrief);
+  const projectId = readString(parsedValue.projectId);
+  const sourcePack = coerceRecord(parsedValue.sourceDetailedPlanningPack);
   const generatedAt = readString(
     parsedValue.generatedAt,
     new Date().toISOString(),
@@ -591,7 +595,10 @@ const normaliseFeasibilityContent = (
     .filter((item): item is FeasibilityItem => Boolean(item));
 
   return {
+    summaryType: parsedValue.summaryType === "planning_feasibility_summary" ? "planning_feasibility_summary" : undefined,
+    projectId: projectId || undefined,
     developmentType,
+    proposalBrief: proposalBrief || undefined,
     overallVerdict,
     summary,
     items: items.length
@@ -605,6 +612,14 @@ const normaliseFeasibilityContent = (
           },
         ],
     generatedAt,
+    sourceDetailedPlanningPack: sourcePack
+      ? {
+          artefactId: readString(sourcePack.artefactId),
+          generatedAt: readString(sourcePack.generatedAt) || null,
+          commercialReady: sourcePack.commercialReady === true,
+          sourceQuickSiteCheckArtefactId: readString(sourcePack.sourceQuickSiteCheckArtefactId),
+        }
+      : undefined,
   };
 };
 
@@ -768,7 +783,7 @@ const mapServerFeasibilityArtefact = (
         new Date().toISOString(),
     ),
     type: "feasibility",
-    noteType: "Basic Feasibility",
+    noteType: content.summaryType === "planning_feasibility_summary" ? "Planning Feasibility Summary" : "Legacy Feasibility",
     metadata: `${content.developmentType} · ${content.overallVerdict}`,
     content,
     staleAt: artefact.staleAt ?? undefined,
@@ -1142,7 +1157,7 @@ function CommercialFunnelNavigator({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Planning path</p>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Site → Quick Site Check → Detailed Planning Pack → SEE / consultant handoff</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Site → Quick Site Check → Detailed Planning Pack → feasibility summary → SEE / consultant handoff</p>
         </div>
         <button
           type="button"
@@ -2941,17 +2956,6 @@ export function ProjectWorkspace({
 
     return Array.from(merged.values());
   }, [experienceArtefacts, hasLoadedServerArtefacts, serverArtefacts]);
-  const latestFeasibilityContent = useMemo(() => {
-    const feasibilityArtefact = artefacts.find(
-      (artefact) =>
-        artefact.type === "feasibility" &&
-        normaliseFeasibilityContent(artefact.content),
-    );
-    return feasibilityArtefact
-      ? normaliseFeasibilityContent(feasibilityArtefact.content)
-      : null;
-  }, [artefacts]);
-
   const generateDetailedPlanningPack = useCallback(async () => {
     if (!proposalBrief.trim()) {
       showToast("Enter a proposed-works brief before generating the Detailed Planning Pack", "error");
@@ -3270,6 +3274,10 @@ export function ProjectWorkspace({
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
+  const latestFeasibilityContent = useMemo(() => {
+    const artefact = selectExactPlanningFeasibilityArtefactForDetailedPlanningPack(siteScopedArtefacts, latestDetailedPlanningPackArtefact);
+    return normaliseFeasibilityContent(artefact?.content);
+  }, [latestDetailedPlanningPackArtefact, siteScopedArtefacts]);
   const latestCurrentSiteQuickSiteCheckArtefact = useMemo(() => siteScopedArtefacts.find((artefact) =>
     artefact.isCurrentSite !== false && normaliseMemoLabel(artefact.title).includes("quick site check"),
   ), [siteScopedArtefacts]);
@@ -4635,6 +4643,21 @@ export function ProjectWorkspace({
                   )}
                 </OutputSection>
 
+                <OutputSection title="Planning Feasibility Summary">
+                  {latestDetailedPlanningPack && latestDetailedPlanningPackArtefact ? (
+                    <FeasibilityPanel
+                      projectId={projectKey}
+                      sourceDetailedPlanningPackArtefactId={latestDetailedPlanningPackArtefact.id}
+                      proposalBrief={latestDetailedPlanningPack.proposalBrief}
+                      existingContent={latestFeasibilityContent}
+                    />
+                  ) : (
+                    <p className="text-sm italic text-slate-400 dark:text-slate-500">
+                      Generate a Detailed Planning Pack for the active proposal before building its feasibility summary.
+                    </p>
+                  )}
+                </OutputSection>
+
                 <OutputSection
                   id="workspace-see-section"
                   sectionRef={seeSectionRef}
@@ -4687,33 +4710,6 @@ export function ProjectWorkspace({
                   )}
                 </OutputSection>
 
-                <OutputSection title="Feasibility">
-                  {!hasSiteContext ? (
-                    <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Set a site address to assess feasibility.
-                    </p>
-                  ) : (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-800/50">
-                      <FeasibilityPanel
-                        projectId={projectKey}
-                        address={
-                          siteContext?.formattedAddress ??
-                          initialInlineAddress ??
-                          project.location ??
-                          project.name
-                        }
-                        siteContext={{
-                          lga:
-                            siteContext?.lgaCode ??
-                            sessionSignals?.lga ??
-                            undefined,
-                          zone: siteContext?.zone ?? zoningLabel ?? undefined,
-                        }}
-                        existingContent={latestFeasibilityContent}
-                      />
-                    </div>
-                  )}
-                </OutputSection>
               </div>
 
               <div className="shrink-0 px-5 py-4">

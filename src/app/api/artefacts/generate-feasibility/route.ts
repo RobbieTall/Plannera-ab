@@ -1,20 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-import { createFeasibilityArtefact } from "@/lib/artefact-service";
+import {
+  ArtefactAccessError,
+  ArtefactValidationError,
+  createPlanningFeasibilitySummaryArtefact,
+  requireSessionUser,
+} from "@/lib/artefact-service";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { projectId, address, developmentType, siteContext } = await request.json();
-    if (!projectId || !address || !developmentType) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const { userId } = await requireSessionUser();
+    const { artefact, content } = await createPlanningFeasibilitySummaryArtefact({
+      body: await request.json(),
+      userId,
+    });
+
+    return NextResponse.json({ artefactId: artefact.id, content }, { status: 201 });
+  } catch (error) {
+    if (error instanceof ArtefactValidationError || error instanceof ArtefactAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const result = await createFeasibilityArtefact(projectId, address, developmentType, siteContext ?? {});
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error("[generate-feasibility]", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error("[artefacts] Unexpected error while generating Planning Feasibility Summary", error);
+    return NextResponse.json({ error: "Unable to generate Planning Feasibility Summary" }, { status: 500 });
   }
 }

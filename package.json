@@ -31,7 +31,7 @@
     "test:node": "tsx --test tests/*.test.ts",
     "test:vitest": "vitest run --config vitest.config.ts",
     "audit:commercial-funnel": "tsx scripts/audit-commercial-funnel.ts",
-    "test:commercial-funnel": "tsx --test tests/commercial-funnel-golden.test.ts tests/commercial-funnel-golden-workflow.test.ts tests/map-snapshot.test.ts tests/commercial-next-action.test.ts tests/quick-site-check-evidence.test.ts tests/detailed-planning-pack-selector.test.ts tests/commercial-funnel-audit-runner.test.ts && vitest run --config vitest.config.ts src/lib/nsw-planning-controls.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts src/lib/projects.requester-scope.test.ts src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts"
+    "test:commercial-funnel": "tsx --test tests/commercial-funnel-golden.test.ts tests/commercial-funnel-golden-workflow.test.ts tests/map-snapshot.test.ts tests/commercial-next-action.test.ts tests/quick-site-check-evidence.test.ts tests/detailed-planning-pack-selector.test.ts tests/planning-feasibility-summary.test.ts tests/feasibility-parse.test.ts tests/commercial-funnel-audit-runner.test.ts && vitest run --config vitest.config.ts src/lib/nsw-planning-controls.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts src/lib/projects.requester-scope.test.ts src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts tests/feasibility-panel.test.tsx"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

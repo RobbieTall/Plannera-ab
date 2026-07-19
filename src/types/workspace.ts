@@ -35,11 +35,20 @@ export type FeasibilityItem = {
 };
 
 export type FeasibilityContent = {
+  summaryType?: "planning_feasibility_summary";
+  projectId?: string;
   developmentType: string;
+  proposalBrief?: string;
   overallVerdict: "proceed" | "caution" | "redesign" | "blocked" | "unresolved";
   summary: string;
   items: FeasibilityItem[];
   generatedAt: string;
+  sourceDetailedPlanningPack?: {
+    artefactId: string;
+    generatedAt: string | null;
+    commercialReady: boolean;
+    sourceQuickSiteCheckArtefactId: string;
+  };
 };
 
 export type SeeSourceCitation = {

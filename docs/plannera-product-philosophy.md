@@ -22,12 +22,13 @@ That phrase matters. It is not merely “answering planning questions”. It is 
 
 The first expression of this philosophy is focused and practical:
 
-1. **Quick Site Check** gives the user immediate clarity.
-2. **SEE Builder** turns that clarity into a professional planning document.
-3. **Basic Feasibility** connects planning reality to development viability.
-4. **Project Workspace** keeps the intelligence, documents, assumptions, sources, and outputs together.
+1. **Quick Site Check** gives the user immediate property clarity and captures proposal intent without changing the property evidence.
+2. **Detailed Planning Pack** turns that site-and-proposal context into cited DCP requirements and honest unresolved topics.
+3. **Planning Feasibility Summary** synthesises that exact evidence chain into a conservative proceed-with-caution, review-needed, or blocked hold point.
+4. **SEE Builder and consultant referral** turn the same evidence into a professional output or a targeted expert handoff.
+5. **Project Workspace** keeps the intelligence, documents, assumptions, sources, and outputs together.
 
-That sequence is the right wedge. It begins with the user’s first question: “What can I do here?” It then moves to the thing they are willing to pay for: “Help me prepare the document.” Then it moves into the more valuable strategic layer: “Should I proceed, redesign, delay, or walk away?”
+That sequence is the right wedge. It begins with the user’s first question: “What applies to this property?” It then asks what they are considering, sells proposal-specific DCP clarity, and only then summarises the evidence into the strategic question: “Should I proceed with caution, seek targeted review, change the proposal, or stop?” Document preparation and consultant referral reuse that same chain rather than starting another planning answer.
 
 The deeper product belief is this: property development should not begin with confusion. It should begin with orientation.
 

@@ -1,4 +1,4 @@
-import type { ReviewRequestContent, WorkspaceArtefact, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
+import type { FeasibilityContent, ReviewRequestContent, WorkspaceArtefact, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
 
 const timestampMs = (value?: string | null) => {
   if (!value) return Number.NEGATIVE_INFINITY;
@@ -8,6 +8,7 @@ const timestampMs = (value?: string | null) => {
 
 const packTimestampMs = (artefact: WorkspaceArtefact) => timestampMs(artefact.detailedPlanningPack?.generatedAt);
 const seeTimestampMs = (artefact: WorkspaceArtefact) => timestampMs(artefact.preSeeMemo?.generatedAt ?? artefact.createdAt);
+const feasibilityTimestampMs = (artefact: WorkspaceArtefact) => timestampMs(artefact.content?.generatedAt ?? artefact.createdAt);
 const reviewRequestTimestampMs = (artefact: WorkspaceArtefact) => timestampMs(artefact.reviewRequest?.generatedAt ?? artefact.createdAt);
 
 export const normalizeProposalBriefForComparison = (brief?: string | null) =>
@@ -128,6 +129,29 @@ export const selectExactSeeArtefactForDetailedPlanningPack = (
 ) => artefacts.reduce<WorkspaceArtefact | undefined>((latest, artefact) => {
   if (artefact.isCurrentSite === false || artefact.type !== "report" || !isSeeExactForDetailedPlanningPack(artefact.preSeeMemo, packArtefact)) return latest;
   if (!latest || compareOutputRecency(artefact, latest, seeTimestampMs) > 0) return artefact;
+  return latest;
+}, undefined);
+
+export const isPlanningFeasibilityExactForDetailedPlanningPack = (
+  content: FeasibilityContent | null | undefined,
+  packArtefact: WorkspaceArtefact | null | undefined,
+) => {
+  const pack = packArtefact?.detailedPlanningPack;
+  const sourcePack = content?.sourceDetailedPlanningPack;
+  if (content?.summaryType !== "planning_feasibility_summary" || !pack || !packArtefact?.id || !sourcePack) return false;
+  return content.projectId === pack.projectId &&
+    sourcePack.artefactId === packArtefact.id &&
+    sourcePack.sourceQuickSiteCheckArtefactId === pack.sourceQuickSiteCheck.artefactId &&
+    sourcePack.commercialReady === pack.commercialReady &&
+    normalizeProposalBriefForComparison(content.proposalBrief ?? content.developmentType) === normalizeProposalBriefForComparison(pack.proposalBrief);
+};
+
+export const selectExactPlanningFeasibilityArtefactForDetailedPlanningPack = (
+  artefacts: WorkspaceArtefact[],
+  packArtefact: WorkspaceArtefact | null | undefined,
+) => artefacts.reduce<WorkspaceArtefact | undefined>((latest, artefact) => {
+  if (artefact.isCurrentSite === false || artefact.type !== "feasibility" || !isPlanningFeasibilityExactForDetailedPlanningPack(artefact.content, packArtefact)) return latest;
+  if (!latest || compareOutputRecency(artefact, latest, feasibilityTimestampMs) > 0) return artefact;
   return latest;
 }, undefined);
 

@@ -135,6 +135,37 @@ const seeArtefact = (id: string, dppId: string | undefined, proposal: string, qs
   },
 });
 
+const feasibilityArtefact = (
+  id: string,
+  dppId: string,
+  proposal: string,
+  qscId: string,
+  generatedAt: string,
+  options: { summaryType?: "planning_feasibility_summary"; projectId?: string; commercialReady?: boolean } = {},
+): WorkspaceArtefact => ({
+  id,
+  title: id,
+  owner: "You",
+  updatedAt: "Just now",
+  type: "feasibility",
+  content: {
+    summaryType: options.summaryType,
+    projectId: options.projectId,
+    developmentType: proposal,
+    proposalBrief: proposal,
+    overallVerdict: "caution",
+    summary: "Evidence summary",
+    items: [{ label: "LEP", verdict: "caution", detail: "Cited", confidence: "cited" }],
+    generatedAt,
+    sourceDetailedPlanningPack: {
+      artefactId: dppId,
+      generatedAt,
+      commercialReady: options.commercialReady ?? true,
+      sourceQuickSiteCheckArtefactId: qscId,
+    },
+  },
+});
+
 const reviewArtefact = (id: string, dppId: string, proposal: string, qscId: string, commercialReady: boolean, generatedAt: string, seeDppId?: string | null): WorkspaceArtefact => ({
   id,
   title: id,
@@ -180,6 +211,19 @@ test("exact SEE selection ignores older proposal outputs on the same site and QS
 
   assert.equal(selectedForB?.id, "exact-b-see");
   assert.equal(selectedForA?.id, "newer-a-see");
+});
+
+test("exact feasibility selection hides legacy and different-proposal summaries", async () => {
+  const { selectExactPlanningFeasibilityArtefactForDetailedPlanningPack } = await import("../src/lib/detailed-planning-pack-selector");
+  const dppB = withProposal("dpp-b", "Proposal B", "2026-07-15T00:05:00Z");
+  const selected = selectExactPlanningFeasibilityArtefactForDetailedPlanningPack([
+    feasibilityArtefact("legacy-newer", "dpp-b", "Proposal B", "qsc-1", "2026-07-15T00:50:00Z"),
+    feasibilityArtefact("different-proposal", "dpp-a", "Proposal A", "qsc-1", "2026-07-15T00:40:00Z", { summaryType: "planning_feasibility_summary", projectId: "project-1" }),
+    feasibilityArtefact("wrong-qsc", "dpp-b", "Proposal B", "qsc-x", "2026-07-15T00:30:00Z", { summaryType: "planning_feasibility_summary", projectId: "project-1" }),
+    feasibilityArtefact("exact-summary", "dpp-b", " Proposal   B ", "qsc-1", "2026-07-15T00:20:00Z", { summaryType: "planning_feasibility_summary", projectId: "project-1" }),
+  ], dppB);
+
+  assert.equal(selected?.id, "exact-summary");
 });
 
 test("exact review selection accepts unresolved exact referrals and rejects stale SEE provenance", async () => {

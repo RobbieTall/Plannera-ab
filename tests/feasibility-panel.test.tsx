@@ -1,66 +1,77 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
 
+const props = {
+  projectId: "p1",
+  sourceDetailedPlanningPackArtefactId: "dpp-1",
+  proposalBrief: "Dwelling houses",
+};
+
+afterEach(() => vi.unstubAllGlobals());
+
 describe("FeasibilityPanel", () => {
-  it("renders development type selector and assess button", () => {
-    render(<FeasibilityPanel projectId="p1" address="41 Julian Rocks Dr, Byron Bay" />);
-    expect(screen.getByRole("combobox")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /assess/i })).toBeTruthy();
+  it("uses the active DCP proposal instead of offering a second development-type selector", () => {
+    render(<FeasibilityPanel {...props} />);
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.getByText("Dwelling houses")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /build summary/i })).toBeTruthy();
   });
 
-  it("shows overall verdict and items when content provided", () => {
+  it("shows the evidence-derived planning status and cited items", () => {
     const content = {
-      developmentType: "Secondary dwelling",
-      overallVerdict: "proceed" as const,
-      summary: "This site appears suitable.",
-      items: [
-        {
-          label: "Permissibility",
-          verdict: "proceed" as const,
-          detail: "Permitted with consent.",
-          confidence: "cited" as const,
-          source: "Byron LEP 2014 cl. 2.3",
-        },
-      ],
-      generatedAt: new Date().toISOString(),
+      summaryType: "planning_feasibility_summary" as const,
+      projectId: "p1",
+      developmentType: "Dwelling houses",
+      proposalBrief: "Dwelling houses",
+      overallVerdict: "caution" as const,
+      summary: "Cited controls found; professional verification remains required.",
+      items: [{ label: "LEP development standards", verdict: "caution" as const, detail: "Height: 9m", confidence: "cited" as const, source: "Byron LEP 2014 clause 4.3" }],
+      generatedAt: "2026-07-19T00:00:00.000Z",
+      sourceDetailedPlanningPack: { artefactId: "dpp-1", generatedAt: "2026-07-19T00:00:00.000Z", commercialReady: true, sourceQuickSiteCheckArtefactId: "qsc-1" },
     };
-    render(<FeasibilityPanel projectId="p1" address="41 Julian Rocks Dr" existingContent={content} />);
-    expect(screen.getByText(/overall verdict/i)).toBeTruthy();
-    expect(screen.getByText(/Permissibility/)).toBeTruthy();
+    render(<FeasibilityPanel {...props} existingContent={content} />);
+    expect(screen.getByText(/planning status/i)).toBeTruthy();
+    expect(screen.getByText(/Proceed with caution/)).toBeTruthy();
+    expect(screen.getByText(/LEP development standards/)).toBeTruthy();
     expect(screen.getByText(/Cited/)).toBeTruthy();
   });
 
-  it("posts selected development type when assessing", async () => {
+  it("posts only the exact server binding for the active DCP pack", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         content: {
-          developmentType: "Dual occupancy",
-          overallVerdict: "caution",
-          summary: "Needs review.",
-          items: [{ label: "Permissibility", verdict: "caution", detail: "Check consent pathway.", confidence: "inferred" }],
-          generatedAt: new Date().toISOString(),
+          summaryType: "planning_feasibility_summary",
+          projectId: "p1",
+          developmentType: "Dwelling houses",
+          proposalBrief: "Dwelling houses",
+          overallVerdict: "unresolved",
+          summary: "Review needed.",
+          items: [{ label: "DCP: Setbacks", verdict: "unresolved", detail: "No cited value.", confidence: "unavailable" }],
+          generatedAt: "2026-07-19T00:00:00.000Z",
         },
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<FeasibilityPanel projectId="p1" address="41 Julian Rocks Dr" />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Dual occupancy" } });
-    fireEvent.click(screen.getByRole("button", { name: /assess/i }));
+    render(<FeasibilityPanel {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: /build summary/i }));
 
-    expect(await screen.findByText(/Needs review/i)).toBeTruthy();
+    expect(await screen.findByText(/Review needed/)).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/artefacts/generate-feasibility",
       expect.objectContaining({
         method: "POST",
-        body: expect.stringContaining("Dual occupancy"),
+        credentials: "include",
+        body: JSON.stringify({
+          projectId: "p1",
+          sourceDetailedPlanningPackArtefactId: "dpp-1",
+          expectedProposalBrief: "Dwelling houses",
+        }),
       }),
     );
-
-    vi.unstubAllGlobals();
   });
 });
