@@ -108,7 +108,7 @@ export const getProjectForRequester = async (
   }
 
   if (sessionId) {
-    ownershipConditions.push({ sessionId });
+    ownershipConditions.push({ sessionId, userId: null });
   }
 
   if (ownershipConditions.length === 0) {
@@ -117,8 +117,10 @@ export const getProjectForRequester = async (
 
   return prisma.project.findFirst({
     where: {
-      id,
-      OR: ownershipConditions.length > 0 ? ownershipConditions : undefined,
+      AND: [
+        { OR: [{ id }, { publicId: id }] },
+        { OR: ownershipConditions },
+      ],
     },
   });
 };
