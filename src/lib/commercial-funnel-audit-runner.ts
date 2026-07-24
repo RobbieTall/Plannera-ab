@@ -3,10 +3,12 @@ export type AuditRunnerFetch = (url: string, init: { method: "GET"; headers: Rec
 
 export type AuditRunnerResult = { exitCode: 0 | 1 | 2; summary: AuditRunSummary };
 export type AuditRunSummary = {
-  runnerVersion: "commercial_funnel_live_audit_runner.v1";
+  runnerVersion: "commercial_funnel_live_audit_runner.v2";
   schemaVersion: "commercial_funnel_audit.v1";
   expectedCommit: string;
   baseOrigin: string;
+  acceptedJourney: boolean;
+  commercialReady: boolean;
   ready: boolean;
   projects: { byron: ProjectSummary; kempsey: ProjectSummary };
 };
@@ -44,11 +46,14 @@ export type ProjectSummary = {
   see: { state: string | null; artefactId: string | null; sourceDetailedPlanningPackArtefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; applicableCitedEvidenceCount: number | null };
   referralEligibility: string | null;
   nextAction: { code: string | null; reasonCodes: string[] };
+  acceptedJourney: boolean;
+  terminalPath: "quality_chain_referral" | "unresolved_pack_referral" | "invalid";
+  commercialReady: boolean;
   ready: boolean;
   runnerValidationReasons: string[];
 };
 
-const blankSummary = (reasons: string[]): ProjectSummary => ({ checkedAt: null, project: { id: null, publicId: null }, site: { address: null, lgaCode: null, zoneCode: null }, quickSiteCheck: { state: null, artefactId: null, sourceRef: null, citedControlCount: null }, detailedPlanningPack: { state: null, artefactId: null, sourceQuickSiteCheckArtefactId: null, citedTopicCount: null, unresolvedTopicCount: null }, see: { state: null, artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: null }, referralEligibility: null, nextAction: { code: null, reasonCodes: [] }, ready: false, runnerValidationReasons: [...reasons].sort() });
+const blankSummary = (reasons: string[]): ProjectSummary => ({ checkedAt: null, project: { id: null, publicId: null }, site: { address: null, lgaCode: null, zoneCode: null }, quickSiteCheck: { state: null, artefactId: null, sourceRef: null, citedControlCount: null }, detailedPlanningPack: { state: null, artefactId: null, sourceQuickSiteCheckArtefactId: null, citedTopicCount: null, unresolvedTopicCount: null }, see: { state: null, artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: null }, referralEligibility: null, nextAction: { code: null, reasonCodes: [] }, acceptedJourney: false, terminalPath: "invalid", commercialReady: false, ready: false, runnerValidationReasons: [...reasons].sort() });
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStringOrNull = (v: unknown): v is string | null => typeof v === "string" || v === null;
 const nonEmpty = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -70,6 +75,7 @@ const canonicalLga = (value: string | null) => value
   .replace(/[^A-Z0-9]+/g, " ")
   .trim() ?? "";
 const contractFailure = (reasons: string[]) => reasons.map((reason) => `contract_${reason}`).sort();
+const hasReason = (reasons: readonly string[], required: string) => reasons.includes(required);
 
 export function parseAuditEnv(env: AuditRunnerEnv) {
   const missing = ENV_KEYS.filter((k) => !env[k]?.trim());
@@ -161,27 +167,57 @@ function evaluateGolden(audit: AuditContract, requestedId: string, golden: Golde
   const lgaCandidates = [audit.site.lgaCode, audit.site.lgaName].map(canonicalLga).filter(Boolean);
   if (!lgaCandidates.includes(canonicalLga(golden.lgaCode))) reasons.push("site_lga_mismatch");
   if (audit.site.zoneCode !== golden.zoneCode) reasons.push("site_zone_mismatch");
-  if (audit.quickSiteCheck.state !== "ready") reasons.push("qsc_not_ready");
-  if (!nonEmpty(audit.quickSiteCheck.artefactId)) reasons.push("qsc_artefact_missing");
-  if (audit.quickSiteCheck.evidence.label !== "Cited" || !nonEmpty(audit.quickSiteCheck.evidence.sourceRef)) reasons.push("qsc_uncited_evidence");
-  if (audit.detailedPlanningPack.state !== "ready") reasons.push("dpp_not_ready");
-  if (!nonEmpty(audit.detailedPlanningPack.artefactId)) reasons.push("dpp_artefact_missing");
-  if (audit.detailedPlanningPack.citedTopicCount <= 0) reasons.push("dpp_no_cited_topics");
-  if (audit.detailedPlanningPack.unresolvedTopics.length) reasons.push("dpp_unresolved_topics");
-  if (audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) reasons.push("dpp_qsc_provenance_mismatch");
-  if (audit.see.state !== "ready") reasons.push("see_not_ready");
-  if (!nonEmpty(audit.see.artefactId)) reasons.push("see_artefact_missing");
-  if (audit.see.applicableCitedEvidenceCount <= 0) reasons.push("see_no_applicable_cited_evidence");
-  if (audit.see.sourceDetailedPlanningPackArtefactId !== audit.detailedPlanningPack.artefactId) reasons.push("see_dpp_provenance_mismatch");
-  if (audit.see.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) reasons.push("see_qsc_provenance_mismatch");
-  if (audit.referralEligibility !== "quality_chain_referral") reasons.push("referral_not_quality_chain");
-  if (audit.nextAction.code !== "ready_for_quality_chain_referral") reasons.push("next_action_not_ready");
-  return { checkedAt: audit.checkedAt, project: { id: audit.project.id, publicId: audit.project.publicId }, site: { address: audit.site.address, lgaCode: audit.site.lgaCode, zoneCode: audit.site.zoneCode }, quickSiteCheck: { state: audit.quickSiteCheck.state, artefactId: audit.quickSiteCheck.artefactId, sourceRef: audit.quickSiteCheck.evidence.sourceRef, citedControlCount: audit.quickSiteCheck.evidence.citedControlCount }, detailedPlanningPack: { state: audit.detailedPlanningPack.state, artefactId: audit.detailedPlanningPack.artefactId, sourceQuickSiteCheckArtefactId: audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId, citedTopicCount: audit.detailedPlanningPack.citedTopicCount, unresolvedTopicCount: audit.detailedPlanningPack.unresolvedTopics.length }, see: { state: audit.see.state, artefactId: audit.see.artefactId, sourceDetailedPlanningPackArtefactId: audit.see.sourceDetailedPlanningPackArtefactId, sourceQuickSiteCheckArtefactId: audit.see.sourceQuickSiteCheckArtefactId, applicableCitedEvidenceCount: audit.see.applicableCitedEvidenceCount }, referralEligibility: audit.referralEligibility, nextAction: { code: audit.nextAction.code, reasonCodes: [...audit.nextAction.reasonCodes].sort() }, ready: reasons.length === 0, runnerValidationReasons: reasons.sort() };
+
+  const qualityReasons: string[] = [];
+  if (audit.quickSiteCheck.state !== "ready") qualityReasons.push("qsc_not_ready");
+  if (!nonEmpty(audit.quickSiteCheck.artefactId)) qualityReasons.push("qsc_artefact_missing");
+  if (audit.quickSiteCheck.evidence.label !== "Cited" || !nonEmpty(audit.quickSiteCheck.evidence.sourceRef) || (audit.quickSiteCheck.evidence.citedControlCount ?? 0) <= 0) qualityReasons.push("qsc_uncited_evidence");
+  if (audit.detailedPlanningPack.state !== "ready") qualityReasons.push("dpp_not_ready");
+  if (!nonEmpty(audit.detailedPlanningPack.artefactId)) qualityReasons.push("dpp_artefact_missing");
+  if (audit.detailedPlanningPack.citedTopicCount <= 0) qualityReasons.push("dpp_no_cited_topics");
+  if (audit.detailedPlanningPack.unresolvedTopics.length) qualityReasons.push("dpp_unresolved_topics");
+  if (audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) qualityReasons.push("dpp_qsc_provenance_mismatch");
+  if (audit.see.state !== "ready") qualityReasons.push("see_not_ready");
+  if (!nonEmpty(audit.see.artefactId)) qualityReasons.push("see_artefact_missing");
+  if (audit.see.applicableCitedEvidenceCount <= 0) qualityReasons.push("see_no_applicable_cited_evidence");
+  if (audit.see.sourceDetailedPlanningPackArtefactId !== audit.detailedPlanningPack.artefactId) qualityReasons.push("see_dpp_provenance_mismatch");
+  if (audit.see.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) qualityReasons.push("see_qsc_provenance_mismatch");
+  if (audit.referralEligibility !== "quality_chain_referral") qualityReasons.push("referral_not_quality_chain");
+  if (audit.nextAction.code !== "ready_for_quality_chain_referral") qualityReasons.push("next_action_not_ready");
+
+  const unresolvedReasons: string[] = [];
+  if (audit.quickSiteCheck.state !== "ready") unresolvedReasons.push("qsc_not_ready");
+  if (!nonEmpty(audit.quickSiteCheck.artefactId)) unresolvedReasons.push("qsc_artefact_missing");
+  if (audit.quickSiteCheck.evidence.label !== "Cited" || !nonEmpty(audit.quickSiteCheck.evidence.sourceRef) || (audit.quickSiteCheck.evidence.citedControlCount ?? 0) <= 0) unresolvedReasons.push("qsc_uncited_evidence");
+  if (audit.detailedPlanningPack.state !== "needs_expert_review") unresolvedReasons.push("dpp_not_needs_expert_review");
+  if (!nonEmpty(audit.detailedPlanningPack.artefactId)) unresolvedReasons.push("dpp_artefact_missing");
+  if (audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId !== audit.quickSiteCheck.artefactId) unresolvedReasons.push("dpp_qsc_provenance_mismatch");
+  if (audit.detailedPlanningPack.citedTopicCount <= 0) unresolvedReasons.push("dpp_no_cited_topics");
+  if (audit.detailedPlanningPack.unresolvedTopics.length <= 0) unresolvedReasons.push("dpp_no_unresolved_topics");
+  if (!hasReason(audit.detailedPlanningPack.reasons, "active_dpp_unresolved_topics")) unresolvedReasons.push("dpp_missing_unresolved_reason");
+  if (audit.see.state !== "missing") unresolvedReasons.push("see_not_missing");
+  if (audit.see.artefactId !== null || audit.see.sourceDetailedPlanningPackArtefactId !== null || audit.see.sourceQuickSiteCheckArtefactId !== null) unresolvedReasons.push("see_unresolved_provenance_present");
+  if (audit.see.applicableCitedEvidenceCount !== 0) unresolvedReasons.push("see_unresolved_applicable_evidence_present");
+  if (!hasReason(audit.see.reasons, "see_not_applicable_for_unresolved_active_pack")) unresolvedReasons.push("see_missing_unresolved_not_applicable_reason");
+  if (!hasReason(audit.quickSiteCheck.reasons, "selected_dpp_source_qsc_current_cited") && !hasReason(audit.nextAction.reasonCodes, "selected_dpp_source_qsc_current_cited")) unresolvedReasons.push("qsc_missing_selected_current_cited_reason");
+  if (audit.referralEligibility !== "unresolved_pack_referral") unresolvedReasons.push("referral_not_unresolved_pack");
+  if (audit.nextAction.code !== "refer_unresolved_pack_for_expert_review") unresolvedReasons.push("next_action_not_expert_review");
+  for (const reason of ["active_dpp_unresolved_topics", "see_not_applicable_for_unresolved_active_pack", "selected_dpp_source_qsc_current_cited"]) {
+    if (!hasReason(audit.nextAction.reasonCodes, reason)) unresolvedReasons.push(`next_action_missing_reason:${reason}`);
+  }
+
+  const identityValid = reasons.length === 0;
+  const commercialReady = identityValid && qualityReasons.length === 0;
+  const unresolvedAccepted = identityValid && unresolvedReasons.length === 0;
+  const terminalPath = commercialReady ? "quality_chain_referral" : unresolvedAccepted ? "unresolved_pack_referral" : "invalid";
+  const acceptedJourney = commercialReady || unresolvedAccepted;
+  const validationReasons = [...reasons, ...(acceptedJourney ? [] : (audit.detailedPlanningPack.state === "needs_expert_review" || audit.nextAction.code === "refer_unresolved_pack_for_expert_review" || audit.see.reasons.includes("see_not_applicable_for_unresolved_active_pack")) ? unresolvedReasons : qualityReasons)].sort();
+  return { checkedAt: audit.checkedAt, project: { id: audit.project.id, publicId: audit.project.publicId }, site: { address: audit.site.address, lgaCode: audit.site.lgaCode, zoneCode: audit.site.zoneCode }, quickSiteCheck: { state: audit.quickSiteCheck.state, artefactId: audit.quickSiteCheck.artefactId, sourceRef: audit.quickSiteCheck.evidence.sourceRef, citedControlCount: audit.quickSiteCheck.evidence.citedControlCount }, detailedPlanningPack: { state: audit.detailedPlanningPack.state, artefactId: audit.detailedPlanningPack.artefactId, sourceQuickSiteCheckArtefactId: audit.detailedPlanningPack.sourceQuickSiteCheckArtefactId, citedTopicCount: audit.detailedPlanningPack.citedTopicCount, unresolvedTopicCount: audit.detailedPlanningPack.unresolvedTopics.length }, see: { state: audit.see.state, artefactId: audit.see.artefactId, sourceDetailedPlanningPackArtefactId: audit.see.sourceDetailedPlanningPackArtefactId, sourceQuickSiteCheckArtefactId: audit.see.sourceQuickSiteCheckArtefactId, applicableCitedEvidenceCount: audit.see.applicableCitedEvidenceCount }, referralEligibility: audit.referralEligibility, nextAction: { code: audit.nextAction.code, reasonCodes: [...audit.nextAction.reasonCodes].sort() }, acceptedJourney, terminalPath, commercialReady, ready: commercialReady, runnerValidationReasons: validationReasons };
 }
 
 export async function runCommercialFunnelAudit(env: AuditRunnerEnv, fetchImpl: AuditRunnerFetch): Promise<AuditRunnerResult> {
   const parsed = parseAuditEnv(env);
-  if (!parsed.ok) return { exitCode: 1, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v1", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: env.PLANNERA_AUDIT_EXPECTED_COMMIT?.trim() ?? "", baseOrigin: "", ready: false, projects: { byron: blankSummary(parsed.reasons), kempsey: blankSummary(parsed.reasons) } } };
+  if (!parsed.ok) return { exitCode: 1, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v2", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: env.PLANNERA_AUDIT_EXPECTED_COMMIT?.trim() ?? "", baseOrigin: "", acceptedJourney: false, commercialReady: false, ready: false, projects: { byron: blankSummary(parsed.reasons), kempsey: blankSummary(parsed.reasons) } } };
   const projects = {} as Record<GoldenKey, ProjectSummary>;
   let hardFailure = false;
   for (const golden of GOLDENS) {
@@ -194,6 +230,8 @@ export async function runCommercialFunnelAudit(env: AuditRunnerEnv, fetchImpl: A
       projects[golden.key] = evaluateGolden(contract.value, requested, golden);
     } catch { hardFailure = true; projects[golden.key] = blankSummary(["fetch_or_json_failure"]); }
   }
-  const ready = projects.byron.ready && projects.kempsey.ready;
-  return { exitCode: hardFailure ? 1 : ready ? 0 : 2, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v1", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: parsed.expectedCommit, baseOrigin: parsed.baseUrl.origin, ready, projects: { byron: projects.byron, kempsey: projects.kempsey } } };
+  const acceptedJourney = projects.byron.acceptedJourney && projects.kempsey.acceptedJourney;
+  const commercialReady = projects.byron.commercialReady && projects.kempsey.commercialReady;
+  const ready = commercialReady;
+  return { exitCode: hardFailure ? 1 : acceptedJourney ? 0 : 2, summary: { runnerVersion: "commercial_funnel_live_audit_runner.v2", schemaVersion: "commercial_funnel_audit.v1", expectedCommit: parsed.expectedCommit, baseOrigin: parsed.baseUrl.origin, acceptedJourney, commercialReady, ready, projects: { byron: projects.byron, kempsey: projects.kempsey } } };
 }
