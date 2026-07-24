@@ -408,3 +408,16 @@ Decision: The protected Commercial Funnel Live Audit has two honest terminal jou
 Audit summaries therefore expose `acceptedJourney` and `terminalPath` independently from `commercialReady`. Aggregate audit exit success means both approved projects reached an accepted terminal journey; aggregate commercial readiness remains true only when both projects are strict quality chains. Existing `ready` semantics remain aligned to commercial readiness rather than being silently redefined. Invalid identity, site, proposal, citation, provenance, state, eligibility, or next-action mismatches still fail closed with deterministic runner reasons.
 
 Reference: Commercial Funnel Live Audit run 30066635612 / Item 71
+
+
+## DR-044 — Purchase Entitlements Are Provider-Neutral Exact-Scope Records
+
+Status: Active
+
+Decision: The Item 72A foundation records purchases and entitlements as provider-neutral lifecycle state only. A purchase snapshots server-owned product code/version, amount in minor units, ISO currency, opaque provider reference fields, idempotency key, exact current Quick Site Check artefact and normalized proposal SHA-256 fingerprint. An entitlement is a separate exact-scope record for the purchaser, owned project, saved QSC artefact, proposal fingerprint and product/version, sourced from a paid purchase.
+
+Active entitlement lookup must fail closed for any cross-user, cross-project, changed QSC/site, changed proposal, product or version mismatch. Refund and revoke remove active entitlement scope so a legitimate later repurchase can be recorded without weakening duplicate-active protection. These records must never persist raw proposal text, address, zoning detail, clauses, contact data, provider payloads/secrets or arbitrary JSON metadata.
+
+This foundation does not select a provider, create checkout/webhook/API/UI paths, launch payment, gate DPP generation, mutate evidence quality, change `acceptedJourney`/`commercialReady`, emit analytics or send consultant referrals. Production checkout still requires operator approval of provider, final product/name/price, GST/tax treatment, refund/credit/regeneration policy and launch timing.
+
+Reference: docs/project-memory/build-next.md Item 72 / Item 72A
