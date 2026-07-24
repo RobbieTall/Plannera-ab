@@ -6,6 +6,7 @@ import {
   createDetailedPlanningPackArtefact,
   requireSessionUser,
 } from "@/lib/artefact-service";
+import { recordDetailedPlanningPackMilestones } from "@/lib/commercial-funnel-events";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,12 @@ export async function POST(request: NextRequest) {
     const { artefact, content } = await createDetailedPlanningPackArtefact({
       body: await request.json(),
       userId,
+    });
+    await recordDetailedPlanningPackMilestones({
+      projectId: artefact.projectId,
+      artefactId: artefact.id,
+      commercialReady: content.commercialReady,
+      actorUserId: userId,
     });
 
     return NextResponse.json({ artefactId: artefact.id, content }, { status: 201 });
