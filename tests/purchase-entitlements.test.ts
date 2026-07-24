@@ -106,3 +106,60 @@ test("no raw proposal, private site fields or provider payload metadata are pers
   const persisted = JSON.stringify(state.purchases);
   assert.doesNotMatch(persisted, /Private address clause contact text|providerPayload|metadata|secret/);
 });
+
+
+test("a replayed settlement cannot reactivate a revoked entitlement", async () => {
+  const { db } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const purchase = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Tourist accommodation" });
+  const entitlement = await service.settlePaidPurchase(purchase.id);
+  await service.revokeEntitlement(entitlement.id);
+  await assert.rejects(() => service.settlePaidPurchase(purchase.id), /revoked or refunded/);
+});
+
+test("a replayed settlement on an already-refunded purchase fails closed", async () => {
+  const { db } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const purchase = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Tourist accommodation" });
+  await service.settlePaidPurchase(purchase.id);
+  await service.refundPurchase(purchase.id);
+  await assert.rejects(() => service.settlePaidPurchase(purchase.id), /not payable/);
+});
+
+test("failed, cancelled and refunded transitions are guarded by the purchase's current status", async () => {
+  const { db } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+
+     const pendingForRefund = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Tourist accommodation" });
+  await assert.rejects(() => service.refundPurchase(pendingForRefund.id), /cannot be refunded/);
+
+     const paid = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Second proposal" });
+  await service.settlePaidPurchase(paid.id);
+  await assert.rejects(() => service.markPurchaseFailed(paid.id), /cannot be marked failed/);
+  await assert.rejects(() => service.cancelPurchase(paid.id), /cannot be cancelled/);
+
+     const cancelled = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Third proposal" });
+  await service.cancelPurchase(cancelled.id);
+  await assert.rejects(() => service.cancelPurchase(cancelled.id), /cannot be cancelled/);
+  await assert.rejects(() => service.markPurchaseFailed(cancelled.id), /cannot be marked failed/);
+});
+
+test("concurrent createOrReusePendingIntent calls do not surface a raw unique-constraint error", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const originalCreate = db.purchase.create;
+  let firstAttempt = true;
+  db.purchase.create = async (args: any) => {
+    if (firstAttempt) {
+      firstAttempt = false;
+      await originalCreate({ data: { ...args.data, id: "purchase-winner" } });
+      const conflict: any = new Error("Unique constraint failed on the fields: (`idempotencyKey`)");
+      conflict.code = "P2002";
+      throw conflict;
+    }
+    return originalCreate(args);
+  };
+  const purchase = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Tourist accommodation" });
+  assert.equal(purchase.id, "purchase-winner");
+  assert.equal(state.purchases.length, 1);
+});
