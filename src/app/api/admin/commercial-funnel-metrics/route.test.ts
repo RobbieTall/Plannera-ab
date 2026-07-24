@@ -11,10 +11,8 @@ vi.mock("@/lib/commercial-funnel-events", () => ({
   buildCommercialFunnelReport: buildReportMock,
 }));
 
-import {
-  GET,
-  resolveCommercialFunnelMetricsWindow,
-} from "@/app/api/admin/commercial-funnel-metrics/route";
+import { GET } from "@/app/api/admin/commercial-funnel-metrics/route";
+import { resolveCommercialFunnelMetricsWindow } from "@/lib/commercial-funnel-metrics";
 
 describe("commercial funnel aggregate metrics route", () => {
   beforeEach(() => {
