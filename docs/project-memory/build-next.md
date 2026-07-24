@@ -1215,23 +1215,28 @@ Activation boundary: merge and deploy the reviewed migration first, configure a 
 
 Merge evidence: final reviewed head `f4cb9d4915d018f0c0c99b58232b487a90888838` merged to `main` as `509b4e83bf1e2b2cd18d5cb98f5658f75112ef90` on 2026-07-24. Final-head Commercial Funnel Golden Gate run `30063261152` and Vercel preview `5TnLpniK8thzJeNYXrFWgaeu9jKe` passed; merged-main Vercel production deployment `FGzcqhvpqkkKPitQBmmvDywRqcpy` also passed. Production measurement remains fail-closed until the documented operator activation sequence is completed.
 
-## 71) Current-release protected Byron/Kempsey golden acceptance — READY FOR EXPLICIT OPERATOR APPROVAL; REQUIRED BEFORE PAYMENT
+## 71) Current-release protected Byron/Kempsey golden acceptance — PRODUCTION JOURNEYS PROVEN; STRICT GATE VALIDLY NON-READY (2026-07-24)
 
-Current evidence: deterministic CI proves exact Byron SP3 and Kempsey E2 QSC → DPP → SEE/referral behavior, but the latest protected production audit remains exit `2` because the approved historical projects have no saved chains. The later user acceptance at 41 Julian Rocks Dr proves requester project continuity and mapped Byron controls in a deployed environment, but it is not the approved `45 Broken Head Road` SP3 golden chain and does not prove Kempsey E2, exact DPP/SEE/referral provenance, or the current-release two-project gate.
+Production execution under explicit operator approval:
+- Exact deployed `main` was `509b4e83bf1e2b2cd18d5cb98f5658f75112ef90`, the PR #314 merge already proven by the production deployment.
+- Byron used `45 Broken Head Road, Byron Bay NSW 2481`, resolved `SP3`, and persisted the exact approved tourist-accommodation refurbishment proposal through the normal product UI. Its current-site QSC is `ready` with three cited LEP controls. Its exact QSC-bound DPP is `needs_expert_review` with four cited topics and one unresolved built-form/active-frontage topic. SEE is correctly absent, and the saved expert-review package does not claim SEE readiness.
+- Kempsey used `52 Belgrave St, Kempsey NSW 2440`, resolved `E2`, and persisted the exact approved commercial fit-out proposal through the normal product UI. Its current-site QSC is `ready` with one cited LEP control. Its exact QSC-bound DPP is `needs_expert_review` with four cited topics and one unresolved built-form/active-frontage topic. SEE is correctly absent, and the saved expert-review package does not claim SEE readiness.
+- Both promoted projects remained requester-accessible from the Projects menu. No payment or consultant transmission occurred.
 
-Exact production approval scope:
-- Byron site: `45 Broken Head Road, Byron Bay NSW 2481`; expected zone `SP3`; proposal brief: `Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.`
-- Kempsey site: `52 Belgrave St, Kempsey NSW 2440`; expected zone `E2`; proposal brief: `Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.`
-- Normal product workflow only: create requester-accessible projects, confirm the exact site/zone, save cited current-site Quick Site Checks, generate exact-bound Detailed Planning Packs, generate SEE only when commercial-ready, and otherwise preserve the unresolved-pack referral path honestly.
-- After both normal-workspace chains are saved and accessible, update only the protected environment's approved project-ID variables and dispatch the read-only `Commercial Funnel Live Audit` from exact deployed `main`. Retain only the allowlisted safe artifact.
+Protected audit evidence:
+- Environment variables were updated only to the two approved public project IDs, then `Commercial Funnel Live Audit #3` was manually dispatched and reviewer-approved from exact `main`.
+- Workflow run `30066635612`, job `89398790547`, checked out exact SHA `509b4e83bf1e2b2cd18d5cb98f5658f75112ef90`.
+- Dependency install, controlled audit execution, JSON validation, safe-summary printing and artifact upload all passed. The sole failing step was `Enforce audit gate`, which intentionally converted audit exit `2` into a failed workflow.
+- Safe artifact `8586495714`, `commercial-funnel-audit-summary`, has digest `sha256:f953280765a60cdf0d2241c662799920cb7ee7d1bb365f40653c691237b7a0a4` and expires 2026-08-07. It records both QSCs as ready/cited, both DPPs as `needs_expert_review` with four cited and one unresolved topic, both SEEs as missing, and both terminal handoffs as `unresolved_pack_referral` / `refer_unresolved_pack_for_expert_review`.
+- Exit `2` is a valid product-state result, not an infrastructure, secret, identity, site, citation or provenance failure. The current runner's only passing contract requires DPP `ready`, SEE `ready`, `quality_chain_referral`, and `ready_for_quality_chain_referral`; it therefore cannot accept the honest unresolved terminal branch that this item already requires.
 
-Required completion evidence:
-- Item 68 and Item 69 are merged, reachable from `main`, and green on the secret-free Commercial Funnel Golden Gate and Vercel.
-- Under explicit operator approval, two requester-accessible projects are exercised through the normal product UI using the fixed Item 55 Byron/Kempsey sites and approved proposal briefs. This is the only step that intentionally creates production outputs; the audit itself remains read-only.
-- The protected `commercial-funnel-audit` workflow runs from the exact deployed `main` SHA using approved environment variables and returns exit `0` for both independent chains, with only the allowlisted safe artifact retained.
-- Byron and Kempsey each prove current-site cited QSC, exact proposal/QSC-bound DPP, and either exact commercial-ready SEE plus referral or an honest unresolved-pack referral. Identity, citation quality and provenance failures remain fail-closed.
+Item 71 remains open. The next narrow engineering slice is contract reconciliation, not evidence weakening:
+- Preserve a strict `commercialReady`/quality-chain result that requires ready DPP, exact-provenance SEE and quality-chain referral.
+- Add a separate accepted-journey result for an exact-provenance `unresolved_pack_referral` only when QSC is ready/cited, DPP is the active exact-bound pack with cited topics and explicit unresolved topics, SEE is absent by design, and the next action is expert review.
+- Keep identity, stale-site, proposal, citation and provenance failures non-accepted. Never relabel unresolved evidence or the absence of SEE as commercial-ready.
+- Update deterministic runner coverage and the protected safe summary so the two terminal classes are observable independently. Then, after merge/deploy and explicit operator approval for the read-only rerun, audit these same immutable projects again. Item 71 completes only when both approved journeys are accepted by the reconciled contract with exit `0`; their commercial-ready state may honestly remain false.
 
-Boundary: Codex must not create, regenerate, claim, backfill or alter the production golden projects under the standing goal instruction. Item 71 needs explicit operator execution/approval for those normal-product mutations; no code change may weaken that boundary merely to close the gate.
+Boundary: the approved production mutations are complete. Do not create, regenerate, backfill or alter either golden project without fresh explicit operator approval. A code change may reconcile journey acceptance with the already documented honest unresolved branch, but it must not weaken evidence quality, provenance, payment entitlement, or consultant-delivery boundaries.
 
 ## 72) Exact project-bound one-time DCP pack purchase — QUEUED AFTER ITEM 71
 
