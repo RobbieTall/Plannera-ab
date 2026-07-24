@@ -1185,7 +1185,7 @@ Verification: local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` p
 
 Merge evidence: final reviewed head `25ed7cc4abd75867bc11dbea2968f1f6cb14e4f9` merged to `main` as `b0c80a947be10338561ffb8424b1eda92ed0572d` on 2026-07-19. Final-head Commercial Funnel Golden Gate run `29677315305` and Vercel deployment `A1usKTcWpQzSdZrs4pbjs8FurZnK` both passed.
 
-## 70) Privacy-minimal commercial funnel measurement — IN REVIEW VIA PR #314 (2026-07-24)
+## 70) Privacy-minimal commercial funnel measurement — DONE/MERGED/DEPLOYED VIA PR #314 (2026-07-24)
 
 Trigger: the commercial-launch goal requires conversion analytics, but the repository currently has no analytics SDK, event service/model, canonical event taxonomy, deduplication contract, or privacy/telemetry disclosure. Do not choose a vendor or scatter browser click tracking through the workspace before the measurement contract exists.
 
@@ -1213,9 +1213,17 @@ Verification in this clean Item 70 worktree: production Prisma schema formatting
 
 Activation boundary: merge and deploy the reviewed migration first, configure a random Production `CRON_SECRET` of at least 16 characters, place any approved golden/internal projects in server-only `COMMERCIAL_FUNNEL_EXCLUDED_PROJECT_IDS`, then deliberately set Production `COMMERCIAL_FUNNEL_ENABLED=true`. Until the enable flag and retention secret both exist, the application records no funnel rows. Enabling measurement is not permission to enable payment or proceed past Item 71.
 
-## 71) Current-release protected Byron/Kempsey golden acceptance — REQUIRED BEFORE PAYMENT
+Merge evidence: final reviewed head `f4cb9d4915d018f0c0c99b58232b487a90888838` merged to `main` as `509b4e83bf1e2b2cd18d5cb98f5658f75112ef90` on 2026-07-24. Final-head Commercial Funnel Golden Gate run `30063261152` and Vercel preview `5TnLpniK8thzJeNYXrFWgaeu9jKe` passed; merged-main Vercel production deployment `FGzcqhvpqkkKPitQBmmvDywRqcpy` also passed. Production measurement remains fail-closed until the documented operator activation sequence is completed.
+
+## 71) Current-release protected Byron/Kempsey golden acceptance — READY FOR EXPLICIT OPERATOR APPROVAL; REQUIRED BEFORE PAYMENT
 
 Current evidence: deterministic CI proves exact Byron SP3 and Kempsey E2 QSC → DPP → SEE/referral behavior, but the latest protected production audit remains exit `2` because the approved historical projects have no saved chains. The later user acceptance at 41 Julian Rocks Dr proves requester project continuity and mapped Byron controls in a deployed environment, but it is not the approved `45 Broken Head Road` SP3 golden chain and does not prove Kempsey E2, exact DPP/SEE/referral provenance, or the current-release two-project gate.
+
+Exact production approval scope:
+- Byron site: `45 Broken Head Road, Byron Bay NSW 2481`; expected zone `SP3`; proposal brief: `Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.`
+- Kempsey site: `52 Belgrave St, Kempsey NSW 2440`; expected zone `E2`; proposal brief: `Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.`
+- Normal product workflow only: create requester-accessible projects, confirm the exact site/zone, save cited current-site Quick Site Checks, generate exact-bound Detailed Planning Packs, generate SEE only when commercial-ready, and otherwise preserve the unresolved-pack referral path honestly.
+- After both normal-workspace chains are saved and accessible, update only the protected environment's approved project-ID variables and dispatch the read-only `Commercial Funnel Live Audit` from exact deployed `main`. Retain only the allowlisted safe artifact.
 
 Required completion evidence:
 - Item 68 and Item 69 are merged, reachable from `main`, and green on the secret-free Commercial Funnel Golden Gate and Vercel.
