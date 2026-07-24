@@ -116,7 +116,7 @@ test("valid unresolved terminal journey is accepted without commercial readiness
   assertSafeSummaryShape(result.summary);
 });
 
-test("mixed valid unresolved projects exit 0 but aggregate commercial readiness remains false", async () => {
+test("mixed quality-chain and unresolved terminal paths exit 0 without aggregate commercial readiness", async () => {
   const { fn } = fetchFor([unresolvedPayload("byron"), payload("kempsey")]);
   const result = await runCommercialFunnelAudit(env, fn);
   assert.equal(result.exitCode, 0);
@@ -124,6 +124,23 @@ test("mixed valid unresolved projects exit 0 but aggregate commercial readiness 
   assert.equal(result.summary.commercialReady, false);
   assert.equal(result.summary.projects.byron.terminalPath, "unresolved_pack_referral");
   assert.equal(result.summary.projects.kempsey.terminalPath, "quality_chain_referral");
+});
+
+test("both production-shaped unresolved terminal journeys exit 0 without commercial readiness", async () => {
+  const { fn } = fetchFor([unresolvedPayload("byron"), unresolvedPayload("kempsey")]);
+  const result = await runCommercialFunnelAudit(env, fn);
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.summary.acceptedJourney, true);
+  assert.equal(result.summary.commercialReady, false);
+  assert.equal(result.summary.ready, false);
+  for (const key of ["byron", "kempsey"] as const) {
+    const project = result.summary.projects[key];
+    assert.equal(project.acceptedJourney, true);
+    assert.equal(project.terminalPath, "unresolved_pack_referral");
+    assert.equal(project.commercialReady, false);
+    assert.equal(project.ready, false);
+    assert.deepEqual(project.runnerValidationReasons, []);
+  }
 });
 
 test("unresolved terminal invariants fail closed", async () => {
