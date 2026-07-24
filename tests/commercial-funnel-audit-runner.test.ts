@@ -47,10 +47,11 @@ const expectExit1ForByron = async (first: unknown, reasonPart?: string) => {
   assertSafeSummaryShape(result.summary);
 };
 function assertSafeSummaryShape(summary: unknown) {
-  assert.deepEqual(Object.keys(summary as any), ["runnerVersion", "schemaVersion", "expectedCommit", "baseOrigin", "ready", "projects"]);
+  assert.deepEqual(Object.keys(summary as any), ["runnerVersion", "schemaVersion", "expectedCommit", "baseOrigin", "acceptedJourney", "commercialReady", "ready", "projects"]);
+  assert.equal((summary as any).runnerVersion, "commercial_funnel_live_audit_runner.v2");
   for (const key of ["byron", "kempsey"] as const) {
     const project = (summary as any).projects[key];
-    assert.deepEqual(Object.keys(project), ["checkedAt", "project", "site", "quickSiteCheck", "detailedPlanningPack", "see", "referralEligibility", "nextAction", "ready", "runnerValidationReasons"]);
+    assert.deepEqual(Object.keys(project), ["checkedAt", "project", "site", "quickSiteCheck", "detailedPlanningPack", "see", "referralEligibility", "nextAction", "acceptedJourney", "terminalPath", "commercialReady", "ready", "runnerValidationReasons"]);
     assert.deepEqual(Object.keys(project.project), ["id", "publicId"]);
     assert.deepEqual(Object.keys(project.site), ["address", "lgaCode", "zoneCode"]);
     assert.deepEqual(Object.keys(project.quickSiteCheck), ["state", "artefactId", "sourceRef", "citedControlCount"]);
@@ -66,6 +67,8 @@ test("both golden chains ready exits 0 with deterministic safe output and two he
   const { calls, fn } = fetchFor([payload("byron"), payload("kempsey")]);
   const result = await runCommercialFunnelAudit(env, fn);
   assert.equal(result.exitCode, 0);
+  assert.equal(result.summary.acceptedJourney, true);
+  assert.equal(result.summary.commercialReady, true);
   assert.equal(result.summary.ready, true);
   assert.deepEqual(calls.map((c) => new URL(c.url).searchParams.get("projectId")), ["byron-public", "kempsey-public"]);
   assert(calls.every((c) => c.init.method === "GET" && c.init.headers["x-admin-token"] === "secret-token" && c.init.headers.Accept === "application/json" && !("body" in c.init)));
@@ -91,14 +94,66 @@ test("canonical production address variants and LGA names satisfy golden identit
   assert(!result.summary.projects.kempsey.runnerValidationReasons.includes("site_lga_mismatch"));
 });
 
-test("structurally valid non-ready response remains exit 2", async () => {
-  const nonReady = payload("kempsey", { detailedPlanningPack: { state: "needs_expert_review", artefactId: "kempsey-dpp", sourceQuickSiteCheckArtefactId: "kempsey-qsc", citedTopicCount: 1, unresolvedTopics: ["topic"], reasons: ["active_dpp_unresolved_topics"] }, see: { state: "missing", artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: 0, reasons: ["see_not_applicable_for_unresolved_active_pack"] }, referralEligibility: "unresolved_pack_referral", nextAction: { code: "refer_unresolved_pack_for_expert_review", reasonCodes: ["active_dpp_unresolved_topics"] } });
-  const { fn } = fetchFor([payload("byron"), nonReady]);
+const unresolvedPayload = (key: "byron" | "kempsey", patch: Record<string, unknown> = {}) => payload(key, {
+  detailedPlanningPack: { state: "needs_expert_review", artefactId: `${key}-dpp`, sourceQuickSiteCheckArtefactId: `${key}-qsc`, citedTopicCount: 1, unresolvedTopics: ["topic"], reasons: ["active_dpp_unresolved_topics"] },
+  see: { state: "missing", artefactId: null, sourceDetailedPlanningPackArtefactId: null, sourceQuickSiteCheckArtefactId: null, applicableCitedEvidenceCount: 0, reasons: ["see_not_applicable_for_unresolved_active_pack"] },
+  referralEligibility: "unresolved_pack_referral",
+  nextAction: { code: "refer_unresolved_pack_for_expert_review", reasonCodes: ["active_dpp_unresolved_topics", "see_not_applicable_for_unresolved_active_pack", "selected_dpp_source_qsc_current_cited"] },
+  ...patch,
+});
+
+test("valid unresolved terminal journey is accepted without commercial readiness", async () => {
+  const { fn } = fetchFor([payload("byron"), unresolvedPayload("kempsey")]);
   const result = await runCommercialFunnelAudit(env, fn);
-  assert.equal(result.exitCode, 2);
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.summary.acceptedJourney, true);
+  assert.equal(result.summary.commercialReady, false);
   assert.equal(result.summary.ready, false);
-  assert(result.summary.projects.kempsey.runnerValidationReasons.includes("dpp_not_ready"));
-  assert(result.summary.projects.kempsey.runnerValidationReasons.includes("see_not_ready"));
+  assert.equal(result.summary.projects.kempsey.acceptedJourney, true);
+  assert.equal(result.summary.projects.kempsey.terminalPath, "unresolved_pack_referral");
+  assert.equal(result.summary.projects.kempsey.commercialReady, false);
+  assert.deepEqual(result.summary.projects.kempsey.runnerValidationReasons, []);
+  assertSafeSummaryShape(result.summary);
+});
+
+test("mixed valid unresolved projects exit 0 but aggregate commercial readiness remains false", async () => {
+  const { fn } = fetchFor([unresolvedPayload("byron"), payload("kempsey")]);
+  const result = await runCommercialFunnelAudit(env, fn);
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.summary.acceptedJourney, true);
+  assert.equal(result.summary.commercialReady, false);
+  assert.equal(result.summary.projects.byron.terminalPath, "unresolved_pack_referral");
+  assert.equal(result.summary.projects.kempsey.terminalPath, "quality_chain_referral");
+});
+
+test("unresolved terminal invariants fail closed", async () => {
+  const cases: [string, (p: any) => void, string][] = [
+    ["qsc", (p) => { p.quickSiteCheck.state = "missing"; }, "qsc_not_ready"],
+    ["qsc artefact", (p) => { p.quickSiteCheck.artefactId = null; }, "qsc_artefact_missing"],
+    ["qsc citation", (p) => { p.quickSiteCheck.evidence.citedControlCount = 0; }, "qsc_uncited_evidence"],
+    ["qsc label", (p) => { p.quickSiteCheck.evidence.label = "Unavailable"; }, "qsc_uncited_evidence"],
+    ["dpp state", (p) => { p.detailedPlanningPack.state = "ready"; }, "dpp_not_needs_expert_review"],
+    ["dpp qsc", (p) => { p.detailedPlanningPack.sourceQuickSiteCheckArtefactId = "other"; }, "dpp_qsc_provenance_mismatch"],
+    ["dpp citation", (p) => { p.detailedPlanningPack.citedTopicCount = 0; }, "dpp_no_cited_topics"],
+    ["dpp unresolved", (p) => { p.detailedPlanningPack.unresolvedTopics = []; }, "dpp_no_unresolved_topics"],
+    ["dpp reason", (p) => { p.detailedPlanningPack.reasons = []; }, "dpp_missing_unresolved_reason"],
+    ["see state", (p) => { p.see.state = "ready"; }, "see_not_missing"],
+    ["see provenance", (p) => { p.see.artefactId = "see"; }, "see_unresolved_provenance_present"],
+    ["see evidence", (p) => { p.see.applicableCitedEvidenceCount = 1; }, "see_unresolved_applicable_evidence_present"],
+    ["see reason", (p) => { p.see.reasons = []; }, "see_missing_unresolved_not_applicable_reason"],
+    ["eligibility", (p) => { p.referralEligibility = "none"; }, "referral_not_unresolved_pack"],
+    ["next action", (p) => { p.nextAction.code = "generate_or_refresh_required_chain"; }, "next_action_not_expert_review"],
+    ["reason code", (p) => { p.nextAction.reasonCodes = ["active_dpp_unresolved_topics", "see_not_applicable_for_unresolved_active_pack"]; }, "next_action_missing_reason:selected_dpp_source_qsc_current_cited"],
+  ];
+  for (const [name, mutate, reason] of cases) {
+    const bad = clone(unresolvedPayload("byron"));
+    mutate(bad);
+    const result = await runCommercialFunnelAudit(env, fetchFor([bad, payload("kempsey")]).fn);
+    assert.equal(result.exitCode, 2, name);
+    assert.equal(result.summary.projects.byron.acceptedJourney, false, name);
+    assert.equal(result.summary.projects.byron.terminalPath, "invalid", name);
+    assert(result.summary.projects.byron.runnerValidationReasons.includes(reason), `${name}: ${JSON.stringify(result.summary.projects.byron.runnerValidationReasons)}`);
+  }
 });
 
 test("golden invariant failures with a valid contract exit 2", async () => {

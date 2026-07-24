@@ -397,3 +397,14 @@ The ledger stores only event contract fields plus opaque internal project/output
 Events expire after 90 days, project/artefact deletion cascades, and an authenticated daily retention endpoint performs physical pruning. Production collection is fail-closed until `COMMERCIAL_FUNNEL_ENABLED=true` and `CRON_SECRET` are both configured; no browser field can enable or include traffic. No third-party analytics SDK, marketing pixel, profiling identifier or query-string admin secret is introduced.
 
 Reference: docs/project-memory/build-next.md Item 70
+
+
+## DR-043 — Terminal Audit Acceptance Is Distinct From Commercial Readiness
+
+Status: Active
+
+Decision: The protected Commercial Funnel Live Audit has two honest terminal journeys. A strict quality chain remains the only commercial-ready path: current cited Quick Site Check, exact-source cited Detailed Planning Pack with no unresolved topics, exact-provenance SEE, and `quality_chain_referral`. An unresolved pack may also be an accepted terminal audit journey, but only as expert-review material: the QSC must be ready and cited, the exact active QSC-bound DPP must be `needs_expert_review` with cited and unresolved topics, SEE must be absent by design with zero applicable evidence, referral eligibility must be `unresolved_pack_referral`, and the server-derived expert-review reason codes must prove the unresolved DPP, SEE non-applicability, and selected cited QSC provenance.
+
+Audit summaries therefore expose `acceptedJourney` and `terminalPath` independently from `commercialReady`. Aggregate audit exit success means both approved projects reached an accepted terminal journey; aggregate commercial readiness remains true only when both projects are strict quality chains. Existing `ready` semantics remain aligned to commercial readiness rather than being silently redefined. Invalid identity, site, proposal, citation, provenance, state, eligibility, or next-action mismatches still fail closed with deterministic runner reasons.
+
+Reference: Commercial Funnel Live Audit run 30066635612 / Item 71
