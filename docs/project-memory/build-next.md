@@ -1241,9 +1241,18 @@ Boundary and handoff:
 - The next commercial slice is Item 72: exact project/site/QSC/proposal-bound one-time DCP pack purchase. Payment must purchase the analysis only; it must never upgrade evidence quality or commercial readiness.
 - The live-audit workflow success message is corrected in the closure PR to say both projects reached an accepted terminal journey, rather than incorrectly claiming both chains are ready.
 
-## 72) Exact project-bound one-time DCP pack purchase — QUEUED AFTER ITEM 71
+## 72) Exact project-bound one-time DCP pack purchase — FOUNDATION IN PROGRESS (ITEM 72A)
 
 Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The currently discussed customer offer is an A$29 DCP Deep Dive, but the final product name, tax treatment and price must be operator-confirmed against the commercialisation document before production checkout is enabled.
+
+Item 72A status: this PR adds only the provider-neutral purchase and exact-scope entitlement domain foundation. It is not launched: there is no selected payment provider, checkout, webhook, API route, UI, production price/flag/secret, DPP entitlement gate, analytics event, live call, project mutation or consultant delivery. Existing free Detailed Planning Pack generation remains unchanged until the operator explicitly approves checkout launch.
+
+Operator decisions still required before any launch:
+- Payment provider.
+- Final product name/code/version and production price.
+- GST/tax treatment.
+- Refund, credit and regeneration policy, including what happens to changed proposals and unavailable evidence.
+- Checkout launch approval and operational runbook.
 
 Required contract:
 - Checkout is offered only after same-project promotion and a quality-valid current-site QSC plus non-empty proposal brief. The server creates a purchase intent from the owned project, exact QSC artefact ID, normalized proposal fingerprint, product/version and server-configured price; none is accepted from browser display state.

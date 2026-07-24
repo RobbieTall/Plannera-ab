@@ -27,6 +27,8 @@ model User {
   artefacts          Artefact[]
   workspaceUploads   WorkspaceUpload[]
   commercialFunnelEvents CommercialFunnelEvent[]
+  purchases              Purchase[]
+  entitlements            Entitlement[]
 }
 
 model Session {
@@ -214,8 +216,81 @@ model Artefact {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   commercialFunnelEvents CommercialFunnelEvent[]
+  purchases              Purchase[]    @relation("PurchaseQuickSiteCheckArtefact")
+  entitlements           Entitlement[] @relation("EntitlementQuickSiteCheckArtefact")
 
   @@index([projectId])
+}
+
+model Purchase {
+  id                         String         @id @default(cuid())
+  userId                     String
+  user                       User           @relation(fields: [userId], references: [id])
+  projectId                  String
+  project                    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  quickSiteCheckArtefactId   String
+  quickSiteCheckArtefact     Artefact       @relation("PurchaseQuickSiteCheckArtefact", fields: [quickSiteCheckArtefactId], references: [id])
+  proposalFingerprint        String
+  productCode                String
+  productVersion             String
+  amountMinor                Int
+  currency                   String
+  status                     PurchaseStatus @default(PENDING)
+  providerName               String?
+  providerReference          String?
+  providerIntentReference    String?
+  idempotencyKey             String         @unique
+  scopeKey                   String
+  entitlement                Entitlement?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  paidAt                     DateTime?
+  failedAt                   DateTime?
+  cancelledAt                DateTime?
+  refundedAt                 DateTime?
+
+  @@index([scopeKey, status])
+  @@index([userId, projectId])
+  @@index([providerName, providerReference])
+}
+
+model Entitlement {
+  id                         String            @id @default(cuid())
+  userId                     String
+  user                       User              @relation(fields: [userId], references: [id])
+  projectId                  String
+  project                    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  quickSiteCheckArtefactId   String
+  quickSiteCheckArtefact     Artefact          @relation("EntitlementQuickSiteCheckArtefact", fields: [quickSiteCheckArtefactId], references: [id])
+  proposalFingerprint        String
+  productCode                String
+  productVersion             String
+  purchaseId                 String            @unique
+  purchase                   Purchase          @relation(fields: [purchaseId], references: [id])
+  status                     EntitlementStatus @default(ACTIVE)
+  activeScopeKey             String?           @unique
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  activatedAt                DateTime          @default(now())
+  refundedAt                 DateTime?
+  revokedAt                  DateTime?
+
+  @@index([projectId, quickSiteCheckArtefactId, proposalFingerprint, productCode, productVersion, status])
+  @@index([userId, projectId])
+}
+
+enum PurchaseStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  REFUNDED
+  REVOKED
 }
 
 model CommercialFunnelEvent {
