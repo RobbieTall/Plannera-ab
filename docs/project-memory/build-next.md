@@ -1185,7 +1185,7 @@ Verification: local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` p
 
 Merge evidence: final reviewed head `25ed7cc4abd75867bc11dbea2968f1f6cb14e4f9` merged to `main` as `b0c80a947be10338561ffb8424b1eda92ed0572d` on 2026-07-19. Final-head Commercial Funnel Golden Gate run `29677315305` and Vercel deployment `A1usKTcWpQzSdZrs4pbjs8FurZnK` both passed.
 
-## 70) Privacy-minimal commercial funnel measurement — IMPLEMENTED LOCALLY / VERIFICATION IN PROGRESS (2026-07-24)
+## 70) Privacy-minimal commercial funnel measurement — IN REVIEW VIA PR #314 (2026-07-24)
 
 Trigger: the commercial-launch goal requires conversion analytics, but the repository currently has no analytics SDK, event service/model, canonical event taxonomy, deduplication contract, or privacy/telemetry disclosure. Do not choose a vendor or scatter browser click tracking through the workspace before the measurement contract exists.
 
@@ -1198,7 +1198,7 @@ Required contract:
 - Internal/test/bypass traffic and golden/audit runs must be identifiable and excluded from customer conversion reporting without trusting a browser-supplied flag.
 - Define retention, access, deletion, consent/disclosure and vendor/data-location requirements before production collection. No analytics SDK or new production telemetry ships until those requirements are reviewed and the repository contains truthful user-facing privacy disclosure.
 
-Evidence boundary: Item 70 is a queued contract and implementation slice, not permission to enable billing, cookies, third-party analytics, marketing pixels, user profiling, production telemetry, or auth/paywall. It must follow Item 69 sequentially and use a schema migration only if a reviewed first-party event ledger is chosen.
+Evidence boundary: PR #314 targets the exact Item 69 merge commit `b0c80a947be10338561ffb8424b1eda92ed0572d`. Its code-bearing head is `1dc0cf817ad3a7ed39470bc05c09de6c976df7cc`, and GitHub tree `4adefac9d3fa35692847065603fa551ca6c27a75` exactly matches the locally verified implementation tree. Item 70 does not enable billing, cookies, third-party analytics, marketing pixels, user profiling, production telemetry, or auth/paywall.
 
 Implementation:
 - Adds one first-party `CommercialFunnelEvent` ledger and migration. Its fixed enum taxonomy covers check start, resolved site, quality QSC, same-project promotion, DPP generated/ready/unresolved, Planning Feasibility Summary, SEE, expert-review package and verified package copy/download. There is no metadata/property JSON column.
