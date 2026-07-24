@@ -101,7 +101,7 @@ jobs:
           fi
           case "$audit_exit" in
             0)
-              echo 'Commercial funnel audit gate passed: both independent golden chains are ready.'
+              echo 'Commercial funnel audit gate passed: both independent golden projects reached an accepted terminal journey.'
               exit 0
               ;;
             1)
