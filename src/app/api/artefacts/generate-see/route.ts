@@ -6,6 +6,7 @@ import {
   createPreSeePlanningMemoArtefact,
   requireSessionUser,
 } from "@/lib/artefact-service";
+import { recordCommercialFunnelEventSafely } from "@/lib/commercial-funnel-events";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,13 @@ export async function POST(request: NextRequest) {
     const { artefact, content } = await createPreSeePlanningMemoArtefact({
       body: await request.json(),
       userId,
+    });
+    await recordCommercialFunnelEventSafely({
+      eventName: "SEE_GENERATED",
+      projectId: artefact.projectId,
+      artefactId: artefact.id,
+      sourceRecordId: artefact.id,
+      actorUserId: userId,
     });
 
     return NextResponse.json(

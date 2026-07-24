@@ -8,6 +8,7 @@ import {
   listProjectArtefacts,
   requireSessionUser,
 } from "@/lib/artefact-service";
+import { recordQuickSiteCheckMilestones } from "@/lib/commercial-funnel-events";
 
 export async function GET(_request: NextRequest, { params }: { params: { projectId: string } }) {
   try {
@@ -30,17 +31,26 @@ export async function POST(request: NextRequest, { params }: { params: { project
     const { userId } = await requireSessionUser();
     const contentType = request.headers.get("content-type") ?? "";
 
-    const artefact = contentType.includes("application/json")
-      ? await createQuickSiteCheckArtefact({
-          body: await request.json(),
-          projectId: params.projectId,
-          userId,
-        })
-      : await createMapSnapshotArtefact({
-          formData: await request.formData(),
-          projectId: params.projectId,
-          userId,
-        });
+    let artefact;
+    if (contentType.includes("application/json")) {
+      artefact = await createQuickSiteCheckArtefact({
+        body: await request.json(),
+        projectId: params.projectId,
+        userId,
+      });
+      await recordQuickSiteCheckMilestones({
+        projectId: artefact.projectId,
+        artefactId: artefact.id,
+        payload: artefact.payload,
+        actorUserId: userId,
+      });
+    } else {
+      artefact = await createMapSnapshotArtefact({
+        formData: await request.formData(),
+        projectId: params.projectId,
+        userId,
+      });
+    }
 
     return NextResponse.json(artefact, { status: 201 });
   } catch (error) {

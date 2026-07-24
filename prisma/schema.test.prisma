@@ -26,6 +26,7 @@ model User {
   assignments        TaskAssignment[]
   artefacts          Artefact[]
   workspaceUploads   WorkspaceUpload[]
+  commercialFunnelEvents CommercialFunnelEvent[]
 }
 
 model Session {
@@ -212,8 +213,58 @@ model Artefact {
   capturedAt  DateTime     @default(now())
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  commercialFunnelEvents CommercialFunnelEvent[]
 
   @@index([projectId])
+}
+
+model CommercialFunnelEvent {
+  id                  String                           @id @default(cuid())
+  projectId           String
+  project             Project                          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  artefactId           String?
+  artefact             Artefact?                        @relation(fields: [artefactId], references: [id], onDelete: Cascade)
+  eventName            CommercialFunnelEventName
+  source               CommercialFunnelEventSource
+  funnelVersion        String
+  schemaVersion        Int
+  idempotencyKey       String                           @unique
+  includedInConversion Boolean
+  exclusionReason      CommercialFunnelExclusionReason?
+  occurredAt           DateTime                         @default(now())
+  expiresAt            DateTime
+
+  @@index([eventName, occurredAt])
+  @@index([includedInConversion, occurredAt])
+  @@index([expiresAt])
+  @@index([projectId, eventName])
+}
+
+enum CommercialFunnelEventName {
+  CHECK_STARTED
+  SITE_RESOLVED
+  QUICK_SITE_CHECK_SAVED
+  PROJECT_PROMOTED
+  DETAILED_PLANNING_PACK_GENERATED
+  DETAILED_PLANNING_PACK_READY
+  DETAILED_PLANNING_PACK_UNRESOLVED
+  PLANNING_FEASIBILITY_SUMMARY_GENERATED
+  SEE_GENERATED
+  EXPERT_REVIEW_PACKAGE_GENERATED
+  HANDOFF_COPIED
+  HANDOFF_DOWNLOADED
+}
+
+enum CommercialFunnelEventSource {
+  SERVER_CONFIRMED
+  VERIFIED_INTERACTION
+}
+
+enum CommercialFunnelExclusionReason {
+  NON_PRODUCTION
+  DEMO_PROJECT
+  INTERNAL_PROJECT
+  DEV_BYPASS
 }
 
 enum ArtefactType {

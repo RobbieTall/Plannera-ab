@@ -62,39 +62,40 @@ model Property {
 
 /// Project groups tasks under a property and tracks its lifecycle.
 model Project {
-  id                    String                 @id @default(cuid())
-  publicId              String                 @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
-  name                  String
-  title                 String                 @default("Untitled project")
-  description           String?
-  status                ProjectStatus          @default(PLANNING)
-  isDemo                Boolean                @default(false)
-  lepData               Json?                  @db.JsonB
-  dcpData               Json?                  @db.JsonB
-  zoningCode            String?
-  zoningName            String?
-  zoningSource          String?
-  zoning                String?
-  address               String?
-  sessionId             String?
-  userId                String?
-  propertyId            String
-  property              Property               @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  createdById           String?
-  createdBy             User?                  @relation("ProjectCreatedBy", fields: [createdById], references: [id])
-  owner                 User?                  @relation("ProjectOwner", fields: [userId], references: [id])
-  startDate             DateTime?
-  dueDate               DateTime?
-  tasks                 Task[]
-  collaborators         ProjectMember[]
-  artefacts             Artefact[]
-  workspaceUploads      WorkspaceUpload[]
-  workspaceSourceChunks WorkspaceSourceChunk[]
-  projectNotifications  ProjectNotification[]
-  chatMessages          ChatMessage[]
-  siteContext           SiteContext?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  id                     String                  @id @default(cuid())
+  publicId               String                  @unique @default(dbgenerated("concat('proj-', substr(replace(gen_random_uuid()::text, '-', ''), 1, 18))"))
+  name                   String
+  title                  String                  @default("Untitled project")
+  description            String?
+  status                 ProjectStatus           @default(PLANNING)
+  isDemo                 Boolean                 @default(false)
+  lepData                Json?                   @db.JsonB
+  dcpData                Json?                   @db.JsonB
+  zoningCode             String?
+  zoningName             String?
+  zoningSource           String?
+  zoning                 String?
+  address                String?
+  sessionId              String?
+  userId                 String?
+  propertyId             String
+  property               Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdById            String?
+  createdBy              User?                   @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  owner                  User?                   @relation("ProjectOwner", fields: [userId], references: [id])
+  startDate              DateTime?
+  dueDate                DateTime?
+  tasks                  Task[]
+  collaborators          ProjectMember[]
+  artefacts              Artefact[]
+  workspaceUploads       WorkspaceUpload[]
+  workspaceSourceChunks  WorkspaceSourceChunk[]
+  projectNotifications   ProjectNotification[]
+  chatMessages           ChatMessage[]
+  commercialFunnelEvents CommercialFunnelEvent[]
+  siteContext            SiteContext?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@index([sessionId])
   @@index([userId])
@@ -216,25 +217,75 @@ enum TaskRole {
 }
 
 model Artefact {
-  id          String       @id @default(cuid())
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById String?
-  createdBy   User?        @relation(fields: [createdById], references: [id])
-  type        ArtefactType
-  title       String
-  source      String?
-  sourceUrl   String?
-  overlays    String[]     @default([])
-  notes       String?
-  imageUrl    String?
-  payload     Json?
-  capturedAt  DateTime?    @default(now())
-  staleAt     DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                     String                  @id @default(cuid())
+  projectId              String
+  project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById            String?
+  createdBy              User?                   @relation(fields: [createdById], references: [id])
+  type                   ArtefactType
+  title                  String
+  source                 String?
+  sourceUrl              String?
+  overlays               String[]                @default([])
+  notes                  String?
+  imageUrl               String?
+  payload                Json?
+  capturedAt             DateTime?               @default(now())
+  staleAt                DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  commercialFunnelEvents CommercialFunnelEvent[]
 
   @@index([projectId])
+}
+
+model CommercialFunnelEvent {
+  id                   String                           @id @default(cuid())
+  projectId            String
+  project              Project                          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  artefactId           String?
+  artefact             Artefact?                        @relation(fields: [artefactId], references: [id], onDelete: Cascade)
+  eventName            CommercialFunnelEventName
+  source               CommercialFunnelEventSource
+  funnelVersion        String
+  schemaVersion        Int
+  idempotencyKey       String                           @unique
+  includedInConversion Boolean
+  exclusionReason      CommercialFunnelExclusionReason?
+  occurredAt           DateTime                         @default(now())
+  expiresAt            DateTime
+
+  @@index([eventName, occurredAt])
+  @@index([includedInConversion, occurredAt])
+  @@index([expiresAt])
+  @@index([projectId, eventName])
+}
+
+enum CommercialFunnelEventName {
+  CHECK_STARTED
+  SITE_RESOLVED
+  QUICK_SITE_CHECK_SAVED
+  PROJECT_PROMOTED
+  DETAILED_PLANNING_PACK_GENERATED
+  DETAILED_PLANNING_PACK_READY
+  DETAILED_PLANNING_PACK_UNRESOLVED
+  PLANNING_FEASIBILITY_SUMMARY_GENERATED
+  SEE_GENERATED
+  EXPERT_REVIEW_PACKAGE_GENERATED
+  HANDOFF_COPIED
+  HANDOFF_DOWNLOADED
+}
+
+enum CommercialFunnelEventSource {
+  SERVER_CONFIRMED
+  VERIFIED_INTERACTION
+}
+
+enum CommercialFunnelExclusionReason {
+  NON_PRODUCTION
+  DEMO_PROJECT
+  INTERNAL_PROJECT
+  DEV_BYPASS
 }
 
 model ChatMessage {

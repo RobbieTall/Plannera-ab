@@ -1,7 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "src/app/api/**/*.ts": {
       "includeFiles": "src/lib/legislation/fixtures/**"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/commercial-funnel-retention",
+      "schedule": "17 3 * * *"
+    }
+  ]
 }

@@ -947,12 +947,26 @@ function ReviewRequestCard({
   const listPreview = (items: string[]) => items.slice(0, 3);
   const plainText = formatReviewRequestHandoff(content);
 
+  const recordHandoffInteraction = (action: "copied" | "downloaded") => {
+    void fetch("/api/commercial-funnel/handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        projectId: content.projectId,
+        artefactId: artefact.id,
+        action,
+      }),
+    }).catch(() => undefined);
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(plainText);
     } catch {
-      // Clipboard access can be unavailable in some browsers; keep the UI non-blocking.
+      return;
     }
+    recordHandoffInteraction("copied");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -965,6 +979,7 @@ function ReviewRequestCard({
     a.download = reviewRequestFilename(content);
     a.click();
     URL.revokeObjectURL(url);
+    recordHandoffInteraction("downloaded");
   };
 
   return (

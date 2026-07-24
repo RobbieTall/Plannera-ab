@@ -23,7 +23,7 @@ export default function HomePage() {
     setAddress(trimmed);
 
     try {
-      const response = await fetch("/api/projects/ensure", {
+      const response = await fetch("/api/plannera-check/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmed }),
@@ -116,7 +116,10 @@ export default function HomePage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <span>© {new Date().getFullYear()} Plannera.ai</span>
-          <Link href="/projects" className="font-medium text-slate-700 hover:text-slate-950">My Projects</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="font-medium text-slate-700 hover:text-slate-950">Privacy</Link>
+            <Link href="/projects" className="font-medium text-slate-700 hover:text-slate-950">My Projects</Link>
+          </div>
         </div>
       </footer>
     </div>

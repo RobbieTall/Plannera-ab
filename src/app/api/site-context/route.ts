@@ -9,6 +9,7 @@ import {
 } from "@/lib/site-context";
 import { prisma } from "@/lib/prisma";
 import { findProjectByExternalId, normalizeProjectId } from "@/lib/project-identifiers";
+import { recordCommercialFunnelEventSafely } from "@/lib/commercial-funnel-events";
 import { persistableCandidateSchema } from "./schema";
 
 const getSchema = z.object({ projectId: z.string() });
@@ -108,6 +109,11 @@ export async function POST(request: Request) {
       projectId: siteContext.projectId,
       provider: candidate.provider,
       durationMs: Date.now() - startedAt,
+    });
+    await recordCommercialFunnelEventSafely({
+      eventName: "SITE_RESOLVED",
+      projectId: siteContext.projectId,
+      sourceRecordId: siteContext.id,
     });
     return NextResponse.json({ siteContext: serializeSiteContext(siteContext, project) });
   } catch (error) {

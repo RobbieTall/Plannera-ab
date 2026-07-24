@@ -384,3 +384,16 @@ Decision: a saved, copied or downloaded Expert Review Request is a consultant-re
 The first launch workflow may use a human-operated Plannera referral queue, but the product must not claim automated matching, consultant availability, credentials, quote competition or response SLAs until those capabilities and disclosures are real.
 
 Reference: docs/project-memory/build-next.md Item 73
+
+
+## DR-042 — Commercial Measurement Uses a Property-Free First-Party Ledger
+
+Status: Active
+
+Decision: Plannera launch conversion measurement uses a first-party PostgreSQL event ledger with a fixed, versioned event taxonomy and no JSON/free-form properties. Persisted milestones are emitted only after their server write succeeds; handoff copy/download events are accepted only after requester ownership and the exact saved Expert Review Request are resolved again. Database-unique keys make each exact project/output transition idempotent.
+
+The ledger stores only event contract fields plus opaque internal project/output references required for deduplication and cascade deletion. Raw addresses, parcel/coordinate or zoning detail, proposal/chat text, clause excerpts, names, email/contact details, uploaded content, secrets and payment data are structurally excluded. Aggregate reports return unique-project counts and cohort intersections only. Environment, demo, server-allowlisted internal/golden-project and development-bypass exclusion is server-derived.
+
+Events expire after 90 days, project/artefact deletion cascades, and an authenticated daily retention endpoint performs physical pruning. Production collection is fail-closed until `COMMERCIAL_FUNNEL_ENABLED=true` and `CRON_SECRET` are both configured; no browser field can enable or include traffic. No third-party analytics SDK, marketing pixel, profiling identifier or query-string admin secret is introduced.
+
+Reference: docs/project-memory/build-next.md Item 70

@@ -184,3 +184,22 @@ Plannera should use a Just-in-Time LGA Activation pattern for unsupported counci
 See: `docs/architecture/just-in-time-lga-activation.md`.
 
 Project memory index: `docs/project-memory/README.md`.
+
+## Measure Commercial Progress Without Recreating User Data
+
+Commercial measurement is useful only when its numerator is true. Plannera measures successful
+server-confirmed evidence transitions, not optimistic clicks, component renders, or the existence of
+an output with unknown provenance. A client interaction can report only the interaction it actually
+completed; the server must re-resolve the requester, project, and saved output before accepting it.
+
+The launch ledger is deliberately less expressive than the product. It has fixed event names and no
+free-form property bag, so addresses, parcels, coordinates, proposal/chat text, planning clauses,
+personal/contact data, uploaded content, secrets, and payment data have nowhere to enter. Aggregate
+conversion reports may count opaque projects but never return their identifiers. Test, preview,
+demo, server-allowlisted internal/golden-project, and bypass traffic is server-classified and
+excluded.
+
+Measurement must also have an end. Events expire after 90 days, are removed when their project or
+linked output is deleted, and are pruned by an authenticated retention job. Collection remains off
+until both the operator feature flag and retention secret are configured. This is a product-truth
+constraint, not an analytics preference.

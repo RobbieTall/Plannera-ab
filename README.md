@@ -109,6 +109,14 @@ This workflow never receives production secrets, connects to a database, calls O
 
 Commercial evidence is fail-closed at persistence and handoff boundaries. Saved core LEP controls (height, floor space ratio, and minimum lot size) are re-derived from server-retrieved evidence; client-supplied values, clause references, confidence labels, and interpretations are cleared to `Unavailable` unless server provenance is present. Optional QSC setback, parking, and active-frontage/built-form cards are likewise rebuilt from the server DCP result and cleared when no cited DCP value/ref exists. LEP clause 2.3 is cited only when the saved QSC contains a DB-backed zone table with both objectives and land-use entries. A paid Detailed Planning Pack topic is Cited only when retrieved DCP evidence is site-applicable, has a real clause/source reference, its actual heading/body matches that topic, and the clause body itself contains substantive requirement content. Numeric controls, nil/zero rates, ratios, percentages, or genuine qualitative prescriptions/prohibitions can qualify; headings, refs, topic tags, objectives/overviews/index text, topic lists, and generic “controls apply where relevant” wording cannot satisfy setbacks, parking/access, built-form/frontage, landscaping/open-space, or local-control evidence. A SEE is eligible for audit or consultant handoff only when its proposal summary, copied QSC evidence, DPP clauses and excerpts, and consistency assessments exactly match its source QSC/DPP snapshot. Matching IDs or plausible citation labels alone never establish provenance. In the normal workspace, the current SEE and Expert Review Request cards/readiness are additionally exact-scoped to the active current-site, proposal-matching Detailed Planning Pack: clearing or changing the proposed-works brief fails closed until a matching pack/output is regenerated, while older outputs remain available only as artefact history. DPP DCP citation excerpts are exact qualifying requirement rows only: the row must independently match the topic and contain a substantive quantitative or qualitative control, and unrelated objectives/overview/admin text or other-topic controls are excluded. Those exact excerpts are copied byte-for-byte into SEE controls/source excerpts/prompt grounding and into the Expert Review Request handoff so consultants can inspect the requirement that earned `Cited` without relying on broad clause bodies.
 
+### Privacy-minimal funnel measurement
+
+Plannera's commercial funnel measurement is a first-party, fixed-schema event ledger, not a third-party analytics SDK. Successful persisted transitions are recorded only after the server confirms the exact project/output write. Copy and download events are accepted only after the server re-resolves requester access and the exact saved Expert Review Request. The ledger has no free-form properties and cannot store addresses, parcel/coordinate data, proposal or chat text, clause excerpts, names, email addresses, contact details, uploaded content, secrets, or payment data.
+
+Events use a versioned taxonomy and database-unique idempotency keys, expire after 90 days, and are deleted by both opportunistic pruning and the authenticated daily Vercel retention job. Project or linked artefact deletion cascades to its events. Preview, test, demo-project, server-allowlisted internal/golden-project, and development-bypass activity is server-classified and excluded from customer conversion reporting. The admin metrics endpoint accepts `x-admin-token` only and returns aggregate unique-project counts and cohort conversion rates, never project/user identifiers.
+
+Production collection is off by default. Enable it only after the schema migration is deployed and both `COMMERCIAL_FUNNEL_ENABLED=true` and a random `CRON_SECRET` of at least 16 characters are configured for Production. Vercel supplies that secret to `/api/cron/commercial-funnel-retention` as a bearer token. The public disclosure is available at `/privacy`.
+
 ## Environment variables
 
 Required:
@@ -122,6 +130,9 @@ Required:
 Optional:
 - GOOGLE_MAPS_API_KEY — address/geocoding support
 - NSW_PROPERTY_API_* — NSW property API configuration
+- COMMERCIAL_FUNNEL_ENABLED — set to `true` only after the first-party event migration and retention configuration are deployed
+- CRON_SECRET — random secret used by Vercel to authenticate the daily commercial-funnel retention job; required before measurement can record
+- COMMERCIAL_FUNNEL_EXCLUDED_PROJECT_IDS — optional comma-separated internal or public IDs for approved golden/internal projects; configured server-side and never accepted from a browser
 
 ## Local development
 

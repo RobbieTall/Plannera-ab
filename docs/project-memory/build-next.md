@@ -1159,7 +1159,7 @@ Verification for review: focused intent/static/persistence tests, `npm run lint`
 
 Status: DONE/MERGED — PR #312 merged into `main` at exact merge commit `2ec4dc433632160376fb1aa3994ce0116eef6a4a` on 2026-07-19. Its reviewed remote head was `385fdbbeda507ac9a5f534450a433c4b4cf6fe54`; Commercial Funnel Golden Gate run `29673911590` and Vercel passed on that final head. Local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` also passed; no local application build or production access/mutation was performed.
 
-## 69) Consolidate Basic Feasibility into the evidence funnel — READY TO MERGE: PR #313 (2026-07-19)
+## 69) Consolidate Basic Feasibility into the evidence funnel — DONE/MERGED: PR #313 (2026-07-19)
 
 Purpose: remove the disconnected Basic Feasibility truth path that accepted a second browser-provided development type/site context and ran a fresh AI statutory lookup beside stronger saved Quick Site Check and Detailed Planning Pack evidence. Preserve the useful decision-summary function as one deterministic, proposal-bound Planning Feasibility Summary.
 
@@ -1183,7 +1183,9 @@ Evidence boundary: PR #313 targets `main` from implementation commit `61ee750e69
 
 Verification: local `npm run lint`, `npx tsc --noEmit`, and `git diff --check` passed before publication, together with twenty pure Planning Feasibility Summary and selector tests through Node 22 native TypeScript transformation. After the assertion correction, focused ESLint and `git diff --check` passed locally; a later full local typecheck was polluted only by four untracked stale ` 2` file copies that are absent from GitHub and remain excluded from this PR. On clean code-bearing head `1cd63292b0f5fa2f12b03b8c3888152d6d183e71`, authoritative Commercial Funnel Golden Gate run `29677217105` passed all 49 tests across nine files, including server-generation and React runtime coverage, and Vercel deployment `8qczxPfX6cFBL8AfVC5qxMVh2yEx` succeeded. The following documentation-only commit records this evidence and changes no application or test behavior.
 
-## 70) Privacy-minimal commercial funnel measurement — QUEUED AFTER ITEM 69
+Merge evidence: final reviewed head `25ed7cc4abd75867bc11dbea2968f1f6cb14e4f9` merged to `main` as `b0c80a947be10338561ffb8424b1eda92ed0572d` on 2026-07-19. Final-head Commercial Funnel Golden Gate run `29677315305` and Vercel deployment `A1usKTcWpQzSdZrs4pbjs8FurZnK` both passed.
+
+## 70) Privacy-minimal commercial funnel measurement — IMPLEMENTED LOCALLY / VERIFICATION IN PROGRESS (2026-07-24)
 
 Trigger: the commercial-launch goal requires conversion analytics, but the repository currently has no analytics SDK, event service/model, canonical event taxonomy, deduplication contract, or privacy/telemetry disclosure. Do not choose a vendor or scatter browser click tracking through the workspace before the measurement contract exists.
 
@@ -1197,6 +1199,19 @@ Required contract:
 - Define retention, access, deletion, consent/disclosure and vendor/data-location requirements before production collection. No analytics SDK or new production telemetry ships until those requirements are reviewed and the repository contains truthful user-facing privacy disclosure.
 
 Evidence boundary: Item 70 is a queued contract and implementation slice, not permission to enable billing, cookies, third-party analytics, marketing pixels, user profiling, production telemetry, or auth/paywall. It must follow Item 69 sequentially and use a schema migration only if a reviewed first-party event ledger is chosen.
+
+Implementation:
+- Adds one first-party `CommercialFunnelEvent` ledger and migration. Its fixed enum taxonomy covers check start, resolved site, quality QSC, same-project promotion, DPP generated/ready/unresolved, Planning Feasibility Summary, SEE, expert-review package and verified package copy/download. There is no metadata/property JSON column.
+- Every exact transition uses a database-unique SHA-256 idempotency key derived only from funnel version, event name and opaque internal project/source record IDs. Retries, refreshes and duplicate copy/download actions cannot inflate unique-project conversion.
+- Persisted milestones are emitted only after the corresponding server write succeeds. Quality QSC and promotion are derived from the final saved report's cited evidence and persisted development intent. DPP readiness comes from the saved server-calculated `commercialReady` result. Copy/download uses a strict three-field endpoint that re-resolves requester access and the exact same-project `review_request` artefact.
+- Event collection is fail-closed off unless server environment has both `COMMERCIAL_FUNNEL_ENABLED=true` and `CRON_SECRET`. Preview/test activity, demo projects, server-allowlisted internal/golden projects and the development bypass are excluded by server state, never browser fields. `COMMERCIAL_FUNNEL_EXCLUDED_PROJECT_IDS` may contain approved internal/public project IDs and is not exposed to the client.
+- Rows expire after 90 days, are opportunistically pruned on writes/reports, are cascade-deleted with their project or linked artefact, and have a daily Vercel cron at `/api/cron/commercial-funnel-retention`. The endpoint accepts only Vercel's `Authorization: Bearer <CRON_SECRET>` contract.
+- `/api/admin/commercial-funnel-metrics` accepts only `x-admin-token`, limits windows to the 90-day retention period, and returns aggregate unique-project counts plus cohort-intersection rates for the documented funnel denominators. It never returns event rows, user IDs, project IDs or output IDs.
+- `/privacy`, the landing footer, README, product philosophy and DR-042 disclose the purpose, fixed data boundary, no-third-party/no-advertising position, retention, deletion and operator-only aggregate access.
+
+Verification in this clean Item 70 worktree: production Prisma schema formatting and client generation pass; `npm run lint`, `npx tsc --noEmit`, and `git diff --check` pass. Focused Vitest execution is locally blocked before test collection by the existing macOS policy rejection of Rollup's native binary; the clean Linux Commercial Funnel Golden Gate is authoritative after publication. The legacy SQLite `prisma/schema.test.prisma` still cannot be formatted/validated because of its pre-existing unsupported `String[]` DCP fields; Item 70 adds the equivalent ledger model but does not alter those legacy fields. No local application build, production database access/mutation, external analytics service, billing, payment, auth policy, live audit or consultant delivery was performed.
+
+Activation boundary: merge and deploy the reviewed migration first, configure a random Production `CRON_SECRET` of at least 16 characters, place any approved golden/internal projects in server-only `COMMERCIAL_FUNNEL_EXCLUDED_PROJECT_IDS`, then deliberately set Production `COMMERCIAL_FUNNEL_ENABLED=true`. Until the enable flag and retention secret both exist, the application records no funnel rows. Enabling measurement is not permission to enable payment or proceed past Item 71.
 
 ## 71) Current-release protected Byron/Kempsey golden acceptance — REQUIRED BEFORE PAYMENT
 
