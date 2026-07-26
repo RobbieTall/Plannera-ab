@@ -6,6 +6,7 @@ import {
   fingerprintPurchaseProposal,
   normalizePurchaseProposal,
 } from "../src/lib/purchase-entitlements";
+import { createPlanningPackCheckout } from "../src/lib/planning-pack-checkout";
 
 const terms = {
   productCode: "dcp_deep_dive_fixture",
@@ -59,7 +60,11 @@ const qscPayload = (overrides: any = {}) => ({
 });
 
 const matchesWhere = (row: any, where: any) =>
-  Object.entries(where).every(([key, value]) => row[key] === value);
+  Object.entries(where).every(([key, value]: any) =>
+    value && typeof value === "object" && "in" in value
+      ? value.in.includes(row[key])
+      : (value === null ? row[key] == null : row[key] === value),
+  );
 
 const createDb = (opts: any = {}) => {
   const state: any = { purchases: [], entitlements: [] };
@@ -108,6 +113,9 @@ const createDb = (opts: any = {}) => {
         updatedAt: new Date(),
         providerPayload: undefined,
         metadata: undefined,
+        providerName: null,
+        providerReference: null,
+        providerIntentReference: null,
         ...data,
       };
       state.purchases.push(row);
@@ -637,4 +645,103 @@ test("concurrent intent creation returns the winning pending purchase", async ()
   });
   assert.equal(purchase.id, "purchase-winner");
   assert.equal(state.purchases.length, 1);
+});
+
+test("settlement becoming active after pending lookup prevents a second purchase and provider call", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const proposalBrief = "Race settlement proposal";
+  const scopeKey = [
+    "user-1",
+    "project-1",
+    "qsc-1",
+    fingerprintPurchaseProposal(proposalBrief),
+    terms.productCode,
+    terms.productVersion,
+  ].join(":");
+  const originalFindFirst = db.purchase.findFirst;
+  const originalCreate = db.purchase.create;
+  let purchaseCreates = 0;
+  let providerCalls = 0;
+
+  db.purchase.findFirst = async (args: any) => {
+    const result = await originalFindFirst(args);
+    if (args.where.status === "PENDING" && !result) {
+      state.entitlements.push({
+        id: "entitlement-race-winner",
+        activeScopeKey: scopeKey,
+        status: "ACTIVE",
+      });
+    }
+    return result;
+  };
+  db.purchase.create = async (args: any) => {
+    purchaseCreates += 1;
+    return originalCreate(args);
+  };
+
+  await assert.rejects(
+    () => createPlanningPackCheckout(service, {
+      createHostedCheckout: async () => {
+        providerCalls += 1;
+        return { id: "cs_duplicate", url: "https://checkout.stripe.test" };
+      },
+      verifyWebhook: () => { throw new Error("unused"); },
+    }, { userId: "user-1", projectId: "project-1", proposalBrief }),
+    /already paid/,
+  );
+  assert.equal(purchaseCreates, 0);
+  assert.equal(providerCalls, 0);
+});
+
+test("provider references attach atomically, replay identically, and lose to terminal races", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const purchase = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Atomic references" });
+  await service.attachProviderCheckout(purchase.id, "cs_1");
+  await service.attachProviderCheckout(purchase.id, "cs_1");
+  await assert.rejects(() => service.attachProviderCheckout(purchase.id, "cs_other"), /safely/);
+  await service.bindProviderPaymentReference(purchase.id, "pi_1");
+  await service.bindProviderPaymentReference(purchase.id, "pi_1");
+  await assert.rejects(() => service.bindProviderPaymentReference(purchase.id, "pi_other"), /safely/);
+
+  state.purchases[0].status = "CANCELLED";
+  await assert.rejects(() => service.attachProviderCheckout(purchase.id, "cs_1"), /safely/);
+  await assert.rejects(() => service.bindProviderPaymentReference(purchase.id, "pi_1"), /safely/);
+
+  const raced = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Checkout race" });
+  const originalUpdateMany = db.purchase.updateMany;
+  db.purchase.updateMany = async (args: any) => {
+    if (args.where.id === raced.id && args.data.providerReference) {
+      state.purchases.find((row: any) => row.id === raced.id).status = "FAILED";
+    }
+    return originalUpdateMany(args);
+  };
+  await assert.rejects(() => service.attachProviderCheckout(raced.id, "cs_race"), /safely/);
+  assert.equal(state.purchases.find((row: any) => row.id === raced.id).providerReference, null);
+
+  db.purchase.updateMany = originalUpdateMany;
+  const bindRace = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Payment reference race" });
+  await service.attachProviderCheckout(bindRace.id, "cs_bind_race");
+  db.purchase.updateMany = async (args: any) => {
+    if (args.where.id === bindRace.id && args.data.providerIntentReference) {
+      state.purchases.find((row: any) => row.id === bindRace.id).status = "CANCELLED";
+    }
+    return originalUpdateMany(args);
+  };
+  await assert.rejects(() => service.bindProviderPaymentReference(bindRace.id, "pi_race"), /safely/);
+  assert.equal(state.purchases.find((row: any) => row.id === bindRace.id).providerIntentReference, null);
+});
+
+test("provider-confirmed full refund atomically terminates pending scope and blocks later settlement", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const purchase = await service.createOrReusePendingIntent({ userId: "user-1", projectId: "project-1", proposalBrief: "Refund first" });
+  await service.attachProviderCheckout(purchase.id, "cs_1");
+  await service.providerConfirmedFullRefund(purchase.id, "pi_1");
+  await service.providerConfirmedFullRefund(purchase.id, "pi_1");
+  assert.equal(state.purchases[0].status, "REFUNDED");
+  assert.equal(state.entitlements.length, 0);
+  await assert.rejects(() => service.settlePaidPurchase(purchase.id), /not payable/);
+  await assert.rejects(() => service.providerConfirmedFullRefund(purchase.id, "pi_other"), /mismatch/);
 });

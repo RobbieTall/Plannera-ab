@@ -423,3 +423,16 @@ Lifecycle transitions are guarded server-side and idempotent for identical termi
 This foundation does not select a provider, create checkout/webhook/API/UI paths, launch payment, gate DPP generation, mutate evidence quality, change `acceptedJourney`/`commercialReady`, emit analytics or send consultant referrals. Production checkout still requires operator approval of provider, final product/name/price, GST/tax treatment, refund/credit/regeneration policy and launch timing.
 
 Implementation evidence: PR #318 (domain foundation) and PR #319 (lifecycle hardening); docs/project-memory/build-next.md Item 72 / Item 72A
+
+
+## DR-045 — Stripe Checkout Implements, but Does Not Activate, the Approved Pack Contract
+
+Status: Active
+
+Decision: The Planning Controls Pack is a Stripe-hosted one-time payment with server-owned product code `planning_controls_pack`, version `v1`, price A$49.00 total and AUD currency; Tallrok Developments Pty Ltd is GST-registered and the displayed total includes GST. Browser price, product, tax and redirect state are never authoritative. Entitlement activates only from a signature-verified paid webhook whose Checkout session, `mode=payment`, paid status, A$49.00 amount, AUD currency and opaque purchase/payment references all match the exact requester-owned project, current-site cited QSC artefact, normalized proposal fingerprint and product/version. Same-scope retry/regeneration reuses value; any project/site/QSC/material-proposal change requires purchase.
+
+Stripe Checkout must enable automatic tax, require billing-address collection and use inclusive tax behavior while retaining the A$49.00 customer total. Stripe Tax registration/settings and an appropriate default product tax code are operator configuration, not hard-coded application policy. Before activation, the protected Stripe test-mode Australian case must itemise A$4.45 GST within that total; the GST-included representation applies where the verified Stripe configuration and billing location determine Australian GST is applicable.
+
+Checkout is fail-closed and disabled by default. When disabled, existing free DPP generation is identical and builds need no Stripe secrets. When enabled, missing configuration denies safely and exact active entitlement is checked before DPP retrieval or persistence. Payment cannot change citation status, confidence, readiness or expert-review routing. A truthful persisted cited/unresolved pack is delivered value. A system/retrieval failure that prevents generation and persistence requires an operator-initiated full refund to the original method; state changes atomically to refunded only after signed provider confirmation of the full A$49.00 refund, including when that confirmation precedes settlement, which revokes active entitlement and blocks later paid replay. Partial refunds or paid-after-failed/cancelled contradictions require non-2xx reconciliation and are never silently acknowledged. There is no public refund endpoint. Production checkout remains explicitly not activated.
+
+Reference: docs/project-memory/build-next.md Item 72B

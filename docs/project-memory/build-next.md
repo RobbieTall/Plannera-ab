@@ -1241,18 +1241,21 @@ Boundary and handoff:
 - The next commercial slice is Item 72: exact project/site/QSC/proposal-bound one-time DCP pack purchase. Payment must purchase the analysis only; it must never upgrade evidence quality or commercial readiness.
 - The live-audit workflow success message is corrected in the closure PR to say both projects reached an accepted terminal journey, rather than incorrectly claiming both chains are ready.
 
-## 72) Exact project-bound one-time DCP pack purchase — ITEM 72A FOUNDATION COMPLETE; CHECKOUT NOT LAUNCHED
+## 72) Exact project-bound one-time DCP pack purchase — ITEM 72B IMPLEMENTED; PRODUCTION CHECKOUT NOT ACTIVATED
 
-Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The currently discussed customer offer is an A$29 DCP Deep Dive, but the final product name, tax treatment and price must be operator-confirmed against the commercialisation document before production checkout is enabled.
+Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The approved offer is the Planning Controls Pack at A$49.00 total including GST.
 
 Item 72A status: ✅ DONE (2026-07-26). PR #318 added the provider-neutral purchase and exact-scope entitlement domain foundation. PR #319 then hardened settlement and terminal lifecycle transitions against replay and concurrency, repaired the executable test harness, and placed the purchase-entitlement suite inside the mandatory Commercial Funnel Golden Gate. Checkout is still not launched: there is no selected payment provider, checkout, webhook, API route, UI, production price/flag/secret, DPP entitlement gate, customer payment event, live provider call, project mutation or consultant delivery. Existing free Detailed Planning Pack generation remains unchanged until the operator explicitly approves checkout launch.
 
-Operator decisions still required before any launch:
-- Payment provider.
-- Final product name/code/version and production price.
-- GST/tax treatment.
-- Refund, credit and regeneration policy, including what happens to changed proposals and unavailable evidence.
-- Checkout launch approval and operational runbook.
+Item 72B status: ✅ IMPLEMENTED, NOT ACTIVATED (2026-07-26). Stripe hosted Checkout is implemented for the server-owned `planning_controls_pack` `v1` offer at A$49.00 total including GST, with exact-scope authenticated checkout/status routes, raw-body signature-verified idempotent webhook lifecycle with exact paid-fact validation and non-2xx reconciliation on contradictory money events, atomic opaque provider references, provider-confirmed full-refund revocation, minimal workspace UI and a feature-flagged DPP generation entitlement boundary. `PLANNING_PACK_CHECKOUT_ENABLED` is false/absent by default, so free DPP behavior is preserved and builds/previews require no Stripe configuration. Production checkout is explicitly not activated; no production secrets/flags were changed and no live charge was made.
+
+Approved retry/refund contract: the same exact requester/project/current-site QSC/proposal fingerprint/product/version may retry or regenerate without another payment; any changed scope requires a new purchase. Payment never upgrades cited/unresolved evidence. A persisted truthful pack including unresolved topics is delivered value for expert review. Only inability to generate and persist because of system/retrieval failure triggers a full original-method refund, and Plannera records `REFUNDED` only after provider confirmation.
+
+Activation gates still required before any launch:
+- Explicit production checkout approval and an operator runbook covering Stripe configuration, webhook health, reconciliation, support and confirmed-refund verification.
+- Stripe Tax registration/settings and an appropriate default product tax code must be configured and verified without hard-coding a tax code in Plannera. Protected Stripe test-mode acceptance must show the Australian billing case itemises A$4.45 GST inside the fixed A$49.00 customer total.
+- Protected non-production lifecycle evidence for the exact release followed by the established Byron/Kempsey release gate.
+- Production secrets/URLs and the feature flag must be configured only during the separately approved activation change.
 
 Required contract:
 - Checkout is offered only after same-project promotion and a quality-valid current-site QSC plus non-empty proposal brief. The server creates a purchase intent from the owned project, exact QSC artefact ID, normalized proposal fingerprint, product/version and server-configured price; none is accepted from browser display state.
@@ -1262,15 +1265,17 @@ Required contract:
 - Retries for the same paid scope are idempotent and the regeneration/refund policy is explicit. Failed or unavailable evidence produces the promised resolution path without silently consuming value or fabricating controls.
 - Test/bypass/admin operation is explicit and server-derived, excluded from customer conversion, and impossible to activate with client fields. Secrets, transaction details and contact data never enter artefact text or analytics properties.
 
-Verification must cover forged checkout fields, replayed webhooks, duplicate delivery, cross-user/project/site/proposal reuse, changed proposal, cancelled/failed/refunded states, guest-to-account claiming, DPP generation without entitlement, and successful exact-scope generation. No payment provider or production price is selected by this documentation item.
+Verification must cover forged checkout fields, replayed webhooks, duplicate delivery, cross-user/project/site/proposal reuse, changed proposal, cancelled/failed/refunded states, guest-to-account claiming, DPP generation without entitlement, and successful exact-scope generation. Item 72B implements the approved provider and terms without activating production checkout.
 
+
+Senior-review hardening evidence: behavioral tests now execute the checkout controller, Stripe adapter request, signature-verification boundary, normalized event application, DPP entitlement boundary and purchase lifecycle service rather than regex-matching source. They prove already-entitled checkout makes no new purchase/provider call, unpaid redirect grants nothing, exact paid settlement and duplicate replay, paid-fact mismatch denial, cross-session denial, non-2xx contradictory transitions, durable refund-before-paid, partial-refund rejection, atomic reference races, feature-off compatibility and feature-on pre-generation denial. The Commercial Funnel Golden Gate runs these tests automatically.
 
 Merge and verification evidence:
 - PR #318 merged to `main` as `38c3386b3d7d2b234c6074d8858650509610db00`, adding the provider-neutral schema, migration, exact-scope service, tests and DR-044 without enabling checkout or changing free DPP access.
 - Review identified replay, terminal-transition and concurrent intent-creation gaps after #318 merged. PR #319 closed those gaps and merged to `main` as `e42d1303a822fbdbd81809c3b21295debc390ae1`.
 - Final #319 head `b48811bfe5d7b9eb5f8cb4e39bf76ad477d12116` passed Commercial Funnel Golden Gate run `30182618113` (#87): 105 Node tests and 69 Vitest tests passed with zero failures. Its Vercel preview also passed.
-- The commercial gate now executes `tests/purchase-entitlements.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
-- Item 72A completion is a domain-foundation milestone only. It does not approve a provider, price, tax treatment, refund policy, entitlement-gated DPP generation or production checkout.
+- The commercial gate now executes `tests/purchase-entitlements.test.ts` and the behavioral `tests/planning-pack-checkout.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
+- Item 72A was the domain foundation. Item 72B implements the subsequently approved provider, terms, refund boundary and feature-gated entitlement check; it does not approve or perform production activation.
 
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
