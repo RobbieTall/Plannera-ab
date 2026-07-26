@@ -577,6 +577,38 @@ test("terminal transitions are idempotent while contradictory transitions fail c
   );
 });
 
+test("settlement cannot overwrite a concurrent terminal transition", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const purchase = await service.createOrReusePendingIntent({
+    userId: "user-1",
+    projectId: "project-1",
+    proposalBrief: "Tourist accommodation",
+  });
+  const originalUpdateMany = db.purchase.updateMany;
+  let terminalTransitionWon = false;
+
+  db.purchase.updateMany = async (args: any) => {
+    if (
+      !terminalTransitionWon &&
+      args.where.id === purchase.id &&
+      args.data.status === "PAID"
+    ) {
+      terminalTransitionWon = true;
+      state.purchases[0].status = "CANCELLED";
+      state.purchases[0].cancelledAt = new Date();
+    }
+    return originalUpdateMany(args);
+  };
+
+  await assert.rejects(
+    () => service.settlePaidPurchase(purchase.id),
+    /not payable/,
+  );
+  assert.equal(state.purchases[0].status, "CANCELLED");
+  assert.equal(state.entitlements.length, 0);
+});
+
 test("concurrent intent creation returns the winning pending purchase", async () => {
   const { db, state } = createDb();
   const service = new PurchaseEntitlementService(db, terms);
