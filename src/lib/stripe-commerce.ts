@@ -33,6 +33,8 @@ export class StripeCommerceProvider implements PaymentProvider, RefundProvider {
     const session = await this.stripe.checkout.sessions.create(
       {
         mode: "payment",
+        automatic_tax: { enabled: true },
+        billing_address_collection: "required",
         success_url: this.config.successUrl!,
         cancel_url: this.config.cancelUrl!,
         line_items: [

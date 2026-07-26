@@ -72,6 +72,7 @@ test("checkout uses server terms, inclusive Stripe pricing, and never calls Stri
   const adapter = new StripeCommerceProvider({ enabled: true, secretKey: "sk_test", successUrl: "https://example.test/success", cancelUrl: "https://example.test/cancel" }, stripe);
   await adapter.createHostedCheckout({ purchaseId: "purchase-1", amountMinor: 4900, currency: "AUD", productName: "Pack", idempotencyKey: "stable" });
   assert.equal(request.body.mode, "payment"); assert.equal(request.body.line_items[0].price_data.currency, "aud");
+  assert.deepEqual(request.body.automatic_tax, { enabled: true }); assert.equal(request.body.billing_address_collection, "required");
   assert.equal(request.body.line_items[0].price_data.unit_amount, 4900); assert.equal(request.body.line_items[0].price_data.tax_behavior, "inclusive");
   assert.deepEqual(request.body.metadata, { purchase_id: "purchase-1" }); assert.deepEqual(request.body.payment_intent_data.metadata, { purchase_id: "purchase-1" }); assert.equal(request.options.idempotencyKey, "stable");
   await adapter.requestFullRefund("pi_1", "purchase-1", "refund-stable");

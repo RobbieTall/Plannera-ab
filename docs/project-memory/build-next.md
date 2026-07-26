@@ -1253,6 +1253,7 @@ Approved retry/refund contract: the same exact requester/project/current-site QS
 
 Activation gates still required before any launch:
 - Explicit production checkout approval and an operator runbook covering Stripe configuration, webhook health, reconciliation, support and confirmed-refund verification.
+- Stripe Tax registration/settings and an appropriate default product tax code must be configured and verified without hard-coding a tax code in Plannera. Protected Stripe test-mode acceptance must show the Australian billing case itemises A$4.45 GST inside the fixed A$49.00 customer total.
 - Protected non-production lifecycle evidence for the exact release followed by the established Byron/Kempsey release gate.
 - Production secrets/URLs and the feature flag must be configured only during the separately approved activation change.
 

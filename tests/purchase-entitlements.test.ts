@@ -6,6 +6,7 @@ import {
   fingerprintPurchaseProposal,
   normalizePurchaseProposal,
 } from "../src/lib/purchase-entitlements";
+import { createPlanningPackCheckout } from "../src/lib/planning-pack-checkout";
 
 const terms = {
   productCode: "dcp_deep_dive_fixture",
@@ -644,6 +645,53 @@ test("concurrent intent creation returns the winning pending purchase", async ()
   });
   assert.equal(purchase.id, "purchase-winner");
   assert.equal(state.purchases.length, 1);
+});
+
+test("settlement becoming active after pending lookup prevents a second purchase and provider call", async () => {
+  const { db, state } = createDb();
+  const service = new PurchaseEntitlementService(db, terms);
+  const proposalBrief = "Race settlement proposal";
+  const scopeKey = [
+    "user-1",
+    "project-1",
+    "qsc-1",
+    fingerprintPurchaseProposal(proposalBrief),
+    terms.productCode,
+    terms.productVersion,
+  ].join(":");
+  const originalFindFirst = db.purchase.findFirst;
+  const originalCreate = db.purchase.create;
+  let purchaseCreates = 0;
+  let providerCalls = 0;
+
+  db.purchase.findFirst = async (args: any) => {
+    const result = await originalFindFirst(args);
+    if (args.where.status === "PENDING" && !result) {
+      state.entitlements.push({
+        id: "entitlement-race-winner",
+        activeScopeKey: scopeKey,
+        status: "ACTIVE",
+      });
+    }
+    return result;
+  };
+  db.purchase.create = async (args: any) => {
+    purchaseCreates += 1;
+    return originalCreate(args);
+  };
+
+  await assert.rejects(
+    () => createPlanningPackCheckout(service, {
+      createHostedCheckout: async () => {
+        providerCalls += 1;
+        return { id: "cs_duplicate", url: "https://checkout.stripe.test" };
+      },
+      verifyWebhook: () => { throw new Error("unused"); },
+    }, { userId: "user-1", projectId: "project-1", proposalBrief }),
+    /already paid/,
+  );
+  assert.equal(purchaseCreates, 0);
+  assert.equal(providerCalls, 0);
 });
 
 test("provider references attach atomically, replay identically, and lose to terminal races", async () => {

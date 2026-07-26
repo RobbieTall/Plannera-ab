@@ -173,6 +173,16 @@ export class PurchaseEntitlementService {
       } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
       if (existing) return existing;
 
+      const activeEntitlement = await this.prisma.entitlement.findFirst({
+        where: { activeScopeKey: scope.scopeKey, status: "ACTIVE" },
+      } as Parameters<PrismaClient["entitlement"]["findFirst"]>[0]);
+      if (activeEntitlement) {
+        throw new ArtefactAccessError(
+          "This exact Planning Controls Pack scope is already paid",
+          409,
+        );
+      }
+
       const priorCount = await this.prisma.purchase.count({
         where: { scopeKey: scope.scopeKey },
       } as Parameters<PrismaClient["purchase"]["count"]>[0]);
