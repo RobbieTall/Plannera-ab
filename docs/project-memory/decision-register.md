@@ -436,3 +436,14 @@ Stripe Checkout must enable automatic tax, require billing-address collection an
 Checkout is fail-closed and disabled by default. When disabled, existing free DPP generation is identical and builds need no Stripe secrets. When enabled, missing configuration denies safely and exact active entitlement is checked before DPP retrieval or persistence. Payment cannot change citation status, confidence, readiness or expert-review routing. A truthful persisted cited/unresolved pack is delivered value. A system/retrieval failure that prevents generation and persistence requires an operator-initiated full refund to the original method; state changes atomically to refunded only after signed provider confirmation of the full A$49.00 refund, including when that confirmation precedes settlement, which revokes active entitlement and blocks later paid replay. Partial refunds or paid-after-failed/cancelled contradictions require non-2xx reconciliation and are never silently acknowledged. There is no public refund endpoint. Production checkout remains explicitly not activated.
 
 Reference: docs/project-memory/build-next.md Item 72B
+
+
+## DR-046 — Test-mode Acceptance Is Protected Evidence, Not Activation
+
+Status: Active
+
+Decision: Stripe acceptance for the Planning Controls Pack runs only by explicit manual dispatch against a protected non-production deployment and Stripe test-mode objects. The operator manually completes hosted Checkout between the before-payment and paid phases and manually requests the full refund before the refunded phase; automation verifies provider amount/currency/tax facts, webhook-settled exact entitlement, duplicate and cross-scope denial, repeatable phase-aligned terminal state and provider-confirmed full refund. Automation calls real status, checkout and DPP routes but does not inject webhook events, inspect private response bodies, or perform payment/refund actions. Redirects, UI copy, live keys/objects, production-like hosts, partial refunds, contradictory events, missing configuration, or unsafe output fail closed.
+
+Acceptance evidence contains only allowlisted aggregate/result fields and opaque IDs. Raw addresses, proposal/contact/card data, cookies, secrets and provider payloads must not enter logs, summaries or artifacts, and test-card data is never persisted. Deploying the code is not enabling checkout. Production keeps `PLANNING_PACK_CHECKOUT_ENABLED` false/absent until a separate explicitly approved activation PR; an unexecuted Item 72C may be described only as implemented, not payment-ready or activated.
+
+Reference: docs/project-memory/build-next.md Item 72C; docs/operations/stripe-test-mode-acceptance.md
