@@ -1241,11 +1241,11 @@ Boundary and handoff:
 - The next commercial slice is Item 72: exact project/site/QSC/proposal-bound one-time DCP pack purchase. Payment must purchase the analysis only; it must never upgrade evidence quality or commercial readiness.
 - The live-audit workflow success message is corrected in the closure PR to say both projects reached an accepted terminal journey, rather than incorrectly claiming both chains are ready.
 
-## 72) Exact project-bound one-time DCP pack purchase — FOUNDATION IN PROGRESS (ITEM 72A)
+## 72) Exact project-bound one-time DCP pack purchase — ITEM 72A FOUNDATION COMPLETE; CHECKOUT NOT LAUNCHED
 
 Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The currently discussed customer offer is an A$29 DCP Deep Dive, but the final product name, tax treatment and price must be operator-confirmed against the commercialisation document before production checkout is enabled.
 
-Item 72A status: this PR adds only the provider-neutral purchase and exact-scope entitlement domain foundation. It is not launched: there is no selected payment provider, checkout, webhook, API route, UI, production price/flag/secret, DPP entitlement gate, analytics event, live call, project mutation or consultant delivery. Existing free Detailed Planning Pack generation remains unchanged until the operator explicitly approves checkout launch.
+Item 72A status: ✅ DONE (2026-07-26). PR #318 added the provider-neutral purchase and exact-scope entitlement domain foundation. PR #319 then hardened settlement and terminal lifecycle transitions against replay and concurrency, repaired the executable test harness, and placed the purchase-entitlement suite inside the mandatory Commercial Funnel Golden Gate. Checkout is still not launched: there is no selected payment provider, checkout, webhook, API route, UI, production price/flag/secret, DPP entitlement gate, customer payment event, live provider call, project mutation or consultant delivery. Existing free Detailed Planning Pack generation remains unchanged until the operator explicitly approves checkout launch.
 
 Operator decisions still required before any launch:
 - Payment provider.
@@ -1263,6 +1263,14 @@ Required contract:
 - Test/bypass/admin operation is explicit and server-derived, excluded from customer conversion, and impossible to activate with client fields. Secrets, transaction details and contact data never enter artefact text or analytics properties.
 
 Verification must cover forged checkout fields, replayed webhooks, duplicate delivery, cross-user/project/site/proposal reuse, changed proposal, cancelled/failed/refunded states, guest-to-account claiming, DPP generation without entitlement, and successful exact-scope generation. No payment provider or production price is selected by this documentation item.
+
+
+Merge and verification evidence:
+- PR #318 merged to `main` as `38c3386b3d7d2b234c6074d8858650509610db00`, adding the provider-neutral schema, migration, exact-scope service, tests and DR-044 without enabling checkout or changing free DPP access.
+- Review identified replay, terminal-transition and concurrent intent-creation gaps after #318 merged. PR #319 closed those gaps and merged to `main` as `e42d1303a822fbdbd81809c3b21295debc390ae1`.
+- Final #319 head `b48811bfe5d7b9eb5f8cb4e39bf76ad477d12116` passed Commercial Funnel Golden Gate run `30182618113` (#87): 105 Node tests and 69 Vitest tests passed with zero failures. Its Vercel preview also passed.
+- The commercial gate now executes `tests/purchase-entitlements.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
+- Item 72A completion is a domain-foundation milestone only. It does not approve a provider, price, tax treatment, refund policy, entitlement-gated DPP generation or production checkout.
 
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
