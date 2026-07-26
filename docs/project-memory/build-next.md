@@ -1285,17 +1285,20 @@ This is implementation evidence only: the protected test-mode run has not occurr
 
 Execution and activation remain operator gates: follow `docs/operations/stripe-test-mode-acceptance.md`, retain only the safe artifact, confirm the exact-scope DPP keeps its evidence-derived `acceptedJourney`/`commercialReady` state, complete and reconcile a full test refund, then obtain separate explicit approval for a production activation PR.
 
-#### Item 72C execution checkpoint — PAUSED CLEANLY (2026-07-26)
+#### Item 72C execution checkpoint — IN PROGRESS; MANUAL ENVIRONMENT SCOPE HANDOFF (2026-07-26)
 
-- Created Git branch `ops/stripe-test-acceptance` at exact merged #322 commit `1cc0b21c2bb01b2bb8e47bbc5ab5ae82a26e372c`.
-- Created GitHub environment `stripe-test-acceptance`; `RobbieTall` is the required reviewer, administrator bypass is disabled, and only `main` may deploy to the environment.
-- Confirmed the separate Stripe merchant named `Plannera` and switched it to Stripe test mode. No API key, webhook endpoint, product, Checkout Session, payment, refund, or charge was created.
-- The GitHub environment currently has no variables or secrets. No Vercel branch-scoped variables were added and no acceptance preview deployment was created.
-- Production checkout remains disabled and production configuration/data were not changed.
-- Database isolation is the next hard gate. Before creating the preview, configure the existing Vercel-managed Neon integration to create an isolated database branch for Preview deployments (or obtain explicit operator acceptance of a separate database provider's marketplace terms). Never run acceptance against the existing all-environments production database connection.
-- Resume sequence: prove preview database branching, add branch-only Stripe test configuration, create the preview, create two disposable requester-scoped projects plus a cited current QSC, populate the protected GitHub environment without exposing secrets, then run `before_payment`. Stop at Stripe-hosted Checkout for the operator's manual test-card entry; run `paid` and `refunded` only after the corresponding provider facts exist.
+- Git branch `ops/stripe-test-acceptance` remains pinned to exact merged #322 commit `1cc0b21c2bb01b2bb8e47bbc5ab5ae82a26e372c`.
+- Protected GitHub environment `stripe-test-acceptance` requires reviewer `RobbieTall`, disables administrator bypass, and permits only `main`. It still contains no acceptance variables or secrets.
+- Vercel-managed Neon Preview database branching is enabled. Production database branching remains off. The isolated branch preview for exact commit `1cc0b21` is Ready at `https://plannera-7goomcf84-robbietalls-projects.vercel.app`.
+- Stripe work remains inside the separate `Plannera` sandbox/test account. A legacy standard test key exposed by the dashboard during operator inspection was immediately rotated to expire now; no live key or production Stripe state was touched.
+- Stripe Tax sandbox configuration now has an Australian standard GST registration, the `Professional Services` preset product tax code, 10% GST, and automatic tax enabled/marked complete. The A$49.00/A$4.45 provider fact is not yet proven because no Checkout Session exists.
+- An active test webhook destination points only to `https://plannera-7goomcf84-robbietalls-projects.vercel.app/api/webhooks/stripe` and subscribes exactly to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `refund.created`, and `refund.updated`. It has no deliveries.
+- Automated access to the hidden webhook signing secret was blocked by the provider/browser security boundary and was not bypassed. The operator has now entered the required environment values into Vercel's add-variable form, but Preview-only and `ops/stripe-test-acceptance` branch scoping plus final save are not yet verified.
+- No Checkout Session, payment, DPP, charge, refund, or protected acceptance run exists. Production checkout remains disabled and production configuration/data are unchanged.
+- Next action: scope every acceptance value only to Vercel Preview branch `ops/stripe-test-acceptance`, save, verify the resulting variable rows without revealing values, redeploy exact commit `1cc0b21`, then prove a dedicated signed-in requester before creating two disposable isolated projects and dispatching `before_payment`.
+- The only card action remains manual at Stripe-hosted Checkout. `paid` and `refunded` phases remain blocked until their exact provider/webhook facts exist.
 
-No Item 72C acceptance run or safe artifact exists yet. This checkpoint records infrastructure preparation only and does not advance payment readiness.
+No Item 72C acceptance run or safe artifact exists yet. This checkpoint records isolated test infrastructure progress only and does not advance payment readiness.
 
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
