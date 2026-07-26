@@ -3,9 +3,17 @@ import { createHash } from "crypto";
 import type { Artefact, PrismaClient } from "@prisma/client";
 
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
-import { quickSiteCheckReportSchema, ArtefactAccessError, ArtefactValidationError } from "@/lib/artefact-service";
+import {
+  quickSiteCheckReportSchema,
+  ArtefactAccessError,
+  ArtefactValidationError,
+} from "@/lib/artefact-service";
 import { normalizeProposalBriefForComparison } from "@/lib/detailed-planning-pack-selector";
-import { isArtefactCurrentForSite, quickSiteCheckScope, type CurrentSiteScope } from "@/lib/site-scoped-artefacts";
+import {
+  isArtefactCurrentForSite,
+  quickSiteCheckScope,
+  type CurrentSiteScope,
+} from "@/lib/site-scoped-artefacts";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 
 export type ServerProductTerms = {
@@ -15,7 +23,10 @@ export type ServerProductTerms = {
   currency: string;
 };
 
-type PurchasePrisma = Pick<PrismaClient, "project" | "artefact" | "purchase" | "entitlement" | "$transaction">;
+type PurchasePrisma = Pick<
+  PrismaClient,
+  "project" | "artefact" | "purchase" | "entitlement" | "$transaction"
+>;
 
 type ExactScope = {
   userId: string;
@@ -26,160 +37,413 @@ type ExactScope = {
   productVersion: string;
 };
 
-const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: string) =>
+  createHash("sha256").update(value).digest("hex");
 
-export const normalizePurchaseProposal = (proposalBrief?: string | null) => normalizeProposalBriefForComparison(proposalBrief);
+export const normalizePurchaseProposal = (proposalBrief?: string | null) =>
+  normalizeProposalBriefForComparison(proposalBrief);
 
 export const fingerprintPurchaseProposal = (proposalBrief?: string | null) => {
   const normalized = normalizePurchaseProposal(proposalBrief);
-  if (!normalized) throw new ArtefactValidationError("A proposed-works brief is required before purchase");
+  if (!normalized) {
+    throw new ArtefactValidationError(
+      "A proposed-works brief is required before purchase",
+    );
+  }
   return sha256(normalized);
 };
 
-const exactScopeKey = (scope: ExactScope) => [
-  scope.userId,
-  scope.projectId,
-  scope.quickSiteCheckArtefactId,
-  scope.proposalFingerprint,
-  scope.productCode,
-  scope.productVersion,
+const exactScopeKey = (scope: ExactScope) =>
+  [
+    scope.userId,
+    scope.projectId,
+    scope.quickSiteCheckArtefactId,
+    scope.proposalFingerprint,
+    scope.productCode,
+    scope.productVersion,
   ].join(":");
 
-const isLaunchLga = (lgaCode?: string | null, lgaName?: string | null) => /\b(byron|kempsey)\b/i.test(`${lgaCode ?? ""} ${lgaName ?? ""}`);
+const isLaunchLga = (lgaCode?: string | null, lgaName?: string | null) =>
+  /\b(byron|kempsey)\b/i.test(`${lgaCode ?? ""} ${lgaName ?? ""}`);
 
 const parseQsc = (artefact: Artefact): QuickSiteCheckReport | null => {
   const parsed = quickSiteCheckReportSchema.safeParse(artefact.payload);
-  return parsed.success ? parsed.data as QuickSiteCheckReport : null;
+  return parsed.success ? (parsed.data as QuickSiteCheckReport) : null;
 };
 
 const isUniqueConstraintError = (error: unknown): boolean =>
-  typeof error === "object" && error !== null && (error as { code?: string }).code === "P2002";
+  typeof error === "object" &&
+  error !== null &&
+  (error as { code?: string }).code === "P2002";
 
 export class PurchaseEntitlementService {
-  constructor(private readonly prisma: PurchasePrisma, private readonly terms: ServerProductTerms) {}
+  constructor(
+    private readonly prisma: PurchasePrisma,
+    private readonly terms: ServerProductTerms,
+  ) {}
 
-async resolveScope(params: { userId: string; projectId: string; proposalBrief: string }) {
-  const project = await this.prisma.project.findFirst({
-    where: { id: params.projectId, userId: params.userId },
-    include: { siteContext: true },
-  });
-  if (!project) throw new ArtefactAccessError("Project not found", 404);
-  if (!project.siteContext) throw new ArtefactValidationError("Set a confirmed site before purchase");
-
-  const currentSiteScope: CurrentSiteScope = {
-    address: project.siteContext.formattedAddress,
-    lgaName: project.siteContext.lgaName,
-    lgaCode: project.siteContext.lgaCode,
-    zoneLabel: project.siteContext.zone ?? project.zoning,
-    zoneCode: project.zoningCode,
-  };
-
-  const artefacts = await this.prisma.artefact.findMany({
-    where: { projectId: project.id, type: "quick_site_check" },
-    orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
-  } as Parameters<PrismaClient["artefact"]["findMany"]>[0]);
-  const current = (artefacts as Artefact[])
-  .map((artefact) => ({ artefact, report: parseQsc(artefact) }))
-  .find(({ report }) => report?.lepEvidenceSummary?.label === "Cited" && isArtefactCurrentForSite(currentSiteScope, quickSiteCheckScope(report)));
-  if (!current?.report) throw new ArtefactValidationError("Save a current-site Quick Site Check with cited LEP evidence before purchase");
-
-  const lgaCode = normalizeCouncilLgaCode(current.report.site.lga ?? project.siteContext.lgaCode);
-  if (!isLaunchLga(lgaCode, current.report.site.lga ?? project.siteContext.lgaName)) throw new ArtefactValidationError("Purchase pilot is currently available for Byron and Kempsey only");
-
-  const proposalFingerprint = fingerprintPurchaseProposal(params.proposalBrief);
-  const scope = {
-    userId: params.userId,
-    projectId: project.id,
-    quickSiteCheckArtefactId: current.artefact.id,
-    proposalFingerprint,
-    productCode: this.terms.productCode,
-    productVersion: this.terms.productVersion,
-  };
-  return { ...scope, scopeKey: exactScopeKey(scope), amountMinor: this.terms.amountMinor, currency: this.terms.currency };
-}
-
-async createOrReusePendingIntent(params: { userId: string; projectId: string; proposalBrief: string }) {
-  const scope = await this.resolveScope(params);
-  const existing = await this.prisma.purchase.findFirst({ where: { scopeKey: scope.scopeKey, status: "PENDING" } } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
-  if (existing) return existing;
-  const priorCount = await this.prisma.purchase.count({ where: { scopeKey: scope.scopeKey } } as Parameters<PrismaClient["purchase"]["count"]>[0]);
-  try {
-    return await this.prisma.purchase.create({ data: { ...scope, idempotencyKey: sha256(`pending:${scope.scopeKey}:${priorCount + 1}`) } } as Parameters<PrismaClient["purchase"]["create"]>[0]);
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) throw error;
-    const winner = await this.prisma.purchase.findFirst({ where: { scopeKey: scope.scopeKey, status: "PENDING" } } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
-    if (winner) return winner;
-    throw error;
-  }
-}
-
-async settlePaidPurchase(purchaseId: string) {
-  return this.prisma.$transaction(async (tx: unknown) => {
-    const transaction = tx as Pick<PrismaClient, "purchase" | "entitlement">;
-    const existing = await transaction.purchase.findUnique({ where: { id: purchaseId } });
-    if (!existing) throw new ArtefactValidationError("Purchase not found");
-    if (!["PENDING", "PAID"].includes(existing.status)) throw new ArtefactValidationError("Purchase is not payable");
-
-                                  const existingEntitlement = await transaction.entitlement.findUnique({ where: { purchaseId: existing.id } });
-    if (existingEntitlement && ["REVOKED", "REFUNDED"].includes(existingEntitlement.status)) {
-      throw new ArtefactValidationError("Entitlement was revoked or refunded and cannot be reactivated by a replayed settlement");
+  async resolveScope(params: {
+    userId: string;
+    projectId: string;
+    proposalBrief: string;
+  }) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: params.projectId, userId: params.userId },
+      include: { siteContext: true },
+    });
+    if (!project) throw new ArtefactAccessError("Project not found", 404);
+    if (!project.siteContext) {
+      throw new ArtefactValidationError(
+        "Set a confirmed site before purchase",
+      );
     }
 
-                                  const purchase = existing.status === "PAID"
-    ? existing
-                                    : await transaction.purchase.update({ where: { id: purchaseId }, data: { status: "PAID", paidAt: new Date() } });
-    const scopeKey = exactScopeKey(purchase);
-    return transaction.entitlement.upsert({
-      where: { purchaseId: purchase.id },
-      create: {
-        userId: purchase.userId, projectId: purchase.projectId, quickSiteCheckArtefactId: purchase.quickSiteCheckArtefactId,
-        proposalFingerprint: purchase.proposalFingerprint, productCode: purchase.productCode, productVersion: purchase.productVersion,
-        purchaseId: purchase.id, status: "ACTIVE", activeScopeKey: scopeKey,
-      },
-      update: { status: "ACTIVE", activeScopeKey: scopeKey, refundedAt: null, revokedAt: null },
+    const currentSiteScope: CurrentSiteScope = {
+      address: project.siteContext.formattedAddress,
+      lgaName: project.siteContext.lgaName,
+      lgaCode: project.siteContext.lgaCode,
+      zoneLabel: project.siteContext.zone ?? project.zoning,
+      zoneCode: project.zoningCode,
+    };
+
+    const artefacts = await this.prisma.artefact.findMany({
+      where: { projectId: project.id, type: "quick_site_check" },
+      orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
+    } as Parameters<PrismaClient["artefact"]["findMany"]>[0]);
+    const current = (artefacts as Artefact[])
+      .map((artefact) => ({ artefact, report: parseQsc(artefact) }))
+      .find(
+        ({ report }) =>
+          report?.lepEvidenceSummary?.label === "Cited" &&
+          isArtefactCurrentForSite(
+            currentSiteScope,
+            quickSiteCheckScope(report),
+          ),
+      );
+    if (!current?.report) {
+      throw new ArtefactValidationError(
+        "Save a current-site Quick Site Check with cited LEP evidence before purchase",
+      );
+    }
+
+    const lgaCode = normalizeCouncilLgaCode(
+      current.report.site.lga ?? project.siteContext.lgaCode,
+    );
+    if (
+      !isLaunchLga(
+        lgaCode,
+        current.report.site.lga ?? project.siteContext.lgaName,
+      )
+    ) {
+      throw new ArtefactValidationError(
+        "Purchase pilot is currently available for Byron and Kempsey only",
+      );
+    }
+
+    const proposalFingerprint = fingerprintPurchaseProposal(
+      params.proposalBrief,
+    );
+    const scope = {
+      userId: params.userId,
+      projectId: project.id,
+      quickSiteCheckArtefactId: current.artefact.id,
+      proposalFingerprint,
+      productCode: this.terms.productCode,
+      productVersion: this.terms.productVersion,
+    };
+
+    return {
+      ...scope,
+      scopeKey: exactScopeKey(scope),
+      amountMinor: this.terms.amountMinor,
+      currency: this.terms.currency,
+    };
+  }
+
+  async createOrReusePendingIntent(params: {
+    userId: string;
+    projectId: string;
+    proposalBrief: string;
+  }) {
+    const scope = await this.resolveScope(params);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const existing = await this.prisma.purchase.findFirst({
+        where: { scopeKey: scope.scopeKey, status: "PENDING" },
+      } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
+      if (existing) return existing;
+
+      const priorCount = await this.prisma.purchase.count({
+        where: { scopeKey: scope.scopeKey },
+      } as Parameters<PrismaClient["purchase"]["count"]>[0]);
+      try {
+        return await this.prisma.purchase.create({
+          data: {
+            ...scope,
+            idempotencyKey: sha256(
+              `pending:${scope.scopeKey}:${priorCount + 1}`,
+            ),
+          },
+        } as Parameters<PrismaClient["purchase"]["create"]>[0]);
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        const winner = await this.prisma.purchase.findFirst({
+          where: { scopeKey: scope.scopeKey, status: "PENDING" },
+        } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
+        if (winner) return winner;
+      }
+    }
+
+    throw new ArtefactValidationError(
+      "Could not create a purchase intent safely; try again",
+    );
+  }
+
+  async settlePaidPurchase(purchaseId: string) {
+    return this.prisma.$transaction(async (tx: unknown) => {
+      const transaction = tx as Pick<
+        PrismaClient,
+        "purchase" | "entitlement"
+      >;
+      const existing = await transaction.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+      if (!existing) {
+        throw new ArtefactValidationError("Purchase not found");
+      }
+      if (!["PENDING", "PAID"].includes(existing.status)) {
+        throw new ArtefactValidationError("Purchase is not payable");
+      }
+
+      const existingEntitlement =
+        await transaction.entitlement.findUnique({
+          where: { purchaseId: existing.id },
+        });
+      if (
+        existingEntitlement &&
+        ["REVOKED", "REFUNDED"].includes(existingEntitlement.status)
+      ) {
+        throw new ArtefactValidationError(
+          "Entitlement was revoked or refunded and cannot be reactivated by a replayed settlement",
+        );
+      }
+
+      const purchase =
+        existing.status === "PAID"
+          ? existing
+          : await transaction.purchase.update({
+              where: { id: purchaseId },
+              data: { status: "PAID", paidAt: new Date() },
+            });
+      const scopeKey = exactScopeKey(purchase);
+
+      return transaction.entitlement.upsert({
+        where: { purchaseId: purchase.id },
+        create: {
+          userId: purchase.userId,
+          projectId: purchase.projectId,
+          quickSiteCheckArtefactId:
+            purchase.quickSiteCheckArtefactId,
+          proposalFingerprint: purchase.proposalFingerprint,
+          productCode: purchase.productCode,
+          productVersion: purchase.productVersion,
+          purchaseId: purchase.id,
+          status: "ACTIVE",
+          activeScopeKey: scopeKey,
+        },
+        update: {
+          status: "ACTIVE",
+          activeScopeKey: scopeKey,
+          refundedAt: null,
+          revokedAt: null,
+        },
+      });
     });
-  });
-}
+  }
 
-async findActiveEntitlementForCurrentScope(params: { userId: string; projectId: string; proposalBrief: string }) {
-  const scope = await this.resolveScope(params);
-  return this.findActiveEntitlement({ userId: scope.userId, projectId: scope.projectId, quickSiteCheckArtefactId: scope.quickSiteCheckArtefactId, proposalBrief: params.proposalBrief });
-}
+  async findActiveEntitlementForCurrentScope(params: {
+    userId: string;
+    projectId: string;
+    proposalBrief: string;
+  }) {
+    const scope = await this.resolveScope(params);
+    return this.findActiveEntitlement({
+      userId: scope.userId,
+      projectId: scope.projectId,
+      quickSiteCheckArtefactId: scope.quickSiteCheckArtefactId,
+      proposalBrief: params.proposalBrief,
+    });
+  }
 
-async findActiveEntitlement(params: { userId: string; projectId: string; quickSiteCheckArtefactId: string; proposalBrief: string; productCode?: string; productVersion?: string }) {
-  const proposalFingerprint = fingerprintPurchaseProposal(params.proposalBrief);
-  const scope = { userId: params.userId, projectId: params.projectId, quickSiteCheckArtefactId: params.quickSiteCheckArtefactId, proposalFingerprint, productCode: params.productCode ?? this.terms.productCode, productVersion: params.productVersion ?? this.terms.productVersion };
-  return this.prisma.entitlement.findFirst({ where: { activeScopeKey: exactScopeKey(scope), status: "ACTIVE" } } as Parameters<PrismaClient["entitlement"]["findFirst"]>[0]);
-}
+  async findActiveEntitlement(params: {
+    userId: string;
+    projectId: string;
+    quickSiteCheckArtefactId: string;
+    proposalBrief: string;
+    productCode?: string;
+    productVersion?: string;
+  }) {
+    const proposalFingerprint = fingerprintPurchaseProposal(
+      params.proposalBrief,
+    );
+    const scope = {
+      userId: params.userId,
+      projectId: params.projectId,
+      quickSiteCheckArtefactId: params.quickSiteCheckArtefactId,
+      proposalFingerprint,
+      productCode: params.productCode ?? this.terms.productCode,
+      productVersion: params.productVersion ?? this.terms.productVersion,
+    };
 
-async markPurchaseFailed(purchaseId: string) {
-  const result = await this.prisma.purchase.updateMany({
-    where: { id: purchaseId, status: "PENDING" },
-    data: { status: "FAILED", failedAt: new Date() },
-  } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
-  if (result.count === 0) throw new ArtefactValidationError("Purchase cannot be marked failed from its current state");
-  return result;
-}
+    return this.prisma.entitlement.findFirst({
+      where: {
+        activeScopeKey: exactScopeKey(scope),
+        status: "ACTIVE",
+      },
+    } as Parameters<PrismaClient["entitlement"]["findFirst"]>[0]);
+  }
 
-async cancelPurchase(purchaseId: string) {
-  const result = await this.prisma.purchase.updateMany({
-    where: { id: purchaseId, status: "PENDING" },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
-  } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
-  if (result.count === 0) throw new ArtefactValidationError("Purchase cannot be cancelled from its current state");
-  return result;
-}
+  async markPurchaseFailed(purchaseId: string) {
+    const existing = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (!existing) {
+      throw new ArtefactValidationError("Purchase not found");
+    }
+    if (existing.status === "FAILED") return existing;
+    if (existing.status !== "PENDING") {
+      throw new ArtefactValidationError(
+        "Purchase cannot be marked failed from its current state",
+      );
+    }
 
-async refundPurchase(purchaseId: string) {
-  return this.prisma.$transaction(async (tx: unknown) => {
-    const transaction = tx as Pick<PrismaClient, "purchase" | "entitlement">;
-    const result = await transaction.purchase.updateMany({ where: { id: purchaseId, status: "PAID" }, data: { status: "REFUNDED", refundedAt: new Date() } });
-    if (result.count === 0) throw new ArtefactValidationError("Purchase cannot be refunded from its current state");
-    return transaction.entitlement.updateMany({ where: { purchaseId, status: "ACTIVE" }, data: { status: "REFUNDED", activeScopeKey: null, refundedAt: new Date() } });
-  });
-}
+    const result = await this.prisma.purchase.updateMany({
+      where: { id: purchaseId, status: "PENDING" },
+      data: { status: "FAILED", failedAt: new Date() },
+    } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
+    const latest = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (result.count === 0 && latest?.status !== "FAILED") {
+      throw new ArtefactValidationError(
+        "Purchase cannot be marked failed from its current state",
+      );
+    }
+    if (!latest) throw new ArtefactValidationError("Purchase not found");
+    return latest;
+  }
 
-async revokeEntitlement(entitlementId: string) {
-  return this.prisma.entitlement.update({ where: { id: entitlementId }, data: { status: "REVOKED", activeScopeKey: null, revokedAt: new Date() } } as Parameters<PrismaClient["entitlement"]["update"]>[0]);
-}
+  async cancelPurchase(purchaseId: string) {
+    const existing = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (!existing) {
+      throw new ArtefactValidationError("Purchase not found");
+    }
+    if (existing.status === "CANCELLED") return existing;
+    if (existing.status !== "PENDING") {
+      throw new ArtefactValidationError(
+        "Purchase cannot be cancelled from its current state",
+      );
+    }
+
+    const result = await this.prisma.purchase.updateMany({
+      where: { id: purchaseId, status: "PENDING" },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
+    const latest = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+    if (result.count === 0 && latest?.status !== "CANCELLED") {
+      throw new ArtefactValidationError(
+        "Purchase cannot be cancelled from its current state",
+      );
+    }
+    if (!latest) throw new ArtefactValidationError("Purchase not found");
+    return latest;
+  }
+
+  async refundPurchase(purchaseId: string) {
+    return this.prisma.$transaction(async (tx: unknown) => {
+      const transaction = tx as Pick<
+        PrismaClient,
+        "purchase" | "entitlement"
+      >;
+      const existing = await transaction.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+      if (!existing) {
+        throw new ArtefactValidationError("Purchase not found");
+      }
+      if (existing.status === "REFUNDED") return existing;
+      if (existing.status !== "PAID") {
+        throw new ArtefactValidationError(
+          "Purchase cannot be refunded from its current state",
+        );
+      }
+
+      const refundedAt = new Date();
+      const result = await transaction.purchase.updateMany({
+        where: { id: purchaseId, status: "PAID" },
+        data: { status: "REFUNDED", refundedAt },
+      });
+      const latest = await transaction.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+      if (result.count === 0 && latest?.status !== "REFUNDED") {
+        throw new ArtefactValidationError(
+          "Purchase cannot be refunded from its current state",
+        );
+      }
+      if (!latest) {
+        throw new ArtefactValidationError("Purchase not found");
+      }
+
+      await transaction.entitlement.updateMany({
+        where: { purchaseId, status: "ACTIVE" },
+        data: {
+          status: "REFUNDED",
+          activeScopeKey: null,
+          refundedAt,
+        },
+      });
+      return latest;
+    });
+  }
+
+  async revokeEntitlement(entitlementId: string) {
+    const existing = await this.prisma.entitlement.findUnique({
+      where: { id: entitlementId },
+    });
+    if (!existing) {
+      throw new ArtefactValidationError("Entitlement not found");
+    }
+    if (existing.status === "REVOKED") return existing;
+    if (existing.status !== "ACTIVE") {
+      throw new ArtefactValidationError(
+        "Entitlement cannot be revoked from its current state",
+      );
+    }
+
+    const result = await this.prisma.entitlement.updateMany({
+      where: { id: entitlementId, status: "ACTIVE" },
+      data: {
+        status: "REVOKED",
+        activeScopeKey: null,
+        revokedAt: new Date(),
+      },
+    } as Parameters<PrismaClient["entitlement"]["updateMany"]>[0]);
+    const latest = await this.prisma.entitlement.findUnique({
+      where: { id: entitlementId },
+    });
+    if (result.count === 0 && latest?.status !== "REVOKED") {
+      throw new ArtefactValidationError(
+        "Entitlement cannot be revoked from its current state",
+      );
+    }
+    if (!latest) {
+      throw new ArtefactValidationError("Entitlement not found");
+    }
+    return latest;
+  }
 }
