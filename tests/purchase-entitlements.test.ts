@@ -70,6 +70,7 @@ const createDb = (opts: any = {}) => {
   const state: any = { purchases: [], entitlements: [] };
   const project = opts.project ?? {
     id: "project-1",
+    publicId: "proj-public-1",
     userId: "user-1",
     zoning: "SP3 - Tourist",
     zoningCode: "SP3",
@@ -188,12 +189,23 @@ const createDb = (opts: any = {}) => {
     state,
     db: {
       project: {
-        findFirst: async ({ where }: any) =>
-          project &&
-          project.id === where.id &&
-          project.userId === where.userId
+        findFirst: async ({ where }: any) => {
+          const identityFilters =
+            where.AND?.find((condition: any) => Array.isArray(condition.OR))
+              ?.OR ?? [{ id: where.id }];
+          const ownerId =
+            where.AND?.find((condition: any) => "userId" in condition)
+              ?.userId ?? where.userId;
+          return project &&
+            identityFilters.some(
+              (identity: any) =>
+                identity.id === project.id ||
+                identity.publicId === project.publicId,
+            ) &&
+            project.userId === ownerId
             ? project
-            : null,
+            : null;
+        },
       },
       artefact: { findMany: async () => artefacts },
       purchase: purchaseApi,
@@ -243,6 +255,21 @@ test("commercial fields are server-owned and forged client fields are ignored", 
   assert.equal(purchase.currency, "AUD");
   assert.equal(purchase.productCode, terms.productCode);
   assert.equal(state.purchases[0].providerPayload, undefined);
+});
+
+test("public project IDs resolve to the canonical paid scope", async () => {
+  const { db } = createDb();
+  const purchase = await new PurchaseEntitlementService(
+    db,
+    terms,
+  ).createOrReusePendingIntent({
+    userId: "user-1",
+    projectId: "proj-public-1",
+    proposalBrief: "Tourist accommodation",
+  });
+
+  assert.equal(purchase.projectId, "project-1");
+  assert.equal(purchase.quickSiteCheckArtefactId, "qsc-1");
 });
 
 test("ownership, current-site, cited QSC, non-empty proposal and launch LGA are required", async () => {

@@ -88,7 +88,12 @@ export class PurchaseEntitlementService {
     proposalBrief: string;
   }) {
     const project = await this.prisma.project.findFirst({
-      where: { id: params.projectId, userId: params.userId },
+      where: {
+        AND: [
+          { OR: [{ id: params.projectId }, { publicId: params.projectId }] },
+          { userId: params.userId },
+        ],
+      },
       include: { siteContext: true },
     });
     if (!project) throw new ArtefactAccessError("Project not found", 404);
