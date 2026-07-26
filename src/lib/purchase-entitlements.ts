@@ -215,29 +215,38 @@ export class PurchaseEntitlementService {
         throw new ArtefactValidationError("Purchase is not payable");
       }
 
+      const transition = await transaction.purchase.updateMany({
+        where: { id: purchaseId, status: existing.status },
+        data:
+          existing.status === "PENDING"
+            ? { status: "PAID", paidAt: new Date() }
+            : { status: "PAID" },
+      });
+      const purchase = await transaction.purchase.findUnique({
+        where: { id: purchaseId },
+      });
+      if (
+        transition.count === 0 ||
+        !purchase ||
+        purchase.status !== "PAID"
+      ) {
+        throw new ArtefactValidationError("Purchase is not payable");
+      }
+
       const existingEntitlement =
         await transaction.entitlement.findUnique({
-          where: { purchaseId: existing.id },
+          where: { purchaseId: purchase.id },
         });
-      if (
-        existingEntitlement &&
-        ["REVOKED", "REFUNDED"].includes(existingEntitlement.status)
-      ) {
+      if (existingEntitlement?.status === "ACTIVE") {
+        return existingEntitlement;
+      }
+      if (existingEntitlement) {
         throw new ArtefactValidationError(
           "Entitlement was revoked or refunded and cannot be reactivated by a replayed settlement",
         );
       }
 
-      const purchase =
-        existing.status === "PAID"
-          ? existing
-          : await transaction.purchase.update({
-              where: { id: purchaseId },
-              data: { status: "PAID", paidAt: new Date() },
-            });
-      const scopeKey = exactScopeKey(purchase);
-
-      return transaction.entitlement.upsert({
+      const entitlement = await transaction.entitlement.upsert({
         where: { purchaseId: purchase.id },
         create: {
           userId: purchase.userId,
@@ -249,15 +258,16 @@ export class PurchaseEntitlementService {
           productVersion: purchase.productVersion,
           purchaseId: purchase.id,
           status: "ACTIVE",
-          activeScopeKey: scopeKey,
+          activeScopeKey: exactScopeKey(purchase),
         },
-        update: {
-          status: "ACTIVE",
-          activeScopeKey: scopeKey,
-          refundedAt: null,
-          revokedAt: null,
-        },
+        update: {},
       });
+      if (entitlement.status !== "ACTIVE") {
+        throw new ArtefactValidationError(
+          "Entitlement was revoked or refunded and cannot be reactivated by a replayed settlement",
+        );
+      }
+      return entitlement;
     });
   }
 
