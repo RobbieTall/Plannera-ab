@@ -1285,6 +1285,18 @@ This is implementation evidence only: the protected test-mode run has not occurr
 
 Execution and activation remain operator gates: follow `docs/operations/stripe-test-mode-acceptance.md`, retain only the safe artifact, confirm the exact-scope DPP keeps its evidence-derived `acceptedJourney`/`commercialReady` state, complete and reconcile a full test refund, then obtain separate explicit approval for a production activation PR.
 
+#### Item 72C execution checkpoint — PAUSED CLEANLY (2026-07-26)
+
+- Created Git branch `ops/stripe-test-acceptance` at exact merged #322 commit `1cc0b21c2bb01b2bb8e47bbc5ab5ae82a26e372c`.
+- Created GitHub environment `stripe-test-acceptance`; `RobbieTall` is the required reviewer, administrator bypass is disabled, and only `main` may deploy to the environment.
+- Confirmed the separate Stripe merchant named `Plannera` and switched it to Stripe test mode. No API key, webhook endpoint, product, Checkout Session, payment, refund, or charge was created.
+- The GitHub environment currently has no variables or secrets. No Vercel branch-scoped variables were added and no acceptance preview deployment was created.
+- Production checkout remains disabled and production configuration/data were not changed.
+- Database isolation is the next hard gate. Before creating the preview, configure the existing Vercel-managed Neon integration to create an isolated database branch for Preview deployments (or obtain explicit operator acceptance of a separate database provider's marketplace terms). Never run acceptance against the existing all-environments production database connection.
+- Resume sequence: prove preview database branching, add branch-only Stripe test configuration, create the preview, create two disposable requester-scoped projects plus a cited current QSC, populate the protected GitHub environment without exposing secrets, then run `before_payment`. Stop at Stripe-hosted Checkout for the operator's manual test-card entry; run `paid` and `refunded` only after the corresponding provider facts exist.
+
+No Item 72C acceptance run or safe artifact exists yet. This checkpoint records infrastructure preparation only and does not advance payment readiness.
+
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
 Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.
