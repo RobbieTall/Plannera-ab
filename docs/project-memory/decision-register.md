@@ -418,6 +418,8 @@ Decision: The Item 72A foundation records purchases and entitlements as provider
 
 Active entitlement lookup must fail closed for any cross-user, cross-project, changed QSC/site, changed proposal, product or version mismatch. Refund and revoke remove active entitlement scope so a legitimate later repurchase can be recorded without weakening duplicate-active protection. These records must never persist raw proposal text, address, zoning detail, clauses, contact data, provider payloads/secrets or arbitrary JSON metadata.
 
+Lifecycle transitions are guarded server-side and idempotent for identical terminal replays. Settlement may move only a payable purchase to `PAID` through an atomic status condition; it must not overwrite a concurrent failed, cancelled or refunded transition, and it must never reactivate a `REVOKED` or `REFUNDED` entitlement. Concurrent pending-intent creation may return the winning exact-scope record after a unique-key race, but must not leak provider or database errors to the customer.
+
 This foundation does not select a provider, create checkout/webhook/API/UI paths, launch payment, gate DPP generation, mutate evidence quality, change `acceptedJourney`/`commercialReady`, emit analytics or send consultant referrals. Production checkout still requires operator approval of provider, final product/name/price, GST/tax treatment, refund/credit/regeneration policy and launch timing.
 
-Reference: docs/project-memory/build-next.md Item 72 / Item 72A
+Implementation evidence: PR #318 (domain foundation) and PR #319 (lifecycle hardening); docs/project-memory/build-next.md Item 72 / Item 72A
