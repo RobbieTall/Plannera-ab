@@ -5,6 +5,7 @@ import { getPlanningPackCheckoutConfig, PLANNING_CONTROLS_PACK_TERMS } from "@/l
 import { prisma } from "@/lib/prisma";
 import { PurchaseEntitlementService } from "@/lib/purchase-entitlements";
 import { StripeCommerceProvider } from "@/lib/stripe-commerce";
+import { createPlanningPackCheckout } from "@/lib/planning-pack-checkout";
 
 export const dynamic = "force-dynamic";
 
@@ -18,15 +19,11 @@ export async function POST(request: NextRequest) {
       throw new ArtefactValidationError("Project and proposed works are required");
     }
     const service = new PurchaseEntitlementService(prisma, PLANNING_CONTROLS_PACK_TERMS);
-    const purchase = await service.createOrReusePendingIntent({ userId, projectId: body.projectId, proposalBrief: body.proposalBrief });
-    const checkout = await new StripeCommerceProvider(config).createHostedCheckout({
-      purchaseId: purchase.id,
-      amountMinor: PLANNING_CONTROLS_PACK_TERMS.amountMinor,
-      currency: PLANNING_CONTROLS_PACK_TERMS.currency,
-      productName: "Planning Controls Pack — A$49 incl. GST",
-      idempotencyKey: purchase.idempotencyKey,
-    });
-    await service.attachProviderCheckout(purchase.id, checkout.id);
+    const checkout = await createPlanningPackCheckout(
+      service,
+      new StripeCommerceProvider(config),
+      { userId, projectId: body.projectId, proposalBrief: body.proposalBrief },
+    );
     return NextResponse.json({ checkoutUrl: checkout.url });
   } catch (error) {
     if (error instanceof ArtefactValidationError || error instanceof ArtefactAccessError) {

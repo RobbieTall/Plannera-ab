@@ -200,30 +200,24 @@ export class PurchaseEntitlementService {
   }
 
   async attachProviderCheckout(purchaseId: string, checkoutSessionId: string) {
-    const purchase = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
-    if (!purchase || purchase.status !== "PENDING") {
-      throw new ArtefactValidationError("Purchase is not awaiting checkout");
-    }
-    if (purchase.providerReference && purchase.providerReference !== checkoutSessionId) {
-      throw new ArtefactValidationError("Purchase already has a different checkout session");
-    }
-    return this.prisma.purchase.update({
-      where: { id: purchaseId },
+    await this.prisma.purchase.updateMany({
+      where: { id: purchaseId, status: "PENDING", providerReference: null },
       data: { providerName: "stripe", providerReference: checkoutSessionId },
-    } as Parameters<PrismaClient["purchase"]["update"]>[0]);
+    } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
+    const latest = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
+    if (latest?.status === "PENDING" && latest.providerName === "stripe" && latest.providerReference === checkoutSessionId) return latest;
+    throw new ArtefactValidationError("Purchase checkout reference could not be attached safely");
   }
 
   async bindProviderPaymentReference(purchaseId: string, paymentIntentId?: string | null) {
     if (!paymentIntentId) return;
-    const purchase = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
-    if (!purchase) throw new ArtefactValidationError("Purchase not found");
-    if (purchase.providerIntentReference && purchase.providerIntentReference !== paymentIntentId) {
-      throw new ArtefactValidationError("Provider payment reference mismatch");
-    }
-    await this.prisma.purchase.update({
-      where: { id: purchaseId },
+    await this.prisma.purchase.updateMany({
+      where: { id: purchaseId, status: { in: ["PENDING", "PAID"] }, providerIntentReference: null },
       data: { providerIntentReference: paymentIntentId },
-    } as Parameters<PrismaClient["purchase"]["update"]>[0]);
+    } as Parameters<PrismaClient["purchase"]["updateMany"]>[0]);
+    const latest = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
+    if (latest && ["PENDING", "PAID"].includes(latest.status) && latest.providerIntentReference === paymentIntentId) return latest;
+    throw new ArtefactValidationError("Provider payment reference could not be bound safely");
   }
 
   async findCurrentScopePurchaseStatus(params: { userId: string; projectId: string; proposalBrief: string }) {
@@ -475,6 +469,34 @@ export class PurchaseEntitlementService {
           activeScopeKey: null,
           refundedAt,
         },
+      });
+      return latest;
+    });
+  }
+
+  async providerConfirmedFullRefund(purchaseId: string, paymentIntentId: string) {
+    return this.prisma.$transaction(async (tx: unknown) => {
+      const transaction = tx as Pick<PrismaClient, "purchase" | "entitlement">;
+      const existing = await transaction.purchase.findUnique({ where: { id: purchaseId } });
+      if (!existing || existing.providerName !== "stripe") throw new ArtefactValidationError("Refund purchase reference mismatch");
+      if (existing.providerIntentReference && existing.providerIntentReference !== paymentIntentId) throw new ArtefactValidationError("Refund payment reference mismatch");
+      if (existing.status === "REFUNDED") {
+        if (existing.providerIntentReference !== paymentIntentId) throw new ArtefactValidationError("Refund payment reference mismatch");
+        return existing;
+      }
+      if (!["PENDING", "PAID"].includes(existing.status)) throw new ArtefactValidationError("Provider-confirmed refund requires reconciliation");
+      const refundedAt = new Date();
+      const result = await transaction.purchase.updateMany({
+        where: { id: purchaseId, status: existing.status, providerIntentReference: existing.providerIntentReference },
+        data: { status: "REFUNDED", providerIntentReference: paymentIntentId, refundedAt },
+      });
+      const latest = await transaction.purchase.findUnique({ where: { id: purchaseId } });
+      if (result.count !== 1 || latest?.status !== "REFUNDED" || latest.providerIntentReference !== paymentIntentId) {
+        throw new ArtefactValidationError("Provider-confirmed refund requires reconciliation");
+      }
+      await transaction.entitlement.updateMany({
+        where: { purchaseId, status: "ACTIVE" },
+        data: { status: "REFUNDED", activeScopeKey: null, refundedAt },
       });
       return latest;
     });

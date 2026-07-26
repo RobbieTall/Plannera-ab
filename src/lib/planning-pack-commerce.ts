@@ -4,7 +4,7 @@ export const PLANNING_CONTROLS_PACK_TERMS = {
   productCode: "planning_controls_pack",
   productVersion: "v1",
   amountMinor: 4900,
-  currency: "aud",
+  currency: "AUD",
 } as const;
 
 export type PlanningPackCheckoutConfig = {
@@ -38,3 +38,13 @@ export const getPlanningPackCheckoutConfig = (): PlanningPackCheckoutConfig => {
   }
   return config;
 };
+
+export async function requirePlanningPackEntitlement(
+  enabled: boolean,
+  service: { findActiveEntitlementForCurrentScope(params: { userId: string; projectId: string; proposalBrief: string }): Promise<unknown> },
+  params: { userId: string; projectId: string; proposalBrief: string },
+) {
+  if (!enabled) return;
+  const entitlement = await service.findActiveEntitlementForCurrentScope(params);
+  if (!entitlement) throw new ArtefactAccessError("Payment is required for this exact Planning Controls Pack scope", 402);
+}

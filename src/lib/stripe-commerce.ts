@@ -16,17 +16,17 @@ export interface PaymentProvider {
 }
 
 export interface RefundProvider {
-  requestFullRefund(providerPaymentReference: string, idempotencyKey: string): Promise<{ id: string; confirmed: boolean }>;
+  requestFullRefund(providerPaymentReference: string, purchaseId: string, idempotencyKey: string): Promise<{ id: string; confirmed: boolean }>;
 }
 
 export class StripeCommerceProvider implements PaymentProvider, RefundProvider {
   private readonly stripe: Stripe;
 
-  constructor(private readonly config: PlanningPackCheckoutConfig) {
+  constructor(private readonly config: PlanningPackCheckoutConfig, stripeClient?: Stripe) {
     if (!config.secretKey || !config.successUrl || !config.cancelUrl) {
       throw new Error("Stripe checkout configuration is incomplete");
     }
-    this.stripe = new Stripe(config.secretKey);
+    this.stripe = stripeClient ?? new Stripe(config.secretKey);
   }
 
   async createHostedCheckout(input: HostedCheckoutInput) {
@@ -39,8 +39,9 @@ export class StripeCommerceProvider implements PaymentProvider, RefundProvider {
           {
             quantity: 1,
             price_data: {
-              currency: input.currency,
+              currency: input.currency.toLowerCase(),
               unit_amount: input.amountMinor,
+              tax_behavior: "inclusive",
               product_data: { name: input.productName },
             },
           },
@@ -58,9 +59,9 @@ export class StripeCommerceProvider implements PaymentProvider, RefundProvider {
     return this.stripe.webhooks.constructEvent(rawBody, signature, secret);
   }
 
-  async requestFullRefund(providerPaymentReference: string, idempotencyKey: string) {
+  async requestFullRefund(providerPaymentReference: string, purchaseId: string, idempotencyKey: string) {
     const refund = await this.stripe.refunds.create(
-      { payment_intent: providerPaymentReference },
+      { payment_intent: providerPaymentReference, metadata: { purchase_id: purchaseId } },
       { idempotencyKey },
     );
     return { id: refund.id, confirmed: refund.status === "succeeded" };
