@@ -1,0 +1,84 @@
+name: Stripe Test-mode Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Confirm the protected three-phase acceptance for one dedicated Stripe test Checkout session.
+        required: true
+        type: choice
+        options:
+          - RUN STRIPE TEST-MODE ACCEPTANCE
+      target_confirmation:
+        description: Confirm the deployment is protected and non-production.
+        required: true
+        type: choice
+        options:
+          - PROTECTED NON-PRODUCTION
+      phase:
+        description: Select the lifecycle phase being proved.
+        required: true
+        type: choice
+        options:
+          - before_payment
+          - paid
+          - refunded
+      checkout_session_id:
+        description: Opaque cs_test_ ID for the one dedicated test Checkout session (paid or unpaid according to phase).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-test-mode-acceptance
+  cancel-in-progress: false
+
+jobs:
+  accept:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'RUN STRIPE TEST-MODE ACCEPTANCE' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' && startsWith(inputs.checkout_session_id, 'cs_test_') && contains(fromJSON('["before_payment","paid","refunded"]'), inputs.phase) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-test-acceptance
+    steps:
+      - name: Checkout exact dispatched release
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: '20'
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Run fail-closed acceptance
+        env:
+          PLANNERA_STRIPE_TEST_PHASE: ${{ inputs.phase }}
+          PLANNERA_STRIPE_TEST_CONFIRMATION: ${{ inputs.confirmation }}
+          PLANNERA_STRIPE_TEST_TARGET: ${{ inputs.target_confirmation }}
+          PLANNERA_STRIPE_TEST_SESSION_ID: ${{ inputs.checkout_session_id }}
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: npm run accept:stripe-test > stripe-test-acceptance.json
+      - name: Validate privacy-minimal summary
+        run: node -e "const s=require('./stripe-test-acceptance.json'); const top=['checks','opaque','passed','phase','reason','runnerVersion']; const checks=['checkoutReplaySafe','changedScopesDenied','configuration','dppCreatedThisRun','dppGate','exactScope','paginationComplete','providerPhase','providerTerms','terminalState','testMode']; if(s.passed!==true||s.reason!==null||s.runnerVersion!=='stripe_test_acceptance.v2'||JSON.stringify(Object.keys(s).sort())!==JSON.stringify(top)||JSON.stringify(Object.keys(s.checks||{}).sort())!==JSON.stringify(checks)||JSON.stringify(Object.keys(s.opaque||{}).sort())!==JSON.stringify(['checkoutSessionId'])) process.exit(1)"
+      - name: Write safe job summary
+        run: node -e "const s=require('./stripe-test-acceptance.json'); process.stdout.write('Stripe test-mode acceptance: '+s.phase+'; passed='+s.passed+'\\n')" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload safe acceptance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7.0.1
+        with:
+          name: stripe-test-acceptance-summary
+          path: stripe-test-acceptance.json
+          if-no-files-found: error
+          retention-days: 14

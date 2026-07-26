@@ -1277,6 +1277,14 @@ Merge and verification evidence:
 - The commercial gate now executes `tests/purchase-entitlements.test.ts` and the behavioral `tests/planning-pack-checkout.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
 - Item 72A was the domain foundation. Item 72B implements the subsequently approved provider, terms, refund boundary and feature-gated entitlement check; it does not approve or perform production activation.
 
+### Item 72C — protected Stripe test-mode acceptance infrastructure — ✅ IMPLEMENTED, NOT EXECUTED (2026-07-26)
+
+Item 72C adds the manual-dispatch, protected `stripe-test-acceptance` environment contract, fail-closed executable runner, safe artifact, focused tests, and operator runbook. It requires an operator-provided non-production deployment, dedicated requester/projects/current QSC/proposal, test key/session cookie, and one manual Stripe-hosted Australian test payment. It validates Stripe provider facts (test mode, paid payment session, one AUD 49.00 line with AUD 4.45 tax), webhook-settled exact entitlement, duplicate Checkout denial, changed-proposal and cross-project/site/QSC isolation, and three-phase before-payment/paid/refunded lifecycle and full-refund terminal reconciliation. It never prints raw provider responses or address/proposal/contact/card/secret data and never creates an environment, configures a secret, stores card data, aims at Production, or treats a redirect as settlement.
+
+This is implementation evidence only: the protected test-mode run has not occurred, so Item 72C does not claim payment readiness or activation. Production `PLANNING_PACK_CHECKOUT_ENABLED` remains false/absent. The exact Item 72B predecessor evidence is PR #321 head `c75e3e5...`, merged as `83e9bc7483382d98b3a413e61d827b6b37c750aa`; Commercial Funnel Golden Gate run `30186727565` passed 115 Node and 69 Vitest tests, and the merged-main Vercel production deployment succeeded. That deployment did not enable checkout or make a charge.
+
+Execution and activation remain operator gates: follow `docs/operations/stripe-test-mode-acceptance.md`, retain only the safe artifact, confirm the exact-scope DPP keeps its evidence-derived `acceptedJourney`/`commercialReady` state, complete and reconcile a full test refund, then obtain separate explicit approval for a production activation PR.
+
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
 Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.

@@ -7,6 +7,10 @@ export const PLANNING_CONTROLS_PACK_TERMS = {
   currency: "AUD",
 } as const;
 
+export const PLANNING_PACK_STATUS_STATES = ["available", "waiting", "paid", "failed", "cancelled", "refunded", "revoked"] as const;
+export type PlanningPackStatusState = typeof PLANNING_PACK_STATUS_STATES[number];
+export type PlanningPackEnabledStatusResponse = { enabled: true; state: PlanningPackStatusState };
+
 export type PlanningPackCheckoutConfig = {
   enabled: boolean;
   secretKey?: string;
