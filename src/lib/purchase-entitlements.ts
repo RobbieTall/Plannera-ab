@@ -199,6 +199,65 @@ export class PurchaseEntitlementService {
     );
   }
 
+  async attachProviderCheckout(purchaseId: string, checkoutSessionId: string) {
+    const purchase = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase || purchase.status !== "PENDING") {
+      throw new ArtefactValidationError("Purchase is not awaiting checkout");
+    }
+    if (purchase.providerReference && purchase.providerReference !== checkoutSessionId) {
+      throw new ArtefactValidationError("Purchase already has a different checkout session");
+    }
+    return this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { providerName: "stripe", providerReference: checkoutSessionId },
+    } as Parameters<PrismaClient["purchase"]["update"]>[0]);
+  }
+
+  async bindProviderPaymentReference(purchaseId: string, paymentIntentId?: string | null) {
+    if (!paymentIntentId) return;
+    const purchase = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase) throw new ArtefactValidationError("Purchase not found");
+    if (purchase.providerIntentReference && purchase.providerIntentReference !== paymentIntentId) {
+      throw new ArtefactValidationError("Provider payment reference mismatch");
+    }
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { providerIntentReference: paymentIntentId },
+    } as Parameters<PrismaClient["purchase"]["update"]>[0]);
+  }
+
+  async findCurrentScopePurchaseStatus(params: { userId: string; projectId: string; proposalBrief: string }) {
+    const scope = await this.resolveScope(params);
+    const entitlement = await this.prisma.entitlement.findFirst({
+      where: {
+        userId: scope.userId,
+        projectId: scope.projectId,
+        quickSiteCheckArtefactId: scope.quickSiteCheckArtefactId,
+        proposalFingerprint: scope.proposalFingerprint,
+        productCode: scope.productCode,
+        productVersion: scope.productVersion,
+      },
+      orderBy: { createdAt: "desc" },
+    } as Parameters<PrismaClient["entitlement"]["findFirst"]>[0]);
+    if (entitlement?.status === "ACTIVE") return { state: "paid" as const };
+    if (entitlement?.status === "REVOKED") return { state: "revoked" as const };
+    if (entitlement?.status === "REFUNDED") return { state: "refunded" as const };
+    const purchase = await this.prisma.purchase.findFirst({
+      where: { scopeKey: scope.scopeKey },
+      orderBy: { createdAt: "desc" },
+    } as Parameters<PrismaClient["purchase"]["findFirst"]>[0]);
+    const states = { PENDING: "waiting", PAID: "paid", FAILED: "failed", CANCELLED: "cancelled", REFUNDED: "refunded" } as const;
+    return { state: purchase ? states[purchase.status] : "available" as const };
+  }
+
+  async resolveWebhookPurchase(purchaseId: string, checkoutSessionId?: string | null) {
+    const purchase = await this.prisma.purchase.findUnique({ where: { id: purchaseId } });
+    if (!purchase || purchase.providerName !== "stripe" || !checkoutSessionId || purchase.providerReference !== checkoutSessionId) {
+      throw new ArtefactValidationError("Webhook purchase reference mismatch");
+    }
+    return purchase;
+  }
+
   async settlePaidPurchase(purchaseId: string) {
     return this.prisma.$transaction(async (tx: unknown) => {
       const transaction = tx as Pick<

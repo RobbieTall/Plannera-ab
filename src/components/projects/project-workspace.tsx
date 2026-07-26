@@ -3342,6 +3342,47 @@ export function ProjectWorkspace({
     [latestReviewRequestArtefact],
   );
   const hasQualityQuickSiteCheck = hasCitedQuickSiteCheckEvidence(normaliseQuickSiteCheckReport(latestQuickSiteCheckArtefact?.quickSiteCheck));
+  const [planningPackPurchase, setPlanningPackPurchase] = useState<{
+    enabled: boolean;
+    state: "free" | "available" | "waiting" | "paid" | "failed" | "cancelled" | "refunded" | "revoked";
+  }>({ enabled: false, state: "free" });
+  const [isStartingCheckout, setIsStartingCheckout] = useState(false);
+  useEffect(() => {
+    if (!hasQualityQuickSiteCheck || !proposalBrief.trim()) return;
+    let cancelled = false;
+    const load = async () => {
+      const response = await fetch("/api/planning-pack/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ projectId: projectKey, proposalBrief }),
+      });
+      const data = await response.json().catch(() => null) as typeof planningPackPurchase | null;
+      if (!cancelled && response.ok && data) setPlanningPackPurchase(data);
+    };
+    void load();
+    const timer = window.setInterval(load, planningPackPurchase.state === "waiting" ? 3000 : 15000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [hasQualityQuickSiteCheck, planningPackPurchase.state, projectKey, proposalBrief]);
+
+  const launchPlanningPackCheckout = useCallback(async () => {
+    setIsStartingCheckout(true);
+    try {
+      const response = await fetch("/api/planning-pack/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ projectId: projectKey, proposalBrief }),
+      });
+      const data = await response.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
+      if (!response.ok || !data.checkoutUrl) throw new Error(data.error ?? "Unable to start checkout");
+      window.location.assign(data.checkoutUrl);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to start checkout", "error");
+      setIsStartingCheckout(false);
+    }
+  }, [projectKey, proposalBrief, showToast]);
+
   const hasQualitySee = hasQualitySeeEvidence(latestSeeContent, latestDetailedPlanningPack ?? null);
   const hasPendingInitialSiteConfirmation = Boolean(initialInlineAddress && !siteContext);
   const hasSiteContext = Boolean(siteContext) || hasPendingInitialSiteConfirmation;
@@ -4600,7 +4641,7 @@ export function ProjectWorkspace({
                       <button
                         type="button"
                         onClick={() => void generateDetailedPlanningPack()}
-                        disabled={isGeneratingDetailedPack || !hasQualityQuickSiteCheck || !proposalBrief.trim()}
+                        disabled={isGeneratingDetailedPack || !hasQualityQuickSiteCheck || !proposalBrief.trim() || (planningPackPurchase.enabled && planningPackPurchase.state !== "paid")}
                         className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                       >
                         {isGeneratingDetailedPack ? "Generating…" : latestAnyProposalDetailedPlanningPack ? "Regenerate pack" : "Generate pack"}
@@ -4628,6 +4669,25 @@ export function ProjectWorkspace({
                         placeholder="e.g. Alterations to an existing commercial premises with shopfront updates and minor internal fitout."
                         className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       />
+                      {planningPackPurchase.enabled ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
+                          <p className="font-semibold text-slate-900 dark:text-white">Planning Controls Pack — A$49 incl. GST</p>
+                          <p className="mt-1 text-slate-500 dark:text-slate-300">
+                            {planningPackPurchase.state === "paid" ? "Paid for this exact site, check and proposal. You can generate or regenerate this pack." :
+                              planningPackPurchase.state === "waiting" ? "Waiting for secure payment confirmation. Returning from checkout does not grant access." :
+                              planningPackPurchase.state === "failed" ? "Payment failed. You can try again." :
+                              planningPackPurchase.state === "cancelled" ? "Checkout was cancelled or expired. You can try again." :
+                              planningPackPurchase.state === "refunded" ? "This payment was refunded and pack access has been removed." :
+                              planningPackPurchase.state === "revoked" ? "Access for this pack was revoked. Contact Plannera support before continuing." :
+                              "One-time payment for this exact project, current-site check and proposal."}
+                          </p>
+                          {planningPackPurchase.state !== "paid" && planningPackPurchase.state !== "waiting" ? (
+                            <button type="button" onClick={() => void launchPlanningPackCheckout()} disabled={isStartingCheckout} className="mt-3 rounded-full bg-slate-900 px-3 py-1.5 font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-slate-900">
+                              {isStartingCheckout ? "Opening secure checkout…" : "Continue to secure checkout"}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {hasProposalBriefMismatch && latestAnyProposalDetailedPlanningPack ? (
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                           The saved Detailed Planning Pack was generated for a different proposed-works brief: “{latestAnyProposalDetailedPlanningPack.proposalBrief}”. Regenerate the pack before SEE or expert review so downstream handoffs use the current proposal.

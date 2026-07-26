@@ -7,14 +7,38 @@ import {
   requireSessionUser,
 } from "@/lib/artefact-service";
 import { recordDetailedPlanningPackMilestones } from "@/lib/commercial-funnel-events";
+import { getPlanningPackCheckoutConfig, PLANNING_CONTROLS_PACK_TERMS } from "@/lib/planning-pack-commerce";
+import { prisma } from "@/lib/prisma";
+import { PurchaseEntitlementService } from "@/lib/purchase-entitlements";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await requireSessionUser();
+    const body = await request.json();
+    const config = getPlanningPackCheckoutConfig();
+    if (config.enabled) {
+      if (typeof body?.projectId !== "string" || typeof body?.proposalBrief !== "string") {
+        throw new ArtefactValidationError("Project and proposed works are required");
+      }
+      const entitlement = await new PurchaseEntitlementService(
+        prisma,
+        PLANNING_CONTROLS_PACK_TERMS,
+      ).findActiveEntitlementForCurrentScope({
+        userId,
+        projectId: body.projectId,
+        proposalBrief: body.proposalBrief,
+      });
+      if (!entitlement) {
+        throw new ArtefactAccessError(
+          "Payment is required for this exact Planning Controls Pack scope",
+          402,
+        );
+      }
+    }
     const { artefact, content } = await createDetailedPlanningPackArtefact({
-      body: await request.json(),
+      body,
       userId,
     });
     await recordDetailedPlanningPackMilestones({

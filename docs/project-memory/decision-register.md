@@ -423,3 +423,14 @@ Lifecycle transitions are guarded server-side and idempotent for identical termi
 This foundation does not select a provider, create checkout/webhook/API/UI paths, launch payment, gate DPP generation, mutate evidence quality, change `acceptedJourney`/`commercialReady`, emit analytics or send consultant referrals. Production checkout still requires operator approval of provider, final product/name/price, GST/tax treatment, refund/credit/regeneration policy and launch timing.
 
 Implementation evidence: PR #318 (domain foundation) and PR #319 (lifecycle hardening); docs/project-memory/build-next.md Item 72 / Item 72A
+
+
+## DR-045 — Stripe Checkout Implements, but Does Not Activate, the Approved Pack Contract
+
+Status: Active
+
+Decision: The Planning Controls Pack is a Stripe-hosted one-time payment with server-owned product code `planning_controls_pack`, version `v1`, price A$49.00 total and AUD currency; Tallrok Developments Pty Ltd is GST-registered and the displayed total includes GST. Browser price, product, tax and redirect state are never authoritative. Entitlement activates only from a signature-verified paid webhook for the exact requester-owned project, current-site cited QSC artefact, normalized proposal fingerprint and product/version. Same-scope retry/regeneration reuses value; any project/site/QSC/material-proposal change requires purchase.
+
+Checkout is fail-closed and disabled by default. When disabled, existing free DPP generation is identical and builds need no Stripe secrets. When enabled, missing configuration denies safely and exact active entitlement is checked before DPP retrieval or persistence. Payment cannot change citation status, confidence, readiness or expert-review routing. A truthful persisted cited/unresolved pack is delivered value. A system/retrieval failure that prevents generation and persistence requires an operator-initiated full refund to the original method; state changes to refunded only after provider confirmation, which revokes active entitlement. There is no public refund endpoint. Production checkout remains explicitly not activated.
+
+Reference: docs/project-memory/build-next.md Item 72B
