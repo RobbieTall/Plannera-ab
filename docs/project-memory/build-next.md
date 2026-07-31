@@ -1314,3 +1314,19 @@ Minimum launch delivery contract:
 - Contact information and package contents are excluded from analytics events and require reviewed retention, access, deletion and disclosure handling.
 
 Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.
+
+## 74) Repeatable LGA Pack Registry and onboarding harness — QUEUED AFTER BYRON/KEMPSEY LAUNCH GATES
+
+Do not start this slice until Item 72C protected Stripe acceptance is complete, Item 73 has a verified non-production referral delivery target, and the Byron SP3/Kempsey E2 launch journeys pass an end-to-end smoke from landing Quick Site Check through project promotion, paid exact-scope DPP, and the correct SEE or unresolved expert-referral terminal path.
+
+Purpose: make later LGA expansion a configure, ingest and verify process rather than a growing set of council-specific code paths.
+
+Minimum contract:
+- Add a versioned LGA pack manifest covering LGA code, LEP instrument, DCP title/effective date, authoritative PDF part URLs, parser profile, priority zones/topics, golden addresses and expected minimum extraction counts.
+- Use one generic source pipeline for fetch, content hashing, archival metadata, text/table extraction, OCR fallback, cited chunking and coverage-state transitions. Council-specific adapters remain explicit only where a source genuinely breaks the generic contract.
+- Generate a privacy-safe QA report and require source, zone, citation, structured-control and golden-address gates before promotion from `SEARCHABLE_READY` to `STRUCTURED_PARTIAL` or `VERIFIED`.
+- Monitor source URLs, effective dates and content hashes so DCP amendments cannot silently leave an LGA marked current.
+- Preserve fail-closed product wording: searchable coverage supports cited guidance; only reviewed rule packs support deterministic compliance claims.
+
+Success signal: a clean text-PDF council can be registered and made searchable without application-code branching, then promoted through repeatable automated and operator QA with no claim of full-LGA verification from a single golden zone.
+
