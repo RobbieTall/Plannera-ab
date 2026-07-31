@@ -20,12 +20,12 @@ test("protected workflow is three-phase, manual, least-privilege and production-
 test("protected workflow generates Prisma client before importing application modules", () => {
   const installIndex = workflow.indexOf("npm ci --ignore-scripts --loglevel=error");
   const generateIndex = workflow.indexOf("./node_modules/.bin/prisma generate");
-  const acceptanceIndex = workflow.indexOf("npm run accept:stripe-test");
+  const acceptanceIndex = workflow.indexOf("npm run --silent accept:stripe-test");
 
   assert.ok(installIndex >= 0);
   assert.ok(generateIndex > installIndex);
   assert.ok(acceptanceIndex > generateIndex);
-  assert.match(workflow, /name: Generate Prisma client without database access/);
+  assert.match(workflow, /name: Generate Prisma client without database access/);\n  assert.match(workflow, /npm run --silent accept:stripe-test > stripe-test-acceptance\\.json/);\n  assert.doesNotMatch(workflow, /run: npm run accept:stripe-test/);
 });
 
 test("protected workflow preserves validated safe failure evidence before enforcing the result", () => {
