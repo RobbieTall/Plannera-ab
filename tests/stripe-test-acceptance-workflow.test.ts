@@ -44,6 +44,8 @@ test("protected workflow preserves validated safe failure evidence before enforc
   assert.ok(uploadIndex > summaryIndex);
   assert.ok(enforcementIndex > uploadIndex);
   assert.match(workflow, /typeof s\.passed!=='boolean'/);
+  assert.ok(workflow.includes("const top=['checks','opaque','passed','phase','reason','runnerVersion'].sort()"));
+  assert.ok(workflow.includes("'terminalState','testMode'].sort()"));
   assert.match(workflow, /s\.passed!==true/);
 });
 
