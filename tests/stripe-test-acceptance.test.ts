@@ -12,6 +12,7 @@ const baseEnv = {
   STRIPE_TEST_SECRET_KEY: "sk_test_placeholder",
   PLANNERA_STRIPE_TEST_SESSION_ID: "cs_test_123",
   PLANNERA_STRIPE_TEST_SESSION_COOKIE: "private-cookie",
+  PLANNERA_STRIPE_TEST_VERCEL_BYPASS: "private-vercel-bypass",
   PLANNERA_STRIPE_TEST_PROJECT_ID: "project-a",
   PLANNERA_STRIPE_TEST_PROPOSAL: "private proposal a",
   PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: "project-b",
@@ -41,6 +42,10 @@ function harness(phase: StripeAcceptancePhase, options: { paginate?: boolean; du
       if (options.duplicate) data.push({ id: "cs_test_duplicate", metadata: { purchase_id: "purchase-opaque" }, status: "complete" });
       return Response.json({ data, has_more: false });
     }
+    if (url.includes("item-72c-preview.vercel.app")) {
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("x-vercel-protection-bypass"), "private-vercel-bypass");
+    }
     if (url.includes("/api/projects/project-a/artefacts")) return Response.json(Array.from({ length: dppCount }, (_, index) => ({ id: `dpp-${index}`, type: "detailed_planning_pack", payload: { projectId: "project-a", proposalBrief: "private proposal a", sourceQuickSiteCheck: { artefactId: "qsc-opaque" } } })));
     const body = JSON.parse(String(init?.body)) as { projectId: string; proposalBrief: string };
     const exact = body.projectId === "project-a" && body.proposalBrief === "private proposal a";
@@ -69,6 +74,8 @@ test("configuration exactly allowlists protected HTTPS target and denies live/pr
     { PLANNERA_STRIPE_TEST_BASE_URL: "http://localhost:3000", PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: "http://localhost:3000" },
   ]) assert.throws(() => validateAcceptanceConfiguration({ ...baseEnv, ...change }));
   assert.throws(() => validateAcceptanceConfiguration({ ...baseEnv, PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: JSON.stringify({ projectId: "project-b", proposalBrief: "private proposal a" }) }));
+  assert.throws(() => validateAcceptanceConfiguration({ ...baseEnv, PLANNERA_STRIPE_TEST_VERCEL_BYPASS: "" }));
+  assert.throws(() => validateAcceptanceConfiguration({ ...baseEnv, PLANNERA_STRIPE_TEST_VERCEL_BYPASS: "bad value with spaces" }));
 });
 
 test("status parser locks acceptance to the exact shipped enabled/state response", () => {
@@ -83,7 +90,7 @@ test("three phases prove actual status and DPP gates with safe repeat execution"
       const result = await runStripeTestAcceptance({ ...baseEnv, PLANNERA_STRIPE_TEST_PHASE: phase }, h.fetcher);
       assert.equal(result.exitCode, 0); assert.equal(result.summary.reason, null);
       assert.deepEqual(Object.keys(result.summary).sort(), ["checks", "opaque", "passed", "phase", "reason", "runnerVersion"]);
-      assert.doesNotMatch(JSON.stringify(result.summary), /private proposal|private-cookie|sk_test/);
+      assert.doesNotMatch(JSON.stringify(result.summary), /private proposal|private-cookie|private-vercel-bypass|sk_test/);
     }
     assert.equal(h.calls.exactDpp, phase === "paid" ? 1 : 2);
     assert.equal(h.calls.changedDpp, phase === "paid" ? 4 : 0); assert.equal(h.calls.checkout, phase === "paid" ? 4 : 0);
