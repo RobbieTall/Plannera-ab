@@ -25,7 +25,9 @@ test("protected workflow generates Prisma client before importing application mo
   assert.ok(installIndex >= 0);
   assert.ok(generateIndex > installIndex);
   assert.ok(acceptanceIndex > generateIndex);
-  assert.match(workflow, /name: Generate Prisma client without database access/);\n  assert.match(workflow, /npm run --silent accept:stripe-test > stripe-test-acceptance\\.json/);\n  assert.doesNotMatch(workflow, /run: npm run accept:stripe-test/);
+  assert.match(workflow, /name: Generate Prisma client without database access/);
+  assert.ok(workflow.includes("npm run --silent accept:stripe-test > stripe-test-acceptance.json"));
+  assert.equal(workflow.includes("run: npm run accept:stripe-test"), false);
 });
 
 test("protected workflow preserves validated safe failure evidence before enforcing the result", () => {
