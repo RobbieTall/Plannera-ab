@@ -1315,9 +1315,26 @@ Minimum launch delivery contract:
 
 Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.
 
-## 74) Repeatable LGA Pack Registry and onboarding harness — QUEUED AFTER BYRON/KEMPSEY LAUNCH GATES
+## 74) Byron and Kempsey whole-LGA commercial readiness — QUEUED AFTER ITEMS 72C AND 73
 
-Do not start this slice until Item 72C protected Stripe acceptance is complete, Item 73 has a verified non-production referral delivery target, and the Byron SP3/Kempsey E2 launch journeys pass an end-to-end smoke from landing Quick Site Check through project promotion, paid exact-scope DPP, and the correct SEE or unresolved expert-referral terminal path.
+Purpose: do not expand beyond the launch councils until Byron and Kempsey are commercially flight-test ready across their complete current LEP zone sets and the full range of development terms supported by their instruments. This is whole-LGA operational coverage, not a promise that Plannera can safely automate every unusual proposal or replace professional judgment.
+
+Required coverage contract:
+- Inventory and ingest the complete current authoritative corpus for each council: every applicable LEP zone/objective/land-use table and mapped numeric control available from the LEP sources; every current DCP part/chapter/appendix needed for assessment; source URLs, effective dates and content hashes; and the relevant registered state instruments.
+- Build a zone coverage matrix for every Byron and Kempsey LEP zone code. Each zone must return its identity, objectives, permitted-without-consent, permitted-with-consent and prohibited terms, plus cited height/FSR/minimum-lot-size values where the mapped source contains them and explicit `Unavailable` states where it does not.
+- Map every current LEP land-use term into the proposal-intent and permissibility pipeline. Group terms into maintainable SEE/development families for retrieval and document structure, while preserving the exact statutory term and never inferring permissibility from the family.
+- Make all current DCP material searchable with stable part/chapter/section citations, heading paths and table-aware text. Add deterministic structured extraction only where the source supports it; unsupported numeric or local controls remain explicitly unresolved.
+- Define the site-constraint boundary for overlays, hazards, mapping and external-council checks. A paid SEE may proceed only when required evidence is cited or its unresolved limitation and expert-review path are explicit; payment must never upgrade evidence quality.
+- Produce a versioned Byron/Kempsey flight-test matrix covering every zone with representative real addresses and representative permitted, consent-required and prohibited development terms, plus cross-zone, changed-site, changed-proposal, stale-source and unavailable-evidence cases.
+- Require end-to-end tests from landing Quick Site Check through same-project promotion, exact-scope paid DPP, feasibility summary, SEE when evidence permits, and unresolved consultant referral when it does not. Test outputs for citation integrity, provenance, privacy, persistence, retries and no fabricated controls.
+- Add freshness monitoring and a fail-closed demotion path when a source URL, effective date, content hash, parser result or golden test changes.
+- Obtain explicit operator sign-off on the coverage matrix and flight-test evidence before describing either LGA as commercially ready.
+
+Success signal: for any address resolving to a current Byron or Kempsey LEP zone and any exact development term in that LEP, Plannera returns a truthful cited or explicitly unresolved journey; creates an exact-scope paid DPP; and produces either a grounded SEE or a complete expert-referral package without fabricated controls, cross-scope reuse or unsupported readiness claims.
+
+## 75) Repeatable LGA Pack Registry and onboarding harness — QUEUED AFTER ITEM 74
+
+Do not start this slice until Item 72C protected Stripe acceptance is complete, Item 73 has a verified non-production referral delivery target, and Item 74 whole-LGA Byron/Kempsey coverage and flight testing have explicit operator sign-off.
 
 Purpose: make later LGA expansion a configure, ingest and verify process rather than a growing set of council-specific code paths.
 
@@ -1328,5 +1345,5 @@ Minimum contract:
 - Monitor source URLs, effective dates and content hashes so DCP amendments cannot silently leave an LGA marked current.
 - Preserve fail-closed product wording: searchable coverage supports cited guidance; only reviewed rule packs support deterministic compliance claims.
 
-Success signal: a clean text-PDF council can be registered and made searchable without application-code branching, then promoted through repeatable automated and operator QA with no claim of full-LGA verification from a single golden zone.
+Success signal: after Byron and Kempsey are signed off, a clean text-PDF council can be registered and made searchable without application-code branching, then promoted through repeatable automated and operator QA with no claim of full-LGA verification from a single golden zone.
 
