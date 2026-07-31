@@ -17,6 +17,17 @@ test("protected workflow is three-phase, manual, least-privilege and production-
   assert.match(workflow, /stripe_test_acceptance\.v2/); assert.match(workflow, /retention-days: 14/);
 });
 
+test("protected workflow generates Prisma client before importing application modules", () => {
+  const installIndex = workflow.indexOf("npm ci --ignore-scripts --loglevel=error");
+  const generateIndex = workflow.indexOf("./node_modules/.bin/prisma generate");
+  const acceptanceIndex = workflow.indexOf("npm run accept:stripe-test");
+
+  assert.ok(installIndex >= 0);
+  assert.ok(generateIndex > installIndex);
+  assert.ok(acceptanceIndex > generateIndex);
+  assert.match(workflow, /name: Generate Prisma client without database access/);
+});
+
 test("shipped status route is compile-time locked to enabled/state response type", () => {
   assert.match(statusRoute, /satisfies PlanningPackEnabledStatusResponse/);
   assert.doesNotMatch(statusRoute, /entitled/);
