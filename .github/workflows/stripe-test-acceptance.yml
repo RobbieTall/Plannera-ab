@@ -74,7 +74,8 @@ jobs:
       - name: Validate privacy-minimal summary
         run: node -e "const s=require('./stripe-test-acceptance.json'); const top=['checks','opaque','passed','phase','reason','runnerVersion']; const checks=['checkoutReplaySafe','changedScopesDenied','configuration','dppCreatedThisRun','dppGate','exactScope','paginationComplete','providerPhase','providerTerms','terminalState','testMode']; if(s.passed!==true||s.reason!==null||s.runnerVersion!=='stripe_test_acceptance.v2'||JSON.stringify(Object.keys(s).sort())!==JSON.stringify(top)||JSON.stringify(Object.keys(s.checks||{}).sort())!==JSON.stringify(checks)||JSON.stringify(Object.keys(s.opaque||{}).sort())!==JSON.stringify(['checkoutSessionId'])) process.exit(1)"
       - name: Write safe job summary
-        run: node -e "const s=require('./stripe-test-acceptance.json'); process.stdout.write('Stripe test-mode acceptance: '+s.phase+'; passed='+s.passed+'\\n')" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          node -e "const s=require('./stripe-test-acceptance.json'); process.stdout.write('Stripe test-mode acceptance: '+s.phase+'; passed='+s.passed+'\\n')" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload safe acceptance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7.0.1
         with:
