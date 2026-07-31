@@ -54,6 +54,8 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client without database access
+        run: ./node_modules/.bin/prisma generate
       - name: Run fail-closed acceptance
         env:
           PLANNERA_STRIPE_TEST_PHASE: ${{ inputs.phase }}
