@@ -57,6 +57,8 @@ jobs:
       - name: Generate Prisma client without database access
         run: ./node_modules/.bin/prisma generate
       - name: Run fail-closed acceptance
+        id: acceptance
+        continue-on-error: true
         env:
           PLANNERA_STRIPE_TEST_PHASE: ${{ inputs.phase }}
           PLANNERA_STRIPE_TEST_CONFIRMATION: ${{ inputs.confirmation }}
@@ -74,10 +76,11 @@ jobs:
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: npm run accept:stripe-test > stripe-test-acceptance.json
       - name: Validate privacy-minimal summary
-        run: node -e "const s=require('./stripe-test-acceptance.json'); const top=['checks','opaque','passed','phase','reason','runnerVersion']; const checks=['checkoutReplaySafe','changedScopesDenied','configuration','dppCreatedThisRun','dppGate','exactScope','paginationComplete','providerPhase','providerTerms','terminalState','testMode']; if(s.passed!==true||s.reason!==null||s.runnerVersion!=='stripe_test_acceptance.v2'||JSON.stringify(Object.keys(s).sort())!==JSON.stringify(top)||JSON.stringify(Object.keys(s.checks||{}).sort())!==JSON.stringify(checks)||JSON.stringify(Object.keys(s.opaque||{}).sort())!==JSON.stringify(['checkoutSessionId'])) process.exit(1)"
+        run: |
+          node -e "const s=require('./stripe-test-acceptance.json'); const top=['checks','opaque','passed','phase','reason','runnerVersion']; const checks=['checkoutReplaySafe','changedScopesDenied','configuration','dppCreatedThisRun','dppGate','exactScope','paginationComplete','providerPhase','providerTerms','terminalState','testMode']; const reasons=['configuration_invalid','target_denied','live_mode_denied','provider_request_failed','provider_contract_invalid','phase_mismatch','terms_mismatch','pagination_uncertain','duplicate_checkout','application_request_failed','application_contract_invalid','scope_mismatch','checkout_replay_failed','dpp_gate_failed','refund_mismatch','acceptance_unhandled_failure']; const reasonOk=(s.passed===true&&s.reason===null)||(s.passed===false&&reasons.includes(s.reason)); const checksOk=Object.values(s.checks||{}).every(v=>typeof v==='boolean'); const opaqueOk=typeof s.opaque?.checkoutSessionId==='string'&&(s.opaque.checkoutSessionId==='unavailable'||s.opaque.checkoutSessionId.startsWith('cs_test_')); if(!['before_payment','paid','refunded'].includes(s.phase)||typeof s.passed!=='boolean'||!reasonOk||!checksOk||!opaqueOk||s.runnerVersion!=='stripe_test_acceptance.v2'||JSON.stringify(Object.keys(s).sort())!==JSON.stringify(top)||JSON.stringify(Object.keys(s.checks||{}).sort())!==JSON.stringify(checks)||JSON.stringify(Object.keys(s.opaque||{}).sort())!==JSON.stringify(['checkoutSessionId'])) process.exit(1)"
       - name: Write safe job summary
         run: |
-          node -e "const s=require('./stripe-test-acceptance.json'); process.stdout.write('Stripe test-mode acceptance: '+s.phase+'; passed='+s.passed+'\\n')" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const s=require('./stripe-test-acceptance.json'); process.stdout.write('Stripe test-mode acceptance: '+s.phase+'; passed='+s.passed+'; reason='+(s.reason||'none')+'\\n')" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload safe acceptance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7.0.1
         with:
@@ -85,3 +88,5 @@ jobs:
           path: stripe-test-acceptance.json
           if-no-files-found: error
           retention-days: 14
+      - name: Enforce acceptance result
+        run: node -e "const s=require('./stripe-test-acceptance.json'); if(s.passed!==true) process.exit(1)"
