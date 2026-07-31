@@ -28,6 +28,23 @@ test("protected workflow generates Prisma client before importing application mo
   assert.match(workflow, /name: Generate Prisma client without database access/);
 });
 
+test("protected workflow preserves validated safe failure evidence before enforcing the result", () => {
+  const acceptanceIndex = workflow.indexOf("name: Run fail-closed acceptance");
+  const validationIndex = workflow.indexOf("name: Validate privacy-minimal summary");
+  const summaryIndex = workflow.indexOf("name: Write safe job summary");
+  const uploadIndex = workflow.indexOf("name: Upload safe acceptance evidence");
+  const enforcementIndex = workflow.indexOf("name: Enforce acceptance result");
+
+  assert.match(workflow, /id: acceptance\n\s+continue-on-error: true/);
+  assert.ok(acceptanceIndex >= 0);
+  assert.ok(validationIndex > acceptanceIndex);
+  assert.ok(summaryIndex > validationIndex);
+  assert.ok(uploadIndex > summaryIndex);
+  assert.ok(enforcementIndex > uploadIndex);
+  assert.match(workflow, /typeof s\.passed!=='boolean'/);
+  assert.match(workflow, /s\.passed!==true/);
+});
+
 test("shipped status route is compile-time locked to enabled/state response type", () => {
   assert.match(statusRoute, /satisfies PlanningPackEnabledStatusResponse/);
   assert.doesNotMatch(statusRoute, /entitled/);
