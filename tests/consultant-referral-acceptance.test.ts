@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -23,6 +24,32 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
   status,
   headers: { "content-type": "application/json" },
 });
+
+const stableValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, stableValue(entry)]),
+  );
+};
+
+const digest = (value: unknown) => createHash("sha256")
+  .update(JSON.stringify(stableValue(value)))
+  .digest("hex");
+
+const acceptanceSnapshot = {
+  snapshotVersion: "consultant-referral-package.v1",
+  reviewRequestArtefactId: "review-acceptance",
+  sourceDetailedPlanningPackArtefactId: "dpp-acceptance",
+  sourceQuickSiteCheckArtefactId: "qsc-acceptance",
+  reviewRequest: {
+    consultantNeedsVersion: "consultant-needs.v1",
+    consultantNeeds: [{ disciplineId: "town_planning" }],
+    disciplinePackages: [{ disciplineId: "town_planning" }],
+  },
+};
 
 test("acceptance workflow is manual, protected and privacy-minimal", () => {
   const workflow = readFileSync(".github/workflows/consultant-referral-acceptance.yml", "utf8");
@@ -80,11 +107,8 @@ test("acceptance proves submission, protected queue, truthful transitions, user-
           id: "referral-acceptance",
           contactName: "Plannera Referral Acceptance",
           contactEmail: "referral-acceptance@plannera.invalid",
-          packageDigest: "a".repeat(64),
-          packageSnapshot: {
-            snapshotVersion: "consultant-referral-package.v1",
-            reviewRequestArtefactId: "review-acceptance",
-          },
+          packageDigest: digest(acceptanceSnapshot),
+          packageSnapshot: acceptanceSnapshot,
         }],
       });
     }
@@ -114,8 +138,47 @@ test("acceptance proves submission, protected queue, truthful transitions, user-
     userStatus: true,
     cleanup: true,
   });
-  assert.equal(result.opaque.packageDigest, "a".repeat(64));
+  assert.equal(result.opaque.packageDigest, digest(acceptanceSnapshot));
   assert.doesNotMatch(JSON.stringify(result), /@|contactEmail|contactName|packageSnapshot/);
+});
+
+test("acceptance rejects a stored package whose digest does not match its exact snapshot", async () => {
+  let userGets = 0;
+  let deleted = false;
+  const result = await runConsultantReferralAcceptance(env, async (input, init) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    const method = init?.method ?? "GET";
+    if (url.pathname.includes("/api/projects/") && method === "GET") {
+      userGets += 1;
+      return json({ enabled: true, referral: null });
+    }
+    if (url.pathname.includes("/api/projects/") && method === "POST") {
+      return json({ created: true, referral: { id: "referral-acceptance", status: "SUBMITTED" } }, 201);
+    }
+    if (url.pathname === "/api/admin/consultant-referrals" && method === "GET") {
+      return json({
+        referrals: [{
+          id: "referral-acceptance",
+          contactName: "Plannera Referral Acceptance",
+          contactEmail: "referral-acceptance@plannera.invalid",
+          packageDigest: "a".repeat(64),
+          packageSnapshot: acceptanceSnapshot,
+        }],
+      });
+    }
+    if (url.pathname === "/api/admin/consultant-referrals" && method === "DELETE") {
+      deleted = true;
+      return json({ deleted: true });
+    }
+    return json({ error: "unexpected" }, 500);
+  });
+
+  assert.equal(userGets, 1);
+  assert.equal(result.passed, false);
+  assert.equal(result.reason, "queue_verification_failed");
+  assert.equal(result.checks.operatorQueue, false);
+  assert.equal(result.checks.cleanup, true);
+  assert.equal(deleted, true);
 });
 
 test("acceptance fails without mutating or deleting a pre-existing exact referral", async () => {
