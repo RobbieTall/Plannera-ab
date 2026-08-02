@@ -100,7 +100,7 @@ const countExactAcceptanceDpps = async (fetcher: typeof fetch, baseUrl: URL, coo
     const record = item as Record<string, unknown>;
     const payload = record.payload as Record<string, unknown> | undefined;
     const source = payload?.sourceQuickSiteCheck as Record<string, unknown> | undefined;
-    return record.type === "detailed_planning_pack" && payload?.projectId === projectId && payload?.proposalBrief === proposal && source?.artefactId === quickSiteCheckArtefactId;
+    return record.type === "detailed_planning_pack" && payload?.proposalBrief === proposal && source?.artefactId === quickSiteCheckArtefactId;
   }).length;
 };
 
