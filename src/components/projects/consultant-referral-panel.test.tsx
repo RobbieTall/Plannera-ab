@@ -96,4 +96,14 @@ describe("ConsultantReferralPanel", () => {
     expect(screen.getByText(/No referral has been submitted/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("button", { name: "Submit to Plannera" })).not.toBeInTheDocument());
   });
+
+  it("does not report the queue as closed when referral status cannot be loaded", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("Unable to load referral status"))));
+
+    render(<ConsultantReferralPanel projectId="project-1" reviewRequestArtefactId="review-1" />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load referral status");
+    expect(screen.getByText(/No submission state is being inferred/i)).toBeInTheDocument();
+    expect(screen.queryByText("Direct submission is not currently open")).not.toBeInTheDocument();
+  });
 });

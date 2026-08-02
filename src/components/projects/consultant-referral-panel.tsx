@@ -125,6 +125,20 @@ export function ConsultantReferralPanel({ projectId, reviewRequestArtefactId }: 
     );
   }
 
+  if (error && enabled === null) {
+    return (
+      <section className="border-t border-slate-200 pt-4 dark:border-slate-700" aria-label="Consultant referral status unavailable">
+        <p role="alert" className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+          No submission state is being inferred. The saved package remains available to copy or download.
+        </p>
+      </section>
+    );
+  }
+
   if (!enabled) {
     return (
       <section className="border-t border-slate-200 pt-4 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
