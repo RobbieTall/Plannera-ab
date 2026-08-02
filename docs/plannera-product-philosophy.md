@@ -25,10 +25,15 @@ The first expression of this philosophy is focused and practical:
 1. **Quick Site Check** gives the user immediate property clarity and captures proposal intent without changing the property evidence.
 2. **Detailed Planning Pack** turns that site-and-proposal context into cited DCP requirements and honest unresolved topics.
 3. **Planning Feasibility Summary** synthesises that exact evidence chain into a conservative proceed-with-caution, review-needed, or blocked hold point.
-4. **SEE Builder and consultant referral** turn the same evidence into a professional output or a targeted expert handoff.
-5. **Project Workspace** keeps the intelligence, documents, assumptions, sources, and outputs together.
+4. **Planning Feasibility and Delivery Plan** identifies whether the user can proceed directly to document preparation or needs targeted professional inputs, classifying them as required, conditional, recommended, or not identified from current evidence.
+5. **SEE Builder and consultant referral** turn the same evidence into either a living SEE draft, discipline-specific consultant briefs, or a polished submission-oriented document after required inputs are resolved.
+6. **Project Workspace** keeps the intelligence, documents, assumptions, sources, and outputs together.
 
 That sequence is the right wedge. It begins with the user’s first question: “What applies to this property?” It then asks what they are considering, sells proposal-specific DCP clarity, and only then summarises the evidence into the strategic question: “Should I proceed with caution, seek targeted review, change the proposal, or stop?” Document preparation and consultant referral reuse that same chain rather than starting another planning answer.
+
+The launch commercial model has two paid products. The exact-scope Planning Controls Pack is A$49, and the submission-oriented SEE is A$749 before credits. A settled, unrefunded pack for the same requester, project, site, Quick Site Check and proposal earns one A$49 credit toward that SEE. The resulting A$700 balance recognises work already purchased without turning payment into evidence quality, transferring value between projects, or letting a stale/refunded pack unlock a document.
+
+The SEE should start as a living evidence-backed draft, but “final” is a quality state rather than a button label. If no specialist input is identified from the available evidence, the user may proceed to a complete document with an optional planner review. If a bushfire, flood, heritage, traffic, ecology, acoustic, stormwater, survey, design or other input is required or conditional, Plannera prepares a focused consultant brief and referral package. Returned reports can then be uploaded, parsed, cited, reconciled, and used to regenerate affected SEE sections before the submission-oriented DOCX/PDF is produced. Plannera must say “no specialist input identified from current evidence,” never guarantee that no consultant or later council request will arise.
 
 The deeper product belief is this: property development should not begin with confusion. It should begin with orientation.
 
@@ -180,6 +185,8 @@ Plannera is an AI planning and development assistant for property owners, planne
 ## 8. Delivery Pattern for New LGAs
 
 Plannera should use a Just-in-Time LGA Activation pattern for unsupported councils: provide immediate LEP/state baseline context, trigger background preparation of local DCP and mapping sources, then update project intelligence once local controls are ready. This keeps first responses fast while preserving confidence integrity.
+
+The user-funded path is explicit: a user may investigate a site and receive available preliminary LEP/state evidence first; purchasing the Planning Controls Pack for an unprepared LGA queues source discovery, retrieval, ingestion and QA for the relevant council material. The project must show queued/in-progress/ready/failed states, an honest service target, interim limitations and a persistent completion notification. LGA readiness is shared infrastructure, but the purchased pack remains a proposal-specific analysis for the paying project. No new LGA is promoted to document automation from document counts alone; it requires a versioned coverage manifest, source freshness, spatial and clause checks, and representative golden cases.
 
 See: `docs/architecture/just-in-time-lga-activation.md`.
 
