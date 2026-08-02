@@ -46,7 +46,7 @@ function harness(phase: StripeAcceptancePhase, options: { paginate?: boolean; du
       const headers = new Headers(init?.headers);
       assert.equal(headers.get("x-vercel-protection-bypass"), "private-vercel-bypass");
     }
-    if (url.includes("/api/projects/project-a/artefacts")) return Response.json(Array.from({ length: dppCount }, (_, index) => ({ id: `dpp-${index}`, type: "detailed_planning_pack", payload: { projectId: "project-a", proposalBrief: "private proposal a", sourceQuickSiteCheck: { artefactId: "qsc-opaque" } } })));
+    if (url.includes("/api/projects/project-a/artefacts")) return Response.json(Array.from({ length: dppCount }, (_, index) => ({ id: `dpp-${index}`, type: "detailed_planning_pack", payload: { projectId: "internal-project-a", proposalBrief: "private proposal a", sourceQuickSiteCheck: { artefactId: "qsc-opaque" } } })));
     const body = JSON.parse(String(init?.body)) as { projectId: string; proposalBrief: string };
     const exact = body.projectId === "project-a" && body.proposalBrief === "private proposal a";
     if (url.endsWith("/api/planning-pack/status")) return Response.json({ enabled: true, state: exact ? (options.exactState ?? (phase === "before_payment" ? "waiting" : phase)) : "available" });
@@ -83,7 +83,7 @@ test("status parser locks acceptance to the exact shipped enabled/state response
   for (const invalid of [{ enabled: true, entitled: true, status: "PAID" }, { enabled: false, state: "free" }, { enabled: true, state: "pending" }, { enabled: true, state: "paid", extra: true }]) assert.throws(() => parsePlanningPackStatus(invalid));
 });
 
-test("three phases prove actual status and DPP gates with safe repeat execution", async () => {
+test("three phases prove DPP gates when the public project ID differs from the internal payload ID", async () => {
   for (const phase of ["before_payment", "paid", "refunded"] as const) {
     const h = harness(phase);
     for (let repeat = 0; repeat < 2; repeat++) {
