@@ -9,6 +9,7 @@ import {
   submitConsultantReferral,
   transitionConsultantReferral,
 } from "../src/lib/consultant-referrals";
+import { quickSiteCheckReportSchema } from "../src/lib/artefact-service";
 import type { QuickSiteCheckReport } from "../src/types/quick-site-check";
 import type { DetailedPlanningPackContent, ReviewRequestContent } from "../src/types/workspace";
 
@@ -123,6 +124,13 @@ const pack: DetailedPlanningPackContent = {
 
 const consultantNeeds = buildConsultantNeedsMatrix({ quickSiteCheck, detailedPlanningPack: pack });
 const disciplinePackages = buildDisciplineReferralPackages({ proposalBrief: proposal, consultantNeeds });
+
+test("canonical Quick Site Check parsing preserves cited control confidence for referral evidence", () => {
+  const parsed = quickSiteCheckReportSchema.parse(quickSiteCheck);
+
+  assert.equal(parsed.controls.heightOfBuilding.confidence, "Cited");
+  assert.equal(parsed.controls.floorSpaceRatio.confidence, "Cited");
+});
 
 const review: ReviewRequestContent = {
   requestType: "expert_review_request",

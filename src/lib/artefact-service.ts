@@ -73,6 +73,7 @@ const quickSiteCheckControlSchema = z.object({
   clauseRef: z.string().nullable().optional(),
   detail: z.string().nullable().optional(),
   interpretation: z.string(),
+  confidence: z.enum(["Cited", "Inferred", "Unavailable"]).optional(),
 });
 
 const quickSiteCheckEvidenceSummarySchema = z.object({
