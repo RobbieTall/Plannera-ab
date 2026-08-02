@@ -1313,7 +1313,8 @@ Implementation now present on the Item 73 branch:
 
 Required verification before this item can be marked DONE:
 
-- Clean CI must pass the expanded `npm run test:commercial-funnel`, lint, typecheck, Prisma generation and migration/preview checks.
+- Clean application CI passed on PR #333 head `ce0ff819cca132152fa80e9e1f786bef8392be84`: Commercial Funnel Golden Gate run `30739095613` generated Prisma successfully, then passed 137 Node tests and 77 Vitest tests with zero failures. Local lint, typecheck, Prisma format/generate/validate and diff checks also passed.
+- The Vercel Preview status for that head is still red, so migration/preview deployment evidence remains open and must be inspected and resolved before merge. Do not infer deployment readiness from the green application gate.
 - Merge and deploy the migration to one protected non-production environment, configure only the two referral flags plus the protected acceptance variables/secrets, create one dedicated non-customer review package, and complete the `Consultant Referral Non-production Acceptance` workflow.
 - Retain only the safe acceptance artifact and exact run/deployment evidence in this item. Production activation remains a separate explicit approval after successful acceptance.
 
