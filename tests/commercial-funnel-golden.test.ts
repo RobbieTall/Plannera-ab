@@ -496,6 +496,12 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
       excerpt: citation.excerpt,
     })),
   );
+  assert.equal(review.content.consultantNeedsVersion, "consultant-needs.v1");
+  assert.deepEqual(
+    review.content.disciplinePackages?.map((item) => item.disciplineId),
+    ["town_planning", "traffic_transport", "architecture_urban_design", "landscape_architecture", "registered_surveying"],
+  );
+  assert.ok(review.content.consultantNeeds?.filter((need) => need.status === "Not identified from current evidence").length === 5);
 
   const audit = await auditCommercialFunnel(fixture.publicId, {
     prisma: prisma as any,
@@ -593,6 +599,13 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
     review.content.detailedPlanningPack?.sourceQuickSiteCheckArtefactId,
     quickSiteCheck.id,
   );
+  assert.equal(
+    review.content.consultantNeeds?.find((need) => need.disciplineId === "town_planning")?.status,
+    "Required",
+  );
+  const trafficNeed = review.content.consultantNeeds?.find((need) => need.disciplineId === "traffic_transport");
+  assert.equal(trafficNeed?.status, "Conditional");
+  assert.ok(trafficNeed?.evidence.some((evidence) => evidence.type === "PACK_GAP" && /Parking and access/.test(evidence.ref)));
 
   const audit = await auditCommercialFunnel(KEMPSEY.publicId, {
     prisma: prisma as any,

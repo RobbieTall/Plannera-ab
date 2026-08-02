@@ -50,8 +50,12 @@ test("commercial funnel test command covers generation, referral, audit and work
     "tests/feasibility-parse.test.ts",
     "tests/feasibility-panel.test.tsx",
     "tests/commercial-funnel-audit-runner.test.ts",
+    "tests/consultant-referrals.test.ts",
+    "tests/consultant-referral-acceptance.test.ts",
     "src/lib/artefact-review-request.test.ts",
     "src/lib/review-request-handoff.test.ts",
+    "src/lib/consultant-needs.test.ts",
+    "src/components/projects/consultant-referral-panel.test.tsx",
     "src/lib/commercial-funnel-audit.test.ts",
     "src/app/api/admin/commercial-funnel-audit/route.test.ts",
   ]) {

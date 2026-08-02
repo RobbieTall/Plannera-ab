@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/commercial-funnel-retention",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/cron/consultant-referral-retention",
+      "schedule": "37 3 * * *"
     }
   ]
 }

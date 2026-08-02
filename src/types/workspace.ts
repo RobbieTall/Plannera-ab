@@ -56,6 +56,48 @@ export type SeeSourceCitation = {
   type: "LEP" | "DCP";
 };
 
+export type ConsultantNeedStatus =
+  | "Required"
+  | "Conditional"
+  | "Recommended"
+  | "Not identified from current evidence";
+
+export type ConsultantNeedEvidence = {
+  type: "LEP" | "DCP" | "PACK_GAP";
+  ref: string;
+  excerpt?: string | null;
+};
+
+export type ConsultantNeed = {
+  disciplineId:
+    | "town_planning"
+    | "traffic_transport"
+    | "architecture_urban_design"
+    | "landscape_architecture"
+    | "registered_surveying"
+    | "bushfire"
+    | "flood_hydraulic"
+    | "ecology"
+    | "heritage"
+    | "contamination_geotechnical";
+  disciplineLabel: string;
+  status: ConsultantNeedStatus;
+  reason: string;
+  evidence: ConsultantNeedEvidence[];
+  questions: string[];
+};
+
+export type DisciplineReferralPackage = {
+  disciplineId: ConsultantNeed["disciplineId"];
+  disciplineLabel: string;
+  needStatus: Exclude<ConsultantNeedStatus, "Not identified from current evidence">;
+  brief: string;
+  requestedScope: string[];
+  questions: string[];
+  evidence: ConsultantNeedEvidence[];
+  limitations: string[];
+};
+
 
 export type ReviewRequestContent = {
   requestType: "expert_review_request";
@@ -79,6 +121,9 @@ export type ReviewRequestContent = {
   missingInputs: string[];
   assumptions: string[];
   recommendedReviewScope: string[];
+  consultantNeedsVersion?: "consultant-needs.v1";
+  consultantNeeds?: ConsultantNeed[];
+  disciplinePackages?: DisciplineReferralPackage[];
   detailedPlanningPack?: {
     artefactId: string;
     title: string;

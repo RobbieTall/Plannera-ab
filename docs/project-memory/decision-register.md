@@ -383,6 +383,10 @@ Decision: a saved, copied or downloaded Expert Review Request is a consultant-re
 
 The first launch workflow may use a human-operated Plannera referral queue, but the product must not claim automated matching, consultant availability, credentials, quote competition or response SLAs until those capabilities and disclosures are real.
 
+Implementation contract: the exact current QSC/DPP evidence chain deterministically produces a versioned needs matrix and separate discipline briefs. `PACK_GAP` may explain why expert input is required but is never presented as a statutory citation. Hazard and specialist disciplines outside the current evidence coverage are labelled `Not identified from current evidence`, never “not required”. A consented submission stores minimum contact fields separately from one immutable package snapshot and digest, is unique per exact project/DPP/QSC/proposal scope, and appends every operational state change to a non-secret audit ledger.
+
+The user-visible delivery states are distinct facts: `SUBMITTED` means saved to Plannera only; `ACKNOWLEDGED` means a Plannera operator reviewed it; `ASSIGNED` means the package was actually sent to a consultant; `CONSULTANT_ACKNOWLEDGED` requires actual consultant acknowledgement. Contact data and package content never enter funnel analytics. Direct submission remains disabled unless the approved server flags name the human queue, and Production remains disabled until protected non-production acceptance is complete and activation is separately approved.
+
 Reference: docs/project-memory/build-next.md Item 73
 
 

@@ -1285,7 +1285,7 @@ Protected test-mode acceptance completed all three phases on one dedicated Check
 
 Item 72C proves the protected non-production lifecycle; it does not activate checkout. Production `PLANNING_PACK_CHECKOUT_ENABLED` remains false/absent, and Production keys, webhook destination, payment data, projects and configuration were untouched. Production activation remains a separate explicit operator decision. The next build priority is Item 73.
 
-## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
+## 73) Real consultant referral submission and delivery state — IMPLEMENTED, NOT ACTIVATED OR ACCEPTED (2026-08-02)
 
 Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.
 
@@ -1298,6 +1298,25 @@ Minimum launch delivery contract:
 - Contact information and package contents are excluded from analytics events and require reviewed retention, access, deletion and disclosure handling.
 
 Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.
+
+Implementation now present on the Item 73 branch:
+
+- Expert Review Request generation deterministically derives a versioned consultant-needs matrix from the exact current Quick Site Check and Planning Controls Pack. Statuses are limited to `Required`, `Conditional`, `Recommended`, and `Not identified from current evidence`; every identified need carries LEP/DCP evidence or an explicit `PACK_GAP`, while bushfire, flood, ecology, heritage and contamination/geotechnical remain visibly unassessed by the current evidence chain rather than being declared unnecessary.
+- Each identified discipline receives its own scope, questions, evidence and limitations inside a `consultant-needs.v1` review package. The existing copy/download export includes the matrix and discipline briefs.
+- A new provider-independent `ConsultantReferral` model persists one immutable, SHA-256-digested package snapshot per exact project/DPP/QSC/proposal scope, separate minimum follow-up contact fields, consent version/time, human-queue target and a delivery event ledger. Exact-scope retries are idempotent, contact replacement conflicts, and concurrent unique races return only the winning same-contact submission.
+- User submission re-resolves requester access, current site, active proposal, intact QSC/DPP provenance, optional exact SEE provenance, and a byte-equivalent server-recomputed needs matrix before persistence. Legacy, stale, altered or different-proposal packages fail closed.
+- Direct submission requires explicit consent and truthfully distinguishes package saved, submitted to Plannera, sent to consultant and consultant acknowledged. Copy/download cannot advance delivery. The operational states are `SUBMITTED`, `ACKNOWLEDGED`, `ASSIGNED`, `CONSULTANT_ACKNOWLEDGED`, `NEEDS_INFORMATION`, `DECLINED`, and `CLOSED`.
+- The protected operator API lists the human queue and performs guarded, append-only status transitions. A protected deletion endpoint plus a daily bearer-authenticated retention job delete declined/closed records 180 days after terminal state and support verified early deletion requests.
+- Submission emits one property-free, server-confirmed `CONSULTANT_REFERRAL_SUBMITTED` funnel milestone only after durable persistence. Contact fields and package contents are structurally absent from that event.
+- Production remains fail-closed. Submission requires both `CONSULTANT_REFERRALS_ENABLED=true` and `CONSULTANT_REFERRAL_QUEUE_TARGET=plannera_human_queue`; neither is changed by this implementation.
+- A manual, environment-protected non-production acceptance workflow and `docs/operations/consultant-referral-queue.md` prove preflight emptiness, synthetic consented submission, protected queue visibility, ordered operator transitions, user-safe status, safe artifact output and cleanup. It refuses production/localhost/non-exact targets and any pre-existing referral scope.
+
+Required verification before this item can be marked DONE:
+
+- Clean application CI passed on PR #333 head `1ff996a3779a24e6f0d0f18c66832d017de2db35`: Commercial Funnel Golden Gate run `30745647472` generated Prisma successfully, then passed 138 Node tests and 77 Vitest tests with zero failures. The latest hardening independently recomputes the stored package-snapshot digest, requires non-empty exact QSC/DPP-bound consultant needs and discipline packages, and verifies the precise user-visible delivery-event sequence during protected acceptance. Local lint, typecheck and diff checks passed; the focused local `tsx` invocation could not start because the shared checkout points at an incompatible esbuild binary, so the clean remote gate is the authoritative execution evidence.
+- Vercel Preview deployment `CE8rgtqopLHRisCAWk4FmEEBgxKt` for exact head `1ff996a3779a24e6f0d0f18c66832d017de2db35` reached `Ready` in 1m 59s after integration provisioning completed in 3s. The repository's `vercel-build` runs `prisma db push`, Prisma generation and `next build` in order, so the terminal Ready state proves the isolated Preview database accepted the Item 73 schema and the application compiled. This followed explicit operator-approved deletion of idle `preview/fix/stripe-acceptance-public-project-id`; read-only Neon verification proved 9/10 capacity with `main` and active protected `preview/ops/stripe-test-acceptance` intact. Production remains untouched.
+- Merge and deploy the migration to one protected non-production environment, configure only the two referral flags plus the protected acceptance variables/secrets, create one dedicated non-customer review package, and complete the `Consultant Referral Non-production Acceptance` workflow.
+- Retain only the safe acceptance artifact and exact run/deployment evidence in this item. Production activation remains a separate explicit approval after successful acceptance.
 
 ## 74) Submission-grade SEE and Byron/Kempsey whole-LGA commercial readiness — QUEUED AFTER ITEM 73
 

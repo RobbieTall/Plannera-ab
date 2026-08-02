@@ -348,6 +348,15 @@ describe("createExpertReviewRequestArtefact", () => {
       "Proposed works from Detailed Planning Pack: Alterations and additions to tourist accommodation.",
       "Detailed Planning Pack is marked commercial-ready.",
     ]));
+    expect(result.content.consultantNeedsVersion).toBe("consultant-needs.v1");
+    expect(result.content.consultantNeeds).toEqual(expect.arrayContaining([
+      expect.objectContaining({ disciplineId: "town_planning", status: "Required" }),
+      expect.objectContaining({ disciplineId: "bushfire", status: "Not identified from current evidence" }),
+    ]));
+    expect(result.content.disciplinePackages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ disciplineId: "town_planning", needStatus: "Required" }),
+      expect.objectContaining({ disciplineId: "registered_surveying" }),
+    ]));
     expect(artefactCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         projectId: project.id,
