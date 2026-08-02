@@ -1241,7 +1241,7 @@ Boundary and handoff:
 - The next commercial slice is Item 72: exact project/site/QSC/proposal-bound one-time DCP pack purchase. Payment must purchase the analysis only; it must never upgrade evidence quality or commercial readiness.
 - The live-audit workflow success message is corrected in the closure PR to say both projects reached an accepted terminal journey, rather than incorrectly claiming both chains are ready.
 
-## 72) Exact project-bound one-time DCP pack purchase — ITEM 72B IMPLEMENTED; PRODUCTION CHECKOUT NOT ACTIVATED
+## 72) Exact project-bound one-time DCP pack purchase — ITEM 72C COMPLETE; PRODUCTION CHECKOUT NOT ACTIVATED
 
 Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The approved offer is the Planning Controls Pack at A$49.00 total including GST.
 
@@ -1254,7 +1254,7 @@ Approved retry/refund contract: the same exact requester/project/current-site QS
 Activation gates still required before any launch:
 - Explicit production checkout approval and an operator runbook covering Stripe configuration, webhook health, reconciliation, support and confirmed-refund verification.
 - Stripe Tax registration/settings and an appropriate default product tax code must be configured and verified without hard-coding a tax code in Plannera. Protected Stripe test-mode acceptance must show the Australian billing case itemises A$4.45 GST inside the fixed A$49.00 customer total.
-- Protected non-production lifecycle evidence for the exact release followed by the established Byron/Kempsey release gate.
+- Protected non-production lifecycle evidence is complete for the accepted release; Production activation still requires the established current-release Byron/Kempsey gate and explicit operator approval.
 - Production secrets/URLs and the feature flag must be configured only during the separately approved activation change.
 
 Required contract:
@@ -1277,19 +1277,20 @@ Merge and verification evidence:
 - The commercial gate now executes `tests/purchase-entitlements.test.ts` and the behavioral `tests/planning-pack-checkout.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
 - Item 72A was the domain foundation. Item 72B implements the subsequently approved provider, terms, refund boundary and feature-gated entitlement check; it does not approve or perform production activation.
 
-### Item 72C — protected Stripe test-mode acceptance infrastructure — ✅ IMPLEMENTED, NOT EXECUTED (2026-07-26)
+### Item 72C — protected Stripe test-mode acceptance infrastructure — ✅ COMPLETE (2026-08-02)
 
 Item 72C adds the manual-dispatch, protected `stripe-test-acceptance` environment contract, fail-closed executable runner, safe artifact, focused tests, and operator runbook. It requires an operator-provided non-production deployment, dedicated requester/projects/current QSC/proposal, test key/session cookie, and one manual Stripe-hosted Australian test payment. It validates Stripe provider facts (test mode, paid payment session, one AUD 49.00 line with AUD 4.45 tax), webhook-settled exact entitlement, duplicate Checkout denial, changed-proposal and cross-project/site/QSC isolation, and three-phase before-payment/paid/refunded lifecycle and full-refund terminal reconciliation. It never prints raw provider responses or address/proposal/contact/card/secret data and never creates an environment, configures a secret, stores card data, aims at Production, or treats a redirect as settlement.
 
-This is implementation evidence only: the protected test-mode run has not occurred, so Item 72C does not claim payment readiness or activation. Production `PLANNING_PACK_CHECKOUT_ENABLED` remains false/absent. The exact Item 72B predecessor evidence is PR #321 head `c75e3e5...`, merged as `83e9bc7483382d98b3a413e61d827b6b37c750aa`; Commercial Funnel Golden Gate run `30186727565` passed 115 Node and 69 Vitest tests, and the merged-main Vercel production deployment succeeded. That deployment did not enable checkout or make a charge.
+Protected test-mode acceptance completed all three phases on one dedicated Checkout: `before_payment` run `30732647096`, corrected `paid` run `30734666290`, and `refunded` run `30735071908` passed. The sandbox payment was A$49.00 AUD with A$4.45 GST; exact-scope entitlement, changed-scope denial, one DPP creation, full refund, webhook-backed entitlement removal, and preservation of the project/QSC chain were independently observed. Safe final paid/refunded artifacts were `8829151091` and `8829295014`; the latter has digest `bdff979152e7b14d6993566bc4960e9014e48033d4112f11803a92de0a8ad015` and expires 2026-08-16. PR #331 repaired the verifier-only public/internal project-ID mismatch exposed by the first paid run and merged as `ec8875138462c50b98da2151b2ba3be1e86d0259` before the final green paid/refunded runs.
 
-Execution and activation remain operator gates: follow `docs/operations/stripe-test-mode-acceptance.md`, retain only the safe artifact, confirm the exact-scope DPP keeps its evidence-derived `acceptedJourney`/`commercialReady` state, complete and reconcile a full test refund, then obtain separate explicit approval for a production activation PR.
+Item 72C proves the protected non-production lifecycle; it does not activate checkout. Production `PLANNING_PACK_CHECKOUT_ENABLED` remains false/absent, and Production keys, webhook destination, payment data, projects and configuration were untouched. Production activation remains a separate explicit operator decision. The next build priority is Item 73.
 
 ## 73) Real consultant referral submission and delivery state — QUEUED AFTER ITEM 72
 
 Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.
 
 Minimum launch delivery contract:
+- The Planning Feasibility and Delivery Plan classifies each professional input as `Required`, `Conditional`, `Recommended`, or `Not identified from current evidence`, with the exact trigger, source, question and expected deliverable. It never promises that no later council or professional request will arise.
 - A user explicitly consents to submit one exact saved review-request artefact and supplies only the contact details required for follow-up. The server re-resolves project ownership and exact current DPP/QSC/SEE provenance; stale or changed proposals cannot be submitted.
 - Submission persists an immutable package snapshot plus operational status (`submitted`, `acknowledged`, `assigned`, `needs_information`, `declined`, `closed`) and a non-secret audit trail. Retries are idempotent and cannot send duplicate referrals.
 - The initial delivery target may be a truthful human-operated Plannera referral queue. Do not claim automated matching, consultant availability, response times, credentials or quote competition until those systems and disclosures exist.
@@ -1297,3 +1298,47 @@ Minimum launch delivery contract:
 - Contact information and package contents are excluded from analytics events and require reviewed retention, access, deletion and disclosure handling.
 
 Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.
+
+## 74) Submission-grade SEE and Byron/Kempsey whole-LGA commercial readiness — QUEUED AFTER ITEM 73
+
+Purpose: finish the second paid product and prove both launch councils across their complete current LEP zone sets before expansion. The commercial SEE list price is **A$749 before credits**. One settled, unrefunded A$49 Planning Controls Pack for the same requester/project/current-site QSC/normalized proposal may be consumed once as an A$49 credit, leaving **A$700 payable**. The credit is exact-scope, single-use, non-transferable, not cash-redeemable, and cannot upgrade evidence confidence or readiness.
+
+### 74A — Evidence intake and spatial provenance
+- Index supported project uploads rather than merely storing them. Extract PDF/DOCX/spreadsheet/text content, add OCR fallback for scans, retain source title/page/date/hash, and expose `Ready`, `Partially readable`, `Image only`, or `Needs review` status.
+- Treat maps and plans as evidence objects with authoritative source, capture/effective date, layer/legend, site identity, user-confirmed observation and limitation. Stored screenshots alone do not prove a constraint.
+- Reconcile uploaded and spatial facts against the exact proposal and statutory chain. Conflicts, stale files and unsupported claims remain visible and block affected final sections.
+- Returned consultant reports enter the same evidence pipeline; referral completion does not automatically make a report accepted or applicable.
+
+### 74B — Professional SEE compiler and paid entitlement
+- Replace the current pre-SEE `.txt` memo as the commercial endpoint with a versioned living SEE that becomes final only when all required inputs are resolved or explicitly routed to professional review.
+- Compile site/context, proposal, statutory framework, zone objectives/permissibility, LEP standards, DCP compliance, applicable SEPPs, section 4.15 considerations, natural/built/social/economic impacts, access/parking, hazards, servicing/waste/stormwater, mitigation, suitability, public interest, conclusion, source register and appendices as applicable to the exact proposal.
+- Every material statement must cite legislation, DCP, a spatial source, an uploaded report, or labelled user-provided information. Page/layer references and a source schedule are mandatory; missing evidence is not filled from generic model knowledge.
+- Produce an editable DOCX and professionally rendered PDF with stable headings, tables, maps/figures, page numbers, document metadata, revision history and appendix/report schedule. Copy/`.txt` remains convenience output only.
+- Add a provider-neutral `see_document` purchase/entitlement and credit-consumption ledger. Checkout derives A$749, eligible A$49 credit and A$700 balance server-side, shows applicable GST truthfully, and prevents replay, cross-scope use, refunded/revoked-pack use and double consumption.
+- Regeneration preserves immutable versions and identifies which sections changed after new evidence; it never silently overwrites the previously purchased document.
+
+### 74C — Whole-LGA coverage and flight acceptance
+- Inventory the complete current authoritative Byron and Kempsey corpus: LEP zones/objectives/land-use tables and mapped controls; every relevant DCP part/chapter/appendix; relevant state instruments, contributions/planning policies, lodgement guidance and available authoritative spatial layers. Store source URLs, effective dates, hashes and freshness state.
+- Build a coverage matrix for every current zone code and exact LEP land-use term. Preserve statutory terms while grouping them into maintainable assessment/document families; never infer permissibility from a family.
+- Make DCP material table-aware and stably citable. Structured controls are promoted only where source text supports them; absent values remain `Unavailable` or `Needs Expert Review`.
+- Flight-test representative permitted, consent-required and prohibited developments across every zone, plus changed-site/proposal, stale-source, map conflict, unreadable upload, missing report, referral-return and credit/payment cases.
+- Require the complete journey: investigate → Quick Site Check → paid pack → feasibility/consultant triage → direct SEE or referral → report upload → final DOCX/PDF → optional review/submission. Inspect rendered documents, citations, source coverage and privacy, not only JSON or route success.
+- Add freshness monitoring and fail-closed coverage demotion when a source URL, effective date, hash, parser result or golden case changes. Obtain explicit operator sign-off before either LGA is described as commercially flight-ready.
+
+Success signal: any address resolving to a current Byron or Kempsey zone and any exact development term in its LEP receives a truthful cited or explicitly unresolved journey, with a proposal-specific paid pack and either a polished evidence-backed SEE or a complete consultant pathway. No fabricated control, uncited material claim, unexamined upload/map, cross-scope credit or unsupported readiness claim is allowed.
+
+## 75) Repeatable LGA Pack Registry and paid just-in-time onboarding — QUEUED AFTER ITEM 74
+
+Do not start this slice until Item 73 has a verified non-production referral target and Item 74 has explicit Byron/Kempsey whole-LGA and document-flight sign-off.
+
+Purpose: make later LGA expansion a configure, ingest and verify process while preserving the user-funded just-in-time path.
+
+Minimum contract:
+- A new-LGA user receives available LEP/state preliminaries immediately. Purchasing the A$49 proposal-specific Planning Controls Pack queues source discovery, retrieval, ingestion and QA; the project shows queued/in-progress/ready/failed status, an honest service target, interim limitations and persistent notification.
+- Add a versioned LGA manifest covering LGA code, LEP instrument, DCP title/effective date, authoritative document/part URLs, parser profile, spatial sources, council policies, priority topics, golden addresses and expected extraction counts.
+- Use one generic pipeline for fetch, hashing, archival metadata, text/table extraction, OCR fallback, cited chunking and coverage transitions. Council-specific adapters remain explicit only where a source genuinely breaks the generic contract.
+- Generate a privacy-safe QA report and require source, zone, citation, structured-control, spatial and golden-address gates before promotion from searchable to structured or verified states.
+- Monitor URLs, effective dates and hashes so amendments cannot silently leave a council marked current. Searchable coverage supports cited guidance; only reviewed rule packs support deterministic claims or higher document automation.
+- LGA preparation is shared infrastructure after completion, but each A$49 purchase remains a proposal-specific analysis and may earn only its own exact-scope SEE credit.
+
+Success signal: a clean text-PDF council can be registered, prepared and made searchable without application branching, then promoted through repeatable automated/operator QA and notified back to the paying project without claiming whole-LGA verification from one site or zone.
