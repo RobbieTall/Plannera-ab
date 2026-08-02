@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -61,6 +62,40 @@ test("acceptance workflow is manual, protected and privacy-minimal", () => {
   assert.match(workflow, /PLANNERA_REFERRAL_TEST_ADMIN_TOKEN: \$\{\{ secrets\./);
   assert.match(workflow, /accept:consultant-referral/);
   assert.doesNotMatch(workflow, /referral-acceptance@plannera\.invalid/);
+});
+
+test("acceptance CLI runs in the repository CommonJS tsx mode", () => {
+  const result = spawnSync(
+    "./node_modules/.bin/tsx",
+    ["scripts/consultant-referral-acceptance.ts"],
+    {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH ?? "" },
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stderr, /Top-level await|Transform failed/);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    runnerVersion: "consultant_referral_acceptance.v1",
+    passed: false,
+    reason: "configuration_invalid",
+    checks: {
+      configuration: false,
+      preflightEmpty: false,
+      submitted: false,
+      operatorQueue: false,
+      transitions: false,
+      userStatus: false,
+      cleanup: false,
+    },
+    opaque: {
+      referralId: "unavailable",
+      reviewRequestArtefactId: "unavailable",
+      packageDigest: "unavailable",
+    },
+    statuses: [],
+  });
 });
 
 test("acceptance configuration denies production and non-exact targets", () => {
