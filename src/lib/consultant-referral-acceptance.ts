@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 const RUN_CONFIRMATION = "RUN CONSULTANT REFERRAL ACCEPTANCE";
 const TARGET_CONFIRMATION = "PROTECTED NON-PRODUCTION";
 const SYNTHETIC_NAME = "Plannera Referral Acceptance";
@@ -113,6 +115,20 @@ const adminHeaders = (token: string, bypass: string, contentType = false): Recor
 const request = async (fetcher: typeof fetch, url: URL, init: RequestInit, reason: ReferralAcceptanceReason) =>
   fetcher(url, { ...init, redirect: "error" }).catch(() => fail(reason));
 
+const stableValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, stableValue(entry)]),
+  );
+};
+
+const snapshotDigest = (snapshot: unknown) => createHash("sha256")
+  .update(JSON.stringify(stableValue(snapshot)))
+  .digest("hex");
+
 const referralFromPayload = (payload: Record<string, unknown>) => {
   const referral = payload.referral;
   if (!referral || typeof referral !== "object" || Array.isArray(referral)) fail("application_contract_invalid");
@@ -187,16 +203,31 @@ export async function runConsultantReferralAcceptance(
     const queued = (queue.referrals as unknown[]).find((item) =>
       Boolean(item) && typeof item === "object" && (item as Record<string, unknown>).id === submittedReferralId) as Record<string, unknown> | undefined;
     const snapshot = queued?.packageSnapshot;
+    const snapshotRecord = snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+      ? snapshot as Record<string, unknown>
+      : null;
+    const reviewRequest = snapshotRecord?.reviewRequest;
+    const reviewRecord = reviewRequest && typeof reviewRequest === "object" && !Array.isArray(reviewRequest)
+      ? reviewRequest as Record<string, unknown>
+      : null;
     if (
       !queued ||
       queued.contactName !== SYNTHETIC_NAME ||
       queued.contactEmail !== SYNTHETIC_EMAIL ||
       typeof queued.packageDigest !== "string" ||
       !/^[a-f0-9]{64}$/.test(queued.packageDigest) ||
-      !snapshot ||
-      typeof snapshot !== "object" ||
-      (snapshot as Record<string, unknown>).snapshotVersion !== "consultant-referral-package.v1" ||
-      (snapshot as Record<string, unknown>).reviewRequestArtefactId !== configuration.reviewRequestArtefactId
+      !snapshotRecord ||
+      snapshotRecord.snapshotVersion !== "consultant-referral-package.v1" ||
+      snapshotRecord.reviewRequestArtefactId !== configuration.reviewRequestArtefactId ||
+      typeof snapshotRecord.sourceDetailedPlanningPackArtefactId !== "string" ||
+      typeof snapshotRecord.sourceQuickSiteCheckArtefactId !== "string" ||
+      !reviewRecord ||
+      reviewRecord.consultantNeedsVersion !== "consultant-needs.v1" ||
+      !Array.isArray(reviewRecord.consultantNeeds) ||
+      reviewRecord.consultantNeeds.length === 0 ||
+      !Array.isArray(reviewRecord.disciplinePackages) ||
+      reviewRecord.disciplinePackages.length === 0 ||
+      queued.packageDigest !== snapshotDigest(snapshot)
     ) fail("queue_verification_failed");
     summary.opaque.packageDigest = queued!.packageDigest as string;
     summary.checks.operatorQueue = true;
@@ -222,13 +253,18 @@ export async function runConsultantReferralAcceptance(
       headers: userHeaders(configuration.cookie, configuration.vercelBypass),
     }, "user_status_failed"), "user_status_failed");
     const userReferral = referralFromPayload(userStatus);
+    const userEvents = Array.isArray(userReferral.events) ? userReferral.events : [];
+    const eventStatuses = userEvents.map((event) =>
+      event && typeof event === "object" && !Array.isArray(event)
+        ? (event as Record<string, unknown>).toStatus
+        : null);
+    const expectedStatuses = ["SUBMITTED", "ACKNOWLEDGED", "ASSIGNED", "CONSULTANT_ACKNOWLEDGED", "CLOSED"];
     if (
       userReferral.status !== "CLOSED" ||
       "contactEmail" in userReferral ||
       "contactName" in userReferral ||
       "packageSnapshot" in userReferral ||
-      !Array.isArray(userReferral.events) ||
-      userReferral.events.length !== 5
+      JSON.stringify(eventStatuses) !== JSON.stringify(expectedStatuses)
     ) fail("user_status_failed");
     summary.checks.userStatus = true;
   } catch (error) {
