@@ -1,27 +1,28 @@
 Plannera — Commercialisation Layer Workflows
-Status: MVP+ planning
-Scope: Local Controls Unlock (DCP Deep Check) + Consultant Network / RFQ Layer
-Last updated: July 2026
+Status: Approved launch contract; implementation/activation states remain item-specific
+Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
+Last updated: August 2026
 
 
 Overview
-This document defines the product workflows, sequencing logic, guardrails and commercial model for Plannera's first commercialisation layer. It sits between the free/basic site check and the higher-value Quick Site Check / SEE Builder products.
+This document defines the product workflow, sequencing, guardrails and commercial model from first site investigation through a submission-oriented SEE or consultant handoff. Plannera Check is the acquisition surface inside the same application and project evidence chain, not a separate product or backend.
 
-Two components are defined here:
+Three commercial components are defined here:
 
-Local Controls Unlock — user-funded DCP preparation, surfaced as a paid upgrade per project
-Consultant Network / RFQ Layer — structured quote requests matched to verified consultants
+Planning Controls Pack — A$49 proposal-specific cited local-controls analysis
+Consultant input loop — evidence-derived triage, targeted briefs/referral and returned-report intake
+Submission-oriented SEE — A$749 before credits, with one eligible same-scope A$49 pack credit
 
 
-1. Local Controls Unlock (DCP Deep Check)
+1. Planning Controls Pack and Just-in-Time LGA Preparation
 Roadmap status
-MVP+ commercialisation feature. High priority after Byron Bay and Kempsey baseline flows are stable.
+The exact-scope A$49 Stripe implementation and protected sandbox lifecycle are complete; Production activation remains a separate operator decision. Whole-LGA Byron/Kempsey certification remains open.
 Purpose
-Turn deeper local planning intelligence into an early paid product while avoiding the cost of fully preparing every NSW LGA upfront. Coverage expands based on real user demand rather than speculative ingestion.
+Sell proposal-specific local planning intelligence while allowing council coverage to expand from demonstrated demand rather than speculative statewide ingestion.
 User-facing framing
 Do not describe this to users as "DCP live ingest" or a "compute fee". The user-facing value proposition is:
 
-Plannera prepares more complete, cited local planning guidance for your project — including relevant DCP controls such as setbacks, parking, landscaping, access, built form, character controls and private open space where available.
+Plannera prepares a proposal-specific, cited Planning Controls Pack for your project, including applicable DCP controls such as setbacks, parking, landscaping, access, built form, character controls and private open space where the source supports them, plus explicit unresolved topics and next actions.
 
 
 User flow
@@ -29,63 +30,60 @@ User flow
 
         ↓
 
-2. Plannera identifies LGA, zone and available LEP context
+2. Free Quick Site Check resolves the site and returns available cited LEP zone, permissibility and mapped controls
 
         ↓
 
-3. Are local DCP controls already prepared for this LGA?
-
-   ├── YES → Serve full local controls response (no payment required)
-
-   └── NO  → Show limitation notice + unlock prompt
+3. User confirms a concise proposed-development description and creates/saves the project
 
         ↓
 
-4. User offered: "Unlock local controls for this project"
+4. User is offered the A$49 Planning Controls Pack for that exact project/site/QSC/proposal scope
 
         ↓
 
-5. Payment collected
+5. Are current local DCP sources already prepared for this LGA?
+
+   ├── YES → Generate the proposal-specific paid pack from current cited sources
+
+   └── NO  → Return available LEP/state preliminaries and queue paid just-in-time LGA preparation
 
         ↓
 
-6. Background DCP / local controls preparation job queued
-
-   (job locking + duplicate prevention enforced — see guardrails)
+6. Project displays queued/in-progress/ready/failed status, honest service target and interim limitations
 
         ↓
 
-7. User receives interim LEP-based response immediately
-
-   + status indicator: "Local controls being prepared — estimated ready: [date]"
+7. When preparation passes source and retrieval QA, notify the user and generate/refresh the exact paid pack
 
         ↓
 
-8. When job completes → update project record
+8. Planning Feasibility and Delivery Plan identifies controls, risks and professional inputs
 
-   → prompt user to refresh Quick Site Check, SEE draft or other outputs
+   (`Required`, `Conditional`, `Recommended`, or `Not identified from current evidence`)
+
+        ↓
+
+9. User proceeds directly to SEE preparation or through the consultant-input loop
 
 
 Pricing
 Product
 Price
 Notes
-Local Controls Search
-$19–$29
-Relevant controls listed and cited
+Free Quick Site Check
+A$0
+Available cited LEP/site preliminaries and proposal capture
 Planning Controls Pack
-$39–$49
-Controls listed + structured assessment of how they apply to the proposal
-Subscriber access
-Included or discounted
-For paid plan subscribers (future)
-
-
-Distinction between tiers must be clearly communicated at point of purchase. See UX copy requirements below.
+A$49 total including GST under the approved Australian contract
+Exact project/site/QSC/proposal scope; cited DCP analysis, unresolved topics and consultant/next-action inputs
+Submission-oriented SEE
+A$749 before credits
+Eligible same-scope paid pack consumes one A$49 credit, leaving A$700 payable
 
 
 Commercial model — LGA activation
-The first user to pay for deeper controls in a new LGA helps fund preparation of that LGA's DCP/search layer. Subsequent users in the same LGA benefit from faster access at no additional unlock cost (or at a lower tier).
+The first user to purchase deeper controls in a new LGA helps fund preparation of that LGA's DCP/search layer. Completed source preparation becomes shared infrastructure, but each A$49 purchase remains a proposal-specific assessment and earns only its own exact-scope SEE credit.
 
 This creates a user-funded expansion model where coverage grows in line with real demand.
 
@@ -112,10 +110,9 @@ Failure handling
 Some NSW DCPs cannot be reliably retrieved or processed (older councils, poorly structured PDFs, instruments split across multiple documents). When a job fails:
 
 Do not leave the user without a response or resolution pathway
-Offer one of the following within 24 hours of job failure:
-Full credit applied to account
-Refund to original payment method
-Conversion of value to a consultant referral / RFQ credit
+A system/retrieval failure that prevents generation and persistence of the promised pack requires an operator-initiated full refund to the original method, completed only after signed provider confirmation
+A truthful persisted pack with cited and unresolved topics is delivered value and proceeds to the targeted expert-review path rather than an automatic refund
+Do not improvise account credits, partial refunds or referral-value conversions outside an approved durable policy
 
 Failure resolution must be defined operationally before launch. Ad hoc decisions under user pressure are not acceptable.
 
@@ -146,19 +143,39 @@ Enforce job locking and duplicate prevention (one active job per LGA at a time)
 Separate LEP-based interim response from DCP-enhanced response in the UI
 
 
-2. Consultant Network / RFQ Layer
+2. Submission-Oriented SEE
 Roadmap status
-Early commercial layer — not a separate product. Medium-high priority after Quick Site Check and SEE generation are usable.
+Commercial product contract approved; evidence intake, checkout/credit ledger, DOCX/PDF compilation and production activation are not yet implemented.
+
+Price and credit
+The SEE list price is A$749 before credits. One settled, unrefunded and unconsumed A$49 Planning Controls Pack for the same requester, owned project, current-site QSC and normalized proposal may be consumed once, leaving A$700 payable. The credit is non-transferable, not cash-redeemable and cannot be reused across another site, project, QSC or materially changed proposal. Checkout must derive and itemise price, credit, balance and applicable GST on the server.
+
+Document workflow
+1. Start a living SEE draft from the exact QSC, Planning Controls Pack and Planning Feasibility and Delivery Plan.
+2. If no specialist input is identified from current evidence, complete the document subject to its quality gates and optional planner review.
+3. If input is required or conditional, generate discipline-specific consultant briefs and obtain explicit consent before referral.
+4. Accept reports obtained through Plannera or elsewhere. Parse/OCR, cite by page, verify site/proposal applicability, surface conflicts and classify readability before using them.
+5. Treat maps/plans as provenance-bearing evidence with source, date, layer/legend and confirmed observation; storing an image alone is insufficient.
+6. Regenerate only affected assessments while preserving immutable document versions and revision history.
+7. Produce editable DOCX and polished PDF outputs with tables, maps/figures, source register, limitations and appendix/report schedule.
+
+Finality rule
+“Final” is an evidence state, not a successful generation event. A purchased SEE does not become submission-oriented while a required input is missing, unreadable, stale, conflicting or unsupported. The product may instead return a complete targeted referral/review path without fabricating a conclusion. Payment never changes confidence or guarantees approval.
+
+
+3. Consultant Network / RFQ Layer
+Roadmap status
+Immediate next commercial slice after Item 72. It is a workflow inside Plannera, not a separate product; the initial delivery target may be a truthful human-operated Plannera queue.
 Purpose
 Convert planning insight into professional action. Plannera's core product creates the demand; the Consultant Network provides the next step.
 
 
 User flow
-1. User runs Quick Site Check or planning query
+1. User reaches the Planning Feasibility and Delivery Plan from an exact paid Planning Controls Pack
 
         ↓
 
-2. Plannera identifies likely professional inputs required
+2. Plannera classifies professional inputs as Required, Conditional, Recommended, or Not identified from current evidence
 
    (planner, surveyor, bushfire consultant, ecologist, engineer,
 
@@ -166,11 +183,11 @@ User flow
 
         ↓
 
-3. User clicks "Request consultant quotes"
+3. User chooses a targeted referral or engages their own consultant
 
         ↓
 
-4. Plannera generates structured RFQ from project context:
+4. Plannera generates a discipline-specific brief from the immutable project evidence snapshot:
 
    - Address
 
@@ -182,7 +199,9 @@ User flow
 
    - Known constraints
 
-   - Quick Site Check summary
+   - Exact Quick Site Check and Planning Controls Pack citations
+
+   - Trigger, question to answer and expected deliverable
 
    - Uploaded documents
 
@@ -192,11 +211,15 @@ User flow
 
         ↓
 
-5. Matched consultants receive the enquiry
+5. With explicit consent, the package is submitted to the truthful human-operated Plannera referral queue
 
         ↓
 
-6. Consultant responses tracked manually (Stage 1) → consultant inbox (Stage 2+)
+6. Delivery state distinguishes package saved, submitted to Plannera, sent to consultant and consultant acknowledged
+
+        ↓
+
+7. Returned reports are uploaded, assessed for readability/applicability and incorporated into the living SEE evidence chain
 
 
 Build stages
@@ -281,28 +304,36 @@ Free / basic site check
 
         ↓
 
-[Local Controls Unlock — $19–$49]   ← bridge from curiosity to paid intelligence
+[Planning Controls Pack — A$49]   ← proposal-specific cited local controls
 
         ↓
 
-Quick Site Check / SEE Builder
+Planning Feasibility and Delivery Plan
 
         ↓
 
-[Consultant Network / RFQ]          ← convert insight into professional action
+[Direct SEE branch] or [Consultant brief / referral]
 
         ↓
 
-(Future) Consultant tools SaaS
+[Submission-oriented SEE — A$749 before credits]
+
+        ↓
+
+[A$49 exact-scope pack credit → A$700 balance where eligible]
+
+        ↓
+
+(Optional) Planner review / submission and future consultant tools SaaS
 
 
 Open items before launch
-Define operational SLA and status communication for DCP background jobs
-Write UX copy clearly distinguishing Local Controls Search vs Planning Controls Pack tiers
-Define failure resolution process (credit / refund / RFQ conversion)
+Complete truthful consultant referral submission/delivery and returned-report intake
+Define and operationally verify the LGA preparation service target and failed-preparation resolution
+Implement uploaded-document OCR/indexing, spatial provenance and evidence-conflict handling
+Implement the A$749 SEE entitlement and single-use exact-scope A$49 credit ledger
+Build and visually verify professional DOCX/PDF SEE output against an approved example template
 Write consultant credential disclosure for directory and RFQ pages
-Confirm job locking and duplicate prevention implementation approach
-Define maturity check criteria for "Confirmed" confidence state
-Set pricing final (within suggested ranges above)
-Confirm Byron Bay and Kempsey baseline flows are stable before activating unlock flow
-
+Certify complete Byron and Kempsey source/zone/development coverage through representative golden journeys
+Complete whole-funnel non-production payment, referral, upload, regeneration and rendered-document acceptance
+Obtain separate explicit operator approval before any Production pack or SEE checkout activation
