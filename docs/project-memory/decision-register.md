@@ -444,6 +444,39 @@ Status: Active
 
 Decision: Stripe acceptance for the Planning Controls Pack runs only by explicit manual dispatch against a protected non-production deployment and Stripe test-mode objects. The operator manually completes hosted Checkout between the before-payment and paid phases and manually requests the full refund before the refunded phase; automation verifies provider amount/currency/tax facts, webhook-settled exact entitlement, duplicate and cross-scope denial, repeatable phase-aligned terminal state and provider-confirmed full refund. Automation calls real status, checkout and DPP routes but does not inject webhook events, inspect private response bodies, or perform payment/refund actions. Redirects, UI copy, live keys/objects, production-like hosts, partial refunds, contradictory events, missing configuration, or unsafe output fail closed.
 
-Acceptance evidence contains only allowlisted aggregate/result fields and opaque IDs. Raw addresses, proposal/contact/card data, cookies, secrets and provider payloads must not enter logs, summaries or artifacts, and test-card data is never persisted. Deploying the code is not enabling checkout. Production keeps `PLANNING_PACK_CHECKOUT_ENABLED` false/absent until a separate explicitly approved activation PR; an unexecuted Item 72C may be described only as implemented, not payment-ready or activated.
+Acceptance evidence contains only allowlisted aggregate/result fields and opaque IDs. Raw addresses, proposal/contact/card data, cookies, secrets and provider payloads must not enter logs, summaries or artifacts, and test-card data is never persisted. Deploying or completing protected test acceptance is not enabling checkout. Production keeps `PLANNING_PACK_CHECKOUT_ENABLED` false/absent until a separate explicitly approved activation PR. Item 72C may be described as protected sandbox lifecycle complete, but not Production-activated.
 
 Reference: docs/project-memory/build-next.md Item 72C; docs/operations/stripe-test-mode-acceptance.md
+
+
+## DR-047 — Two Paid Products and One Exact-Scope SEE Credit
+
+Status: Active
+
+Decision: Plannera's launch funnel has two one-time paid products. The proposal-specific Planning Controls Pack is A$49.00 total including GST under its approved contract. The submission-oriented SEE is A$749 before credits. One settled, unrefunded, unrevoked Planning Controls Pack for the same requester, owned project, current-site Quick Site Check, normalized proposal fingerprint and compatible product version may be consumed once as an A$49 SEE credit, leaving A$700 payable.
+
+The credit is server-derived, single-use, exact-scope, non-transferable and not cash-redeemable. A changed project, site, QSC or material proposal, a refunded/revoked pack, or a previously consumed credit is ineligible. Checkout must itemise list price, credit, balance and applicable GST truthfully. Payment or credit never improves citation, confidence, completeness, consultant requirements or submission readiness. The SEE purchase/credit implementation and production activation remain future operator-gated work.
+
+Reference: docs/project-memory/build-next.md Item 74; README.md Commercial pilot funnel
+
+
+## DR-048 — A Final SEE Is an Evidence State, Not a Generation Event
+
+Status: Active
+
+Decision: the current pre-SEE planning memo is groundwork and must not be represented as the finished paid product. A commercial SEE begins as a versioned living draft bound to the exact QSC/Planning Controls Pack/proposal chain. It becomes submission-oriented only after required statutory, spatial, plan, user and specialist evidence is present, readable, applicable and cited, or an unresolved matter is explicitly held for professional review.
+
+The Planning Feasibility and Delivery Plan classifies professional inputs as `Required`, `Conditional`, `Recommended`, or `Not identified from current evidence`. It never promises that no later council or professional request will arise. Uploaded documents, plans, maps and returned reports are evidence candidates, not accepted facts merely because they were stored. Their provenance, page/layer, site/scope, freshness, readability and conflicts must be assessed before they support a section. Final paid output is an editable DOCX and professionally rendered PDF with source register, revision history and appendices; `.txt` is convenience output only.
+
+Reference: docs/project-memory/build-next.md Items 73–74
+
+
+## DR-049 — Certify Byron and Kempsey Before Replicating LGA Automation
+
+Status: Active
+
+Decision: Byron and Kempsey must reach explicit whole-LGA and submission-document flight acceptance before Plannera builds the general LGA onboarding factory. Readiness requires a versioned authoritative-source manifest, every current LEP zone and exact land-use term, current relevant DCP material, available spatial sources, source freshness, representative golden cases, consultant/report paths, rendered SEE inspection and fail-closed demotion. Document or clause counts and one successful address do not establish whole-LGA readiness.
+
+After sign-off, new councils use paid just-in-time activation: available LEP/state preliminaries are returned immediately; an A$49 proposal-specific pack purchase queues source discovery, ingestion and QA with truthful status and notification. Completed LGA preparation becomes shared infrastructure, while the purchased analysis and any SEE credit remain exact to the paying project scope.
+
+Reference: docs/project-memory/build-next.md Items 74–75; docs/architecture/just-in-time-lga-activation.md
