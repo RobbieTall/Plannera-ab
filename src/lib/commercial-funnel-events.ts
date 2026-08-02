@@ -19,6 +19,7 @@ export const commercialFunnelEventNames = [
   "EXPERT_REVIEW_PACKAGE_GENERATED",
   "HANDOFF_COPIED",
   "HANDOFF_DOWNLOADED",
+  "CONSULTANT_REFERRAL_SUBMITTED",
 ] as const;
 
 export type CommercialFunnelEventName = (typeof commercialFunnelEventNames)[number];
@@ -42,6 +43,7 @@ const eventSources: Record<CommercialFunnelEventName, CommercialFunnelEventSourc
   EXPERT_REVIEW_PACKAGE_GENERATED: "SERVER_CONFIRMED",
   HANDOFF_COPIED: "VERIFIED_INTERACTION",
   HANDOFF_DOWNLOADED: "VERIFIED_INTERACTION",
+  CONSULTANT_REFERRAL_SUBMITTED: "SERVER_CONFIRMED",
 };
 
 type FunnelEnvironment = "production" | "preview" | "development" | "test";
@@ -377,6 +379,7 @@ export async function buildCommercialFunnelReport(
       ),
       transition("DETAILED_PLANNING_PACK_READY", "SEE_GENERATED", sets),
       transition("DETAILED_PLANNING_PACK_GENERATED", "EXPERT_REVIEW_PACKAGE_GENERATED", sets),
+      transition("EXPERT_REVIEW_PACKAGE_GENERATED", "CONSULTANT_REFERRAL_SUBMITTED", sets),
     ],
   };
 }

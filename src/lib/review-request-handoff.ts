@@ -124,6 +124,34 @@ export function formatReviewRequestHandoff(content: ReviewRequestContent): strin
   pushList(lines, "Assumptions", content.assumptions ?? []);
   pushList(lines, "Recommended planner review scope", content.recommendedReviewScope ?? []);
 
+  if (content.consultantNeeds?.length) {
+    lines.push("Consultant-needs matrix");
+    lines.push("-----------------------");
+    content.consultantNeeds.forEach((need) => {
+      lines.push(`- ${need.disciplineLabel}: ${need.status}`);
+      lines.push(`  Reason: ${need.reason}`);
+      need.evidence.forEach((evidence) => {
+        lines.push(`  Evidence: ${evidence.ref} (${evidence.type})`);
+        const excerpt = clean(evidence.excerpt);
+        if (excerpt) lines.push(`  Detail: ${excerpt}`);
+      });
+    });
+    lines.push("");
+  }
+
+  if (content.disciplinePackages?.length) {
+    lines.push("Discipline referral packages");
+    lines.push("----------------------------");
+    content.disciplinePackages.forEach((referralPackage) => {
+      lines.push(`- ${referralPackage.disciplineLabel}: ${referralPackage.needStatus}`);
+      lines.push(`  Brief: ${referralPackage.brief}`);
+      referralPackage.requestedScope.forEach((scope) => lines.push(`  Scope: ${scope}`));
+      referralPackage.questions.forEach((question) => lines.push(`  Question: ${question}`));
+      referralPackage.limitations.forEach((limitation) => lines.push(`  Limitation: ${limitation}`));
+    });
+    lines.push("");
+  }
+
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd();
 }
 

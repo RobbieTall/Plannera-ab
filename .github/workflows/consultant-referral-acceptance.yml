@@ -1,0 +1,83 @@
+name: Consultant Referral Non-production Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Confirm one synthetic referral through the protected human queue.
+        required: true
+        type: choice
+        options:
+          - RUN CONSULTANT REFERRAL ACCEPTANCE
+      target_confirmation:
+        description: Confirm the target is protected and non-production.
+        required: true
+        type: choice
+        options:
+          - PROTECTED NON-PRODUCTION
+      project_id:
+        description: Opaque dedicated preview project ID. Do not use a customer or protected golden project.
+        required: true
+        type: string
+      review_request_artefact_id:
+        description: Opaque newly generated consultant-needs.v1 review-request artefact ID.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consultant-referral-test-acceptance
+  cancel-in-progress: false
+
+jobs:
+  accept:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'RUN CONSULTANT REFERRAL ACCEPTANCE' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: consultant-referral-test-acceptance
+    steps:
+      - name: Checkout exact dispatched release
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: '20'
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client without database access
+        run: ./node_modules/.bin/prisma generate
+      - name: Run fail-closed acceptance
+        id: acceptance
+        continue-on-error: true
+        env:
+          PLANNERA_REFERRAL_TEST_CONFIRMATION: ${{ inputs.confirmation }}
+          PLANNERA_REFERRAL_TEST_TARGET: ${{ inputs.target_confirmation }}
+          PLANNERA_REFERRAL_TEST_PROJECT_ID: ${{ inputs.project_id }}
+          PLANNERA_REFERRAL_TEST_REVIEW_REQUEST_ARTEFACT_ID: ${{ inputs.review_request_artefact_id }}
+          PLANNERA_REFERRAL_TEST_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_REFERRAL_TEST_SESSION_COOKIE }}
+          PLANNERA_REFERRAL_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_REFERRAL_TEST_VERCEL_BYPASS }}
+          PLANNERA_REFERRAL_TEST_ADMIN_TOKEN: ${{ secrets.PLANNERA_REFERRAL_TEST_ADMIN_TOKEN }}
+        run: npm run --silent accept:consultant-referral > consultant-referral-acceptance.json
+      - name: Validate privacy-minimal summary
+        run: |
+          node -e "const s=require('./consultant-referral-acceptance.json'); const top=['checks','opaque','passed','reason','runnerVersion','statuses'].sort(); const checks=['cleanup','configuration','operatorQueue','preflightEmpty','submitted','transitions','userStatus'].sort(); const opaque=['packageDigest','referralId','reviewRequestArtefactId'].sort(); const reasons=['configuration_invalid','target_denied','application_request_failed','application_contract_invalid','preexisting_referral','submission_failed','queue_verification_failed','transition_failed','user_status_failed','cleanup_failed','acceptance_unhandled_failure']; const reasonOk=(s.passed===true&&s.reason===null)||(s.passed===false&&reasons.includes(s.reason)); const safe=JSON.stringify(s); if(s.runnerVersion!=='consultant_referral_acceptance.v1'||typeof s.passed!=='boolean'||!reasonOk||JSON.stringify(Object.keys(s).sort())!==JSON.stringify(top)||JSON.stringify(Object.keys(s.checks||{}).sort())!==JSON.stringify(checks)||JSON.stringify(Object.keys(s.opaque||{}).sort())!==JSON.stringify(opaque)||Object.values(s.checks||{}).some(v=>typeof v!=='boolean')||/@|contactName|contactEmail|packageSnapshot/i.test(safe)) process.exit(1)"
+      - name: Write safe job summary
+        run: |
+          node -e "const s=require('./consultant-referral-acceptance.json'); process.stdout.write('Consultant referral acceptance: passed='+s.passed+'; reason='+(s.reason||'none')+'; statuses='+s.statuses.join(' > ')+'\n')" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload safe acceptance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7.0.1
+        with:
+          name: consultant-referral-acceptance-summary
+          path: consultant-referral-acceptance.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce acceptance result
+        run: node -e "const s=require('./consultant-referral-acceptance.json'); if(s.passed!==true) process.exit(1)"

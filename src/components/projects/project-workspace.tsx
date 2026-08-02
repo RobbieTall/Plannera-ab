@@ -50,6 +50,7 @@ import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
 import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
+import { ConsultantReferralPanel } from "@/components/projects/consultant-referral-panel";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/ui/logo";
@@ -1045,6 +1046,30 @@ function ReviewRequestCard({
       </dl>
 
       <div className="mt-4 space-y-3">
+        {content.consultantNeeds?.length ? (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Consultant needs from current evidence
+            </p>
+            <ul className="mt-2 divide-y divide-slate-200 border-y border-slate-200 text-xs dark:divide-slate-700 dark:border-slate-700">
+              {content.consultantNeeds
+                .filter((need) => need.status !== "Not identified from current evidence")
+                .map((need) => (
+                  <li key={need.disciplineId} className="grid gap-1 py-2.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">{need.disciplineLabel}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold uppercase text-blue-700 dark:text-blue-300">{need.status}</p>
+                    </div>
+                    <p className="leading-5 text-slate-600 dark:text-slate-300">{need.reason}</p>
+                  </li>
+                ))}
+            </ul>
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {(content.consultantNeeds ?? []).filter((need) => need.status === "Not identified from current evidence").length} other disciplines were not identified by the current evidence. This does not mean they are unnecessary.
+            </p>
+          </div>
+        ) : null}
+
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
             Included outputs
@@ -1123,6 +1148,17 @@ function ReviewRequestCard({
             </div>
           </div>
         </details>
+
+        {content.consultantNeedsVersion === "consultant-needs.v1" && content.disciplinePackages?.length ? (
+          <ConsultantReferralPanel
+            projectId={content.projectId}
+            reviewRequestArtefactId={artefact.id}
+          />
+        ) : (
+          <p className="border-t border-slate-200 pt-4 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+            Regenerate this expert review package to derive discipline needs before direct submission.
+          </p>
+        )}
       </div>
 
       <p className="mt-3 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">

@@ -328,6 +328,7 @@ enum CommercialFunnelEventName {
   EXPERT_REVIEW_PACKAGE_GENERATED
   HANDOFF_COPIED
   HANDOFF_DOWNLOADED
+  CONSULTANT_REFERRAL_SUBMITTED
 }
 
 enum CommercialFunnelEventSource {

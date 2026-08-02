@@ -10,6 +10,7 @@ import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import { assessQuickSiteCheckDevelopmentIntent } from "@/lib/plannera-check-flow";
 import { buildPlanningFeasibilitySummary } from "@/lib/planning-feasibility-summary";
+import { buildConsultantNeedsMatrix, buildDisciplineReferralPackages } from "@/lib/consultant-needs";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
 import { serializeSiteContext } from "@/lib/site-context";
@@ -1929,6 +1930,14 @@ export async function createExpertReviewRequestArtefact({
       excerpt: citation.excerpt,
     })),
   );
+  const consultantNeeds = buildConsultantNeedsMatrix({
+    quickSiteCheck: qsc,
+    detailedPlanningPack: pack,
+  });
+  const disciplinePackages = buildDisciplineReferralPackages({
+    proposalBrief: pack.proposalBrief,
+    consultantNeeds,
+  });
 
   const payload: import("@/types/workspace").ReviewRequestContent = {
     requestType: "expert_review_request",
@@ -1971,6 +1980,9 @@ export async function createExpertReviewRequestArtefact({
       ...(pack.unresolvedTopics.length ? ["Resolve the Detailed Planning Pack unresolved topics before treating this as SEE-ready."] : []),
       "Review SEE limitations, assumptions and any inferred controls before paid export or lodgement use.",
     ],
+    consultantNeedsVersion: "consultant-needs.v1",
+    consultantNeeds,
+    disciplinePackages,
   };
 
   const artefact = await prismaClient.artefact.create({

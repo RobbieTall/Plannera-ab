@@ -13,23 +13,24 @@ datasource db {
 /// Minimal identity model so Auth.js sessions can be persisted while we build
 /// out planning-specific entities.
 model User {
-  id                 String            @id @default(uuid())
-  name               String?
-  email              String            @unique
-  emailVerified      DateTime?
-  image              String?
-  plan               String            @default("free")
-  createdAt          DateTime          @default(now())
-  sessions           Session[]
-  projects           Project[]         @relation("ProjectCreatedBy")
-  projectMemberships ProjectMember[]
-  tasksCreated       Task[]            @relation("TaskCreatedBy")
-  assignments        TaskAssignment[]
-  artefacts          Artefact[]
-  workspaceUploads   WorkspaceUpload[]
-  ownedProjects      Project[]         @relation("ProjectOwner")
-  purchases          Purchase[]
-  entitlements       Entitlement[]
+  id                  String               @id @default(uuid())
+  name                String?
+  email               String               @unique
+  emailVerified       DateTime?
+  image               String?
+  plan                String               @default("free")
+  createdAt           DateTime             @default(now())
+  sessions            Session[]
+  projects            Project[]            @relation("ProjectCreatedBy")
+  projectMemberships  ProjectMember[]
+  tasksCreated        Task[]               @relation("TaskCreatedBy")
+  assignments         TaskAssignment[]
+  artefacts           Artefact[]
+  workspaceUploads    WorkspaceUpload[]
+  ownedProjects       Project[]            @relation("ProjectOwner")
+  purchases           Purchase[]
+  entitlements        Entitlement[]
+  consultantReferrals ConsultantReferral[]
 }
 
 model Session {
@@ -97,6 +98,7 @@ model Project {
   commercialFunnelEvents CommercialFunnelEvent[]
   purchases              Purchase[]
   entitlements           Entitlement[]
+  consultantReferrals    ConsultantReferral[]
   siteContext            SiteContext?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
@@ -241,6 +243,7 @@ model Artefact {
   commercialFunnelEvents CommercialFunnelEvent[]
   purchases              Purchase[]              @relation("PurchaseQuickSiteCheckArtefact")
   entitlements           Entitlement[]           @relation("EntitlementQuickSiteCheckArtefact")
+  consultantReferrals    ConsultantReferral[]
 
   @@index([projectId])
 }
@@ -316,6 +319,65 @@ enum EntitlementStatus {
   REVOKED
 }
 
+model ConsultantReferral {
+  id                      String                    @id @default(cuid())
+  projectId               String
+  project                 Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewRequestArtefactId String                    @unique
+  reviewRequestArtefact   Artefact                  @relation(fields: [reviewRequestArtefactId], references: [id], onDelete: Cascade)
+  submittedByUserId       String?
+  submittedByUser         User?                     @relation(fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  contactName             String
+  contactEmail            String
+  contactFingerprint      String
+  consentVersion          String
+  consentedAt             DateTime
+  packageSnapshot         Json                      @db.JsonB
+  packageDigest           String
+  queueTarget             String                    @default("plannera_human_queue")
+  scopeKey                String                    @unique
+  idempotencyKey          String                    @unique
+  status                  ConsultantReferralStatus  @default(SUBMITTED)
+  submittedAt             DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  closedAt                DateTime?
+  deleteAfter             DateTime?
+  events                  ConsultantReferralEvent[]
+
+  @@index([projectId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([deleteAfter])
+}
+
+model ConsultantReferralEvent {
+  id         String                      @id @default(cuid())
+  referralId String
+  referral   ConsultantReferral          @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  fromStatus ConsultantReferralStatus?
+  toStatus   ConsultantReferralStatus
+  actorType  ConsultantReferralActorType
+  reasonCode String?
+  occurredAt DateTime                    @default(now())
+
+  @@index([referralId, occurredAt])
+}
+
+enum ConsultantReferralStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  ASSIGNED
+  CONSULTANT_ACKNOWLEDGED
+  NEEDS_INFORMATION
+  DECLINED
+  CLOSED
+}
+
+enum ConsultantReferralActorType {
+  USER
+  OPERATOR
+  SYSTEM
+}
+
 model CommercialFunnelEvent {
   id                   String                           @id @default(cuid())
   projectId            String
@@ -351,6 +413,7 @@ enum CommercialFunnelEventName {
   EXPERT_REVIEW_PACKAGE_GENERATED
   HANDOFF_COPIED
   HANDOFF_DOWNLOADED
+  CONSULTANT_REFERRAL_SUBMITTED
 }
 
 enum CommercialFunnelEventSource {

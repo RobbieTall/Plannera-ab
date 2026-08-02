@@ -139,6 +139,36 @@ describe("review request handoff formatter", () => {
     expect(text).not.toMatch(/undefined|null/);
   });
 
+  it("exports the evidence-derived needs matrix and discipline brief", () => {
+    const text = formatReviewRequestHandoff(baseContent({
+      consultantNeedsVersion: "consultant-needs.v1",
+      consultantNeeds: [{
+        disciplineId: "traffic_transport",
+        disciplineLabel: "Traffic and transport",
+        status: "Conditional",
+        reason: "Parking evidence is unresolved.",
+        evidence: [{ type: "PACK_GAP", ref: "Parking and access: Unavailable", excerpt: "No qualifying control was retrieved." }],
+        questions: ["Confirm whether a traffic assessment is required."],
+      }],
+      disciplinePackages: [{
+        disciplineId: "traffic_transport",
+        disciplineLabel: "Traffic and transport",
+        needStatus: "Conditional",
+        brief: "Review parking and access for the proposal.",
+        requestedScope: ["Confirm parking and access requirements."],
+        questions: ["Is a traffic assessment required?"],
+        evidence: [{ type: "PACK_GAP", ref: "Parking and access: Unavailable" }],
+        limitations: ["PACK_GAP is not a statutory citation."],
+      }],
+    }));
+
+    expect(text).toContain("Consultant-needs matrix");
+    expect(text).toContain("Traffic and transport: Conditional");
+    expect(text).toContain("Evidence: Parking and access: Unavailable (PACK_GAP)");
+    expect(text).toContain("Discipline referral packages");
+    expect(text).toContain("Scope: Confirm parking and access requirements.");
+  });
+
   it("uses the existing address-slug filename style", () => {
     expect(reviewRequestFilename(baseContent())).toBe("review-request-45-broken-head-road-byron-bay-nsw-2481.txt");
   });

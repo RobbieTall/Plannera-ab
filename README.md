@@ -82,7 +82,7 @@ Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 
 ## Plannera Check boundary
 
-Plannera Check is Plannera’s mobile-first acquisition surface inside this same Next.js app. It reuses the existing session/requester project, SiteContext, Quick Site Check, Detailed Planning Pack, SEE, referral, evidence, and artefact services; it is not a separate product, subscription, repository, database, or duplicated backend. A free check can live in a session-owned project as an ephemeral technical container, then the user-facing promotion is to create or save that same evidence snapshot as a Plannera project before any later exact project/site/QSC/proposal-bound Planning Controls Pack offer. Provider-neutral purchase and entitlement records now exist for the Planning Controls Pack. Production pack checkout, SEE checkout/credit consumption, quotas, auth-policy changes, PWA/native work, and consultant sending remain unavailable until their documented launch decisions and gates are approved.
+Plannera Check is Plannera’s mobile-first acquisition surface inside this same Next.js app. It reuses the existing session/requester project, SiteContext, Quick Site Check, Detailed Planning Pack, SEE, referral, evidence, and artefact services; it is not a separate product, subscription, repository, database, or duplicated backend. A free check can live in a session-owned project as an ephemeral technical container, then the user-facing promotion is to create or save that same evidence snapshot as a Plannera project before any later exact project/site/QSC/proposal-bound Planning Controls Pack offer. Provider-neutral purchase/entitlement records and a disabled-by-default human-operated referral-queue foundation now exist. Production pack checkout, SEE checkout/credit consumption, quotas, auth-policy changes, PWA/native work, production entitlement gating, and production consultant delivery remain unavailable until their documented launch decisions and gates are approved.
 
 The shared product path is **Investigate site → free Quick Site Check → A$49 Planning Controls Pack → confirm the intended development → Planning Feasibility and Delivery Plan → direct SEE or consultant-input branch → A$749 SEE before valid credits → optional planner review/submission**. The feasibility layer is a conservative synthesis of the exact saved Quick Site Check and active proposal-bound Planning Controls Pack. It must identify `Required`, `Conditional`, `Recommended`, and `Not identified from current evidence` professional inputs without running a second disconnected planning lookup or making an absolute no-consultant promise.
 
@@ -128,6 +128,14 @@ Checkout requests Stripe automatic tax calculation, requires a billing address, 
 
 If a system or retrieval failure prevents generation and persistence of the promised pack, an operator must issue a full refund to the original payment method through Stripe. Record the opaque payment/refund references only, wait for a signed provider confirmation carrying the opaque purchase/payment references (`refund.created`, `refund.updated`, or a fully refunded charge), and verify the purchase is `REFUNDED` and entitlement inactive. Do not expose a customer refund route and do not mark a refund complete from an operator request alone. A truthful persisted pack with cited and unresolved topics is delivered value and proceeds to expert review rather than automatic refund. Partial refunds and contradictory verified money events are not acknowledged as successful lifecycle completion: they remain retryable reconciliation failures rather than silently changing access.
 
+## Consultant referral queue (implemented, not activated)
+
+The exact current Quick Site Check and Planning Controls Pack now derive a cited consultant-needs matrix and discipline-specific referral briefs inside the saved Expert Review Request. Identified disciplines are labelled `Required`, `Conditional`, or `Recommended`; unassessed hazard and specialist triggers remain `Not identified from current evidence` with an explicit warning that this does not mean they are unnecessary.
+
+With direct submission enabled, the user supplies only a contact name and email and must explicitly consent to storage, follow-up, and manual sharing if Plannera assigns the request. The server re-resolves ownership plus exact current site, proposal, QSC, DPP and optional SEE provenance before storing one immutable package snapshot and audit ledger for the exact scope. The UI separately reports package saved, submitted to Plannera, sent to consultant and consultant acknowledged. Copy/download never advances delivery.
+
+The first delivery target is a truthful human-operated Plannera queue. It does not claim automated matching, consultant availability, credential verification, competing quotes or response times. Submission is fail-closed unless both `CONSULTANT_REFERRALS_ENABLED=true` and `CONSULTANT_REFERRAL_QUEUE_TARGET=plannera_human_queue` are configured. Production activation is not approved. Follow the [operator runbook](docs/operations/consultant-referral-queue.md) and complete the protected non-production acceptance workflow before requesting activation.
+
 ## Environment variables
 
 Required:
@@ -144,6 +152,8 @@ Optional:
 - COMMERCIAL_FUNNEL_ENABLED — set to `true` only after the first-party event migration and retention configuration are deployed
 - CRON_SECRET — random secret used by Vercel to authenticate the daily commercial-funnel retention job; required before measurement can record
 - COMMERCIAL_FUNNEL_EXCLUDED_PROJECT_IDS — optional comma-separated internal or public IDs for approved golden/internal projects; configured server-side and never accepted from a browser
+- CONSULTANT_REFERRALS_ENABLED — set to `true` only on the approved acceptance target; Production remains false/absent until separate launch approval
+- CONSULTANT_REFERRAL_QUEUE_TARGET — must equal `plannera_human_queue` on the same approved target or direct submission remains unavailable
 
 ## Local development
 
@@ -159,3 +169,4 @@ App runs at http://localhost:3000. Before testing LEP-grounded features, set DAT
 - npm test — Run the full compatible test suite (Node runner + Vitest)
 - npm run test:node — Run Node test-runner tests under tests/*.test.ts
 - npm run test:vitest — Run the Vitest suite (src tests and compatible React tests)
+- npm run accept:consultant-referral — Run the protected, fail-closed non-production referral acceptance runner
