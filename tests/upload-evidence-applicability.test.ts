@@ -129,11 +129,11 @@ const makeUpload = (overrides: Partial<ApplicableUploadRecord> = {}): Applicable
 
 class ApplicabilityPrisma {
   events: any[] = [];
-  constructor(public projectRecord: any, public upload: any, public artefact: any = dpp, public sourceQuickSiteCheck: any = quickSiteCheck) {}
+  constructor(public projectRecord: any, public upload: any, public dppArtefact: any = dpp, public sourceQuickSiteCheck: any = quickSiteCheck) {}
 
   project = { findFirst: async () => this.projectRecord };
   artefact = { findFirst: async ({ where }: any) => {
-    if (where.id === this.artefact.id) return this.artefact;
+    if (where.id === this.dppArtefact.id) return this.dppArtefact;
     if (where.id === this.sourceQuickSiteCheck?.id) return this.sourceQuickSiteCheck;
     return null;
   } };
