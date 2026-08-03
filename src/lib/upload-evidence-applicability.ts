@@ -301,7 +301,7 @@ export async function reviewUploadEvidenceApplicability({
 
   try {
     return await prismaClient.workspaceUpload.update({
-      where: { id_applicabilityVersion: { id: upload.id, applicabilityVersion: upload.applicabilityVersion } },
+      where: { id: upload.id, applicabilityVersion: upload.applicabilityVersion },
       data: {
         applicabilityStatus: resultingStatus,
         applicabilityArtefact: detailedPlanningPackId ? { connect: { id: detailedPlanningPackId } } : { disconnect: true },

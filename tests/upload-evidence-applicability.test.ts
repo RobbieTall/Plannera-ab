@@ -140,8 +140,8 @@ class ApplicabilityPrisma {
   workspaceUpload = {
     findFirst: async ({ where }: any) => where.id === this.upload.id && where.projectId === this.upload.projectId ? this.upload : null,
     update: async ({ where, data }: any) => {
-      assert.equal(where.id_applicabilityVersion.id, this.upload.id);
-      assert.equal(where.id_applicabilityVersion.applicabilityVersion, this.upload.applicabilityVersion);
+      assert.equal(where.id, this.upload.id);
+      assert.equal(where.applicabilityVersion, this.upload.applicabilityVersion);
       const event = { id: `event-${this.events.length + 1}`, ...data.applicabilityReviewEvents.create, createdAt: NOW };
       this.events.push(event);
       this.upload = {

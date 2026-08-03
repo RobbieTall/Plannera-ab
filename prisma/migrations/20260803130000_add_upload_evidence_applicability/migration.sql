@@ -46,7 +46,6 @@ CREATE TABLE "EvidenceApplicabilityReviewEvent" (
 
 CREATE INDEX "WorkspaceUpload_applicabilityStatus_idx" ON "WorkspaceUpload"("applicabilityStatus");
 CREATE INDEX "WorkspaceUpload_applicabilityArtefactId_idx" ON "WorkspaceUpload"("applicabilityArtefactId");
-CREATE UNIQUE INDEX "WorkspaceUpload_id_applicabilityVersion_key" ON "WorkspaceUpload"("id", "applicabilityVersion");
 CREATE INDEX "EvidenceApplicabilityReviewEvent_uploadId_idx" ON "EvidenceApplicabilityReviewEvent"("uploadId");
 CREATE INDEX "EvidenceApplicabilityReviewEvent_actorUserId_idx" ON "EvidenceApplicabilityReviewEvent"("actorUserId");
 

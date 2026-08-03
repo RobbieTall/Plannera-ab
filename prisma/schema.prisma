@@ -758,7 +758,6 @@ model WorkspaceUpload {
   @@index([userId])
   @@index([applicabilityStatus])
   @@index([applicabilityArtefactId])
-  @@unique([id, applicabilityVersion])
 }
 
 model EvidenceApplicabilityReviewEvent {
