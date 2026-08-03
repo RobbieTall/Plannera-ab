@@ -497,3 +497,16 @@ Decision: a project upload has two independent persisted states. Readability rec
 Every supported upload retains a SHA-256 hash, extraction method/time and structured extraction metadata. PDF page and spreadsheet-sheet provenance travels into source chunks. Parser warnings, unsupported legacy formats, text-empty scans and indexing failures remain visible. Storage success alone never establishes accepted facts, applicability, freshness or submission readiness; OCR, map/plan interpretation, conflict resolution and SEE section acceptance remain separate gates.
 
 Reference: docs/project-memory/build-next.md Item 74A; DR-048
+
+
+## DR-051 — A Map Image Is Evidence Only After Site-Bound Review
+
+Status: Active
+
+Decision: a map screenshot or plan image is an immutable capture, not proof that a mapped constraint applies. Spatial evidence must bind the original image hash to the exact confirmed site fingerprint, source authority and URL, selected layer or plan topic, legend state, capture/effective/source-check dates, user-confirmed observation and explicit limitation. Government and council captures require an authoritative URL. Future dates, absent topics, unconfirmed observations and unexplained legend gaps fail closed.
+
+The mutable fact is the review decision, not the captured source. Spatial evidence begins `Pending review` and may become `Accepted`, `Rejected`, `Conflict` or `Superseded`; each transition appends an actor/time/note event and uses optimistic versioning. Acceptance is refused when the project site has changed, the source-check window is older than 90 days, or the legend is unresolved. Legacy screenshots remain visible but cannot support a final SEE without recapture under this contract.
+
+Downstream document readiness may consume only accepted, current-site, non-expired spatial evidence. Pending, conflicting, stale, site-mismatched or legend-unresolved evidence remains an explicit blocker for the affected SEE topics and must never be converted into a confident statement by model inference.
+
+Reference: docs/project-memory/build-next.md Item 74A; DR-048; DR-050

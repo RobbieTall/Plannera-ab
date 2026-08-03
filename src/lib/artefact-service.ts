@@ -18,6 +18,11 @@ import { detailedPlanningPackScope, isArtefactCurrentForSite, preSeeScope, quick
 import { saveFileToUploads, type SavedFile } from "@/lib/storage";
 import { getWorkspaceSourceContext } from "@/lib/workspace-source-context";
 import { buildStatutoryContextBlock } from "@/lib/statutory-context-builder";
+import {
+  buildSpatialEvidenceExpiry,
+  buildSpatialSiteFingerprint,
+  hashSpatialEvidenceFile,
+} from "@/lib/spatial-evidence";
 import { findProjectByExternalId } from "./project-identifiers";
 import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
@@ -52,16 +57,55 @@ type QuickSiteCheckArtefactDeps = Pick<ArtefactDependencies, "prisma"> & {
 const overlayEntrySchema = z
   .union([z.string().trim(), z.array(z.string().trim())])
   .transform((value) => (Array.isArray(value) ? value : value ? [value] : []))
-  .transform((values) => values.filter((entry) => entry.length > 0));
+  .transform((values) => values.filter((entry) => entry.length > 0))
+  .refine((values) => values.length > 0, "Select at least one mapped layer or plan topic");
+
+const optionalDateSchema = z.preprocess(
+  (value) => (value ? new Date(value as string) : undefined),
+  z.date().optional(),
+);
+
+const confirmedObservationSchema = z.preprocess(
+  (value) => value === true || value === "true" || value === "on",
+  z.boolean().refine((value) => value, "Confirm that the observation accurately describes the captured map"),
+);
 
 const mapSnapshotSchema = z.object({
   projectId: z.string().trim().min(1, "projectId is required"),
   title: z.string().trim().min(1, "title is required").max(200),
   source: z.string().trim().min(1, "source is required").max(200),
+  sourceAuthority: z.enum(["NSW_GOVERNMENT", "COUNCIL", "CONSULTANT", "SURVEYOR", "USER_PROVIDED", "OTHER"]),
   sourceUrl: z.string().url().trim().optional(),
   overlays: overlayEntrySchema.default([]),
+  legendStatus: z.enum(["CAPTURED", "SOURCE_LINKED", "NOT_AVAILABLE", "NOT_APPLICABLE"]),
+  legendNotes: z.string().trim().max(1000).optional(),
+  observation: z.string().trim().min(10, "Describe what the mapped layer or plan shows").max(3000),
+  limitation: z.string().trim().min(10, "Describe the limits of this map observation").max(3000),
+  observationConfirmed: confirmedObservationSchema,
   notes: z.string().trim().max(2000).optional(),
-  capturedAt: z.preprocess((value) => (value ? new Date(value as string) : undefined), z.date().optional()),
+  capturedAt: optionalDateSchema,
+  sourceEffectiveAt: optionalDateSchema,
+  sourceCheckedAt: optionalDateSchema,
+}).superRefine((value, context) => {
+  const nowWithTolerance = Date.now() + 5 * 60 * 1000;
+  if (value.capturedAt && value.capturedAt.getTime() > nowWithTolerance) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["capturedAt"], message: "Capture date cannot be in the future" });
+  }
+  if (value.sourceCheckedAt && value.sourceCheckedAt.getTime() > nowWithTolerance) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sourceCheckedAt"], message: "Source checked date cannot be in the future" });
+  }
+  if (value.sourceEffectiveAt && value.sourceEffectiveAt.getTime() > nowWithTolerance) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sourceEffectiveAt"], message: "Source effective date cannot be in the future" });
+  }
+  if ((value.sourceAuthority === "NSW_GOVERNMENT" || value.sourceAuthority === "COUNCIL") && !value.sourceUrl) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sourceUrl"], message: "An authoritative source URL is required" });
+  }
+  if (value.legendStatus === "SOURCE_LINKED" && !value.sourceUrl) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sourceUrl"], message: "A source URL is required when the legend is source-linked" });
+  }
+  if ((value.legendStatus === "NOT_AVAILABLE" || value.legendStatus === "NOT_APPLICABLE") && !value.legendNotes) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["legendNotes"], message: "Explain why a legend is unavailable or not applicable" });
+  }
 });
 
 const quickSiteCheckControlSchema = z.object({
@@ -206,6 +250,14 @@ export function parseMapSnapshotFormData(formData: FormData, projectIdFromParams
     overlays: overlaysValue,
     notes: formData.get("notes") ?? undefined,
     capturedAt: formData.get("capturedAt") ?? undefined,
+    sourceAuthority: formData.get("sourceAuthority"),
+    legendStatus: formData.get("legendStatus"),
+    legendNotes: formData.get("legendNotes") ?? undefined,
+    observation: formData.get("observation"),
+    limitation: formData.get("limitation"),
+    observationConfirmed: formData.get("observationConfirmed"),
+    sourceEffectiveAt: formData.get("sourceEffectiveAt") ?? undefined,
+    sourceCheckedAt: formData.get("sourceCheckedAt") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -255,10 +307,18 @@ export type MapSnapshotArtefactInput = {
   projectId: string;
   title: string;
   source: string;
+  sourceAuthority: "NSW_GOVERNMENT" | "COUNCIL" | "CONSULTANT" | "SURVEYOR" | "USER_PROVIDED" | "OTHER";
   sourceUrl?: string;
   overlays: string[];
+  legendStatus: "CAPTURED" | "SOURCE_LINKED" | "NOT_AVAILABLE" | "NOT_APPLICABLE";
+  legendNotes?: string;
+  observation: string;
+  limitation: string;
+  observationConfirmed: true;
   notes?: string;
   capturedAt?: Date;
+  sourceEffectiveAt?: Date;
+  sourceCheckedAt?: Date;
 };
 
 export type QuickSiteCheckArtefactInput = {
@@ -1110,6 +1170,33 @@ export async function createMapSnapshotArtefact({
 
   const project = await assertProjectAccess(deps.prisma, projectId, userId);
 
+  const projectWithContext = await deps.prisma.project.findUnique({
+    where: { id: project.id },
+    include: { siteContext: true },
+  });
+  const siteContext = projectWithContext?.siteContext;
+  const siteAddress = siteContext?.formattedAddress?.trim() || projectWithContext?.address?.trim();
+  if (!projectWithContext || !siteContext || !siteAddress) {
+    throw new ArtefactValidationError("Confirm the project site before adding spatial evidence");
+  }
+
+  const siteIdentity = {
+    address: siteAddress,
+    lgaCode: siteContext.lgaCode,
+    lgaName: siteContext.lgaName,
+    parcelId: siteContext.parcelId,
+    lot: siteContext.lot,
+    planNumber: siteContext.planNumber,
+    latitude: siteContext.latitude,
+    longitude: siteContext.longitude,
+    zone: siteContext.zone ?? projectWithContext.zoning,
+  };
+  const siteFingerprint = buildSpatialSiteFingerprint(siteIdentity);
+  const contentHash = await hashSpatialEvidenceFile(file);
+  const capturedAt = payload.capturedAt ?? new Date();
+  const sourceCheckedAt = payload.sourceCheckedAt ?? capturedAt;
+  const expiresAt = buildSpatialEvidenceExpiry(sourceCheckedAt);
+
   const savedFile = await deps.saveFile(file);
 
   return deps.prisma.artefact.create({
@@ -1123,8 +1210,45 @@ export async function createMapSnapshotArtefact({
       overlays: payload.overlays,
       notes: payload.notes,
       imageUrl: savedFile.url,
-      capturedAt: payload.capturedAt ?? new Date(),
+      capturedAt,
+      payload: {
+        schema: "spatial_evidence.v1",
+        contentHash,
+        siteFingerprint,
+        sourceAuthority: payload.sourceAuthority,
+        legendStatus: payload.legendStatus,
+        legendNotes: payload.legendNotes ?? null,
+        observation: payload.observation,
+        limitation: payload.limitation,
+        sourceEffectiveAt: payload.sourceEffectiveAt?.toISOString() ?? null,
+        sourceCheckedAt: sourceCheckedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      },
+      spatialEvidence: {
+        create: {
+          project: { connect: { id: project.id } },
+          sourceAuthority: payload.sourceAuthority,
+          contentHash,
+          siteFingerprint,
+          siteAddress,
+          parcelId: siteContext.parcelId,
+          lot: siteContext.lot,
+          planNumber: siteContext.planNumber,
+          latitude: siteContext.latitude,
+          longitude: siteContext.longitude,
+          layers: payload.overlays,
+          legendStatus: payload.legendStatus,
+          legendNotes: payload.legendNotes,
+          observation: payload.observation,
+          limitation: payload.limitation,
+          observationConfirmedAt: new Date(),
+          sourceEffectiveAt: payload.sourceEffectiveAt,
+          sourceCheckedAt,
+          expiresAt,
+        },
+      },
     },
+    include: { spatialEvidence: { include: { reviewEvents: true } } },
   });
 }
 
@@ -2009,5 +2133,6 @@ export async function listProjectArtefacts(projectId: string, userId: string, de
   return deps.prisma.artefact.findMany({
     where: { projectId: project.id },
     orderBy: { createdAt: "desc" },
+    include: { spatialEvidence: { include: { reviewEvents: { orderBy: { createdAt: "asc" } } } } },
   });
 }
