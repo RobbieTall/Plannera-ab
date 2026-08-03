@@ -276,6 +276,18 @@ export type WorkspaceSource = {
   statusDetail?: string;
   evidenceStatus?: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
   indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+  applicabilityStatus?:
+    | "PENDING_REVIEW"
+    | "ACCEPTED"
+    | "REJECTED"
+    | "CONFLICT"
+    | "SUPERSEDED";
+  applicabilityArtefactId?: string | null;
+  applicabilityTopics?: string[];
+  sourceDocumentDate?: string | null;
+  validUntil?: string | null;
+  applicabilityReviewedAt?: string | null;
+  applicabilityReviewNote?: string | null;
   contentHash?: string | null;
   url?: string;
   fileExtension?: string | null;

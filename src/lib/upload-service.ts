@@ -35,6 +35,15 @@ export type UploadRecord = {
   indexingStatus: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
   indexedAt: Date | null;
   indexingError: string | null;
+  applicabilityStatus: "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONFLICT" | "SUPERSEDED";
+  applicabilityArtefactId: string | null;
+  acceptedSiteFingerprint: string | null;
+  acceptedProposalFingerprint: string | null;
+  applicabilityTopics: unknown;
+  sourceDocumentDate: Date | null;
+  validUntil: Date | null;
+  applicabilityReviewedAt: Date | null;
+  applicabilityReviewNote: string | null;
   createdAt: Date;
 };
 
@@ -87,6 +96,15 @@ const uploadSelect = {
   indexingStatus: true,
   indexedAt: true,
   indexingError: true,
+  applicabilityStatus: true,
+  applicabilityArtefactId: true,
+  acceptedSiteFingerprint: true,
+  acceptedProposalFingerprint: true,
+  applicabilityTopics: true,
+  sourceDocumentDate: true,
+  validUntil: true,
+  applicabilityReviewedAt: true,
+  applicabilityReviewNote: true,
   createdAt: true,
 } as const;
 

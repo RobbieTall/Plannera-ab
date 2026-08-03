@@ -31,6 +31,8 @@ model User {
   entitlements            Entitlement[]
   spatialEvidenceReviews SpatialEvidenceReviewEvent[] @relation("SpatialEvidenceReviewActor")
   spatialEvidenceLatestReviews SpatialEvidence[] @relation("SpatialEvidenceReviewedBy")
+  evidenceApplicabilityReviews EvidenceApplicabilityReviewEvent[] @relation("EvidenceApplicabilityReviewActor")
+  evidenceApplicabilityLatestReviews WorkspaceUpload[] @relation("EvidenceApplicabilityReviewedBy")
 }
 
 model Session {
@@ -222,6 +224,7 @@ model Artefact {
   purchases              Purchase[]    @relation("PurchaseQuickSiteCheckArtefact")
   entitlements           Entitlement[] @relation("EntitlementQuickSiteCheckArtefact")
   spatialEvidence        SpatialEvidence?
+  applicableUploads      WorkspaceUpload[] @relation("WorkspaceUploadApplicabilityDpp")
 
   @@index([projectId])
 }
@@ -255,6 +258,7 @@ model SpatialEvidence {
   reviewedById           String?
   reviewedBy             User?                        @relation("SpatialEvidenceReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewNote             String?
+  applicabilityTopics    Json?
   version                Int                          @default(1)
   reviewEvents           SpatialEvidenceReviewEvent[]
   createdAt              DateTime                     @default(now())
@@ -276,6 +280,7 @@ model SpatialEvidenceReviewEvent {
   decision          SpatialEvidenceReviewDecision
   previousStatus    SpatialEvidenceStatus
   resultingStatus   SpatialEvidenceStatus
+  topics            Json
   note              String?
   createdAt         DateTime                      @default(now())
 
@@ -525,11 +530,66 @@ model WorkspaceUpload {
   indexingStatus     EvidenceIndexingStatus     @default(NOT_APPLICABLE)
   indexedAt          DateTime?
   indexingError      String?
+  applicabilityStatus EvidenceApplicabilityStatus @default(PENDING_REVIEW)
+  applicabilityArtefactId String?
+  applicabilityArtefact Artefact? @relation("WorkspaceUploadApplicabilityDpp", fields: [applicabilityArtefactId], references: [id], onDelete: SetNull)
+  acceptedSiteFingerprint String?
+  acceptedProposalFingerprint String?
+  applicabilityTopics Json?
+  sourceDocumentDate DateTime?
+  validUntil DateTime?
+  applicabilityReviewedAt DateTime?
+  applicabilityReviewedById String?
+  applicabilityReviewedBy User? @relation("EvidenceApplicabilityReviewedBy", fields: [applicabilityReviewedById], references: [id], onDelete: SetNull)
+  applicabilityReviewNote String?
+  applicabilityVersion Int @default(1)
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
 
+  applicabilityReviewEvents EvidenceApplicabilityReviewEvent[]
+
   @@index([projectId])
   @@index([userId])
+  @@index([applicabilityStatus])
+  @@index([applicabilityArtefactId])
+  @@unique([id, applicabilityVersion])
+}
+
+model EvidenceApplicabilityReviewEvent {
+  id                          String                      @id @default(cuid())
+  uploadId                    String
+  upload                      WorkspaceUpload             @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  actorUserId                 String?
+  actor                       User?                       @relation("EvidenceApplicabilityReviewActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  decision                    EvidenceApplicabilityDecision
+  previousStatus              EvidenceApplicabilityStatus
+  resultingStatus             EvidenceApplicabilityStatus
+  detailedPlanningPackId      String?
+  siteFingerprint             String?
+  proposalFingerprint         String?
+  topics                      Json
+  sourceDocumentDate          DateTime?
+  validUntil                  DateTime?
+  note                        String?
+  createdAt                   DateTime                    @default(now())
+
+  @@index([uploadId])
+  @@index([actorUserId])
+}
+
+enum EvidenceApplicabilityStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+  CONFLICT
+  SUPERSEDED
+}
+
+enum EvidenceApplicabilityDecision {
+  ACCEPT
+  REJECT
+  MARK_CONFLICT
+  SUPERSEDE
 }
 
 enum EvidenceReadabilityStatus {
