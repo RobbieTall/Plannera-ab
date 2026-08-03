@@ -616,25 +616,49 @@ enum LepZonePermission {
 }
 
 model WorkspaceUpload {
-  id            String   @id @default(cuid())
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  fileName      String
-  fileExtension String?
-  mimeType      String?
-  fileSize      Int
-  storagePath   String
-  publicUrl     String
-  extractedText String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String                     @id @default(cuid())
+  projectId          String
+  project            Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName           String
+  fileExtension      String?
+  mimeType           String?
+  fileSize           Int
+  storagePath        String
+  publicUrl          String
+  contentHash        String?
+  extractedText      String?
+  extractionMethod   String?
+  extractionMetadata Json?
+  extractedAt        DateTime?
+  pageCount           Int?
+  evidenceStatus     EvidenceReadabilityStatus  @default(NEEDS_REVIEW)
+  reviewReason       String?
+  indexingStatus     EvidenceIndexingStatus     @default(NOT_APPLICABLE)
+  indexedAt          DateTime?
+  indexingError      String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
   sourceChunks WorkspaceSourceChunk[]
 
   @@index([projectId])
   @@index([userId])
+}
+
+enum EvidenceReadabilityStatus {
+  READY
+  PARTIALLY_READABLE
+  IMAGE_ONLY
+  NEEDS_REVIEW
+}
+
+enum EvidenceIndexingStatus {
+  READY
+  PENDING
+  FAILED
+  NOT_APPLICABLE
 }
 
 enum WorkspaceSourceType {

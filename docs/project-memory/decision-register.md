@@ -486,3 +486,14 @@ Decision: Byron and Kempsey must reach explicit whole-LGA and submission-documen
 After sign-off, new councils use paid just-in-time activation: available LEP/state preliminaries are returned immediately; an A$49 proposal-specific pack purchase queues source discovery, ingestion and QA with truthful status and notification. Completed LGA preparation becomes shared infrastructure, while the purchased analysis and any SEE credit remain exact to the paying project scope.
 
 Reference: docs/project-memory/build-next.md Items 74–75; docs/architecture/just-in-time-lga-activation.md
+
+
+## DR-050 — Readability and Retrieval Readiness Are Separate Evidence Facts
+
+Status: Active
+
+Decision: a project upload has two independent persisted states. Readability records whether Plannera could extract meaningful content from the original bytes (`Ready`, `Partially readable`, `Image only`, or `Needs review`); indexing records whether that extracted content is available to the project retrieval path (`pending`, `ready`, `failed`, or `not applicable`). A readable file with failed or pending indexing is not silently treated as evidence available to the SEE compiler.
+
+Every supported upload retains a SHA-256 hash, extraction method/time and structured extraction metadata. PDF page and spreadsheet-sheet provenance travels into source chunks. Parser warnings, unsupported legacy formats, text-empty scans and indexing failures remain visible. Storage success alone never establishes accepted facts, applicability, freshness or submission readiness; OCR, map/plan interpretation, conflict resolution and SEE section acceptance remain separate gates.
+
+Reference: docs/project-memory/build-next.md Item 74A; DR-048

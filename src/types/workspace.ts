@@ -273,6 +273,10 @@ export type WorkspaceSource = {
   uploadedAt: string;
   sizeLabel: string;
   status?: string;
+  statusDetail?: string;
+  evidenceStatus?: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
+  indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+  contentHash?: string | null;
   url?: string;
   fileExtension?: string | null;
 };

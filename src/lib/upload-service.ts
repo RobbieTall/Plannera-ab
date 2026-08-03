@@ -1,6 +1,8 @@
 import type { Prisma, PrismaClient, Project } from "@prisma/client";
 
 import type { SavedFile } from "@/lib/storage";
+import { extractUploadEvidence, type UploadEvidenceExtraction } from "@/lib/upload-evidence";
+import { indexUploadEvidence } from "@/lib/upload-evidence-indexing";
 import { getAllowedDescriptor, MAX_FILE_SIZE_BYTES, type UploadCategory } from "@/lib/upload-constraints";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 
@@ -24,6 +26,15 @@ export type UploadRecord = {
   mimeType: string | null;
   fileSize: number;
   publicUrl: string;
+  contentHash: string | null;
+  extractionMethod: string | null;
+  extractedAt: Date | null;
+  pageCount: number | null;
+  evidenceStatus: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
+  reviewReason: string | null;
+  indexingStatus: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+  indexedAt: Date | null;
+  indexingError: string | null;
   createdAt: Date;
 };
 
@@ -50,7 +61,34 @@ export const validateFileForUpload = (
   return { extension, category: descriptor.category, mimeType };
 };
 
-type UploadPrismaClient = Pick<PrismaClient, "project" | "workspaceUpload">;
+type UploadPrismaClient = Pick<PrismaClient, "project" | "workspaceUpload" | "workspaceSourceChunk">;
+
+export type IndexUploadEvidence = (args: {
+  extraction: UploadEvidenceExtraction;
+  fileName: string;
+  projectId: string;
+  uploadId: string;
+  prismaClient: PrismaClient;
+}) => Promise<{ created: number }>;
+
+const uploadSelect = {
+  id: true,
+  fileName: true,
+  fileExtension: true,
+  mimeType: true,
+  fileSize: true,
+  publicUrl: true,
+  contentHash: true,
+  extractionMethod: true,
+  extractedAt: true,
+  pageCount: true,
+  evidenceStatus: true,
+  reviewReason: true,
+  indexingStatus: true,
+  indexedAt: true,
+  indexingError: true,
+  createdAt: true,
+} as const;
 
 export async function persistWorkspaceUploads({
   projectId,
@@ -58,6 +96,8 @@ export async function persistWorkspaceUploads({
   userId,
   prisma,
   saveFile,
+  extractEvidence = extractUploadEvidence,
+  indexEvidence = indexUploadEvidence,
   project,
 }: {
   projectId: string;
@@ -65,7 +105,8 @@ export async function persistWorkspaceUploads({
   userId?: string;
   prisma: UploadPrismaClient;
   saveFile: (file: File) => Promise<SavedFile>;
-  extractPdfText?: (file: File) => Promise<string | null>;
+  extractEvidence?: typeof extractUploadEvidence;
+  indexEvidence?: IndexUploadEvidence;
   project?: Pick<Project, "id" | "publicId">;
 }): Promise<UploadRecord[]> {
   const normalizedProjectId = normalizeProjectId(projectId);
@@ -80,40 +121,69 @@ export async function persistWorkspaceUploads({
     throw new UploadError("No project/workspace exists with this ID.", "project_not_found", 404);
   }
 
-  const uploads: Prisma.WorkspaceUploadCreateInput[] = [];
   const validatedFiles = files.map((file) => ({ file, validation: validateFileForUpload(file) }));
+  const created: UploadRecord[] = [];
 
   for (const { file, validation } of validatedFiles) {
-    const saved = await saveFile(file);
-
-    uploads.push({
-      project: { connect: { id: resolvedProject.id } },
-      user: userId ? { connect: { id: userId } } : undefined,
-      fileName: file.name,
-      fileExtension: validation.extension,
-      mimeType: saved.mimeType ?? validation.mimeType,
-      fileSize: saved.size,
-      storagePath: saved.path,
-      publicUrl: saved.url,
+    const extraction = await extractEvidence({
+      file,
+      category: validation.category,
+      extension: validation.extension,
     });
-  }
+    const saved = await saveFile(file);
+    const shouldIndex = Boolean(extraction.extractedText && extraction.segments.length);
+    const upload = await prisma.workspaceUpload.create({
+      data: {
+        project: { connect: { id: resolvedProject.id } },
+        user: userId ? { connect: { id: userId } } : undefined,
+        fileName: file.name,
+        fileExtension: validation.extension,
+        mimeType: saved.mimeType ?? validation.mimeType,
+        fileSize: saved.size,
+        storagePath: saved.path,
+        publicUrl: saved.url,
+        contentHash: extraction.contentHash,
+        extractedText: extraction.extractedText,
+        extractionMethod: extraction.extractionMethod,
+        extractionMetadata: extraction.extractionMetadata as Prisma.InputJsonValue,
+        extractedAt: extraction.extractedAt,
+        pageCount: extraction.pageCount,
+        evidenceStatus: extraction.evidenceStatus,
+        reviewReason: extraction.reviewReason,
+        indexingStatus: shouldIndex ? "PENDING" : "NOT_APPLICABLE",
+      },
+      select: uploadSelect,
+    });
 
-  const created = await Promise.all(
-    uploads.map((upload) =>
-      prisma.workspaceUpload.create({
-        data: upload,
-        select: {
-          id: true,
-          fileName: true,
-          fileExtension: true,
-          mimeType: true,
-          fileSize: true,
-          publicUrl: true,
-          createdAt: true,
-        },
-      }),
-    ),
-  );
+    if (!shouldIndex) {
+      created.push(upload as UploadRecord);
+      continue;
+    }
+
+    try {
+      await indexEvidence({
+        extraction,
+        fileName: file.name,
+        projectId: resolvedProject.id,
+        uploadId: upload.id,
+        prismaClient: prisma as unknown as PrismaClient,
+      });
+      const indexed = await prisma.workspaceUpload.update({
+        where: { id: upload.id },
+        data: { indexingStatus: "READY", indexedAt: new Date(), indexingError: null },
+        select: uploadSelect,
+      });
+      created.push(indexed as UploadRecord);
+    } catch (error) {
+      const indexingError = (error instanceof Error ? error.message : "Unknown indexing failure").slice(0, 1000);
+      const failed = await prisma.workspaceUpload.update({
+        where: { id: upload.id },
+        data: { indexingStatus: "FAILED", indexingError },
+        select: uploadSelect,
+      });
+      created.push(failed as UploadRecord);
+    }
+  }
 
   return created;
 }

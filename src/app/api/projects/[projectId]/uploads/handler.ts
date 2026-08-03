@@ -4,7 +4,6 @@ import type { Session } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { extractPdfText } from "@/lib/pdf-text";
 import {
   getWorkspaceStorageStatus,
   isStorageUploadError,
@@ -44,6 +43,15 @@ type StructuredSuccessResponse = {
     mimeType: string | null;
     fileSize: number;
     publicUrl: string;
+    contentHash: string | null;
+    extractionMethod: string | null;
+    extractedAt: Date | null;
+    pageCount: number | null;
+    evidenceStatus: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
+    reviewReason: string | null;
+    indexingStatus: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+    indexedAt: Date | null;
+    indexingError: string | null;
     createdAt: Date;
   }>;
   usage: { used: number; limit: number };
@@ -133,7 +141,6 @@ type UploadHandlerDeps = {
   storageMode: StorageProvider;
   prisma: typeof prisma;
   saveFile: typeof saveFileToUploads;
-  extractPdfText?: typeof extractPdfText;
 };
 
 const defaultDeps: UploadHandlerDeps = {
@@ -145,7 +152,6 @@ const defaultDeps: UploadHandlerDeps = {
   storageMode: getWorkspaceStorageStatus().provider,
   prisma,
   saveFile: saveFileToUploads,
-  extractPdfText,
 };
 
 export async function handleUploadGet(_request: NextRequest, { params }: { params: { projectId: string } }) {
@@ -168,6 +174,15 @@ export async function handleUploadGet(_request: NextRequest, { params }: { param
         mimeType: true,
         fileSize: true,
         publicUrl: true,
+        contentHash: true,
+        extractionMethod: true,
+        extractedAt: true,
+        pageCount: true,
+        evidenceStatus: true,
+        reviewReason: true,
+        indexingStatus: true,
+        indexedAt: true,
+        indexingError: true,
         createdAt: true,
       },
     });
@@ -311,7 +326,6 @@ export async function handleUploadPost(
         userId,
         prisma: resolvedDeps.prisma,
         saveFile: resolvedDeps.saveFile,
-        extractPdfText: resolvedDeps.extractPdfText,
         project,
       });
       uploads.push(...created);
@@ -346,4 +360,3 @@ export async function handleUploadPost(
     return respondWithError("unknown", "unknown_error", 500, "Unable to upload documents right now.", {}, error);
   }
 }
-
