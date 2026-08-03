@@ -1320,7 +1320,7 @@ Completion evidence:
 - Protected acceptance run `30772575070` on exact `main` commit `299145bfa7158c0cc5495cae2812dccbef6b9c2b` passed. Safe artifact `8841017675` (`sha256:78cca470ff0e340349a5194939a7ba846159257401ff40dc296d8f0cc8ee1e77`) records every check true: exact configuration, empty preflight, consented submission, protected operator-queue visibility, transitions, user-safe status and cleanup. The observed sequence was exactly `SUBMITTED` → `ACKNOWLEDGED` → `ASSIGNED` → `CONSULTANT_ACKNOWLEDGED` → `CLOSED`; the immutable package digest was independently verified and the synthetic referral was deleted at the end.
 - Item 73 is complete as protected non-production capability and evidence. Production activation remains a separate explicit operator decision; completion does not claim automated matching, consultant availability, credentials, quotes or response times.
 
-## 74) Submission-grade SEE and Byron/Kempsey whole-LGA commercial readiness — QUEUED AFTER ITEM 73
+## 74) Submission-grade SEE and Byron/Kempsey whole-LGA commercial readiness — IN PROGRESS (2026-08-03)
 
 Purpose: finish the second paid product and prove both launch councils across their complete current LEP zone sets before expansion. The commercial SEE list price is **A$749 before credits**. One settled, unrefunded A$49 Planning Controls Pack for the same requester/project/current-site QSC/normalized proposal may be consumed once as an A$49 credit, leaving **A$700 payable**. The credit is exact-scope, single-use, non-transferable, not cash-redeemable, and cannot upgrade evidence confidence or readiness.
 
@@ -1329,6 +1329,16 @@ Purpose: finish the second paid product and prove both launch councils across th
 - Treat maps and plans as evidence objects with authoritative source, capture/effective date, layer/legend, site identity, user-confirmed observation and limitation. Stored screenshots alone do not prove a constraint.
 - Reconcile uploaded and spatial facts against the exact proposal and statutory chain. Conflicts, stale files and unsupported claims remain visible and block affected final sections.
 - Returned consultant reports enter the same evidence pipeline; referral completion does not automatically make a report accepted or applicable.
+
+Implementation checkpoint — evidence extraction and provenance foundation (`feat/item-74-evidence-intake`):
+- Workspace uploads now retain SHA-256 source hash, extraction method/time/metadata, PDF page count, extracted text, readability status, review reason, indexing status/time and indexing failure detail. Existing uploads default to `Needs review`/not indexed rather than acquiring unsupported readiness.
+- PDF extraction uses real page-aware parsing and preserves page numbers on citation chunks. DOCX raw text, XLSX worksheet/cell text, CSV and plain text are supported; DOCX parser warnings demote the upload to `Partially readable`. Legacy DOC/XLS and ZIP fail closed with conversion/review guidance.
+- Image uploads and text-empty scanned PDFs are marked `Image only`; they do not enter retrieval until OCR plus visual review exists. OCR is therefore still open work, not implied by this checkpoint.
+- Readability and semantic indexing are separate persisted facts. Extracted evidence is chunked with source title, hash, extraction method and page/sheet provenance. Embedding/index failure leaves the upload visible with `FAILED` indexing instead of treating it as SEE-ready.
+- The workspace Sources panel exposes `Ready`, `Partially readable`, `Image only`, or `Needs review` and the review/indexing reason. A stored upload is no longer labelled generically as synced.
+- Regression coverage proves hashing/text extraction, PDF page provenance, image-only/legacy/parser-failure demotion, successful indexing and visible indexing failure. On 3 August 2026, Commercial Funnel Golden Gate run `30776099344` passed on head `7313eba` (155 Node tests and 77 Vitest tests, zero failures) and the Vercel Preview deployment completed successfully with the additive Prisma migration and full application build.
+
+Remaining before 74A is complete: add an asynchronous OCR/provider path with operator-visible retry/review; model map/plan source, layer/legend, dates, site identity, observation and limitation; add proposal/statutory reconciliation and conflict/freshness gates; and make SEE section readiness consume only readable, successfully indexed, accepted evidence.
 
 ### 74B — Professional SEE compiler and paid entitlement
 - Replace the current pre-SEE `.txt` memo as the commercial endpoint with a versioned living SEE that becomes final only when all required inputs are resolved or explicitly routed to professional review.

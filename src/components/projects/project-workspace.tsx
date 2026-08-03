@@ -182,6 +182,21 @@ type ProjectNotification = {
   createdAt: string;
 };
 
+type WorkspaceUploadResponse = {
+  id: string;
+  fileName: string;
+  fileExtension?: string | null;
+  mimeType?: string | null;
+  fileSize: number;
+  publicUrl: string;
+  contentHash?: string | null;
+  evidenceStatus?: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
+  reviewReason?: string | null;
+  indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+  indexingError?: string | null;
+  createdAt: string;
+};
+
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
 const workspaceQuickPrompts = [
@@ -219,6 +234,45 @@ const sourceIcons: Record<
   image: ImageIcon,
   gis: Globe2,
   other: Layers3,
+};
+
+const evidenceStatusLabels: Record<NonNullable<WorkspaceSource["evidenceStatus"]>, string> = {
+  READY: "Ready",
+  PARTIALLY_READABLE: "Partially readable",
+  IMAGE_ONLY: "Image only",
+  NEEDS_REVIEW: "Needs review",
+};
+
+const evidenceStatusClasses: Record<NonNullable<WorkspaceSource["evidenceStatus"]>, string> = {
+  READY: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200",
+  PARTIALLY_READABLE: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200",
+  IMAGE_ONLY: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200",
+  NEEDS_REVIEW: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200",
+};
+
+const mapUploadToWorkspaceSource = (upload: WorkspaceUploadResponse): WorkspaceSource => {
+  const indexingIssue = upload.indexingStatus === "FAILED"
+    ? `Indexing failed${upload.indexingError ? `: ${upload.indexingError}` : "."}`
+    : upload.indexingStatus === "PENDING"
+      ? "Indexing for planning use."
+      : null;
+  const evidenceStatus = upload.evidenceStatus ?? "NEEDS_REVIEW";
+
+  return {
+    id: upload.id,
+    name: upload.fileName,
+    detail: upload.mimeType ?? upload.fileExtension ?? "File",
+    type: determineSourceType(upload.fileName),
+    uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
+    sizeLabel: formatFileSize(upload.fileSize),
+    status: evidenceStatusLabels[evidenceStatus],
+    statusDetail: indexingIssue ?? upload.reviewReason ?? undefined,
+    evidenceStatus,
+    indexingStatus: upload.indexingStatus,
+    contentHash: upload.contentHash,
+    url: upload.publicUrl,
+    fileExtension: upload.fileExtension ?? null,
+  };
 };
 
 const zoningPattern =
@@ -1644,33 +1698,13 @@ export function ProjectWorkspace({
           return;
         }
         const data: {
-          uploads?: Array<{
-            id: string;
-            fileName: string;
-            fileExtension?: string | null;
-            mimeType?: string | null;
-            fileSize: number;
-            publicUrl: string;
-            createdAt: string;
-          }>;
+          uploads?: WorkspaceUploadResponse[];
           usage?: { used?: number };
         } = await response.json();
 
         if (cancelled) return;
 
-        const mappedSources: WorkspaceSource[] = (data.uploads ?? []).map(
-          (upload) => ({
-            id: upload.id,
-            name: upload.fileName,
-            detail: upload.mimeType ?? upload.fileExtension ?? "File",
-            type: determineSourceType(upload.fileName),
-            uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
-            sizeLabel: formatFileSize(upload.fileSize),
-            status: "Synced",
-            url: upload.publicUrl,
-            fileExtension: upload.fileExtension ?? null,
-          }),
-        );
+        const mappedSources = (data.uploads ?? []).map(mapUploadToWorkspaceSource);
 
         setSources(mappedSources);
 
@@ -2860,15 +2894,7 @@ export function ProjectWorkspace({
         message?: string;
         tier?: UserTier;
         limit?: number;
-        uploads?: Array<{
-          id: string;
-          fileName: string;
-          fileExtension?: string | null;
-          mimeType?: string | null;
-          fileSize: number;
-          publicUrl: string;
-          createdAt: string;
-        }>;
+        uploads?: WorkspaceUploadResponse[];
         usage?: { used: number; limit: number };
       };
 
@@ -2940,19 +2966,7 @@ export function ProjectWorkspace({
       setServerLimitReached(
         payload.usage.limit > 0 && payload.usage.used >= payload.usage.limit,
       );
-      const mappedSources: WorkspaceSource[] = (payload.uploads ?? []).map(
-        (upload) => ({
-          id: upload.id,
-          name: upload.fileName,
-          detail: upload.mimeType ?? upload.fileExtension ?? "File",
-          type: determineSourceType(upload.fileName),
-          uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
-          sizeLabel: formatFileSize(upload.fileSize),
-          status: "Synced",
-          url: upload.publicUrl,
-          fileExtension: upload.fileExtension ?? null,
-        }),
-      );
+      const mappedSources = (payload.uploads ?? []).map(mapUploadToWorkspaceSource);
       setSources((previous) => [...mappedSources, ...previous]);
       for (const file of uploadQueue) {
         const snippet = await extractContextSnippet(file);
@@ -3992,9 +4006,14 @@ export function ProjectWorkspace({
                             <p className="text-[11px] text-slate-400 dark:text-slate-500">
                               {source.uploadedAt} · {source.sizeLabel}
                             </p>
+                            {source.statusDetail ? (
+                              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
+                                {source.statusDetail}
+                              </p>
+                            ) : null}
                           </div>
                           {source.status ? (
-                            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">
+                            <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
                               {source.status}
                             </span>
                           ) : null}
@@ -4019,9 +4038,14 @@ export function ProjectWorkspace({
                             <p className="text-[11px] text-slate-400 dark:text-slate-500">
                               {source.uploadedAt} · {source.sizeLabel}
                             </p>
+                            {source.statusDetail ? (
+                              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
+                                {source.statusDetail}
+                              </p>
+                            ) : null}
                           </div>
                           {source.status ? (
-                            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-200/10 dark:text-slate-200">
+                            <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
                               {source.status}
                             </span>
                           ) : null}

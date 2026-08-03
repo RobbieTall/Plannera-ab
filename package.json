@@ -31,7 +31,7 @@
     "test:node": "tsx --test tests/*.test.ts",
     "test:vitest": "vitest run --config vitest.config.ts",
     "audit:commercial-funnel": "tsx scripts/audit-commercial-funnel.ts",
-    "test:commercial-funnel": "tsx --test tests/stripe-test-acceptance.test.ts tests/stripe-test-acceptance-workflow.test.ts tests/purchase-entitlements.test.ts tests/planning-pack-checkout.test.ts tests/commercial-funnel-golden.test.ts tests/commercial-funnel-golden-workflow.test.ts tests/map-snapshot.test.ts tests/commercial-next-action.test.ts tests/quick-site-check-evidence.test.ts tests/detailed-planning-pack-selector.test.ts tests/planning-feasibility-summary.test.ts tests/feasibility-parse.test.ts tests/commercial-funnel-audit-runner.test.ts tests/consultant-referrals.test.ts tests/consultant-referral-acceptance.test.ts && vitest run --config vitest.config.ts src/lib/nsw-planning-controls.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts src/lib/projects.requester-scope.test.ts src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts src/lib/commercial-funnel-audit.test.ts src/lib/commercial-funnel-events.test.ts src/lib/consultant-needs.test.ts src/components/projects/consultant-referral-panel.test.tsx src/app/api/admin/commercial-funnel-audit/route.test.ts src/app/api/admin/commercial-funnel-metrics/route.test.ts src/app/api/commercial-funnel/handoff/route.test.ts src/app/api/cron/commercial-funnel-retention/route.test.ts src/app/api/plannera-check/start/route.test.ts tests/feasibility-panel.test.tsx",
+    "test:commercial-funnel": "tsx --test tests/stripe-test-acceptance.test.ts tests/stripe-test-acceptance-workflow.test.ts tests/purchase-entitlements.test.ts tests/planning-pack-checkout.test.ts tests/commercial-funnel-golden.test.ts tests/commercial-funnel-golden-workflow.test.ts tests/map-snapshot.test.ts tests/commercial-next-action.test.ts tests/quick-site-check-evidence.test.ts tests/detailed-planning-pack-selector.test.ts tests/planning-feasibility-summary.test.ts tests/feasibility-parse.test.ts tests/commercial-funnel-audit-runner.test.ts tests/consultant-referrals.test.ts tests/consultant-referral-acceptance.test.ts tests/upload-evidence.test.ts tests/uploads.test.ts tests/upload-route.test.ts && vitest run --config vitest.config.ts src/lib/nsw-planning-controls.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts src/lib/projects.requester-scope.test.ts src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts src/lib/commercial-funnel-audit.test.ts src/lib/commercial-funnel-events.test.ts src/lib/consultant-needs.test.ts src/components/projects/consultant-referral-panel.test.tsx src/app/api/admin/commercial-funnel-audit/route.test.ts src/app/api/admin/commercial-funnel-metrics/route.test.ts src/app/api/commercial-funnel/handoff/route.test.ts src/app/api/cron/commercial-funnel-retention/route.test.ts src/app/api/plannera-check/start/route.test.ts tests/feasibility-panel.test.tsx",
     "accept:stripe-test": "tsx scripts/stripe-test-acceptance.ts",
     "accept:consultant-referral": "tsx scripts/consultant-referral-acceptance.ts"
   },
@@ -42,6 +42,7 @@
     "@prisma/client": "^6.19.0",
     "@vercel/blob": "^2.0.0",
     "lucide-react": "^0.553.0",
+    "mammoth": "^1.12.0",
     "next": "14.2.33",
     "next-auth": "^4.24.13",
     "node-html-parser": "^7.0.1",
@@ -52,6 +53,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-markdown": "^10.1.0",
+    "read-excel-file": "^9.3.5",
     "stripe": "^18.5.0",
     "zod": "^4.1.12"
   },
