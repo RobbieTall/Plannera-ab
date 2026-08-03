@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 45840)
-Total output lines: 1375
-
 # Build Next (Execution Queue)
 
 This is the active sequence for what to build next so direction is never lost.
@@ -571,7 +568,477 @@ Tests/checks for review:
 - PASS: `npm run build`
 - EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432`; this is the known Codex Cloud environment limitation, not a regression.
 
-Deploy/live gate: production deployment at merge commit `10ea1d604bb20bd172ea27fdcad882a9c7fc7037` succeeded. The saved-output verification gate remains OPEN: historical Byron/Kempsey QA project IDs previously returned `Project not found`, no production test project was created for this gate, and documentation must not claim live saved-output QA passed until a fresh production-safe save…15840 tokens truncated… address`, and uses `Run free site check` as the primary action.
+Deploy/live gate: production deployment at merge commit `10ea1d604bb20bd172ea27fdcad882a9c7fc7037` succeeded. The saved-output verification gate remains OPEN: historical Byron/Kempsey QA project IDs previously returned `Project not found`, no production test project was created for this gate, and documentation must not claim live saved-output QA passed until a fresh production-safe saved Quick Site Check can be verified after deploy.
+
+## 48) Carry saved Quick Site Check LEP evidence quality into Expert Review Request — IN REVIEW (2026-07-15)
+
+Scope: extend the saved Expert Review Request JSON and visible/copy/download planner handoff with the server-derived `lepEvidenceSummary` from the saved Quick Site Check artefact. This preserves an unbroken provenance chain from Quick Site Check to planner review without Prisma/schema migration, auth, billing, paywall, production-data mutation, or production test-project creation.
+
+Acceptance:
+
+- Expert Review Request content can optionally carry the existing `QuickSiteCheckEvidenceSummary` shape/semantics (`Cited`/`Unavailable`, `sourceRef`, `detail`, objective and land-use counts, cited/total numeric LEP control counts) rather than duplicating evidence logic or inventing new labels.
+- Review request creation reads LEP evidence quality only from the saved server-persisted Quick Site Check payload. It does not trust a new client-supplied summary and does not recompute/upgrade evidence from generic citations, DCP clauses, permissibility existence, artefact existence, or DCP-only controls.
+- Saved Quick Site Checks with `Cited` summaries propagate label, source, detail, objective/land-use counts, and cited/total LEP control counts into the persisted review request.
+- Saved Quick Site Checks with `Unavailable`, `null`, or missing summaries remain honest: the review request is still created, but a concise LEP evidence-quality confidence gap is packaged for planner review and the summary is never upgraded to `Cited`.
+- Saved Expert Review Request cards show LEP evidence quality/source/detail/counts when present, and the Copy/Download `.txt` handoff includes the same provenance. Legacy review requests without the optional field render and export safely without `null`/`undefined` text.
+
+Status: Code merged and production deployment successful at merge commit `b6ef10df5d717540423d633d29e5ca044fafa6c0` (PR #288). Live saved-output verification gate remains OPEN; do not claim live QA passed until fresh production-safe saved outputs are verified.
+
+Changed files:
+
+- `src/types/workspace.ts` — adds optional `lepEvidenceSummary` to review request content using the existing Quick Site Check evidence summary type.
+- `src/lib/artefact-service.ts` — carries the saved Quick Site Check summary into the review request and records honest planner gaps when LEP evidence is unavailable or missing.
+- `src/lib/review-request-handoff.ts` — includes LEP evidence quality/source/detail/counts in copied/downloaded planner handoff text when present.
+- `src/components/projects/project-workspace.tsx` — renders LEP evidence quality on the saved Expert Review Request card and hardens optional legacy fields.
+- `src/lib/artefact-review-request.test.ts` and `src/lib/review-request-handoff.test.ts` — cover cited propagation, unavailable/null gap handling, DCP/generic-citation non-upgrade, formatter output, and legacy compatibility.
+
+Tests/checks for review:
+
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts`.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm test`.
+- PASS: `npm run build` (emitted an existing dynamic-server-usage diagnostic for `/api/dcp/search` during static generation, but completed successfully).
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432`; this is the known Codex Cloud environment limitation, not a regression.
+
+Deploy/live gate: production deployment at merge commit `b6ef10df5d717540423d633d29e5ca044fafa6c0` succeeded. Live saved-output verification remains OPEN until a fresh production-safe QA path can verify the persisted review handoff; do not claim live QA passed from historical Byron/Kempsey project IDs.
+
+
+## 49) Detailed Planning Pack vertical slice for Byron/Kempsey commercial pilot — IN REVIEW (2026-07-15)
+
+Scope: add the first sellable Detailed Planning Pack step between saved, quality-valid Quick Site Check and SEE/referral. The pack requires a non-empty proposed-works brief, derives site/LGA/zone/QSC evidence from server-side project and artefact state, is limited to Byron and Kempsey, reuses existing DCP retrieval plus zone/applicability filtering, and persists a compact JSON payload using a dedicated additive `detailed_planning_pack` artefact type and migration.
+
+Acceptance:
+
+- A saved Quick Site Check with `lepEvidenceSummary.label === Cited` and a current confirmed site/LGA/zone scope match is required before pack generation; weak, stale-site, or forged client evidence cannot advance the flow.
+- The pack generation endpoint ignores client-supplied site, zone, citations, confidence and control values; it reads the project, newest current-site saved QSC artefact, and current DCP retrieval server-side.
+- Byron and Kempsey are the only launch LGAs; other LGAs receive an honest unavailable validation message for this commercial pilot.
+- Persisted pack payload uses the dedicated `detailed_planning_pack` `ArtefactType` and includes generation timestamp, project/site identity, proposal brief, source QSC artefact identity, carried LEP evidence summary, proposal/zone-scoped cited DCP evidence, topic matrix, unresolved topics, consultant review questions, next action, and `commercialReady` quality state.
+- Topic states are `Cited` only when a retrieved DCP clause has a real source reference and survives existing zone/proposal applicability filtering; absent evidence remains `Unavailable` with a reason.
+- Workspace Outputs now provide the proposed-works input, Generate Detailed Planning Pack CTA, and refresh-safe saved pack rendering before SEE/referral.
+- The commercial next-action helper routes Quick Site Check → Detailed Planning Pack → SEE/referral only when the active current-site pack has `commercialReady === true`; stale packs and unresolved current-site packs stay visible as history/review material but cannot advance the funnel or let an existing SEE bypass the pack gate.
+
+Changed files:
+
+- `prisma/schema.prisma`, `prisma/schema.test.prisma`, and `prisma/migrations/20260715000000_add_detailed_planning_pack_artefact_type/migration.sql` — additive dedicated `detailed_planning_pack` artefact type.
+- `src/lib/artefact-service.ts` and `src/lib/site-scoped-artefacts.ts` — Detailed Planning Pack generation, current-site/QSC trust boundaries, launch-LGA gate, topic DCP retrieval and persisted payload.
+- `src/app/api/artefacts/generate-detailed-planning-pack/route.ts` — authenticated API route for pack generation.
+- `src/types/workspace.ts` — workspace Detailed Planning Pack content and artefact typing.
+- `src/components/projects/project-workspace.tsx` — Outputs proposal input, CTA and saved pack rendering.
+- `src/lib/commercial-next-action.ts`, `src/lib/detailed-planning-pack-selector.ts`, `src/lib/artefact-regeneration.ts`, stale artefact routes/banner, and related tests — commercial funnel progression, current-site quality pack selection, plus dedicated pack stale/regeneration handling.
+- `tests/commercial-next-action.test.ts`, `tests/detailed-planning-pack-selector.test.ts`, and `tests/map-snapshot.test.ts` — commercial readiness/quality-pack gating plus Byron/Kempsey/no-evidence/unsupported-LGA/forged-client/current-site-vs-stale-QSC pack regressions.
+- `README.md` and `docs/project-memory/decision-register.md` — commercial pilot funnel and evidence-gated monetisation decision.
+
+Tests/checks for review:
+
+- PASS: `npm run test:node -- tests/map-snapshot.test.ts tests/commercial-next-action.test.ts`
+- PASS: `npm run test:vitest -- src/lib/artefact-regeneration.test.ts src/app/api/projects/[projectId]/artefacts/stale/route.test.ts`
+- PASS: `npm run lint`
+- PASS: `npx tsc --noEmit`
+- PASS: `npm test`
+- PASS: `npm run build`
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reaches Prisma `P1001` in Codex Cloud when localhost Postgres is unavailable.
+
+Deploy/migration/live gate: OPEN. Apply the additive Prisma migration before deploying the pack route/UI, then verify fresh saved-output workflows for Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 without mutating production projects/data outside the approved QA path. Confirm saved pack rendering survives refresh and that irrelevant rural/residential DCP clauses are not promoted as applicable. No live QA is claimed in this item yet.
+
+Status reconciliation: Item 49 moved from IN REVIEW to merged/deployed at exact merge commit `ae3e8a8bab58bb78a3777f79bfb7e451c823278b` (PR #289). Live saved-output verification gate remains OPEN until fresh production-safe saved outputs verify the current QSC → DPP path.
+
+## 50) SEE and consultant referral consume Detailed Planning Pack — DONE/MERGED (2026-07-15)
+
+Scope: make the saved current-site Detailed Planning Pack the server-authoritative proposal and DCP evidence source for SEE generation, and require consultant referral to carry an unbroken current-site QSC → DPP → matching SEE chain when SEE is present.
+
+Acceptance:
+
+- `/api/artefacts/generate-see` / `createPreSeePlanningMemoArtefact` resolve the newest current-site `detailed_planning_pack` that parses as `DetailedPlanningPackContent`, has `commercialReady === true`, and points to an existing current-site saved Quick Site Check with cited LEP evidence.
+- SEE generation ignores fresh client-supplied proposal/site/zone/citation/readiness fields. `proposedWorksSummary`, DCP clauses, source excerpts, topic assessments, and durable `sourceDetailedPlanningPack` provenance are derived from the persisted pack.
+- Stale, malformed, unresolved, cross-site, or broken-provenance packs reject clearly before persistence; no SEE is saved for those states.
+- Expert review request generation resolves artefacts by provenance/current-site scope. Matching commercial-ready chains package QSC + DPP + SEE. Unresolved current-site packs can create QSC + DPP referral with unresolved topics/questions and no SEE/readiness claim. Missing/stale-only packs reject with regeneration guidance.
+- Review request payloads include `detailed_planning_pack` in `includedArtefacts`, DPP proposal brief, topic matrix/source refs, unresolved topics, carried QSC LEP evidence summary, and optional matching SEE provenance. Legacy review/SEE payloads remain renderable/exportable but cannot unlock the current commercial funnel.
+- Workspace SEE CTA is gated by a current commercial-ready DPP and posts only the project ID. Unresolved current-site packs expose expert referral copy without enabling SEE.
+
+Changed files:
+
+- `src/lib/artefact-service.ts` — shared server DPP/QSC provenance resolver, DPP-derived SEE persistence, and provenance-safe referral packaging.
+- `src/types/workspace.ts` — durable SEE `sourceDetailedPlanningPack` and review DPP/SEE provenance payload fields.
+- `src/components/projects/project-workspace.tsx` and `src/lib/commercial-next-action.ts` — current quality DPP gate for SEE and unresolved-pack expert-review branch.
+- `src/lib/review-request-handoff.ts` — copied/downloaded handoff now includes DPP provenance, proposal brief, topic source refs, unresolved topics, and SEE provenance when present.
+- `docs/project-memory/build-next.md` and `docs/project-memory/decision-register.md` — Item 49 reconciliation, Item 50 review record, and DPP branch decision.
+
+Tests/checks for review:
+
+- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 32 tests passed, including Byron SP3/Kempsey E2 DPP-derived SEE, forged body, stale/current pack, unresolved-pack rejection, and unresolved referral CTA coverage.
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 9 tests passed, including QSC + DPP + matching SEE packaging, unresolved QSC + DPP referral without SEE, mismatched SEE exclusion, legacy bypass rejection, DPP handoff provenance, unresolved topics, and legacy export safety.
+- PASS: `npm run lint` — no warnings/errors.
+- PASS: `npx tsc --noEmit --pretty false`.
+- PASS: `npm test` — 46 Vitest files and 209 total Vitest tests passed after Node test suite completed with 64 passing tests.
+- PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
+
+Status reconciliation: Item 50 moved to DONE/MERGED at exact merge commit `b997b8f6f8985f947e7a8d0edef765d4d0ac84d7` (PR #290) and Vercel deployment succeeded for target `https://vercel.com/robbietalls-projects/plannera-ab/DuvyeHc4Zp9SmnDDSgWRmkbMKuMg`. Live saved-output/commercial audit gate remains OPEN; deployment success alone is not live funnel proof. Do not claim live saved-output verification until fresh production-safe Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 paths confirm DPP-derived SEE citations/provenance and referral branching without production data mutation outside the approved QA path. Item 40 billing/auth remains deferred.
+
+## 51) Production-safe commercial funnel readiness audit — DONE/MERGED/DEPLOYED (2026-07-16)
+
+Scope: add a protected, read-only operational audit endpoint for an authorised operator to verify one existing project's saved Quick Site Check → Detailed Planning Pack → matching SEE/referral chain without creating projects, generating artefacts, invoking OpenAI, retrieving DCP/LEP, or mutating production data.
+
+Contract:
+
+- `GET /api/admin/commercial-funnel-audit?projectId=<id>` returns `commercial_funnel_audit.v1` JSON for one explicit project identifier when authorised with the existing admin secret conventions; production operators should prefer the `x-admin-token: INGEST_ADMIN_SECRET` header instead of putting secrets in URLs or logs.
+- Output includes `checkedAt`, project/site scope, compact QSC/DPP/SEE states, saved artefact IDs, exact source QSC/DPP IDs, cited/applicable evidence counts, unresolved topics, referral eligibility (`none`, `unresolved_pack_referral`, or `quality_chain_referral`), and machine-readable next-action reason codes.
+- The audit is read-only: it may query project/site/artefacts only and must never create, update, upsert, delete, regenerate, retrieve DCP/LEP, call OpenAI, expose full artefact payloads, DCP excerpts, contact details, or secrets.
+- Readiness uses the same current-site/provenance selectors as artefact generation: new quality chains require exact current-site saved QSC → DPP → SEE provenance from Item 50. Legacy, stale, cross-site, malformed, forged, or broken-ID chains remain history and cannot pass.
+
+Changed files for review:
+
+- `src/lib/commercial-funnel-audit.ts` — side-effect-free commercial funnel audit helper driven by the shared current-site DPP/QSC chain resolver.
+- `src/lib/commercial-funnel-audit.test.ts` — dedicated helper regression coverage for quality chains, unresolved/newer active packs, stale/malformed/forged/broken provenance, strict SEE parsing, and deterministic ordering.
+- `src/app/api/admin/commercial-funnel-audit/route.ts` — protected read-only admin GET route using existing admin secret conventions.
+- `src/app/api/admin/commercial-funnel-audit/route.test.ts` — dedicated route auth, missing-project, unknown-project, and valid-secret coverage.
+- `src/lib/artefact-service.ts` — shared canonical current-site DPP/QSC chain resolver, strict SEE parser, schemas/current-site/recency helpers reused by generation and audit.
+- `tests/map-snapshot.test.ts` — Item 50 generation regression for newer unresolved active DPP superseding an older ready pack.
+- `README.md`, `docs/project-memory/build-next.md`, and `docs/project-memory/decision-register.md` — operator endpoint note, Item 49/50 reconciliation, Item 51 record, and billing/auth decision.
+
+Tests/checks for review:
+
+- PASS: `npm run test:vitest -- src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts` — 2 files and 16 tests passed.
+- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — 33 tests passed.
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — 2 files and 9 tests passed.
+- PASS: `npm run lint` — no warnings/errors.
+- PASS: `npx tsc --noEmit --pretty false`.
+- PASS: `npm test` — Node suite passed 65 tests; Vitest passed 48 files and 225 tests.
+- PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
+
+Deployment reconciliation: Item 51 moved to DONE/MERGED/DEPLOYED on 2026-07-16 at exact merge commit `a7b4c1af4a2a6add435018e1b18e954f30550132` (PR #291). GitHub/Vercel status for that merge commit is success. Vercel deployment target: `https://vercel.com/robbietalls-projects/plannera-ab/8TAyJA3FbSpmxz5FfuWvg2CWznfb`. The merged/deployed PR changed 9 files and deployed the protected read-only endpoint `GET /api/admin/commercial-funnel-audit`.
+
+Final verification evidence preserved for Item 51:
+
+- PASS: `npm run test:vitest -- src/lib/commercial-funnel-audit.test.ts src/app/api/admin/commercial-funnel-audit/route.test.ts` — 2 focused audit/route files and 16 tests passed.
+- PASS: `npx tsx --test tests/map-snapshot.test.ts tests/commercial-next-action.test.ts` — Item 50 generation/golden coverage passed with 33 tests.
+- PASS: `npm run test:vitest -- src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts` — referral/handoff coverage passed with 2 files and 9 tests.
+- PASS: `npm run lint` — no warnings/errors.
+- PASS: `npx tsc --noEmit --pretty false`.
+- PASS: `npm test` — full suite passed with 65 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run build` — completed successfully; existing `/api/dcp/search` dynamic-server-usage diagnostic emitted during static generation and did not fail the build.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` because no PostgreSQL server was reachable at `localhost:5432` in Codex Cloud.
+
+Live saved-output/commercial audit gate: OPEN. Deployment success is not live funnel proof. No approved live Byron/Kempsey audit result has been captured yet, so saved-output/commercial readiness remains unproven and billing/auth/payment remains deferred.
+
+## 52) Approved live Byron/Kempsey commercial funnel audit — RUNNER MERGED/DEPLOYED; LIVE AUDIT OPEN (2026-07-16)
+
+Purpose: run the deployed Item 51 read-only audit against approved existing production projects and record a non-secret, documentation-safe summary proving whether the current live saved-output commercial funnel is ready. This item closes only when both approved chains pass independently.
+
+Runner deployment status: the fail-closed Item 52 runner merged and deployed in PR #293 at exact merge commit `9e1cffed5c34f12767210c83760adcc0f48327b4` (reviewed head `0188ef8cad25c776f2df8eb63b76d4a92ad477ec`) with successful Vercel deployment `https://vercel.com/robbietalls-projects/plannera-ab/9nknpTUpsUpQpE1cPU7Cju54W6c3`. This is a runner-only deployed status, not a DONE audit result. No live runner execution occurred because approved existing Byron/Kempsey project IDs and the private admin token were unavailable; there was no production mutation. The live gate remains OPEN until the approved existing-project-only runbook is executed and both golden chains independently pass.
+
+Merged runner slice files/tests/checks:
+
+- `package.json` — adds the `audit:commercial-funnel` operator script.
+- `scripts/audit-commercial-funnel.ts` — CLI wrapper that prints the safe JSON summary and exits with the runner exit code.
+- `src/lib/commercial-funnel-audit-runner.ts` — pure env parsing, URL construction, fetch orchestration, strict response contract validation, golden-chain evaluation, safe summary, and exit-code policy.
+- `tests/commercial-funnel-audit-runner.test.ts` — mocked-fetch/env coverage for ready chains, open gates, broken provenance/evidence/identity/timestamps, missing env, unsafe URLs, deterministic GET order/header/body behaviour, HTTP/network/JSON/malformed failures, token/raw leakage prevention, and allowlisted deterministic output.
+- `README.md` — operator usage, env names, exit codes, no-token-in-URL/header-only guarantees, no production mutation, and billing/auth deferral.
+- `docs/project-memory/decision-register.md` — DR-021 records the fail-closed live-verification runner policy.
+
+Checks recorded for merged PR #293:
+
+- PASS: `npx tsx --test tests/commercial-funnel-audit-runner.test.ts` — 6 focused runner tests passed, including exact nested contract-shape failures and valid non-ready exit 2 coverage.
+- PASS: `npm test` — full suite passed with 71 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm run build`.
+- EXPECTED ENVIRONMENT FAILURE: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` reached Prisma `P1001` in Codex Cloud because no PostgreSQL server was reachable at `localhost:5432`; this is the known Cloud-only vercel-build limitation, not a production audit result.
+
+Production-safe operator runbook:
+
+1. Confirm the audited deployment and code identity before querying production. For the protected remote lane added in Item 53, dispatch only from `main` after the exact `main` SHA has a green Vercel deployment; the workflow derives `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`, so operators must not supply an arbitrary expected commit.
+2. Use only approved existing production projects for the two golden chains: Byron `45 Broken Head Road, Byron Bay NSW 2481` with current-site zone `SP3 Tourist`, and Kempsey `52 Belgrave St, Kempsey NSW 2440` with current-site zone `E2 Commercial Centre`.
+3. Never create a project, update a project, generate or regenerate Quick Site Check / Detailed Planning Pack / SEE / referral artefacts, invoke OpenAI, ingest legislation/DCP, or otherwise mutate production data while performing this audit.
+4. Use the protected manual GitHub Actions lane from Item 53 rather than local shells, chat, browser calls, or ad hoc HTTP commands. The admin token must stay in the protected GitHub environment secret, project IDs must stay in GitHub variables, and only the validated safe JSON artifact should be downloaded/stored.
+5. Do not commit or paste secrets, full JSON payloads, DCP/LEP excerpts, artefact body text, project owner/contact details, emails, phone numbers, or other contact data into repo docs. Store raw responses only in approved private operational systems if needed.
+6. In this file, record only the safe audit summary needed to close or keep open the gate: `checkedAt`, project/site identity sufficient to distinguish Byron vs Kempsey without contact data, deployment URL, commit SHA, QSC/DPP/SEE states, exact saved artefact IDs, exact source QSC/DPP IDs, `referralEligibility`, and `nextAction` reason codes.
+7. Treat Byron and Kempsey as independent gates. Byron `45 Broken Head Road` SP3 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, and Kempsey `52 Belgrave St` E2 must pass its current-site saved QSC → DPP → SEE/referral provenance chain independently, before this item can move to DONE.
+8. Record honest failures exactly as returned: missing, unresolved, stale/mismatched, malformed, legacy, broken-provenance, or other non-ready reason codes are valid audit outcomes and must not be hidden or repaired during the audit run. Do not regenerate anything to make the audit pass.
+9. Keep billing, checkout, subscriptions, auth gating, and payment unlock blocked until both approved live audit summaries prove exact current-site QSC → DPP → SEE/referral provenance on the exact dispatched main SHA with a green Vercel deployment.
+
+Protected live evidence (2026-07-16): GitHub Actions [run 29492417071, attempt 2](https://github.com/RobbieTall/Plannera-ab/actions/runs/29492417071) was approved through the `commercial-funnel-audit` environment and audited exact deployed `main` commit `c723a8932e697e7f86860eb57f02f551ab6baf5e`. Dependency install, read-only runner execution, safe JSON validation/print, and artifact upload all passed. The runner returned controlled exit `2`, so the final fail-closed gate failed as designed. Safe artifact `8373345476` is 958 bytes, expires 2026-07-30, and has digest `sha256:7080d322dc8f9d6bd3700e691e0a33fb876a585a751da42b685829b35384fa9b`.
+
+The authenticated audit returned valid contracts for both approved projects. Byron `cmrkg5g320000l204s3cz3kj0` resolved SP3 and Kempsey `cmrkg7izz0005ld04dqz3t6rx` resolved E2, but each reported `quickSiteCheck.state=missing`, `detailedPlanningPack.state=missing`, `see.state=missing`, `referralEligibility=none`, and next action `generate_or_refresh_required_chain` with `qsc_missing`, `dpp_missing`, and `see_missing`. No production data was mutated. The runner also exposed audit-only identity false negatives: production addresses use canonical abbreviations plus `, Australia`, and both safe summaries carried `lgaCode=null`. Item 54 separates those representation issues from the real missing-chain result.
+
+Gate status: OPEN with valid live evidence. Item 52 is no longer awaiting its first execution, but neither Byron nor Kempsey passes. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred until normal-product saved chains pass independently.
+
+## 53) Protected remote commercial funnel audit execution lane — DONE/MERGED/DEPLOYED (2026-07-16)
+
+Purpose: provide a secure, manually dispatched GitHub Actions lane for the already-merged fail-closed Item 52 commercial funnel audit runner, so the approved live Byron/Kempsey audit can be run without pasting the private admin token into chat and without local execution.
+
+Status: DONE/MERGED/DEPLOYED/CONFIGURED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. The protected environment was subsequently configured with required-reviewer approval, main-only deployment policy, the private audit secret, and the three required variables. Run `29492417071` proved the lane executes safely; attempt 2 authenticated and produced the valid non-ready Item 52 evidence above. No projects were created and no production data was mutated. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
+
+Files changed in this slice:
+
+- `.github/workflows/commercial-funnel-live-audit.yml` — adds a `workflow_dispatch`-only protected environment lane requiring exact confirmation `RUN APPROVED READ-ONLY AUDIT`, `main` branch guard, read-only contents permission, non-cancelling concurrency, 10-minute timeout, immutable official action pins, `npm ci --ignore-scripts`, exactly one execution of `./node_modules/.bin/tsx scripts/audit-commercial-funnel.ts`, stdout capture to `commercial-funnel-audit.json`, JSON validation before display/upload, 14-day safe summary artifact retention, and final exit-0-only enforcement.
+- `tests/commercial-funnel-audit-workflow.test.ts` — static Node contract coverage for manual-only trigger, protected environment, main-only guard, approved vars/secret mapping, `github.sha` expected commit, exact runner invocation, forbidden commands/surfaces, JSON validation, safe artifact upload, final gate policy, and official full-SHA action pins.
+- `README.md` — adds protected remote-run setup and operator steps without secret or project values.
+- `docs/project-memory/decision-register.md` — adds DR-022 for the protected manual remote audit lane policy.
+
+Pinned official action SHAs selected for this lane:
+
+- `actions/checkout` v6.0.2 — `de0fac2e4500dabe0009e67214ff5f5447ce83dd`.
+- `actions/setup-node` v6.4.0 — `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
+- `actions/upload-artifact` v7.0.1 — `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`.
+
+Configuration completed on 2026-07-16: the protected GitHub environment `commercial-funnel-audit` has required reviewer `RobbieTall`, administrator bypass disabled, selected-branch policy limited to `main`, secret `PLANNERA_AUDIT_ADMIN_TOKEN`, and variables `PLANNERA_AUDIT_BASE_URL`, `PLANNERA_BYRON_PROJECT_ID`, and `PLANNERA_KEMPSEY_PROJECT_ID`. Secret values remain undocumented. The effective production admin credential follows `ADMIN_ACCESS_TOKEN` → `INGEST_ADMIN_SECRET` → `ADMIN_SECRET` precedence; the audit secret must match the first configured value. The workflow continues to derive `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`.
+
+Checks for this slice:
+
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts` — 6 focused workflow contract tests passed.
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts tests/commercial-funnel-audit-runner.test.ts` — 12 focused workflow plus existing runner tests passed.
+- PASS: `ruby -e "require 'yaml'; YAML.load_file('.github/workflows/commercial-funnel-live-audit.yml'); puts 'YAML parsed'"` — non-executing YAML syntax parse/check completed for `.github/workflows/commercial-funnel-live-audit.yml`.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm test` — full suite passed with 77 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run build`.
+- PASS: PR #295 squash-merged to `main` at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916`; the reviewed final head was `fb752ea50ae307907549b945f6e7160920a806be` and the merged diff remained exactly five intended files.
+- PASS: Vercel reported success for merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` at `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`.
+- NOT RERUN FOR REVIEW CORRECTION: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` — intentionally not run again per review instruction; prior Item 53 verification had already recorded the known Codex Cloud `P1001` limitation.
+
+Lane status: DONE. Item 52 commercial readiness remains OPEN because the protected run returned valid exit `2`; both approved saved chains are missing.
+
+
+## 54) Live golden identity hardening and saved-output remediation — IDENTITY SLICE DONE/MERGED/DEPLOYED; SAVED-OUTPUT REMEDIATION OPEN (2026-07-16)
+
+Purpose: act on the first valid protected production audit without weakening its fail-closed contract or manufacturing readiness. This item separates representation-only identity mismatches from the real missing QSC → DPP → SEE chains.
+
+Identity slice completion:
+
+- PR #297 merged at exact commit `5cb75a51894aab40e701bff4d3f541cbff85e71d`.
+- Vercel production deployment succeeded at `https://vercel.com/robbietalls-projects/plannera-ab/BWaaGemdMei5UcPDNLUtquWCvdWs`.
+- Golden identity comparison now canonicalises only case/punctuation, `Road`/`Rd`, `Street`/`St`, whitespace, and the optional `Australia` suffix. Site number, locality, postcode, zone, and approved project identifier still must match.
+- The audit contract's canonical `lgaName` is accepted when `lgaCode` is null after removing council-type suffixes such as `Shire` and `Council`. Missing or conflicting LGA identity still fails.
+- Every real readiness failure remains fail-closed. Identity formatting cannot upgrade missing, unresolved, stale/mismatched, malformed, uncited, broken-provenance, or legacy artefacts.
+- Focused regression coverage was added for the exact production address/LGA representations. No local build/tests were run per operator instruction; the remote Vercel preview and merged production deployments passed.
+
+Post-merge protected evidence:
+
+- [Commercial Funnel Live Audit run 29494711998](https://github.com/RobbieTall/Plannera-ab/actions/runs/29494711998) was manually dispatched from `main`, approved through the protected environment, and checked exact merge commit `5cb75a51894aab40e701bff4d3f541cbff85e71d`.
+- Dependency installation, runner execution, JSON validation/print, and artifact upload passed. The controlled runner returned exit `2`, so the final gate failed as designed.
+- Safe artifact `8373903558` is 939 bytes, expires 2026-07-30, and has digest `sha256:603372049b35dda723645bf15b392b753e3a023796d8b6d79a12f58783a1ca32`.
+- Byron `cmrkg5g320000l204s3cz3kj0` passed approved project/address/LGA/SP3 identity validation. Kempsey `cmrkg7izz0005ld04dqz3t6rx` passed approved project/address/LGA/E2 identity validation. The prior `site_address_mismatch` and `site_lga_mismatch` reasons are absent for both.
+- Both projects still truthfully report `quickSiteCheck.state=missing`, `detailedPlanningPack.state=missing`, `see.state=missing`, `referralEligibility=none`, and next action `generate_or_refresh_required_chain`. No production data was mutated.
+
+Remaining saved-output remediation:
+
+1. Obtain a real user-approved proposed-works brief for each approved golden project.
+2. Through the normal user-facing product workflow, save a cited current-site Quick Site Check, generate the Detailed Planning Pack, and generate SEE only when the pack is commercial-ready. This is an intentional production action and must not be performed by the audit or an admin/database backfill.
+3. Rerun the protected audit. Byron and Kempsey must independently return exact current-site provenance and runner exit `0` before Item 52 can close.
+4. Only after that evidence may Item 40 billing/auth/payment gating be reconsidered.
+
+Gate status: OPEN for genuine saved outputs only. The audit now cleanly distinguishes site identity from the remaining commercial blocker.
+
+
+## 55) Normal-workspace-accessible production golden projects — BLOCKED ON EXPLICIT PRODUCTION APPROVAL (2026-07-16)
+
+Finding: after Item 54's clean protected audit, both historical approved project records were opened through the deployed normal workspace using their internal IDs and their returned public IDs. All four normal-workspace URLs rendered `Project not found`, while the admin read-only audit continued to resolve both records. No generation or production mutation was attempted.
+
+Root cause: the normal workspace correctly uses requester ownership/session access through `getProjectForRequester`; the admin audit intentionally uses authorised identifier lookup without granting workspace access. The historical QA projects belong to an inaccessible prior requester/session. Admin audit visibility is therefore not proof that an operator can complete the real user funnel.
+
+Decision for the next production action:
+
+- Do not weaken workspace ownership, expose admin-readable projects publicly, claim historical projects across requester boundaries, database-backfill ownership, or add an audit-only generation path.
+- After explicit operator approval, create two fresh pilot projects through the normal production UI under the current requester/session.
+- Use the fixed golden sites: Byron `45 Broken Head Road, Byron Bay NSW 2481` / SP3 and Kempsey `52 Belgrave St, Kempsey NSW 2440` / E2.
+- Use only explicitly approved pilot proposal briefs. Recommended low-complexity briefs:
+  - Byron: `Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.`
+  - Kempsey: `Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.`
+- Save a cited current-site Quick Site Check first. Generate the Detailed Planning Pack from that saved QSC. Generate SEE only if the pack is commercial-ready; otherwise preserve the unresolved pack and exercise the consultant-referral branch honestly.
+- Replace the protected GitHub environment project-ID variables only after each fresh project's site identity and normal workspace access are verified. Never place IDs or secrets in public logs beyond the approved safe summary contract.
+- Rerun the protected audit on the exact deployed commit and record the new safe artifact.
+
+Approval boundary: creating projects, setting production sites, and generating/saving QSC/DPP/SEE or referral artefacts are intentional production mutations and may invoke retrieval/model workflows. They require explicit user approval for these exact two sites and proposal briefs before execution.
+
+Success signal: each protected-audit golden ID opens in the normal product workspace for the current requester and produces an honest, provenance-valid funnel result through the same UI and APIs a pilot user would use.
+
+## 56) Deterministic Byron/Kempsey commercial funnel golden CI — DONE/MERGED (2026-07-16)
+
+Purpose: make the evidence-gated QSC → Detailed Planning Pack → SEE/referral contract an ordinary remote pull-request check while live saved-output work remains blocked. The repository previously relied on Vercel deployment status plus fragmented focused tests; there was no secret-free CI check that persisted both launch-LGA chains through the real artefact services and then evaluated the saved result with the production audit logic.
+
+Implementation in this slice:
+
+- `tests/commercial-funnel-golden.test.ts` uses an in-memory Prisma-compatible repository and the real `createQuickSiteCheckArtefact`, `createDetailedPlanningPackArtefact`, `createPreSeePlanningMemoArtefact`, `createExpertReviewRequestArtefact`, and `auditCommercialFunnel` functions.
+- The fixed Byron `45 Broken Head Road` SP3 and Kempsey `52 Belgrave St` E2 sites use the exact low-complexity pilot briefs recorded in Item 55.
+- Byron and Kempsey each prove a persisted cited QSC → five-topic cited DPP → DPP-derived SEE → consultant handoff → `quality_chain_referral` audit result with exact QSC/DPP/SEE provenance.
+- A separate Kempsey evidence-gap journey removes parking/access evidence, proves the DPP remains unresolved, SEE generation rejects without persistence, the review package omits SEE and disclaims readiness, and the audit returns `unresolved_pack_referral`.
+- `tests/commercial-funnel-golden-workflow.test.ts` fails closed if the workflow gains secrets, a protected environment, database/build/deploy/model/live-audit commands, unpinned actions, or loses the required commercial tests.
+- `npm run test:commercial-funnel` runs the new journeys plus existing QSC persistence, DPP/SEE generation, next-action, referral/handoff, audit helper/route, audit runner, and workflow-contract regressions.
+- `.github/workflows/commercial-funnel-golden.yml` runs that focused command on pull requests, pushes to `main`, and manual dispatch. It uses read-only repository permission, immutable action pins, `npm ci --ignore-scripts`, an explicit database-free Prisma client generation step, no secrets, and no build or production access.
+
+Evidence boundary: this is deterministic non-production regression evidence only. It must not be reported as live planning-data accuracy, live saved-output success, deployment success, or production commercial readiness. Item 52 remains OPEN, Item 55 remains blocked on an explicitly approved normal-product production run, and Item 40 billing/auth remains deferred.
+
+Verification for this slice: no local build or test command was run, per operator instruction. The GitHub Actions check is the authoritative execution surface. Final-head review run [29501006341](https://github.com/RobbieTall/Plannera-ab/actions/runs/29501006341), job `87629618176`, passed in 50 seconds on `a0c5dc0d94e9b110c01c218921c419ec4aaf169c`; Vercel preview and all PR checks were green. PR #300 merged to `main` at exact merge commit `70edf69eccc5365ee5247efa5f8cefefc5ec7885`.
+
+Lane status: DONE. This deterministic gate is now required regression evidence; Items 52 and 55 remain open at their documented production boundaries.
+
+## 57) Strict persisted LEP and SEE source-snapshot provenance — DONE/MERGED (2026-07-17)
+
+Purpose: close a consultant-facing evidence integrity gap left by ref-only provenance checks. A client-shaped QSC control could retain a plausible numeric value, clause reference, and `Cited` label without server evidence; a legacy or altered SEE could also preserve matching QSC/DPP IDs and valid-looking refs while changing copied controls, permissibility, proposal text, DCP bodies, excerpts, or assessments.
+
+Implementation in this slice:
+
+- QSC persistence treats height, floor space ratio, and minimum lot size as server-derived controls. A control is Cited only when retrieved LEP text or a server-returned structured Cited control supplies both value and clause reference; otherwise value, ref, detail, source claim, confidence, and interpretation are reset to an honest `Unavailable` control.
+- A verified numeric control requires `lepSource=true`, a present non-empty value, and a non-empty clause reference. A client-supplied `confidence=Cited` or ref cannot satisfy that invariant.
+- Optional QSC setback, parking, and active-frontage/built-form controls are rebuilt from the server-returned DCP controls. A server Cited value/ref becomes a DCP-sourced card; a posted client card without that evidence is reset to an honest DCP `Unavailable` state.
+- Clause 2.3 permissibility provenance is independent: the QSC must have a Cited evidence summary with at least one DB-backed zone objective and at least one land-use entry, plus a saved permissibility result and LEP instrument. Numeric controls alone cannot create a clause 2.3 citation.
+- SEE generation copies sanitised QSC controls and emits LEP citations only for verified controls/permissibility.
+- SEE audit and consultant handoff require an exact current-source snapshot: project/proposal identity, LEP instrument, permissibility, copied controls, DPP clause metadata/body, source excerpts, and all consistency assessments must match the source QSC/DPP. Matching artefact IDs or citation refs alone are insufficient.
+- Review packages rebuild cited sources from the verified QSC core controls and source DPP; they do not trust a SEE citation list. Unsupported controls become confidence gaps and altered SEE artefacts remain history only.
+- The production read-only audit applies the same exact snapshot helper before returning `quality_chain_referral`.
+
+Focused regression coverage:
+
+- QSC persistence clears forged client numeric and optional DCP controls even when a separate DB-backed zone table keeps the overall LEP summary Cited.
+- Server-returned Kempsey E2 DCP controls persist with their exact DCP value, clause ref and source detail without inflating the LEP evidence summary.
+- LEP lookup failure persists honest Unavailable controls rather than fallback client values.
+- SEE generation clears legacy controls lacking server provenance and withholds clause 2.3 when zone-table evidence is absent.
+- Review handoff rejects altered QSC/SEE snapshots and excludes forged refs.
+- Commercial audit rejects matching-ID SEE payloads with changed control values, DCP body text, permissibility, proposal text, or unsupported clause 2.3 evidence.
+- Existing Byron SP3 and Kempsey E2 commercial golden journeys remain in the focused remote gate.
+
+Evidence boundary: this hardens deterministic persistence and handoff invariants. It does not prove live Byron/Kempsey planning-data accuracy, create production artefacts, close Item 52/55, or unlock Item 40 billing/auth. No local build or test command is run; the secret-free Commercial Funnel Golden Gate and Vercel preview are the review authority.
+
+Verification evidence: no local build or test command was run, per operator instruction. Initial PR review run [29505222238](https://github.com/RobbieTall/Plannera-ab/actions/runs/29505222238), job `87644106899`, passed the lifecycle-script-free install, database-free Prisma generation, and complete `test:commercial-funnel` command on head `a906f789e33154156bb753eff0912bce6d5147cd`. Vercel preview `BY9cWkMDtAuZDkioUbo1Y7wQqUUi` also passed. Item 57 merged in PR #301 at exact merge commit `27475cd513c280ea163377ef2973bdfd146dda29`. The documentation evidence commit retained the green final-head golden gate and Vercel check before merge.
+
+
+
+## 58) Topic-specific DCP evidence qualification for commercial DPP — DONE/MERGED (2026-07-17)
+
+Purpose: prevent a generic/current-zone Part B DCP row or source-reference-only clause from being promoted as Cited evidence for unrelated paid Detailed Planning Pack topics. Item 57 exact snapshot provenance proves the saved SEE/DPP chain was not altered; it does not, by itself, prove that each DPP topic was genuinely supported by topic-relevant DCP text.
+
+Implementation in this slice:
+
+- DPP generation now passes the required topic ID into `filterSiteApplicableDcpClauses` for every topic instead of a single first-word query token or no topic for local controls.
+- Site applicability still preserves the existing current-zone behaviour and zone/scope conflict exclusions, but Part B/all-development evidence must also match the requested topic through the actual title, heading path, or body text.
+- Deterministic topic matchers cover setbacks/building lines/front-side-rear-street boundary equivalents, parking/access/driveway/loading/service-access equivalents, built-form/active-frontage/street-frontage/shopfront/building-design equivalents, landscaping/open-space/deep-soil/tree-planting equivalents, and explicit general/local/all-development/design/site/development-control terms for local controls.
+- Source refs, Part/chapter labels, current-zone mentions, and generic Part B provenance no longer qualify a DPP topic by themselves. Missing topic evidence remains `Unavailable` with unresolved-topic reasons.
+- `commercialReady` remains fail-closed and is true only when all five required DPP topics are genuinely Cited.
+
+Focused regression coverage:
+
+- A single generic Kempsey E2/current-zone Part B clause returned for every DPP query leaves all five topics Unavailable and `commercialReady=false`.
+- A Part B clause with actual parking/access/loading text qualifies for `parking_access` only and does not populate unrelated topics.
+- The deterministic Byron SP3 and Kempsey E2 commercial-ready golden journeys and the Kempsey unresolved referral branch remain in `npm run test:commercial-funnel`.
+
+Evidence boundary: this is a deterministic DPP evidence-quality hardening slice only. It does not call live planning services, mutate production data, create production projects, close Item 52 or Item 55, or unlock Item 40 billing/auth. Items 52/55 and billing/auth remain explicitly open/deferred.
+
+Verification evidence: Codex Cloud ran and passed `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Build/vercel-build was not run per operator instruction. The final PR head still required the secret-free Commercial Funnel Golden Gate and Vercel preview to pass before merge.
+
+Status reconciliation: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. The existing green gate/Vercel review evidence above remains the Item 58 verification record.
+
+
+## 59) Substantive DCP requirement qualification for paid DPP topics — DONE/MERGED (2026-07-17)
+
+Purpose: tighten the now-merged Item 58 topic-specific DCP qualification so a paid Detailed Planning Pack topic cannot be sold as Cited when the body merely names the topic or says vague controls apply. Item 59 follows merged Item 58 sequentially: Item 58 merged in PR #302 from exact head `558ca9d5fcaf7ea85c40e155739e9c3103ccb943` at exact merge commit `963662cac8418767b901a4355577614ae07eb888`. Item 59 merged in PR #303 from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
+
+Invariant: a DPP topic may be Cited only when evidence is site-applicable, topic-relevant, has a real source reference, and the clause body itself contains substantive requirement content. Substantive content may be quantitative (number/unit, ratio, percentage, nil/zero, rate) or qualitative when normative control language states a concrete topic-relevant prescription or prohibition. Refs, titles, headings, topic tags, Part/chapter labels, and current-zone metadata may establish provenance/topic classification, but never substantive sufficiency by themselves.
+
+Focused coverage:
+
+- A current-zone Part B parking clause with parking/access/loading words and the vague body “Parking, driveway access, loading and service access controls apply where relevant.” remains `Unavailable`, has no citations, and keeps `commercialReady=false`.
+- Title/heading/ref-only numeric-looking or topic text cannot satisfy substance when the body is only overview/admin text.
+- A mixed objectives-plus-controls body qualifies when the body contains a genuine numeric or strong prescriptive control for the intended topic.
+- Objective-only “To ensure/provide…” prose remains `Unavailable`, and an objective sentence for one topic cannot be paired with a separate substantive control sentence for another topic.
+- A substantive requirement containing “where relevant” still qualifies when the same sentence/control row states a concrete topic-relevant control.
+- Checked-in Byron DCP B4 examples using “should” and headroom bodies whose body text says “cars” / “accessible spaces” qualify `parking_access` without relying on heading metadata alone for substance.
+- A quantitative parking requirement qualifies `parking_access` only.
+- A qualitative prescriptive active-frontage/built-form requirement qualifies `built_form_active_frontage` only.
+- Byron SP3 and Kempsey E2 commercial-ready golden journeys, unresolved referral branch, Item 57 forged-snapshot tests, and Item 58 topic-isolation tests remain preserved in the focused commercial-funnel suite.
+
+Evidence boundary: reject table-of-contents/index text, headings only, objectives, overviews, administrative/topic-listing text, and generic “controls apply where relevant” statements. Repository evidence remains limited for real Kempsey PDF body shapes because the checked-in Kempsey HTML is a placeholder and 2026 Kempsey ingestion fetches live PDFs at ingest time. Do not add schema/migrations, billing/auth/paywall, production access, live retrieval, production projects, or production mutation. This deterministic hardening does not prove live planning-data accuracy, close Item 52/55, or unlock Item 40 billing/auth.
+
+Verification commands for this slice: `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: DONE/MERGED — PR #303 merged from exact head `03132bd473e2b13d0ad5d47356da7b697217b7bd` at exact merge commit `ac34b1b336706db7d77fc6aa39faf33381af095c`.
+
+## 60) Exact DCP requirement excerpts through SEE/referral handoff — DONE/MERGED (2026-07-17)
+
+Purpose: close the consultant-inspectability gap between the paid Detailed Planning Pack and downstream SEE/referral handoff. Item 59 correctly decides whether a topic is Cited from a topic-matching substantive sentence/control row, but the saved citation excerpt still used the broader clause body, allowing objectives or unrelated controls to travel into SEE and consultant review text.
+
+Invariant: DPP citation excerpts must contain only the exact normalized sentence/control row(s) that independently match the requested topic and contain a quantitative requirement or genuine qualitative prescription/prohibition. Objective-only, index/admin/overview/topic-list text, generic “controls apply” wording, and controls for other topics must not qualify a topic or appear in that topic's excerpt. SEE `dcpClauses`, `sourceExcerpts`, prompt grounding and exact-provenance checks must carry the persisted excerpt byte-for-byte. Expert Review Request payloads and copied/downloaded handoff text must include the selected current DPP's cited requirements so a consultant can inspect the exact requirement without opening the app.
+
+Focused coverage:
+
+- Mixed active-frontage objective plus parking-only control yields a parking citation whose excerpt is exactly the parking control row, excludes the active-frontage objective, and leaves built-form Unavailable.
+- Newline/table-style rows cannot borrow topic or substance from neighbouring rows; only independently qualifying rows appear.
+- Multiple same-topic qualifying rows from one clause are preserved in deterministic source order and deduplicated; unrelated rows are absent.
+- Quantitative and qualitative controls both yield exact excerpts; vague/objective-only cases remain Unavailable.
+- Byron “should” and headroom examples remain Cited with precise persisted excerpts.
+- SEE copies exact persisted excerpts into `dcpClauses`, `sourceExcerpts`, and prompt inputs, and exact provenance continues to reject tampering.
+- Expert review request payload and exported text contain topic/ref/hierarchy/exact requirement; broad unrelated objective text is absent.
+- Unresolved-pack referrals still include any available exact cited requirements without claiming SEE readiness.
+- Existing Byron SP3 and Kempsey E2 commercial golden journeys plus Item 57/58/59 protections remain in the required verification suite.
+
+Limits: no schema migration, no decorative UI, no billing/auth/paywall, no production access, no production project creation, no live planning-data retrieval, and no production audit completion claim. This does not prove live Byron/Kempsey planning accuracy, billing readiness, or merge status.
+
+Verification commands for this slice: `npm run test:commercial-funnel`, focused review-request handoff tests, directly relevant DPP exact-excerpt tests, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Evidence boundary: local deterministic tests can prove persistence, exact-copy, and provenance invariants only. Protected live saved-output audit and any production readiness claims remain outside this slice.
+
+Status: DONE/MERGED — PR #304 merged from exact head `d694d6d0b57c0d4cf39fd25b61afddbbcc9b6eae` at exact merge commit `4ede5ca0b04644876ae48315145852b9e317ee51`.
+
+
+## 61) Proposal-scoped DPP selection in the normal workspace — DONE/MERGED (2026-07-17)
+
+Purpose: close the normal-user workflow gap where a current-site Detailed Planning Pack could remain selected after the user changed the proposed-works brief. The service already persists the brief into the DPP and downstream SEE/referral provenance, but the workspace active-pack selector treated only site scope and recency as active state. A pilot user could therefore edit “what I want to build” and still see the previous pack driving readiness/SEE prompts until they manually noticed the mismatch.
+
+Invariant: the active normal-workspace Detailed Planning Pack must match both the current site and the current proposed-works brief when a brief is present. Current-site packs generated for a different brief remain saved history, but are proposal-stale for next-action readiness and downstream SEE/referral prompting. The workspace must surface the mismatch and normal SEE/expert-review write requests must send the intended DPP artefact ID plus expected proposal brief. The server must resolve that exact owned current-site DPP, verify intact cited QSC provenance and normalized proposal equality, and reject missing, stale-site, wrong-project, forged-ID, malformed, unresolved-for-SEE, or proposal-mismatched inputs before persistence without falling back to another/newer pack.
+
+Focused coverage:
+
+- The shared DPP selector still ignores different-site stale packs and chooses the newest matching current-site pack deterministically.
+- When a current proposal brief is supplied, a newer current-site pack for a different brief is ignored in favour of an older matching pack.
+- When only current-site packs for different briefs exist, the selector returns no active pack, so SEE/readiness progression fails closed until regeneration.
+- SEE service coverage binds generation to an explicit selected DPP/proposal, proves normalized proposal equality, rejects mismatches without a second persistence, and does not fall back to a different pack when an explicit source is supplied.
+- Expert-review service coverage binds an unresolved referral to the explicit selected DPP/proposal, preserves the honest no-SEE-readiness branch, and rejects proposal mismatches without persistence.
+- The commercial golden journey now sends explicit source DPP/proposal bindings for commercial-ready SEE/review and unresolved referral branches, and includes mismatch rejection.
+- `npm run test:commercial-funnel` includes the selector, exact-source SEE, unresolved referral, audit, and handoff coverage.
+
+Evidence boundary: this is a normal-workspace source-selection plus server write-boundary hardening slice only. Explicit binding is enforced for the normal current workspace requests; compatibility requests that omit both source DPP ID and expected proposal retain the existing newest-current resolver and are documented as legacy only. This does not change database schema, billing/auth/paywall, ownership/session controls, production access, live retrieval, production projects, or live audit status. It does not prove live Byron/Kempsey planning accuracy, close Items 52/55, or unlock Item 40.
+
+Verification commands for this slice: focused selector test, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: DONE/MERGED — PR #305 merged from exact head `694f5d3deeb373857f7b01de0bc087906d2484cc` at exact merge commit `bb874fe4642664fa2ccbc14ffc5475dbf6615467`.
+
+## 62) Exact proposal/DPP-scoped displayed SEE and Expert Review Request readiness — IN REVIEW (2026-07-17)
+
+Purpose: close the remaining normal-workspace display/readiness gap after Item 61. New SEE/referral writes are exact-bound to a selected proposal-matching DPP, but the current Outputs cards and readiness selectors still accepted any current-site SEE or Expert Review Request. Older proposal A outputs could therefore remain visible or advance commercial readiness after a user moved to proposal B on the same site/QSC.
+
+Invariant: current normal-workspace SEE and Expert Review Request outputs are scoped to the active current-site, proposal-matching DPP. A displayed SEE must point to the active DPP artefact ID, the active DPP source Quick Site Check artefact ID, and a normalized proposed-works summary equal to the active DPP proposal, while retaining existing quality checks. A displayed Expert Review Request must point to the active DPP artefact ID, normalized proposal brief, active source QSC, matching `commercialReady` state, and, when present, a source SEE from the same active DPP. Legacy, malformed, forged, different-DPP, different-proposal, or stale-site outputs remain history only. Strict normal-workspace DPP selection fails closed when the proposal brief is empty, and normal SEE/review handlers never POST omitted DPP/proposal bindings.
+
+Focused coverage:
+
+- Newer proposal B DPP plus older proposal A DPP/SEE/review on the same site/QSC: selecting A shows only A exact outputs; selecting B hides A outputs and requires B SEE/referral.
+- Current B pack plus old A SEE with plausible site/QSC/readiness data yields no displayed/current SEE and no SEE quality readiness for B.
+- Forged/legacy SEE without exact DPP ID, or with matching QSC but different proposal, is ignored.
+- Exact B SEE is selected deterministically by generated/captured time with stable ID fallback even when unrelated A SEE artefacts exist.
+- Exact commercial-ready review packages with exact B SEE are selected; unresolved exact B referrals without a SEE remain selectable; A/legacy/malformed review packages are ignored.
+- Untouched reload hydrates the newest current-site saved DPP proposal after server artefacts load; typed edits, including deliberate clearing, are never overwritten.
+- Strict normal-workspace empty proposal state selects no DPP/output and cannot issue SEE/review POSTs without both exact binding fields.
+- Existing Item 61 selection/mismatch behaviour, Byron SP3/Kempsey E2 golden journeys, unresolved referral branch, and exact server-write tests remain in the commercial-funnel suite.
+
+Evidence boundary: this is a client selector/display/readiness and normal-workspace request-boundary hardening slice only. Old outputs remain visible in general artefact history but are scoped out of current Outputs cards/readiness/CTA when they do not exactly match the active proposal/DPP. No schema/migrations, billing/auth/paywall, production access, production mutation, production project creation, live retrieval, live-audit completion claim, broad redesign, or server-only imports into client code.
+
+Verification commands for this slice: focused selector/output tests, `npm run test:commercial-funnel`, `npm run lint`, and `npx tsc --noEmit`. Do not run `npm run build` or `npm run vercel-build` for this item.
+
+Status: IN REVIEW — not merged.
+
+## 62) Exact Proposal/DPP Scoped Current Outputs — DONE/MERGED ✓
+
+Item 62 is DONE/MERGED in PR #306 from exact head `02eeadb9c85d4b1a0ae6b6d907136e6c40ec1c32` at exact merge commit `e66f0543d3e3c268e1a52c71624eac40de4de061`. The evidence/provenance funnel is now exact proposal/DPP scoped for normal current-workspace SEE and expert-review outputs. This does not close Items 52/55 live completion and does not enable Item 40 billing/auth/paywall.
+
+## 63) Address-First Quick Site Check Entry and Requester Project Continuity — IN REVIEW
+
+Review state (2026-07-17): PR #307 is open. The Commercial Funnel Golden Gate and Vercel preview checks are green; the rendered address-first entry was visually verified with customer-facing example copy, compact 8px header controls, a content-height scope panel, and nonblank-address button gating. No project submission, production access/mutation, live retrieval, merge, or billing/auth/paywall change was performed.
+
+Purpose: replace the generic AI marketing landing hero with the actual free Quick Site Check entry and make project continuity deterministic for both signed-in and guest/auth-bypass requesters.
+
+Invariant:
+- First viewport names Plannera and Quick Site Check, labels the primary input `Site address`, and uses `Run free site check` as the primary action.
 - Landing submission preserves `/api/projects/ensure` → `/projects/{id}/workspace?prompt=...&initialAddress=...` with trimmed, safely encoded address seeds, duplicate-submit protection, and retryable on-page errors.
 - Launch examples are only `45 Broken Head Road, Byron Bay NSW 2481` and `52 Belgrave St, Kempsey NSW 2440`; no generic Australia prompts or broad nationwide-readiness claims.
 - Copy states the Byron/Kempsey NSW pilot scope, the free site/zone/key-LEP-control coverage, DPP follow-up for proposal-specific DCP detail, and the professional-advice limitation.
