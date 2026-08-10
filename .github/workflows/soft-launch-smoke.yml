@@ -1,0 +1,56 @@
+name: Soft launch smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soft-launch-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launch-gate:
+    name: Byron and Kempsey launch gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm exec prisma generate
+
+      - name: Run launch gate
+        shell: bash
+        run: |
+          set +e
+          npm run smoke:launch 2>&1 | tee launch-smoke.log
+          status=${PIPESTATUS[0]}
+          {
+            echo "## Byron + Kempsey launch gate"
+            echo
+            echo '~~~text'
+            cat launch-smoke.log
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
