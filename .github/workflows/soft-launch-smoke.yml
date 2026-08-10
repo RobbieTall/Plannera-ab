@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.POSTGRES_PRISMA_URL || secrets.POSTGRES_URL || secrets.POSTGRES_URL_NON_POOLING }}
 
     steps:
       - name: Check out repository
