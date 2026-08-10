@@ -50,6 +50,14 @@ const cleanError = (error: unknown) => {
   return message.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-url-redacted]");
 };
 
+const getDatabaseUrl = () =>
+  process.env.DATABASE_URL ||
+  process.env.SMOKE_DATABASE_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  "";
+
 const checkLga = async (launch: LaunchLga) => {
   const coverage = await prisma.lgaCoverageState.findUnique({
     where: { lgaCode: launch.code },
@@ -186,15 +194,20 @@ const checkLga = async (launch: LaunchLga) => {
     record(
       launch.name,
       "provenance",
-      "amber",
-      "No council document or council-source chunks are recorded.",
+      "red",
+      "No council document or council-source chunks are recorded. Launch evidence requires provenance material before release.",
     );
   } else {
+    const provenanceState = !councilDocumentCount || !councilChunkCount ? "amber" : "green";
+    const provenanceReason =
+      councilDocumentCount && councilChunkCount
+        ? `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}.`
+        : `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}. Some provenance sources are still indexing.`;
     record(
       launch.name,
       "provenance",
-      "green",
-      `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}.`,
+      provenanceState,
+      provenanceReason,
     );
   }
 
@@ -243,13 +256,15 @@ const printSummary = async () => {
 };
 
 const main = async () => {
-  if (!process.env.DATABASE_URL) {
+  const databaseUrl = getDatabaseUrl();
+
+  if (!databaseUrl) {
     record("Global", "database", "red", "DATABASE_URL is not configured.");
     return;
   }
 
   try {
-    const url = new URL(process.env.DATABASE_URL);
+    const url = new URL(databaseUrl);
     if (!["postgres:", "postgresql:"].includes(url.protocol)) {
       record("Global", "database", "red", "DATABASE_URL is not PostgreSQL.");
       return;
