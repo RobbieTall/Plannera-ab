@@ -27,6 +27,7 @@
     "nsw:data:test": "tsx scripts/nsw-data-check.ts",
     "nsw:lep:sources": "tsx scripts/list-nsw-lep-sources.ts",
     "mvp:byron:smoke": "tsx scripts/byron-mvp-smoke.ts",
+    "smoke:launch": "tsx scripts/launch-smoke.ts",
     "ingest:production": "bash scripts/ingest-production.sh",
     "test:node": "tsx --test tests/*.test.ts",
     "test:vitest": "vitest run --config vitest.config.ts",
