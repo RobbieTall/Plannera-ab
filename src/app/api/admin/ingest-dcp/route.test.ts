@@ -32,7 +32,7 @@ describe("POST /api/admin/ingest-dcp", () => {
     ingestCouncilDcpMock.mockResolvedValue({
       chunksCreated: 3,
       councilDocumentId: "council-document-1",
-      title: "Kempsey Development Control Plan 2013",
+      title: "Kempsey Development Control Plan 2026",
     });
 
     const response = await POST(makeRequest("KEMPSEY"));
@@ -45,7 +45,7 @@ describe("POST /api/admin/ingest-dcp", () => {
       ok: true,
       chunksCreated: 3,
       councilDocumentId: "council-document-1",
-      title: "Kempsey Development Control Plan 2013",
+      title: "Kempsey Development Control Plan 2026",
     });
   });
 
