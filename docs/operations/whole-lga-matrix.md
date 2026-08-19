@@ -64,6 +64,22 @@ The gate pins the current council editions rather than accepting any linked DCP 
 
 Kempsey DCP 2013 is historical evidence only. Council states that transition rules depend on application date, but it is not the current corpus for new applications from 1 July 2026. The active whole-LGA retrieval corpus must not mix stale DCP slugs with the current edition.
 
+### Kempsey 2026 ingestion contract
+
+The current Kempsey corpus is complete only when all five official council parts succeed in the same ingestion run:
+
+- [Part A - Explanation](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-a-explanation-kempsey-shire-council-development-control-plan-2026.pdf)
+- [Part B - Shire-wide requirements](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-b-shire-wide-requirements-kempsey-shire-council-development-control-plan-2026.pdf)
+- [Part C - Place-based requirements](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-c-place-based-requirements-kempsey-shire-council-development-control-plan-2026.pdf)
+- [Part D - Development requirements](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-d-development-requirements-kempsey-shire-council-development-control-plan-2026.pdf)
+- [Part E - Appendices](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-e-appendices-kempsey-shire-council-development-control-plan-2026.pdf)
+
+The ingester validates each response as a PDF and parses every part before opening its database transaction. A missing, invalid, or empty part stops the run without replacing existing evidence.
+
+A successful transaction replaces all active Kempsey DCP clauses and council-source chunks with the canonical `kempsey-dcp-2026` corpus, refreshes the authoritative council-document provenance, and sets coverage to `SEARCHABLE_READY`. It must not set `VERIFIED`; exact launch QA is a separate promotion step.
+
+Run current-edition ingestion only against an isolated Preview database branch. Production ingestion or schema work requires explicit owner approval. Never make the matrix green by retaining a partial corpus, mixing 2013 and 2026 clauses, weakening provenance, or promoting coverage without evidence.
+
 ## Acceptance boundary
 
 A green matrix proves that the committed 45-zone source inventory is populated and provenance-ready. It does not prove:
