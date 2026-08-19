@@ -20,6 +20,7 @@ type LaunchLga = {
   instrumentNeedle: string;
   requiredZones: string[];
   dcpQuery: string;
+  dcpSiteZone: string;
 };
 
 const LAUNCH_LGAS: LaunchLga[] = [
@@ -29,6 +30,7 @@ const LAUNCH_LGAS: LaunchLga[] = [
     instrumentNeedle: "byron",
     requiredZones: ["SP3", "R2", "R3"],
     dcpQuery: "SP3 tourist dual occupancy setbacks parking landscaping",
+    dcpSiteZone: "SP3 Tourist",
   },
   {
     code: "KEMPSEY",
@@ -36,6 +38,7 @@ const LAUNCH_LGAS: LaunchLga[] = [
     instrumentNeedle: "kempsey",
     requiredZones: ["E2", "SP2"],
     dcpQuery: "E2 commercial centre setbacks parking active frontage",
+    dcpSiteZone: "E2 Commercial Centre",
   },
 ];
 
@@ -48,6 +51,15 @@ const record = (lga: string, area: string, state: State, detail: string) => {
 const cleanError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   return message.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[database-url-redacted]");
+};
+
+const isHttpsUrl = (value: string | null | undefined) => {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 };
 
 const getDatabaseUrl = () =>
@@ -73,12 +85,19 @@ const checkLga = async (launch: LaunchLga) => {
       "red",
       `Coverage is ${coverage.state}; commercial launch requires VERIFIED.`,
     );
+  } else if (!coverage.lastPreparedAt) {
+    record(
+      launch.name,
+      "coverage",
+      "red",
+      "Coverage is VERIFIED but has no preparation timestamp.",
+    );
   } else {
     record(
       launch.name,
       "coverage",
       "green",
-      `VERIFIED${coverage.lastPreparedAt ? ` at ${coverage.lastPreparedAt.toISOString()}` : ""}.`,
+      `VERIFIED at ${coverage.lastPreparedAt.toISOString()}.`,
     );
   }
 
@@ -95,6 +114,8 @@ const checkLga = async (launch: LaunchLga) => {
       id: true,
       name: true,
       slug: true,
+      sourceUrl: true,
+      lastSyncedAt: true,
       _count: {
         select: {
           clauses: true,
@@ -120,6 +141,22 @@ const checkLga = async (launch: LaunchLga) => {
   }
 
   if (lep) {
+    if (!isHttpsUrl(lep.sourceUrl) || !lep.lastSyncedAt) {
+      record(
+        launch.name,
+        "LEP provenance",
+        "red",
+        `sourceUrl=${isHttpsUrl(lep.sourceUrl) ? "https" : "invalid"}, lastSyncedAt=${lep.lastSyncedAt ? lep.lastSyncedAt.toISOString() : "missing"}.`,
+      );
+    } else {
+      record(
+        launch.name,
+        "LEP provenance",
+        "green",
+        `HTTPS source recorded; synced at ${lep.lastSyncedAt.toISOString()}.`,
+      );
+    }
+
     const [objectives, landUses] = await Promise.all([
       prisma.lepZoneObjective.groupBy({
         by: ["zoneCode"],
@@ -190,30 +227,26 @@ const checkLga = async (launch: LaunchLga) => {
     record(launch.name, "DCP", "green", `${dcpClauseCount} clauses indexed.`);
   }
 
-  if (!councilDocumentCount && !councilChunkCount) {
+  if (!councilDocumentCount || !councilChunkCount) {
     record(
       launch.name,
       "provenance",
       "red",
-      "No council document or council-source chunks are recorded. Launch evidence requires provenance material before release.",
+      `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}. Both are required before release.`,
     );
   } else {
-    const provenanceState = !councilDocumentCount || !councilChunkCount ? "amber" : "green";
-    const provenanceReason =
-      councilDocumentCount && councilChunkCount
-        ? `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}.`
-        : `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}. Some provenance sources are still indexing.`;
     record(
       launch.name,
       "provenance",
-      provenanceState,
-      provenanceReason,
+      "green",
+      `documents=${councilDocumentCount}, sourceChunks=${councilChunkCount}.`,
     );
   }
 
   const results = await searchDcpClauses({
     query: launch.dcpQuery,
     lgaCode: launch.code,
+    siteZone: launch.dcpSiteZone,
     limit: 5,
   });
 
@@ -226,17 +259,33 @@ const checkLga = async (launch: LaunchLga) => {
     );
   } else {
     const top = results[0];
-    record(
-      launch.name,
-      "DCP retrieval",
-      "green",
-      `Top result: ${top.ref ?? "unreferenced"} ${top.title ?? top.headingPath.at(-1) ?? "untitled"} (score=${top.score}).`,
-    );
+    const cited =
+      Boolean(top.ref?.trim()) &&
+      Boolean(top.instrumentSlug?.trim()) &&
+      Boolean(top.bodyText.trim()) &&
+      Number.isFinite(top.score) &&
+      top.score > 0;
+
+    if (!cited) {
+      record(
+        launch.name,
+        "DCP retrieval",
+        "red",
+        `Top ${launch.dcpSiteZone} result lacks a positive score, clause reference, instrument slug, or substantive body.`,
+      );
+    } else {
+      record(
+        launch.name,
+        "DCP retrieval",
+        "green",
+        `Top ${launch.dcpSiteZone} result: ${top.ref} ${top.title ?? top.headingPath.at(-1) ?? "untitled"} (score=${top.score}).`,
+      );
+    }
   }
 };
 
 const printSummary = async () => {
-  console.log("\n[smoke:launch] Byron + Kempsey commercial launch gate\n");
+  console.log("\n[smoke:launch] Byron + Kempsey representative commercial preflight\n");
 
   for (const check of checks) {
     const marker =
