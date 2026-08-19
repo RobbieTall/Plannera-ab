@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { InstrumentType, Prisma, WorkspaceSourceType } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { indexWorkspaceChunks } from "@/lib/source-indexing";
 
 import { parseDcpDocument } from "./parser";
 import type { ParsedDcpClause } from "./parser";
