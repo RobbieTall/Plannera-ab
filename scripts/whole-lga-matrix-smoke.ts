@@ -19,6 +19,8 @@ type MatrixLga = {
   name: string;
   lepSlug: string;
   mapName: string;
+  expectedDcpSlug: string;
+  expectedDcpEdition: string;
   expectedZones: readonly string[];
 };
 
@@ -35,6 +37,8 @@ const MATRIX_LGAS: MatrixLga[] = [
     name: "Byron",
     lepSlug: "byron-lep-2014",
     mapName: "Byron Shire",
+    expectedDcpSlug: "byron-dcp-2014",
+    expectedDcpEdition: "2014",
     expectedZones: [
       "C1",
       "C2",
@@ -65,6 +69,8 @@ const MATRIX_LGAS: MatrixLga[] = [
     name: "Kempsey",
     lepSlug: "kempsey-lep-2013",
     mapName: "Kempsey",
+    expectedDcpSlug: "kempsey-dcp-2026",
+    expectedDcpEdition: "2026",
     expectedZones: [
       "C1",
       "C2",
@@ -316,28 +322,37 @@ const checkLga = async (matrix: MatrixLga) => {
       !clause.instrumentSlug?.trim() ||
       !clause.bodyText.trim(),
   ).length;
+  const staleDcpClauses = dcpClauses.filter(
+    (clause) => clause.instrumentSlug !== matrix.expectedDcpSlug,
+  ).length;
 
-  if (!dcpClauses.length || incompleteDcpClauses) {
+  if (!dcpClauses.length || incompleteDcpClauses || staleDcpClauses) {
     record(
       matrix.name,
       "DCP corpus",
       "red",
-      `clauses=${dcpClauses.length}, incomplete=${incompleteDcpClauses}.`,
+      `expectedSlug=${matrix.expectedDcpSlug}, clauses=${dcpClauses.length}, incomplete=${incompleteDcpClauses}, staleOrUnexpected=${staleDcpClauses}.`,
     );
   } else {
     record(
       matrix.name,
       "DCP corpus",
       "green",
-      `${dcpClauses.length} referenced, substantive clauses.`,
+      `${dcpClauses.length} referenced, substantive clauses for ${matrix.expectedDcpSlug}.`,
     );
   }
 
   const invalidDcpSources = councilDocuments.filter(
     (document) => !isHttpsUrl(document.sourceUrl),
   );
+  const currentEditionDocuments = councilDocuments.filter(
+    (document) =>
+      isHttpsUrl(document.sourceUrl) &&
+      document.title.includes(matrix.expectedDcpEdition),
+  );
   if (
-    !councilDocuments.length ||
+    councilDocuments.length !== 1 ||
+    currentEditionDocuments.length !== 1 ||
     !councilChunkCount ||
     invalidDcpSources.length
   ) {
@@ -345,14 +360,14 @@ const checkLga = async (matrix: MatrixLga) => {
       matrix.name,
       "DCP provenance",
       "red",
-      `documents=${councilDocuments.length}, sourceChunks=${councilChunkCount}, invalidHttpsSources=${invalidDcpSources.length}.`,
+      `expectedEdition=${matrix.expectedDcpEdition}, documents=${councilDocuments.length}, currentEditionDocuments=${currentEditionDocuments.length}, sourceChunks=${councilChunkCount}, invalidHttpsSources=${invalidDcpSources.length}.`,
     );
   } else {
     record(
       matrix.name,
       "DCP provenance",
       "green",
-      `documents=${councilDocuments.length}, sourceChunks=${councilChunkCount}; all document sources are HTTPS.`,
+      `edition=${matrix.expectedDcpEdition}, documents=1, sourceChunks=${councilChunkCount}; authoritative source is HTTPS.`,
     );
   }
 

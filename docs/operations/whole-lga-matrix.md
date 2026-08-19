@@ -55,6 +55,15 @@ Each council must also have:
 
 Missing evidence is red. Relative application paths do not establish authoritative DCP provenance and must not be made green by weakening the URL requirement.
 
+## Current DCP editions
+
+The gate pins the current council editions rather than accepting any linked DCP corpus:
+
+- Byron: [Byron Shire Development Control Plan 2014](https://www.byron.nsw.gov.au/Council/Plans-Strategies/Planning-Development-Strategies/Byron-Shire-Development-Control-Plan-2014), stored as `byron-dcp-2014`.
+- Kempsey: [Kempsey Development Control Plan 2026](https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan), effective 1 July 2026 and stored as `kempsey-dcp-2026`.
+
+Kempsey DCP 2013 is historical evidence only. Council states that transition rules depend on application date, but it is not the current corpus for new applications from 1 July 2026. The active whole-LGA retrieval corpus must not mix stale DCP slugs with the current edition.
+
 ## Acceptance boundary
 
 A green matrix proves that the committed 45-zone source inventory is populated and provenance-ready. It does not prove:
