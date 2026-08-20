@@ -15,7 +15,10 @@ import {
 } from "../src/lib/dcp/kempsey-ingestion";
 import { prisma } from "../src/lib/prisma";
 
-const APPROVED_BRANCH = "agent/item74c-whole-lga-matrix";
+const APPROVED_BRANCHES = new Set([
+  "agent/item74c-whole-lga-matrix",
+  "agent/item74d-spatial-provenance",
+]);
 const KEMPSEY_LEP_SOURCE_URL =
   "https://legislation.nsw.gov.au/view/whole/html/inforce/current/epi-2013-0712";
 
@@ -112,7 +115,7 @@ export const assertItem74cPreviewBoundary = () => {
     "Item 74C repair may run only in Vercel Preview",
   );
   assertCondition(
-    process.env.VERCEL_GIT_COMMIT_REF === APPROVED_BRANCH,
+    APPROVED_BRANCHES.has(process.env.VERCEL_GIT_COMMIT_REF ?? ""),
     "Item 74C repair may run only on the approved PR branch",
   );
   assertCondition(
@@ -423,7 +426,7 @@ export const runItem74cPreviewRepair = async () => {
   setStage("completed");
   return {
     ok: true as const,
-    branch: APPROVED_BRANCH,
+    branch: process.env.VERCEL_GIT_COMMIT_REF ?? "unknown",
     ingestion: {
       byron: {
         source: byronIngestion.source,
