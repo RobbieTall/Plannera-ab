@@ -1,6 +1,6 @@
 # Item 74D live spatial provenance smoke
 
-Status: **IMPLEMENTED / LIVE GREEN**
+Status: **IMPLEMENTED / LIVE GREEN / HOSTED BUILD GREEN**
 
 This gate checks the public NSW Land Zoning feature layer directly. For each
 LGA it selects a current official polygon by exact LEP instrument and zone,
@@ -30,7 +30,7 @@ official HTTPS NSW Land Zoning layer.
 
 ## Latest evidence
 
-Run 32362702543 completed successfully on 20 August 2026:
+Run 32366798528 completed successfully on 20 August 2026:
 
 | Flight | Feature | Result |
 | --- | --- | --- |
@@ -39,6 +39,11 @@ Run 32362702543 completed successfully on 20 August 2026:
 
 Both flights round-tripped to the same source feature and the gate reported
 SPATIAL PROVENANCE LIVE READY: 2/2.
+
+The clean Item 74D Vercel Preview deployment for head
+`40ea1ec835ada9a2a94e5edb46affdebe14aad5c` also reached READY after the
+normal non-mutating build ran `smoke:launch` at 18 green, 0 amber, 0 red and
+`smoke:whole-lga` at 60 green, 0 red.
 
 The gate is red when:
 
@@ -66,17 +71,17 @@ raw provider payload.
 ## Scope
 
 A green result proves live official-service connectivity and the two named
-zone-polygon evidence flights. It does not prove whole-LGA address resolution,
-database persistence, the Vercel application path, or submission-grade output.
-
-The isolated Vercel Preview flight remains required. It is currently waiting
-for explicit approval to delete one archived zero-write Neon Preview branch so
-the Item 74D branch can be provisioned.
+zone-polygon evidence flights. The READY Vercel deployment proves that the
+normal protected Preview build can connect to the isolated database and repeat
+the launch matrices. It does not prove authenticated address-level application
+resolution, durable provenance persistence, every-zone proposal flights, or
+submission-grade output.
 
 ## Safety
 
 - Production checkout remains disabled.
-- The command performs public read-only HTTP requests.
-- The command does not connect to a database.
-- The command does not mutate Production or Preview data.
+- The live command performs public read-only HTTP requests.
+- The live command does not connect to a database.
+- The clean hosted build is non-mutating.
+- Production data and schema were not changed.
 - Do not weaken an expected instrument or zone to make the gate green.
