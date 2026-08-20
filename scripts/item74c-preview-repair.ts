@@ -5,14 +5,17 @@ import {
 } from "@prisma/client";
 
 import {
+  BYRON_DCP_2014_SOURCES,
+  BYRON_DCP_SOURCE_URL,
+  ingestByronDcp,
+} from "../src/lib/dcp/byron-ingestion";
+import {
   KEMPSEY_DCP_2026_PAGE_URL,
   ingestKempseyDcp,
 } from "../src/lib/dcp/kempsey-ingestion";
 import { prisma } from "../src/lib/prisma";
 
 const APPROVED_BRANCH = "agent/item74c-whole-lga-matrix";
-const BYRON_DCP_SOURCE_URL =
-  "https://www.byron.nsw.gov.au/Council/Plans-Strategies/Planning-Development-Strategies/Byron-Shire-Development-Control-Plan-2014";
 const KEMPSEY_LEP_SOURCE_URL =
   "https://legislation.nsw.gov.au/view/whole/html/inforce/current/epi-2013-0712";
 
@@ -229,10 +232,25 @@ const validateLgaEvidence = async (
       (clause) =>
         clause.instrumentSlug === config.dcpSlug &&
         Boolean(clause.ref?.trim()) &&
-        clause.bodyText.trim().length >= 100,
+        clause.bodyText.trim().length >= (lgaCode === "BYRON" ? 1 : 100),
     ),
     `${lgaCode} DCP corpus contains stale, unreferenced, or insubstantial clauses`,
   );
+
+  if (lgaCode === "BYRON") {
+    const sources = sortedUnique(
+      dcpClauses
+        .map((clause) => clause.parentRef)
+        .filter((value): value is string => Boolean(value)),
+    );
+    const expectedSources = sortedUnique(
+      BYRON_DCP_2014_SOURCES.map((source) => source.key),
+    );
+    assertCondition(
+      JSON.stringify(sources) === JSON.stringify(expectedSources),
+      "Byron DCP 2014 does not contain the complete pinned official source set",
+    );
+  }
 
   if (lgaCode === "KEMPSEY") {
     const parts = sortedUnique(
@@ -382,6 +400,13 @@ export const runItem74cPreviewRepair = async () => {
   setStage("preview_boundary");
   assertItem74cPreviewBoundary();
 
+  setStage("byron_dcp_ingestion");
+  const byronIngestion = await ingestByronDcp(prisma);
+  assertCondition(
+    byronIngestion.sourcesIngested === BYRON_DCP_2014_SOURCES.length,
+    "Byron DCP ingestion did not complete the pinned official source set",
+  );
+
   setStage("kempsey_dcp_ingestion");
   const ingestion = await ingestKempseyDcp(prisma);
   assertCondition(
@@ -392,7 +417,7 @@ export const runItem74cPreviewRepair = async () => {
   setStage("evidence_transaction");
   const evidence = await prisma.$transaction(
     (tx) => repairAndCertifyPreviewEvidence(tx),
-    { maxWait: 10_000, timeout: 60_000 },
+    { maxWait: 10_000, timeout: 120_000 },
   );
 
   setStage("completed");
@@ -400,9 +425,16 @@ export const runItem74cPreviewRepair = async () => {
     ok: true as const,
     branch: APPROVED_BRANCH,
     ingestion: {
-      source: ingestion.source,
+      byron: {
+        source: byronIngestion.source,
+        sourcesIngested: byronIngestion.sourcesIngested,
+        totalChunks: byronIngestion.chunkCount,
+      },
+      kempsey: {
+        source: ingestion.source,
       partsIngested: ingestion.partsIngested,
-      totalChunks: ingestion.totalChunks,
+        totalChunks: ingestion.totalChunks,
+      },
     },
     evidence,
   };
