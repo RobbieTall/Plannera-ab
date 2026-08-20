@@ -1,6 +1,6 @@
 # Item 74D spatial provenance acceptance
 
-Status: **RESPONSE INTEGRATION IMPLEMENTED / HOSTED PREVIEW NOT EXECUTED**
+Status: **RESPONSE INTEGRATION IMPLEMENTED / HOSTED BUILD GREEN / ADDRESS FLIGHTS NOT EXECUTED**
 
 This slice defines and integrates the fail-closed evidence contract for
 address-level planning controls in Byron and Kempsey. Fresh site-context
@@ -37,7 +37,7 @@ and checks:
 - missing feature identifiers;
 - fixture and candidate fallbacks;
 - conflicting zones;
-- insecure or non-official service URLs; and
+- insecure or non-official service URLs;
 - timestamp preservation and invalid timestamps;
 - fresh authoritative response integration;
 - explicit launch-fixture and candidate labels; and
@@ -63,13 +63,29 @@ fields from a zone label.
 A durable schema change remains a separate, explicitly approved change because
 it could affect Production data.
 
-## Hosted Preview blocker
+## Hosted Preview evidence
 
-PR #344 reached GitHub CI but Vercel stopped before build with Resource
-provisioning failed. Read-only diagnosis confirmed the Neon project branch
-limit is exhausted, and no Item 74D Preview branch was created. An archived,
-unused Preview branch must be explicitly approved for deletion before Vercel
-can provision the isolated branch and run hosted address-level flight tests.
+After explicit approval to delete one archived zero-write Preview branch,
+Vercel provisioned isolated Neon branch
+`preview/agent/item74d-spatial-provenance`
+(`br-sweet-pine-a7m4u4fk`). A guarded one-time repair populated only that
+Preview branch. The repair hook was then removed.
+
+Clean head `40ea1ec835ada9a2a94e5edb46affdebe14aad5c` reached Vercel READY using
+the normal non-mutating build. Hosted results were:
+
+- `smoke:launch`: 18 green, 0 amber, 0 red;
+- `smoke:whole-lga`: 60 green, 0 red;
+- Spatial Provenance Acceptance run 32366798539: success;
+- Live NSW Spatial Provenance run 32366798528: success; and
+- Commercial Funnel Golden Gate run 32366798519: success.
+
+This proves protected Preview connectivity, whole-LGA launch evidence, the
+fail-closed response contract, and two current official polygon round-trips.
+It does not prove authenticated address-level resolution through the deployed
+application. That representative application flight remains required and must
+not print or persist address, coordinate, parcel, credential, or raw provider
+evidence in CI logs.
 
 ## Safety boundary
 
@@ -80,7 +96,6 @@ can provision the isolated branch and run hosted address-level flight tests.
 - Do not log addresses, coordinates, parcel identifiers, credentials, or raw
   provider payloads in CI output.
 - Use isolated Preview data for hosted checks.
-- Do not delete an archived Preview branch without explicit approval.
 - Keep operator review mandatory for ambiguity, boundary cases, unavailable
   services, and conflicting evidence.
 
@@ -88,6 +103,7 @@ can provision the isolated branch and run hosted address-level flight tests.
 
 This contract supports the spatial evidence required by the A$749 Statement of
 Environmental Effects and the A$49 Planning Controls Pack credit. It does not
-complete those product paths. Submission-grade document generation,
-evidence-aware uploads, polished DOCX/PDF output, credit handling, and
-whole-flow commercial acceptance remain separate Item 74 requirements.
+complete those product paths. Authenticated address-level application flights,
+durable persistence, submission-grade document generation, evidence-aware
+uploads, polished DOCX/PDF output, credit handling, and whole-flow commercial
+acceptance remain separate Item 74 requirements.
