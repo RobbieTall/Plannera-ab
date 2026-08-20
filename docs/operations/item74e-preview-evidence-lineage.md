@@ -12,19 +12,18 @@ As at 2026-08-21:
 
 - Item 74E Git branch: `agent/item74e-submission-see`
 - Item 74E Neon Preview: `preview/agent/item74e-submission-see`
-- Item 74E Neon branch ID: `br-winter-wind-a7otcmlx`
-- Item 74E branch parent: Production `main`
-- Item 74E branch writes: zero bytes at diagnosis
+- Item 74E Neon branch ID: `br-quiet-king-a71v3lv9`
+- Item 74E branch parent: verified Item 74D Preview `br-sweet-pine-a7m4u4fk`
+- Item 74E branch writes at creation: zero bytes
 - Verified Item 74D Neon Preview: `preview/agent/item74d-spatial-provenance`
 - Verified Item 74D branch ID: `br-sweet-pine-a7m4u4fk`
 - Production branch ID: `br-odd-pine-a7nph47f`
+- Production data and schema changes: none
+- Production checkout: disabled
 
-The Item 74E Vercel build reaches `npm run smoke:launch` and correctly blocks with 14 green and 4 red because the new Preview inherited older Production evidence:
+The previous Item 74E Neon branch `br-winter-wind-a7otcmlx` inherited older Production evidence. Its Vercel build correctly blocked `npm run smoke:launch` with 14 green and 4 red. After explicit approval, the branch was reconfirmed as non-Production, unprotected and zero-write, then deleted.
 
-- Byron coverage is `QUEUED`, not `VERIFIED`
-- Byron has 143 DCP clauses and no source chunks
-- Kempsey coverage is `SEARCHABLE_READY`, not `VERIFIED`
-- Kempsey LEP provenance uses a local `file://` URL
+The replacement `br-quiet-king-a71v3lv9` was created with the exact Vercel integration name and directly forked from verified Item 74D evidence. Its parent lineage and zero-write creation state were confirmed before redeployment.
 
 The verified Item 74D Preview has:
 
@@ -35,15 +34,13 @@ The verified Item 74D Preview has:
 - whole-LGA acceptance: 60 green, 0 red
 - launch acceptance: 18 green, 0 amber, 0 red
 
-## Required recovery
+## Recovery and acceptance sequence
 
-The preferred recovery is an isolated Item 74E Neon branch created from the verified Item 74D Preview state.
-
-1. Obtain explicit approval before deleting or replacing the current Item 74E Preview branch.
-2. Confirm the target is still non-Production, stale and zero-write.
-3. Delete only `br-winter-wind-a7otcmlx`.
-4. Create a Neon branch from `br-sweet-pine-a7m4u4fk` with the exact Vercel integration name `preview/agent/item74e-submission-see`.
-5. Redeploy the current draft PR head.
+1. Obtain explicit approval before deleting or replacing the stale Item 74E Preview branch. Completed.
+2. Confirm the target is non-Production, unprotected, stale and zero-write. Completed.
+3. Delete only stale branch `br-winter-wind-a7otcmlx`. Completed.
+4. Create `preview/agent/item74e-submission-see` from `br-sweet-pine-a7m4u4fk`. Completed as `br-quiet-king-a71v3lv9`.
+5. Trigger a fresh deployment from the current draft PR head. In progress through this runbook commit.
 6. Stop if Vercel does not bind the replacement branch automatically. Do not copy or print a connection string.
 7. Require `npm run smoke:launch` to report 18 green, 0 amber and 0 red.
 8. Require `npm run smoke:whole-lga` to report 60 green and 0 red.
