@@ -154,10 +154,19 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
-const wordToc = () =>
+const wordToc = (candidate: SubmissionSeeCandidate) =>
   [
     '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Contents</w:t></w:r></w:p>',
-    '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-2" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>Update this field in Word to refresh the table of contents.</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>',
+    ...candidate.sections.map((section) =>
+      wordParagraph(
+        titleCase(section.title || section.id),
+        "TocEntry",
+      ),
+    ),
+    wordParagraph("Source Register", "TocEntry"),
+    ...(candidate.limitations.length > 0
+      ? [wordParagraph("Limitations", "TocEntry")]
+      : []),
   ].join("");
 
 const renderDocx = (candidate: SubmissionSeeCandidate) => {
@@ -177,13 +186,13 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
       "Metadata",
     ),
     '<w:p><w:r><w:br w:type="page"/></w:r></w:p>',
-    wordToc(),
+    wordToc(candidate),
   ];
 
   candidate.sections.forEach((section, index) => {
     body.push(
       wordParagraph(
-        section.title || titleCase(section.id),
+        titleCase(section.title || section.id),
         "Heading1",
         { pageBreakBefore: index > 0, keepNext: true },
       ),
@@ -199,7 +208,7 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
   });
 
   body.push(
-    wordParagraph("Source register", "Heading1", {
+    wordParagraph("Source Register", "Heading1", {
       pageBreakBefore: true,
       keepNext: true,
     }),
@@ -247,6 +256,7 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
   <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="180"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Citation"><w:name w:val="Citation"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:before="80" w:after="240"/></w:pPr><w:rPr><w:i/><w:color w:val="536A73"/><w:sz w:val="18"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="SourceRegister"><w:name w:val="Source Register"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/></w:pPr><w:rPr><w:sz w:val="18"/><w:color w:val="425A63"/></w:rPr></w:style>
 </w:styles>`;
 
@@ -358,6 +368,15 @@ const wrapText = (value: string, maxCharacters: number) => {
   return lines.length > 0 ? lines : [""];
 };
 
+type PdfTextOptions = {
+  font?: PdfLine["font"];
+  size?: number;
+  color?: PdfLine["color"];
+  before?: number;
+  after?: number;
+  indent?: number;
+};
+
 const layoutPdf = (candidate: SubmissionSeeCandidate) => {
   const pages: PdfLine[][] = [[]];
   let pageIndex = 0;
@@ -370,38 +389,52 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
     y = 790;
   };
 
-  const addText = (
-    text: string,
-    options: {
-      font?: PdfLine["font"];
-      size?: number;
-      color?: PdfLine["color"];
-      before?: number;
-      after?: number;
-      indent?: number;
-    } = {},
-  ) => {
-    const font = options.font ?? "regular";
+  const textLayout = (text: string, options: PdfTextOptions = {}) => {
     const size = options.size ?? 10.5;
-    const color = options.color ?? ([0.14, 0.19, 0.23] as const);
-    y -= options.before ?? 0;
     const maxCharacters = Math.max(
       25,
       Math.floor((487 - (options.indent ?? 0)) / (size * 0.52)),
     );
-    for (const line of wrapText(text, maxCharacters)) {
+    const lines = wrapText(text, maxCharacters);
+    const before = options.before ?? 0;
+    const after = options.after ?? 8;
+    return {
+      size,
+      lines,
+      before,
+      after,
+      height: before + lines.length * size * 1.45 + after,
+    };
+  };
+
+  const ensureSpace = (requiredHeight: number) => {
+    const availablePageHeight = 790 - 64;
+    if (requiredHeight <= availablePageHeight && y - requiredHeight < 64) {
+      newPage();
+    }
+  };
+
+  const addText = (
+    text: string,
+    options: PdfTextOptions = {},
+  ) => {
+    const font = options.font ?? "regular";
+    const color = options.color ?? ([0.14, 0.19, 0.23] as const);
+    const layout = textLayout(text, options);
+    y -= layout.before;
+    for (const line of layout.lines) {
       if (y < 64) newPage();
       pages[pageIndex]!.push({
         text: line,
         font,
-        size,
+        size: layout.size,
         x: margin + (options.indent ?? 0),
         y,
         color: [color[0], color[1], color[2]],
       });
-      y -= size * 1.45;
+      y -= layout.size * 1.45;
     }
-    y -= options.after ?? 8;
+    y -= layout.after;
   };
 
   addText("STATEMENT OF", {
@@ -439,30 +472,45 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
 
   newPage();
   const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
+  const sectionHeadingOptions: PdfTextOptions = {
+    font: "bold",
+    size: 17,
+    color: [0.04, 0.35, 0.38],
+    before: 8,
+    after: 10,
+  };
+  const sectionNarrativeOptions: PdfTextOptions = {
+    size: 10.5,
+    after: 7,
+  };
+  const sectionCitationOptions: PdfTextOptions = {
+    size: 8.5,
+    color: [0.31, 0.4, 0.43],
+    indent: 12,
+    after: 15,
+  };
+
   for (const section of candidate.sections) {
-    addText(section.title || titleCase(section.id), {
-      font: "bold",
-      size: 17,
-      color: [0.04, 0.35, 0.38],
-      before: 8,
-      after: 10,
-    });
-    addText(section.narrative, { size: 10.5, after: 7 });
+    const heading = titleCase(section.title || section.id);
     const citations = section.sourceIds
       .map((sourceId) => {
         const source = sourceById.get(sourceId);
-        return source ? `${source.id}: ${source.title}` : sourceId;
+        return source ? source.id + ": " + source.title : sourceId;
       })
       .join("; ");
-    addText(`Sources: ${citations}`, {
-      size: 8.5,
-      color: [0.31, 0.4, 0.43],
-      indent: 12,
-      after: 15,
-    });
+    const citationText = "Sources: " + citations;
+
+    ensureSpace(
+      textLayout(heading, sectionHeadingOptions).height +
+        textLayout(section.narrative, sectionNarrativeOptions).height +
+        textLayout(citationText, sectionCitationOptions).height,
+    );
+    addText(heading, sectionHeadingOptions);
+    addText(section.narrative, sectionNarrativeOptions);
+    addText(citationText, sectionCitationOptions);
   }
 
-  addText("Source register", {
+  addText("Source Register", {
     font: "bold",
     size: 17,
     color: [0.04, 0.35, 0.38],

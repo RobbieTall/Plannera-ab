@@ -154,8 +154,10 @@ describe("submission SEE rendering", () => {
     );
     const document = entries.get("word/document.xml")!.toString("utf8");
     expect(document).toContain("Statement of Environmental Effects");
-    expect(document).toContain("Source register");
-    expect(document).toContain("environmental impacts");
+    expect(document).toContain("Source Register");
+    expect(document).toContain("Environmental Impacts");
+    expect(document).not.toContain("Update this field in Word");
+    expect(document).not.toContain(' TOC \\o "1-2" ');
   });
 
   it("creates a paginated PDF with a valid cross-reference location", () => {
@@ -165,7 +167,17 @@ describe("submission SEE rendering", () => {
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
     expect(pdf).toContain("STATEMENT OF");
     expect(pdf).toContain("ENVIRONMENTAL EFFECTS");
-    expect(pdf).toContain("Source register");
+    expect(pdf).toContain("Executive Summary");
+    expect(pdf).toContain("Source Register");
+    const contentStreams = [
+      ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
+    ].map((match) => match[1] ?? "");
+    const impactsStream = contentStreams.find((stream) =>
+      stream.includes("(Environmental Impacts)"),
+    );
+    expect(impactsStream).toBeDefined();
+    const impactsOffset = impactsStream!.indexOf("(Environmental Impacts)");
+    expect(impactsStream!.slice(impactsOffset)).toContain("(Sources:");
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
     const startXref = /startxref\n(\d+)\n%%EOF/.exec(pdf);
