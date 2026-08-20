@@ -111,7 +111,7 @@ const candidate: SubmissionSeeCandidate = {
   },
 };
 
-const outputDirectory = process.env.SUBMISSION_SEE_RENDER_OUTPUT_DIR;
+const main = async () => {\nconst outputDirectory = process.env.SUBMISSION_SEE_RENDER_OUTPUT_DIR;
 if (!outputDirectory) {
   throw new Error("SUBMISSION_SEE_RENDER_OUTPUT_DIR is required");
 }
@@ -163,3 +163,4 @@ console.log(
     })),
   }),
 );
+\n};\n\nmain().catch((error: unknown) => {\n  const failure = error instanceof Error\n    ? { name: error.name, message: error.message }\n    : { name: "UnknownError", message: "Unknown render failure" };\n  console.error("[submission-see-render-smoke] failed", failure);\n  process.exitCode = 1;\n});\n
