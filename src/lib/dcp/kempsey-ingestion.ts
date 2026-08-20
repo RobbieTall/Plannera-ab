@@ -323,7 +323,7 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         lastPreparedAt: ingestedAt,
       },
     });
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
 
   return {
     ok: true as const,
