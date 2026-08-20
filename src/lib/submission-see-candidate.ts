@@ -168,22 +168,28 @@ export function assembleSubmissionSeeCandidate(
 ): SubmissionSeeCandidateResult {
   const assemblyIssues: SubmissionSeeAssemblyIssue[] = [];
   const pack = input.detailedPlanningPack;
-  const isPreSee = input.documentDraft.kind === "pre_see_planning_memo";
-  const generatedAt = isPreSee
-    ? input.documentDraft.memo.generatedAt
-    : input.documentDraft.generatedAt;
-  const proposalSummary = isPreSee
-    ? input.documentDraft.memo.proposedWorksSummary
-    : input.documentDraft.proposalSummary;
-  const sections = isPreSee
-    ? preSeeSections(input.documentDraft.memo)
-    : input.documentDraft.sections;
-  const limitations = isPreSee
-    ? preSeeLimitations(input.documentDraft.memo)
-    : input.documentDraft.limitations;
-  const draftDppId = isPreSee
-    ? input.documentDraft.memo.sourceDetailedPlanningPack?.artefactId ?? ""
-    : input.documentDraft.sourceDetailedPlanningPackArtefactId;
+  const documentDraft = input.documentDraft;
+  const isPreSee = documentDraft.kind === "pre_see_planning_memo";
+  let generatedAt: string;
+  let proposalSummary: string;
+  let sections: SubmissionSeeSection[];
+  let limitations: string[];
+  let draftDppId: string;
+
+  if (documentDraft.kind === "pre_see_planning_memo") {
+    generatedAt = documentDraft.memo.generatedAt;
+    proposalSummary = documentDraft.memo.proposedWorksSummary;
+    sections = preSeeSections(documentDraft.memo);
+    limitations = preSeeLimitations(documentDraft.memo);
+    draftDppId =
+      documentDraft.memo.sourceDetailedPlanningPack?.artefactId ?? "";
+  } else {
+    generatedAt = documentDraft.generatedAt;
+    proposalSummary = documentDraft.proposalSummary;
+    sections = documentDraft.sections;
+    limitations = documentDraft.limitations;
+    draftDppId = documentDraft.sourceDetailedPlanningPackArtefactId;
+  }
 
   if (isPreSee) {
     assemblyIssues.push({
