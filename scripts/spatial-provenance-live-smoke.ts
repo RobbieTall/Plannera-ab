@@ -6,14 +6,14 @@ type FlightFixture = {
   lga: "Byron" | "Kempsey";
   expectedInstrument: string;
   expectedZone: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
 };
 
 type ArcGisFeature = {
   attributes?: Record<string, unknown>;
+  centroid?: {
+    x?: number;
+    y?: number;
+  };
 };
 
 type ArcGisQueryResponse = {
@@ -29,20 +29,12 @@ const fixtures: readonly FlightFixture[] = [
     lga: "Byron",
     expectedInstrument: "Byron Local Environmental Plan 2014",
     expectedZone: "SP3",
-    coordinates: {
-      lat: -28.6508,
-      lng: 153.612,
-    },
   },
   {
     id: "kempsey-e2",
     lga: "Kempsey",
     expectedInstrument: "Kempsey Local Environmental Plan 2013",
     expectedZone: "E2",
-    coordinates: {
-      lat: -31.078,
-      lng: 152.84,
-    },
   },
 ] as const;
 
@@ -67,24 +59,13 @@ const featureIdentifier = (
   return null;
 };
 
-const fetchFixture = async (
-  fixture: FlightFixture,
+const fetchArcGis = async (
+  parameters: Record<string, string>,
 ): Promise<ArcGisQueryResponse> => {
   const url = new URL(`${NSW_ZONING_LAYER_URL}/query`);
-  url.searchParams.set("f", "json");
-  url.searchParams.set(
-    "geometry",
-    `${fixture.coordinates.lng},${fixture.coordinates.lat}`,
-  );
-  url.searchParams.set("geometryType", "esriGeometryPoint");
-  url.searchParams.set("inSR", "4326");
-  url.searchParams.set("spatialRel", "esriSpatialRelIntersects");
-  url.searchParams.set(
-    "outFields",
-    "OBJECTID,EPI_NAME,SYM_CODE,LAY_CLASS",
-  );
-  url.searchParams.set("returnGeometry", "false");
-  url.searchParams.set("where", "1=1");
+  for (const [name, value] of Object.entries(parameters)) {
+    url.searchParams.set(name, value);
+  }
 
   let lastStatus: number | null = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -113,23 +94,95 @@ const fetchFixture = async (
   );
 };
 
+const selectOfficialSample = async (fixture: FlightFixture) => {
+  const escapedInstrument = fixture.expectedInstrument.replace(/'/g, "''");
+  const escapedZone = fixture.expectedZone.replace(/'/g, "''");
+  const payload = await fetchArcGis({
+    f: "json",
+    where: `EPI_NAME = '${escapedInstrument}' AND SYM_CODE = '${escapedZone}'`,
+    outFields: "OBJECTID,EPI_NAME,SYM_CODE,LAY_CLASS",
+    returnGeometry: "false",
+    returnCentroid: "true",
+    outSR: "4326",
+    orderByFields: "OBJECTID ASC",
+    resultRecordCount: "1",
+  });
+
+  if (payload.error) {
+    throw new Error("official zoning service returned an ArcGIS error");
+  }
+
+  const features = payload.features ?? [];
+  if (features.length !== 1) {
+    throw new Error(
+      features.length === 0
+        ? "no authoritative zone sample resolved"
+        : `ambiguous sample selection returned ${features.length} features`,
+    );
+  }
+
+  const feature = features[0];
+  const attributes = feature?.attributes;
+  const x = feature?.centroid?.x;
+  const y = feature?.centroid?.y;
+  if (!attributes) {
+    throw new Error("authoritative sample attributes missing");
+  }
+  if (
+    typeof x !== "number" ||
+    !Number.isFinite(x) ||
+    typeof y !== "number" ||
+    !Number.isFinite(y) ||
+    x < 140 ||
+    x > 154 ||
+    y < -38 ||
+    y > -28
+  ) {
+    throw new Error("authoritative sample centroid missing or outside NSW");
+  }
+
+  const identifier = featureIdentifier(attributes);
+  if (!identifier) {
+    throw new Error("authoritative sample OBJECTID missing");
+  }
+
+  return {
+    coordinates: {
+      lat: y,
+      lng: x,
+    },
+    identifier,
+  };
+};
+
 const validateFixture = async (fixture: FlightFixture) => {
   if (!NSW_ZONING_LAYER_URL.startsWith("https://")) {
     throw new Error("official zoning source is not HTTPS");
   }
 
-  const payload = await fetchFixture(fixture);
+  const sample = await selectOfficialSample(fixture);
+  const payload = await fetchArcGis({
+    f: "json",
+    geometry: `${sample.coordinates.lng},${sample.coordinates.lat}`,
+    geometryType: "esriGeometryPoint",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields: "OBJECTID,EPI_NAME,SYM_CODE,LAY_CLASS",
+    returnGeometry: "false",
+    where: "1=1",
+  });
+
   if (payload.error) {
     throw new Error("official zoning service returned an ArcGIS error");
   }
 
   const features = payload.features ?? [];
   if (features.length === 0) {
-    throw new Error("no zoning feature resolved");
+    throw new Error("sample centroid did not resolve a zoning feature");
   }
   if (features.length !== 1) {
     throw new Error(
-      `ambiguous zoning intersection returned ${features.length} features`,
+      `ambiguous centroid intersection returned ${features.length} features`,
     );
   }
 
@@ -154,6 +207,9 @@ const validateFixture = async (fixture: FlightFixture) => {
   }
   if (!identifier) {
     throw new Error("OBJECTID provenance missing");
+  }
+  if (identifier !== sample.identifier) {
+    throw new Error("centroid round-trip resolved a different feature");
   }
 
   return {
