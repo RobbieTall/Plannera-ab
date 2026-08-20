@@ -1,11 +1,11 @@
 # Item 74D spatial provenance acceptance
 
-Status: **ACCEPTANCE CONTRACT IMPLEMENTED / APPLICATION INTEGRATION NOT EXECUTED**
+Status: **RESPONSE INTEGRATION IMPLEMENTED / HOSTED PREVIEW NOT EXECUTED**
 
-This slice defines the fail-closed evidence contract for address-level planning
-controls in Byron and Kempsey. It does not enable checkout, modify a database,
-or claim that the application already persists submission-grade spatial
-provenance.
+This slice defines and integrates the fail-closed evidence contract for
+address-level planning controls in Byron and Kempsey. Fresh site-context
+responses can carry source provenance without modifying the database schema.
+It does not enable checkout or claim durable submission-grade persistence.
 
 ## Commercial acceptance boundary
 
@@ -38,24 +38,38 @@ and checks:
 - fixture and candidate fallbacks;
 - conflicting zones;
 - insecure or non-official service URLs; and
-- timestamp preservation and invalid timestamps.
+- timestamp preservation and invalid timestamps;
+- fresh authoritative response integration;
+- explicit launch-fixture and candidate labels; and
+- fail-closed reloads when source evidence was not persisted.
 
 The workflow is deliberately separate from hosted Preview evidence checks.
 This makes the fail-closed classification contract repeatable on every relevant
 pull request without exposing DATABASE_URL.
 
-## Current integration gap
+## Current integration state
 
-The existing site-context path stores the resolved zone and source label, but
-does not yet persist the planning-layer feature identifier, service/layer URL,
-resolution method, evidence timestamp, or conflict state as a complete
-provenance record. Therefore the new contract is not evidence of end-to-end
-commercial acceptance by itself.
+A fresh authoritative zoning lookup now carries the NSW service and layer URL,
+OBJECTID-style feature identifier, coordinate or parcel resolution method, and
+resolution timestamp into the site-context response. Candidate values and
+launch fixtures use explicit CANDIDATE or LAUNCH_FIXTURE sources and cannot be
+verified.
 
-The next safe implementation step is to expose a non-persistent provenance
-summary from the existing site-context response and add representative
-Byron/Kempsey flight tests. A durable schema change must remain a separate,
-explicitly approved change because it could affect Production data.
+This evidence is intentionally transient. Reloaded records are unresolved
+because the existing schema did not store the feature identifier, source URL,
+method, or source timestamp. The response must not reconstruct or invent those
+fields from a zone label.
+
+A durable schema change remains a separate, explicitly approved change because
+it could affect Production data.
+
+## Hosted Preview blocker
+
+PR #344 reached GitHub CI but Vercel stopped before build with Resource
+provisioning failed. Read-only diagnosis confirmed the Neon project branch
+limit is exhausted, and no Item 74D Preview branch was created. An archived,
+unused Preview branch must be explicitly approved for deletion before Vercel
+can provision the isolated branch and run hosted address-level flight tests.
 
 ## Safety boundary
 
@@ -66,6 +80,7 @@ explicitly approved change because it could affect Production data.
 - Do not log addresses, coordinates, parcel identifiers, credentials, or raw
   provider payloads in CI output.
 - Use isolated Preview data for hosted checks.
+- Do not delete an archived Preview branch without explicit approval.
 - Keep operator review mandatory for ambiguity, boundary cases, unavailable
   services, and conflicting evidence.
 
