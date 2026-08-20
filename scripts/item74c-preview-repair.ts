@@ -84,6 +84,11 @@ const LGA_CONFIG = {
 type LgaCode = keyof typeof LGA_CONFIG;
 type Transaction = Prisma.TransactionClient;
 
+let currentStage = "startup";
+const setStage = (stage: string) => {
+  currentStage = stage;
+};
+
 function assertCondition(
   condition: unknown,
   message: string,
@@ -273,6 +278,7 @@ const validateLgaEvidence = async (
 };
 
 const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
+  setStage("kempsey_lep_provenance");
   const kempseyLepUpdate = await tx.instrument.updateMany({
     where: { slug: LGA_CONFIG.KEMPSEY.lepSlug },
     data: { sourceUrl: KEMPSEY_LEP_SOURCE_URL },
@@ -282,6 +288,7 @@ const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
     "Kempsey LEP provenance repair did not target exactly one instrument",
   );
 
+  setStage("byron_dcp_provenance");
   const byronDocumentUpdate = await tx.councilDocument.updateMany({
     where: { lgaCode: "BYRON" },
     data: { sourceUrl: BYRON_DCP_SOURCE_URL },
@@ -313,6 +320,7 @@ const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
     "Byron current DCP clauses are missing",
   );
 
+  setStage("byron_source_chunks");
   await tx.workspaceSourceChunk.deleteMany({
     where: {
       lgaCode: "BYRON",
@@ -340,11 +348,16 @@ const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
     "Byron council-source chunk replacement was incomplete",
   );
 
+  setStage("byron_evidence_validation");
+  const byronEvidence = await validateLgaEvidence(tx, "BYRON");
+  setStage("kempsey_evidence_validation");
+  const kempseyEvidence = await validateLgaEvidence(tx, "KEMPSEY");
   const evidence = {
-    BYRON: await validateLgaEvidence(tx, "BYRON"),
-    KEMPSEY: await validateLgaEvidence(tx, "KEMPSEY"),
+    BYRON: byronEvidence,
+    KEMPSEY: kempseyEvidence,
   };
 
+  setStage("coverage_certification");
   const verifiedAt = new Date();
   for (const lgaCode of ["BYRON", "KEMPSEY"] as const) {
     await tx.lgaCoverageState.upsert({
@@ -366,19 +379,23 @@ const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
 };
 
 export const runItem74cPreviewRepair = async () => {
+  setStage("preview_boundary");
   assertItem74cPreviewBoundary();
 
+  setStage("kempsey_dcp_ingestion");
   const ingestion = await ingestKempseyDcp(prisma);
   assertCondition(
     ingestion.partsIngested === 5,
     "Kempsey DCP ingestion did not complete all five parts",
   );
 
+  setStage("evidence_transaction");
   const evidence = await prisma.$transaction(
     (tx) => repairAndCertifyPreviewEvidence(tx),
     { maxWait: 10_000, timeout: 60_000 },
   );
 
+  setStage("completed");
   return {
     ok: true as const,
     branch: APPROVED_BRANCH,
@@ -397,8 +414,8 @@ runItem74cPreviewRepair()
   })
   .catch((error) => {
     console.error(
-      "[item74c-preview-repair] failed",
-      error instanceof Error ? error.name : "unknown_error",
+      `[item74c-preview-repair] failed stage=${currentStage}`,
+      `type=${error instanceof Error ? error.name : "unknown_error"}`,
     );
     process.exitCode = 1;
   })
