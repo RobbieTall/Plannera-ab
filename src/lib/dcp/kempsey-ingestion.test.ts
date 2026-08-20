@@ -105,6 +105,10 @@ describe("ingestKempseyDcp", () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(pdfParseMock).toHaveBeenCalledTimes(5);
     expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { maxWait: 10_000, timeout: 60_000 },
+    );
 
     expect(transactionMock.dCPClause.deleteMany).toHaveBeenCalledWith({
       where: { lgaCode: "KEMPSEY" },
