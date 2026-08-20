@@ -10,9 +10,8 @@ type FlightFixture = {
 
 type ArcGisFeature = {
   attributes?: Record<string, unknown>;
-  centroid?: {
-    x?: number;
-    y?: number;
+  geometry?: {
+    rings?: number[][][];
   };
 };
 
@@ -59,6 +58,122 @@ const featureIdentifier = (
   return null;
 };
 
+type Point = {
+  x: number;
+  y: number;
+};
+
+const pointInRing = (point: Point, ring: readonly Point[]): boolean => {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const currentPoint = ring[index];
+    const previousPoint = ring[previous];
+    if (!currentPoint || !previousPoint) continue;
+    const intersects =
+      currentPoint.y > point.y !== previousPoint.y > point.y &&
+      point.x <
+        ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y) +
+          currentPoint.x;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+};
+
+const pointInPolygon = (
+  point: Point,
+  rings: readonly (readonly Point[])[],
+): boolean => {
+  let inside = false;
+  for (const ring of rings) {
+    if (pointInRing(point, ring)) inside = !inside;
+  }
+  return inside;
+};
+
+const distanceToSegment = (
+  point: Point,
+  start: Point,
+  end: Point,
+): number => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+  const projection = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - start.x) * dx + (point.y - start.y) * dy) /
+        (dx * dx + dy * dy),
+    ),
+  );
+  return Math.hypot(
+    point.x - (start.x + projection * dx),
+    point.y - (start.y + projection * dy),
+  );
+};
+
+const interiorPoint = (
+  geometry: ArcGisFeature["geometry"],
+): Point | null => {
+  const rings = (geometry?.rings ?? [])
+    .map((ring) =>
+      ring
+        .filter(
+          (coordinate) =>
+            Array.isArray(coordinate) &&
+            coordinate.length >= 2 &&
+            Number.isFinite(coordinate[0]) &&
+            Number.isFinite(coordinate[1]),
+        )
+        .map((coordinate) => ({
+          x: coordinate[0] as number,
+          y: coordinate[1] as number,
+        })),
+    )
+    .filter((ring) => ring.length >= 4);
+  const points = rings.flat();
+  if (rings.length === 0 || points.length === 0) return null;
+
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  if (![minX, maxX, minY, maxY].every(Number.isFinite)) return null;
+
+  let best: { point: Point; clearance: number } | null = null;
+  const gridSize = 31;
+  for (let xIndex = 0; xIndex < gridSize; xIndex += 1) {
+    for (let yIndex = 0; yIndex < gridSize; yIndex += 1) {
+      const point = {
+        x: minX + ((xIndex + 0.5) / gridSize) * (maxX - minX),
+        y: minY + ((yIndex + 0.5) / gridSize) * (maxY - minY),
+      };
+      if (!pointInPolygon(point, rings)) continue;
+
+      let clearance = Number.POSITIVE_INFINITY;
+      for (const ring of rings) {
+        for (let index = 0; index < ring.length - 1; index += 1) {
+          const start = ring[index];
+          const end = ring[index + 1];
+          if (!start || !end) continue;
+          clearance = Math.min(
+            clearance,
+            distanceToSegment(point, start, end),
+          );
+        }
+      }
+      if (!best || clearance > best.clearance) {
+        best = { point, clearance };
+      }
+    }
+  }
+
+  return best?.point ?? null;
+};
+
 const fetchArcGis = async (
   parameters: Record<string, string>,
 ): Promise<ArcGisQueryResponse> => {
@@ -101,9 +216,9 @@ const selectOfficialSample = async (fixture: FlightFixture) => {
     f: "json",
     where: `EPI_NAME = '${escapedInstrument}' AND SYM_CODE = '${escapedZone}'`,
     outFields: "OBJECTID,EPI_NAME,SYM_CODE,LAY_CLASS",
-    returnGeometry: "false",
-    returnCentroid: "true",
+    returnGeometry: "true",
     outSR: "4326",
+    geometryPrecision: "7",
     orderByFields: "OBJECTID ASC",
     resultRecordCount: "1",
   });
@@ -123,22 +238,18 @@ const selectOfficialSample = async (fixture: FlightFixture) => {
 
   const feature = features[0];
   const attributes = feature?.attributes;
-  const x = feature?.centroid?.x;
-  const y = feature?.centroid?.y;
+  const point = interiorPoint(feature?.geometry);
   if (!attributes) {
     throw new Error("authoritative sample attributes missing");
   }
   if (
-    typeof x !== "number" ||
-    !Number.isFinite(x) ||
-    typeof y !== "number" ||
-    !Number.isFinite(y) ||
-    x < 140 ||
-    x > 154 ||
-    y < -38 ||
-    y > -28
+    !point ||
+    point.x < 140 ||
+    point.x > 154 ||
+    point.y < -38 ||
+    point.y > -28
   ) {
-    throw new Error("authoritative sample centroid missing or outside NSW");
+    throw new Error("authoritative sample has no safe interior point");
   }
 
   const identifier = featureIdentifier(attributes);
@@ -148,8 +259,8 @@ const selectOfficialSample = async (fixture: FlightFixture) => {
 
   return {
     coordinates: {
-      lat: y,
-      lng: x,
+      lat: point.y,
+      lng: point.x,
     },
     identifier,
   };
