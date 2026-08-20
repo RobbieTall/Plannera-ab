@@ -5,6 +5,11 @@ on:
     paths:
       - "src/lib/spatial-provenance.ts"
       - "src/lib/spatial-provenance.test.ts"
+      - "src/lib/site-context-provenance.ts"
+      - "src/lib/site-context-provenance.test.ts"
+      - "src/lib/site-context.ts"
+      - "src/lib/nsw-zoning.ts"
+      - "src/types/site.ts"
       - ".github/workflows/spatial-provenance.yml"
       - "docs/operations/item74d-spatial-provenance.md"
   workflow_dispatch:
@@ -38,4 +43,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run deterministic spatial provenance acceptance tests
-        run: npx vitest run src/lib/spatial-provenance.test.ts
+        run: >-
+          npx vitest run
+          src/lib/spatial-provenance.test.ts
+          src/lib/site-context-provenance.test.ts
