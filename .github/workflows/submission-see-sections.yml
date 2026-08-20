@@ -1,0 +1,45 @@
+name: Submission SEE Section Compilation
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/submission-see-sections.ts"
+      - "src/lib/submission-see-sections.test.ts"
+      - ".github/workflows/submission-see-sections.yml"
+      - "docs/operations/item74e-submission-see-sections.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submission-see-sections-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sections:
+    name: Evidence-bound SEE sections
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client without database access
+        run: npx prisma generate
+
+      - name: Run section compilation tests
+        run: >-
+          npx vitest run
+          src/lib/submission-see-acceptance.test.ts
+          src/lib/submission-see-candidate.test.ts
+          src/lib/submission-see-sections.test.ts
