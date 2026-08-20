@@ -50,6 +50,8 @@ export type SubmissionSeeUploadBinding = {
 export type SubmissionSeeCandidateInput = {
   commercialMode: "preview" | "test";
   projectId: string;
+  confirmedSiteId: string;
+  addressFingerprint: string;
   detailedPlanningPackArtefactId: string;
   detailedPlanningPack: DetailedPlanningPackContent;
   documentDraft: SubmissionSeeDraft | PreSeeMemoDraft;
@@ -220,6 +222,8 @@ export function assembleSubmissionSeeCandidate(
         [pack.site.lgaCode ?? pack.site.lga, pack.site.zoneLabel ?? pack.site.zoneCode]
           .filter(Boolean)
           .join(" / "),
+      confirmedSiteId: input.confirmedSiteId,
+      addressFingerprint: input.addressFingerprint,
       lgaCode: pack.site.lgaCode ?? pack.site.lga ?? "",
       zoneCode: pack.site.zoneCode ?? "",
       spatialProvenance: {
