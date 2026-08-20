@@ -109,6 +109,8 @@ const makeInput = (
   return {
     commercialMode: "preview",
     projectId: pack.projectId,
+    confirmedSiteId: `site-${lgaCode.toLowerCase()}`,
+    addressFingerprint: hash("d"),
     detailedPlanningPackArtefactId: `dpp-${lgaCode.toLowerCase()}`,
     detailedPlanningPack: pack,
     documentDraft: {
@@ -309,4 +311,16 @@ describe("submission SEE candidate assembly", () => {
       ),
     ).toContain("unready_upload_evidence");
   });
+  it("carries privacy-safe exact-site binding into acceptance", () => {
+    const input = makeInput("BYRON", "SP3");
+    input.addressFingerprint = "invalid";
+
+    const result = assembleSubmissionSeeCandidate(input);
+
+    expect(result.status).toBe("blocked");
+    expect(result.acceptance.issues).toContainEqual(
+      expect.objectContaining({ code: "missing_site" }),
+    );
+  });
+
 });
