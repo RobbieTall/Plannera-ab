@@ -1,0 +1,41 @@
+name: Submission SEE Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/submission-see-acceptance.ts"
+      - "src/lib/submission-see-acceptance.test.ts"
+      - ".github/workflows/submission-see-acceptance.yml"
+      - "docs/operations/item74e-submission-see.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submission-see-acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submission-see:
+    name: Fail-closed A$749 SEE boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client without database access
+        run: npx prisma generate
+
+      - name: Run submission SEE acceptance tests
+        run: npx vitest run src/lib/submission-see-acceptance.test.ts
