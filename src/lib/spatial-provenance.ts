@@ -31,7 +31,7 @@ export interface SpatialProvenanceInput {
   resolutionMethod: SpatialResolutionMethod;
   serviceUrl?: string | null;
   featureIdentifier?: string | number | null;
-  resolvedAt: string | Date;
+  resolvedAt?: string | Date | null;
   coordinates?: {
     lat: number;
     lng: number;
@@ -74,7 +74,10 @@ function normaliseZoneCode(value: string | null | undefined): string | null {
   return normaliseText(value)?.toUpperCase() ?? null;
 }
 
-function normaliseTimestamp(value: string | Date): string | null {
+function normaliseTimestamp(
+  value: string | Date | null | undefined,
+): string | null {
+  if (value === null || value === undefined || value === "") return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
