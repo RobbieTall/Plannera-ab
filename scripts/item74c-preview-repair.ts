@@ -154,7 +154,7 @@ const validatePermissionProfiles = (
         ? ["PROHIBITED", "WITHOUT_CONSENT"]
         : ["PROHIBITED", "WITHOUT_CONSENT", "WITH_CONSENT"];
     assertCondition(
-      JSON.stringify(actual) === JSON.stringify(expected.sort()),
+      JSON.stringify(actual) === JSON.stringify(sortedUnique(expected)),
       `${lgaCode} ${zoneCode} permission profile is not acceptance-ready`,
     );
   }
