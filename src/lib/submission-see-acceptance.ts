@@ -65,6 +65,8 @@ export type SubmissionSeeCandidate = {
   generatedAt: string;
   site: {
     label: string;
+    confirmedSiteId: string;
+    addressFingerprint: string;
     lgaCode: string;
     zoneCode: string;
     spatialProvenance: {
@@ -221,7 +223,17 @@ export function assessSubmissionSee(
   if (!SUPPORTED_LGAS.has(lgaCode)) {
     pushIssue(issues, "unsupported_lga", "Submission SEE acceptance is currently limited to Byron and Kempsey.");
   }
-  if (!clean(candidate.site.label)) pushIssue(issues, "missing_site", "A confirmed site label is required.");
+  if (
+    !clean(candidate.site.label) ||
+    !clean(candidate.site.confirmedSiteId) ||
+    !validHash(candidate.site.addressFingerprint)
+  ) {
+    pushIssue(
+      issues,
+      "missing_site",
+      "A confirmed site ID and SHA-256 address fingerprint are required.",
+    );
+  }
   if (!zoneCode) pushIssue(issues, "missing_zone", "A confirmed planning zone is required.");
 
   const spatial = candidate.site.spatialProvenance;
