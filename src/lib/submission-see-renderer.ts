@@ -156,7 +156,10 @@ const wordParagraph = (
 
 const wordToc = (candidate: SubmissionSeeCandidate) =>
   [
-    '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Contents</w:t></w:r></w:p>',
+    wordParagraph("Contents", "Heading1", {
+      pageBreakBefore: true,
+      keepNext: true,
+    }),
     ...candidate.sections.map((section) =>
       wordParagraph(
         titleCase(section.title || section.id),
@@ -185,7 +188,6 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
       `Operator checklist: ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
       "Metadata",
     ),
-    '<w:p><w:r><w:br w:type="page"/></w:r></w:p>',
     wordToc(candidate),
   ];
 

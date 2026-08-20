@@ -157,6 +157,7 @@ describe("submission SEE rendering", () => {
     expect(document).toContain("Source Register");
     expect(document).toContain("Environmental Impacts");
     expect(document).not.toContain("Update this field in Word");
+    expect(document).not.toContain('<w:br w:type="page"/>');
     expect(document).not.toContain(' TOC \\o "1-2" ');
   });
 
