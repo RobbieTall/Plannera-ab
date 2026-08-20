@@ -24,6 +24,8 @@ const makeReadyCandidate = (
     generatedAt: "2026-08-21T00:00:00.000Z",
     site: {
       label: `${lgaCode} acceptance fixture`,
+      confirmedSiteId: `site-${lgaCode.toLowerCase()}`,
+      addressFingerprint: hash("d"),
       lgaCode,
       zoneCode,
       spatialProvenance: {
@@ -231,4 +233,12 @@ describe("submission-grade SEE acceptance", () => {
       ]),
     );
   });
+  it("rejects a candidate without exact confirmed-site binding", () => {
+    const candidate = makeReadyCandidate("BYRON", "SP3");
+    candidate.site.confirmedSiteId = "";
+    candidate.site.addressFingerprint = "not-a-sha256";
+
+    expect(issueCodes(candidate)).toContain("missing_site");
+  });
+
 });
