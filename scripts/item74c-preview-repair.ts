@@ -374,8 +374,9 @@ export const runItem74cPreviewRepair = async () => {
     "Kempsey DCP ingestion did not complete all five parts",
   );
 
-  const evidence = await prisma.$transaction((tx) =>
-    repairAndCertifyPreviewEvidence(tx),
+  const evidence = await prisma.$transaction(
+    (tx) => repairAndCertifyPreviewEvidence(tx),
+    { maxWait: 10_000, timeout: 60_000 },
   );
 
   return {
