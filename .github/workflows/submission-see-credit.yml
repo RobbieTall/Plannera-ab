@@ -5,8 +5,13 @@ on:
     paths:
       - "src/lib/submission-see-credit.ts"
       - "src/lib/submission-see-credit.test.ts"
+      - "src/lib/submission-see-credit-persistence.ts"
+      - "src/lib/submission-see-credit-persistence.test.ts"
+      - "prisma/schema.prisma"
+      - "prisma/migrations/20260821000000_submission_see_credit_ledger/**"
       - ".github/workflows/submission-see-credit.yml"
       - "docs/operations/item74f-submission-see-credit.md"
+      - "docs/operations/item74g-submission-see-credit-ledger.md"
   workflow_dispatch:
 
 permissions:
@@ -39,5 +44,5 @@ jobs:
       - name: Generate Prisma client without database access
         run: ./node_modules/.bin/prisma generate
 
-      - name: Run exact-scope credit contract tests
-        run: npx vitest run src/lib/submission-see-credit.test.ts
+      - name: Run exact-scope credit contract and persistence tests
+        run: npx vitest run src/lib/submission-see-credit.test.ts src/lib/submission-see-credit-persistence.test.ts

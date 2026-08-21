@@ -268,6 +268,7 @@ model Purchase {
   idempotencyKey           String         @unique
   scopeKey                 String
   entitlement              Entitlement?
+  submissionSeeCredit      SubmissionSeeCredit? @relation("SubmissionSeeCreditTarget")
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
   paidAt                   DateTime?
@@ -293,6 +294,7 @@ model Entitlement {
   productVersion           String
   purchaseId               String            @unique
   purchase                 Purchase          @relation(fields: [purchaseId], references: [id])
+  submissionSeeCredits     SubmissionSeeCredit[] @relation("SubmissionSeeCreditSource")
   status                   EntitlementStatus @default(ACTIVE)
   activeScopeKey           String?           @unique
   createdAt                DateTime          @default(now())
@@ -755,4 +757,33 @@ model SiteContext {
   zone             String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+enum SubmissionSeeCreditStatus {
+  RESERVED
+  CONSUMED
+  RELEASED
+}
+
+model SubmissionSeeCredit {
+  id                  String                    @id @default(cuid())
+  sourceEntitlementId String
+  sourceEntitlement   Entitlement               @relation("SubmissionSeeCreditSource", fields: [sourceEntitlementId], references: [id])
+  targetPurchaseId    String                    @unique
+  targetPurchase      Purchase                  @relation("SubmissionSeeCreditTarget", fields: [targetPurchaseId], references: [id])
+  scopeKey            String
+  idempotencyKey      String                    @unique
+  listAmountMinor     Int
+  creditAmountMinor   Int
+  payableAmountMinor  Int
+  currency            String
+  status              SubmissionSeeCreditStatus @default(RESERVED)
+  reservedAt          DateTime                  @default(now())
+  consumedAt          DateTime?
+  releasedAt          DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([sourceEntitlementId, status])
+  @@index([scopeKey, status])
 }
