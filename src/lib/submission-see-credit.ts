@@ -59,9 +59,9 @@ export type SubmissionSeeCreditQuote = {
   productCode: "submission_see";
   productVersion: "v1";
   currency: "AUD";
-  listAmountMinor: 74900;
-  creditAmountMinor: 0 | 4900;
-  payableAmountMinor: 74900 | 70000;
+  listAmountMinor: number;
+  creditAmountMinor: number;
+  payableAmountMinor: number;
   creditEligible: boolean;
   creditSourceEntitlementId: string | null;
   ineligibilityReason: SubmissionSeeCreditIneligibilityReason | null;
