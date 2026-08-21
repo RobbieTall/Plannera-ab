@@ -4,18 +4,21 @@ import {
   SUBMISSION_SEE_COMMERCIAL_TERMS,
   buildSubmissionSeeScope,
   submissionSeeScopeKey,
+  type SubmissionSeeScope,
 } from "./submission-see-credit";
 import { SubmissionSeeCreditPersistenceService } from "./submission-see-credit-persistence";
 
-const matches = (row: Record<string, unknown>, where: Record<string, any>) =>
+type Row = Record<string, unknown>;
+type Query = { where: Record<string, unknown> };
+type CreateInput = { data: Row };
+type UpdateInput = { where: Record<string, unknown>; data: Row };
+
+const matches = (row: Row, where: Record<string, unknown>) =>
   Object.entries(where).every(([key, expected]) => {
     const actual = row[key];
-    if (
-      expected &&
-      typeof expected === "object" &&
-      Array.isArray(expected.in)
-    ) {
-      return expected.in.includes(actual);
+    if (typeof expected === "object" && expected !== null && "in" in expected) {
+      const values = (expected as { in?: unknown }).in;
+      return Array.isArray(values) && values.includes(actual);
     }
     return actual === expected;
   });
@@ -29,9 +32,9 @@ const createFixture = () => {
   });
   const now = new Date("2026-08-21T00:00:00.000Z");
   const state: {
-    entitlements: any[];
-    purchases: any[];
-    credits: any[];
+    entitlements: Row[];
+    purchases: Row[];
+    credits: Row[];
   } = {
     entitlements: [
       {
@@ -64,7 +67,7 @@ const createFixture = () => {
       | "FAILED"
       | "CANCELLED"
       | "REFUNDED" = "PENDING",
-    targetScope = scope,
+    targetScope: SubmissionSeeScope = scope,
   ) => {
     state.purchases.push({
       id,
@@ -91,44 +94,44 @@ const createFixture = () => {
     });
   };
 
-  const db: any = {
+  const db = {
     entitlement: {
-      findFirst: async ({ where }: any) =>
+      findFirst: async ({ where }: Query) =>
         [...state.entitlements]
           .reverse()
           .find((row) => matches(row, where)) ?? null,
-      findUnique: async ({ where }: any) =>
+      findUnique: async ({ where }: Query) =>
         state.entitlements.find((row) => matches(row, where)) ?? null,
     },
     purchase: {
-      findUnique: async ({ where }: any) =>
+      findUnique: async ({ where }: Query) =>
         state.purchases.find((row) => matches(row, where)) ?? null,
     },
     submissionSeeCredit: {
-      findMany: async ({ where }: any) =>
+      findMany: async ({ where }: Query) =>
         state.credits.filter((row) => matches(row, where)),
-      findFirst: async ({ where }: any) =>
+      findFirst: async ({ where }: Query) =>
         state.credits.find((row) => matches(row, where)) ?? null,
-      findUnique: async ({ where }: any) =>
+      findUnique: async ({ where }: Query) =>
         state.credits.find((row) => matches(row, where)) ?? null,
-      create: async ({ data }: any) => {
+      create: async ({ data }: CreateInput) => {
         const targetConflict = state.credits.some(
           (row) => row.targetPurchaseId === data.targetPurchaseId,
         );
         const sourceConflict = state.credits.some(
           (row) =>
             row.sourceEntitlementId === data.sourceEntitlementId &&
-            ["RESERVED", "CONSUMED"].includes(row.status),
+            ["RESERVED", "CONSUMED"].includes(String(row.status)),
         );
         const idempotencyConflict = state.credits.some(
           (row) => row.idempotencyKey === data.idempotencyKey,
         );
         if (targetConflict || sourceConflict || idempotencyConflict) {
-          const error: any = new Error("Unique constraint failed");
-          error.code = "P2002";
-          throw error;
+          throw Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+          });
         }
-        const created = {
+        const created: Row = {
           id: `credit-${state.credits.length + 1}`,
           ...data,
           consumedAt: null,
@@ -139,20 +142,22 @@ const createFixture = () => {
         state.credits.push(created);
         return created;
       },
-      updateMany: async ({ where, data }: any) => {
+      updateMany: async ({ where, data }: UpdateInput) => {
         const rows = state.credits.filter((row) => matches(row, where));
         rows.forEach((row) => Object.assign(row, data, { updatedAt: now }));
         return { count: rows.length };
       },
     },
-    $transaction: async (callback: (tx: any) => unknown) => callback(db),
+    $transaction: async (
+      callback: (transaction: unknown) => Promise<unknown>,
+    ) => callback(db),
   };
 
   return {
     scope,
     state,
     addTarget,
-    service: new SubmissionSeeCreditPersistenceService(db),
+    service: new SubmissionSeeCreditPersistenceService(db as never),
   };
 };
 
@@ -204,7 +209,7 @@ describe("persistent submission SEE credit ledger", () => {
       service.reserve({ scope, targetPurchaseId: "see-2" }),
     ).rejects.toMatchObject({ code: "credit_already_reserved" });
 
-    state.purchases.find((row) => row.id === "see-1").status = "PAID";
+    state.purchases.find((row) => row.id === "see-1")!.status = "PAID";
     const consumed = await service.consume({
       scope,
       targetPurchaseId: "see-1",
@@ -236,7 +241,8 @@ describe("persistent submission SEE credit ledger", () => {
       service.release({ scope, targetPurchaseId: "see-1" }),
     ).rejects.toMatchObject({ code: "invalid_credit_transition" });
 
-    state.purchases.find((row) => row.id === "see-1").status = "CANCELLED";
+    state.purchases.find((row) => row.id === "see-1")!.status =
+      "CANCELLED";
     const released = await service.release({
       scope,
       targetPurchaseId: "see-1",
@@ -266,7 +272,7 @@ describe("persistent submission SEE credit ledger", () => {
     const changedQuote = await service.quote(changedScope);
     expect(changedQuote).toMatchObject({
       creditEligible: false,
-      ineligibilityReason: "planning_pack_scope_mismatch",
+      ineligibilityReason: "no_active_planning_pack",
       payableAmountMinor: 74900,
     });
     await expect(

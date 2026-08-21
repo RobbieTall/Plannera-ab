@@ -227,6 +227,12 @@ export class SubmissionSeeCreditPersistenceService {
           }
 
           const quote = await quoteWithClient(tx, input.scope);
+          if (quote.ineligibilityReason === "credit_reserved") {
+            throw new SubmissionSeeCreditError("credit_already_reserved");
+          }
+          if (quote.ineligibilityReason === "credit_consumed") {
+            throw new SubmissionSeeCreditError("credit_already_consumed");
+          }
           const draft = reserveSubmissionSeeCredit({
             quote,
             targetPurchaseId: target.id,
