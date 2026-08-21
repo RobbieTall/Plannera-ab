@@ -96,3 +96,33 @@ Then connect server-derived checkout and signed webhook settlement, add protecte
 - No schema or migration is applied.
 - No credential, cookie, proposal, provider payload, address or parcel data is logged.
 - No PR is merged and no Production activation is authorised.
+
+## Hosted Preview acceptance evidence
+
+Application head `aa764bd9f573b5b0f104b46dc6f045e2d04a3046` is the first Item 74F head proven through the protected hosted build.
+
+- Submission SEE Credit Contract run `32436559596`: passed.
+- Commercial Funnel Golden Gate run `32436559588`: passed.
+- Vercel Preview deployment `dpl_3PM9WPpjrjRQhLGutmwDdJ7x665g`: Ready.
+- `npm run smoke:launch`: 18 green, 0 amber, 0 red.
+- `npm run smoke:whole-lga`: 60 green, 0 red.
+- Next.js compilation, linting, type checking and deployment completed.
+
+### Preview evidence lineage
+
+The first Vercel-created Item 74F branch, `br-polished-pine-a7jpd3yp`, inherited from `main`. The launch gate correctly failed closed at 14 green and 4 red because that parent did not contain the verified Byron and Kempsey launch evidence. No gate was weakened and no evidence was invented.
+
+With explicit branch-specific approval, that unprotected, zero-write Preview branch was deleted and replaced by:
+
+- branch: `preview/agent/item74f-see-credit`
+- branch ID: `br-winter-lake-a7kfbv6z`
+- parent: verified Item 74E branch `br-quiet-king-a71v3lv9`
+- auto-delete: disabled
+- written data at creation: zero bytes
+
+The earlier capacity cleanup deleted only archived, zero-write Item 73 branch `br-solitary-surf-a70hcj3a`, whose PR #333 was already merged and closed.
+
+Production branch `br-odd-pine-a7nph47f`, Production data/schema/configuration, Stripe objects and checkout flags were not changed. Production checkout remains disabled.
+
+This evidence verifies the domain contract and hosted acceptance boundary only. The persistent credit ledger, SEE checkout, Preview schema application and protected lifecycle execution remain unexecuted and require their own reviewed approval.
+
