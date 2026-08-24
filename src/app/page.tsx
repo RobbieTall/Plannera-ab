@@ -13,6 +13,8 @@ export default function HomePage() {
   const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showItem74hAcceptance =
+    process.env.NEXT_PUBLIC_ITEM74H_AUTHORITATIVE_SPATIAL_ACCEPTANCE === "true";
 
   async function startSiteCheck(rawAddress: string) {
     const trimmed = rawAddress.trim();
@@ -86,7 +88,7 @@ export default function HomePage() {
                   disabled={submitting || !address.trim()}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-blue-700 px-5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
                 >
-                  {submitting ? "Starting…" : "Run free site check"}
+                  {submitting ? "Starting..." : "Run free site check"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
@@ -117,6 +119,14 @@ export default function HomePage() {
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-4 py-5 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <span>© {new Date().getFullYear()} Plannera.ai</span>
           <div className="flex items-center gap-4">
+            {showItem74hAcceptance ? (
+              <Link
+                href="/api/internal/item74h-authoritative-spatial"
+                className="font-medium text-amber-800 hover:text-amber-950"
+              >
+                Item 74H acceptance
+              </Link>
+            ) : null}
             <Link href="/privacy" className="font-medium text-slate-700 hover:text-slate-950">Privacy</Link>
             <Link href="/projects" className="font-medium text-slate-700 hover:text-slate-950">My Projects</Link>
           </div>
