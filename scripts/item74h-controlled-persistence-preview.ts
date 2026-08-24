@@ -428,9 +428,13 @@ async function runControlledPersistence(
     const dcpRetrievedAt = new Date(
       Math.max(...dcpClauses.map((item) => item.updatedAt.getTime())),
     );
-    const codesRetrievedAt = new Date(
-      Math.max(...codeClauses.map((item) => item.retrievedAt.getTime())),
-    );
+    const codesRetrievedTimes = codeClauses.map((item) => {
+      if (!item.retrievedAt) {
+        throw new Error('Codes SEPP clause is missing retrievedAt provenance.');
+      }
+      return item.retrievedAt.getTime();
+    });
+    const codesRetrievedAt = new Date(Math.max(...codesRetrievedTimes));
     const lepStaleAt = addDays(lep.lastSyncedAt, 90);
     const dcpStaleAt = addDays(dcpRetrievedAt, 90);
     const codesStaleAt = addDays(codes.lastSyncedAt, 90);
