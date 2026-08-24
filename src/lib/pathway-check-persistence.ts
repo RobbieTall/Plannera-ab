@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 import { Prisma, PrismaClient } from '@prisma/client';
 
+import type { PathwayCommercialBindingEvaluation } from './pathway-commercial-binding';
+import { evaluatePaidArtefactBindingPolicy } from './pathway-paid-artefact-policy';
+
 export const PATHWAY_DECISIONS = [
   'STOP',
   'PROCEED',
@@ -562,11 +565,13 @@ export async function bindPathwayArtefact(
     commercialStage: PathwayCommercialStage;
     scopeKey: string;
     evidenceDigest: string;
+    commercialBinding?: PathwayCommercialBindingEvaluation;
   },
 ) {
   const existing = await prisma.pathwayArtefactBinding.findUnique({
     where: { artefactId: input.artefactId },
   });
+  const paid = input.commercialStage !== 'FREE_PATHWAY_CHECK';
   if (existing) {
     if (
       existing.assessmentId !== input.assessmentId ||
@@ -576,7 +581,7 @@ export async function bindPathwayArtefact(
     ) {
       fail('ARTEFACT_BINDING_CONFLICT', 'Artefact is already bound to a different assessment');
     }
-    return { binding: existing, replayed: true };
+    if (!paid) return { binding: existing, replayed: true };
   }
 
   const assessment = await prisma.pathwayAssessment.findUnique({
@@ -584,6 +589,7 @@ export async function bindPathwayArtefact(
     include: {
       artefactBindings: true,
       evidenceSnapshots: true,
+      controlSnapshots: true,
       pathwayDefinition: true,
     },
   });
@@ -602,30 +608,36 @@ export async function bindPathwayArtefact(
     fail('ARTEFACT_EVIDENCE_MISMATCH', 'Artefact scope and evidence must match exactly');
   }
 
-  const paid = input.commercialStage !== 'FREE_PATHWAY_CHECK';
   if (paid) {
-    const trusted = [
-      'EVIDENCE_VERIFIED',
-      'OPERATOR_APPROVED',
-      'SUBMISSION_READY',
-    ].includes(assessment.trustLevel);
-    const currentEvidence = assessment.evidenceSnapshots.every(
-      (item) => item.isCurrentAtAssessment && !item.staleAt,
-    );
-    if (
-      assessment.decision !== 'PROCEED' ||
-      !trusted ||
-      !assessment.isCurrent ||
-      Boolean(assessment.staleAt) ||
-      assessment.pathwayDefinition.status !== 'ACTIVE' ||
-      !currentEvidence
-    ) {
+    const policy = evaluatePaidArtefactBindingPolicy({
+      commercialStage: input.commercialStage,
+      scopeKey: input.scopeKey,
+      evidenceDigest: input.evidenceDigest,
+      commercialBinding: input.commercialBinding || null,
+      assessment: {
+        decision: assessment.decision,
+        trustLevel: assessment.trustLevel,
+        isCurrent:
+          assessment.isCurrent &&
+          !assessment.staleAt &&
+          assessment.pathwayDefinition.status === 'ACTIVE',
+        evidenceCurrent: assessment.evidenceSnapshots.every(
+          (item) => item.isCurrentAtAssessment && !item.staleAt,
+        ),
+        controlsCurrent: assessment.controlSnapshots.every(
+          (item) => item.isCurrentAtAssessment && !item.staleAt,
+        ),
+      },
+    });
+    if (!policy.allowed) {
       fail(
         'PAID_OUTPUT_BLOCKED',
-        'Paid output requires a current evidence-confirmed PROCEED assessment',
+        'Paid output is blocked: ' + policy.blockers.join(', '),
       );
     }
   }
+
+  if (existing) return { binding: existing, replayed: true };
 
   const stageConflict = assessment.artefactBindings.find(
     (binding) => binding.commercialStage === input.commercialStage,
