@@ -7,6 +7,7 @@ import {
   reloadPathwayAssessment,
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
+import { runItem74hRealSiteBindingPreviewAcceptance } from './item74h-real-site-binding-preview';
 
 const EXPECTED_REF = 'agent/item74h-pathway-check';
 const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
@@ -455,12 +456,15 @@ async function main(): Promise<void> {
       await runScenario(prisma, 1),
       await runScenario(prisma, 2),
     ];
+    const realSiteCommercialBinding =
+      await runItem74hRealSiteBindingPreviewAcceptance(prisma);
     console.log(
       JSON.stringify({
         acceptance: 'item74h-preview-persistence',
         passed: true,
         executions: runs.length,
         runs,
+        realSiteCommercialBinding,
         cleanupResidualRows: 0,
         productionCheckoutEnabled: false,
         productionMutationPerformed: false,
