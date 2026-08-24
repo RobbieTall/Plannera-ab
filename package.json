@@ -7,7 +7,7 @@
     "migrate:deploy": "echo 'migrate disabled on vercel'",
     "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "npm run migrate:item74h-preview && node ./scripts/prisma-generate.js && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && next build",
+    "vercel-build": "npm run migrate:item74h-preview && node ./scripts/prisma-generate.js && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:pathway-persistence-preview && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:node && npm run test:vitest",
@@ -37,6 +37,7 @@
     "accept:stripe-test": "tsx scripts/stripe-test-acceptance.ts",
     "accept:consultant-referral": "tsx scripts/consultant-referral-acceptance.ts",
     "accept:submission-see-credit-preview": "tsx scripts/submission-see-credit-preview-acceptance.ts",
+    "accept:pathway-persistence-preview": "tsx scripts/pathway-persistence-preview-acceptance.ts",
     "migrate:item74h-preview": "tsx scripts/item74h-preview-migrate.ts"
   },
   "dependencies": {
@@ -63,7 +64,7 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^18",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.3",
