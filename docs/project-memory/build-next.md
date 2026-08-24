@@ -1385,3 +1385,16 @@ Status: **AUTHORITATIVE SITE EVIDENCE ACCEPTED / PAID ELIGIBILITY STILL BLOCKED*
 - A protected-log privacy failure in an earlier run was invalidated, corrected with request-scoped resolver suppression, and successfully rerun without the resolver disclosure.
 - Temporary branch-scoped Preview acceptance variables were removed. Clean deployment: `dpl_Hf6FDPm2G9WdWcKEtxnw1JqmBJRY`; exact head: `0730fc762ad86a4a4ae2fabfe23cd1bf93216b43`.
 - Next delivery boundary: complete the evidence-confirmed road/setback and mapped-constraint interpretation required to bind an exact paid scope. Do not make either paid output eligible until that manifest is complete.
+
+## Item 74H exact commercial binding: 2026-08-25
+
+Status: **DURABLE PREVIEW BINDING IMPLEMENTED / REAL-SITE PAID SCOPE STILL BLOCKED**
+
+- The site-evidence digest, Byron DCP road-setback control, confirmed road category, measured setback and deterministic `PROCEED` or `MERIT_ASSESSED` outcome now form a SHA-256 exact-scope digest.
+- The commercial binding is embedded in the persisted Preview assessment result and participates in idempotent replay identity.
+- Paid artefact creation and replay read only that persisted binding. A caller cannot supply a replacement binding at artefact time.
+- The A$49 pack requires evidence-verified trust. The A$749 SEE additionally requires operator-approved trust.
+- Current assessment, evidence snapshots and control snapshots are required for first binding and replay.
+- Production checkout remains disabled and no Production or schema mutation occurred.
+- The controlled Byron site remains `MORE_EVIDENCE_REQUIRED` until authoritative road classification and a measured site-plan setback are available.
+- Next: acquire and persist those two real-site facts, then exercise one protected exact-scope paid binding and cleanup in Preview.

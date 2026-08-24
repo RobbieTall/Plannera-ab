@@ -511,3 +511,18 @@ Rationale:
 - Temporary Preview variables were removed and the clean exact-head deployment completed with acceptance phases disabled.
 
 Consequence: Item 74H proceeds to evidence-confirmed road/setback and mapped-constraint interpretation. No developer may weaken a missing-evidence state, infer unsupported controls, or activate paid eligibility to make this slice appear complete.
+
+## 2026-08-25 - Persist exact commercial scope before paid artefact binding
+
+Decision: A paid Item 74H artefact must derive its eligibility from the commercial binding stored with the persisted assessment, not from a new caller-supplied object.
+
+Rationale:
+
+- A transient eligibility object is not durable provenance and could diverge from the assessment that was originally accepted.
+- The exact scope digest binds the site-evidence digest, control version, road category, applicable minimum, proposed measurement and deterministic outcome.
+- Persisting that binding makes idempotent replay differences detectable.
+- Rechecking policy before returning an existing paid binding prevents stale evidence, stale controls or reduced trust from bypassing current rules.
+- `MERIT_ASSESSED` is a valid labelled scope, not a false compliance result, and requires the same evidence currency as `PROCEED`.
+- Submission SEE binding requires operator-approved trust.
+
+Consequence: Free and unresolved assessments may persist without a commercial binding, but no paid artefact can bind. Production checkout remains disabled independently of eligibility.

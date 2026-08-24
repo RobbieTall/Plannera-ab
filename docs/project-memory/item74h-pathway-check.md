@@ -185,3 +185,15 @@ The delivery sequence remains:
 4. reuse in the A$49 Planning Controls Pack;
 5. reuse in the A$749 submission SEE; and
 6. whole-LGA Byron and Kempsey commercial expansion after the first slice is accepted.
+
+## Durable exact-scope product binding
+
+The shared evidence graph now has a persistent commercial boundary:
+
+1. The site-evidence manifest determines whether the free, pack or submission evidence boundary is satisfied.
+2. The Byron rural setback contract produces `PROCEED`, `MERIT_ASSESSED` or `MORE_EVIDENCE_REQUIRED` without inferring road class.
+3. The commercial binder confirms that manifest road category and measured setback exactly match the control inputs.
+4. The resulting digest is stored with the assessment and used as its paid scope key.
+5. Paid artefact creation and replay re-read that stored binding and current evidence/control state.
+
+This proves the architecture, not the controlled site's paid eligibility. The site still needs authoritative road classification and a measured proposed shed setback. No paid output should be generated for it before those observations are persisted and matched.
