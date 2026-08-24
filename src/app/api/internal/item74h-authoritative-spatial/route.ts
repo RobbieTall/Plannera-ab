@@ -24,6 +24,31 @@ export const runtime = "nodejs";
 const ACCEPTANCE_FLAG = "ITEM74H_AUTHORITATIVE_SPATIAL_ACCEPTANCE";
 const CONTROLLED_ADDRESS = "ITEM74H_CONTROLLED_ADDRESS";
 
+type AcceptanceStage =
+  | "RESOLVE_SITE"
+  | "VALIDATE_SCOPE"
+  | "BUILD_QUERIES"
+  | "FETCH_LOT"
+  | "FETCH_BUSHFIRE"
+  | "FETCH_WATER"
+  | "FETCH_ROAD_REFERENCE"
+  | "FETCH_HERITAGE"
+  | "FETCH_FLOOD"
+  | "FETCH_BIODIVERSITY"
+  | "PARSE_LOT"
+  | "PARSE_BUSHFIRE"
+  | "PARSE_WATER"
+  | "PARSE_ROAD_REFERENCE"
+  | "PARSE_HERITAGE"
+  | "PARSE_FLOOD"
+  | "PARSE_BIODIVERSITY";
+
+class AcceptanceStageError extends Error {
+  constructor(readonly stage: AcceptanceStage) {
+    super(stage);
+  }
+}
+
 async function withoutResolverLogging<T>(action: () => Promise<T>): Promise<T> {
   const originalLog = console.log;
   const originalInfo = console.info;
@@ -45,15 +70,22 @@ async function withoutResolverLogging<T>(action: () => Promise<T>): Promise<T> {
   }
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!response.ok) {
-    throw new Error("Authoritative spatial source request failed.");
+async function fetchJson<T>(
+  url: string,
+  stage: AcceptanceStage,
+): Promise<T> {
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      throw new Error("Authoritative source request failed.");
+    }
+    return (await response.json()) as T;
+  } catch {
+    throw new AcceptanceStageError(stage);
   }
-  return (await response.json()) as T;
 }
 
 export async function GET() {
@@ -75,6 +107,8 @@ export async function GET() {
     );
   }
 
+  let stage: AcceptanceStage = "RESOLVE_SITE";
+
   try {
     const resolved = await withoutResolverLogging(() =>
       resolveSiteFromText(address, {
@@ -83,12 +117,13 @@ export async function GET() {
       }),
     );
 
+    stage = "VALIDATE_SCOPE";
     if (
       resolved.status !== "ok" ||
       resolved.decision !== "auto" ||
       resolved.candidates.length === 0
     ) {
-      throw new Error("Controlled site did not auto-resolve.");
+      throw new AcceptanceStageError(stage);
     }
 
     const candidate = resolved.candidates[0];
@@ -105,9 +140,10 @@ export async function GET() {
       typeof longitude !== "number" ||
       !Number.isFinite(longitude)
     ) {
-      throw new Error("Controlled site is outside the accepted Byron RU2 scope.");
+      throw new AcceptanceStageError(stage);
     }
 
+    stage = "BUILD_QUERIES";
     const spatialQueries = buildAuthoritativeSpatialQueries(
       latitude,
       longitude,
@@ -126,31 +162,95 @@ export async function GET() {
       floodResponse,
       biodiversityResponse,
     ] = await Promise.all([
-      fetchJson<ArcGisFeatureResponse>(spatialQueries.lot),
-      fetchJson<ArcGisFeatureResponse>(spatialQueries.bushfire),
+      fetchJson<ArcGisFeatureResponse>(spatialQueries.lot, "FETCH_LOT"),
+      fetchJson<ArcGisFeatureResponse>(
+        spatialQueries.bushfire,
+        "FETCH_BUSHFIRE",
+      ),
       Promise.all(
         spatialQueries.water.map((query) =>
-          fetchJson<ArcGisCountResponse>(query),
+          fetchJson<ArcGisCountResponse>(query, "FETCH_WATER"),
         ),
       ),
-      fetchJson<ArcGisFeatureResponse>(spatialQueries.roadReference),
-      fetchJson<PlanningLayerFeatureResponse>(planningQueries.heritage),
-      fetchJson<PlanningLayerFeatureResponse>(planningQueries.floodPlanning),
+      fetchJson<ArcGisFeatureResponse>(
+        spatialQueries.roadReference,
+        "FETCH_ROAD_REFERENCE",
+      ),
+      fetchJson<PlanningLayerFeatureResponse>(
+        planningQueries.heritage,
+        "FETCH_HERITAGE",
+      ),
+      fetchJson<PlanningLayerFeatureResponse>(
+        planningQueries.floodPlanning,
+        "FETCH_FLOOD",
+      ),
       fetchJson<PlanningLayerFeatureResponse>(
         planningQueries.biodiversityValues,
+        "FETCH_BIODIVERSITY",
       ),
     ]);
 
     const checkedAt = new Date();
+
+    stage = "PARSE_LOT";
+    const lotObservation = parseLotEvidence(lotResponse, checkedAt);
+    stage = "PARSE_BUSHFIRE";
+    const bushfireObservation = parseBushfireEvidence(
+      bushfireResponse,
+      checkedAt,
+    );
+    stage = "PARSE_WATER";
+    const waterObservation = parseWaterProximityEvidence(
+      waterResponses,
+      checkedAt,
+    );
+    stage = "PARSE_ROAD_REFERENCE";
+    const roadObservation = parseRoadReferenceEvidence(
+      roadResponse,
+      checkedAt,
+    );
+    stage = "PARSE_HERITAGE";
+    const heritageObservation = parseHeritageLayerEvidence(
+      heritageResponse,
+      checkedAt,
+    );
+    stage = "PARSE_FLOOD";
+    const floodObservation = parseFloodPlanningLayerEvidence(
+      floodResponse,
+      checkedAt,
+    );
+    stage = "PARSE_BIODIVERSITY";
+    const biodiversityObservation = parseBiodiversityValuesEvidence(
+      biodiversityResponse,
+      checkedAt,
+    );
+
     const observations = [
-      parseLotEvidence(lotResponse, checkedAt),
-      parseBushfireEvidence(bushfireResponse, checkedAt),
-      parseWaterProximityEvidence(waterResponses, checkedAt),
-      parseRoadReferenceEvidence(roadResponse, checkedAt),
-      parseHeritageLayerEvidence(heritageResponse, checkedAt),
-      parseFloodPlanningLayerEvidence(floodResponse, checkedAt),
-      parseBiodiversityValuesEvidence(biodiversityResponse, checkedAt),
+      lotObservation,
+      bushfireObservation,
+      waterObservation,
+      roadObservation,
+      heritageObservation,
+      floodObservation,
+      biodiversityObservation,
     ];
+
+    console.info("[item74h-authoritative-spatial]", {
+      status: "accepted",
+      observationCount: observations.length,
+      privacy: {
+        addressReturned: false,
+        coordinatesReturned: false,
+        parcelIdentifiersReturned: false,
+        geometryReturned: false,
+        rawResponsesReturned: false,
+      },
+      commercial: {
+        productionCheckoutEnabled: false,
+        planningControlsPackEligible: false,
+        submissionSeeEligible: false,
+      },
+    });
 
     return NextResponse.json(
       {
@@ -182,11 +282,30 @@ export async function GET() {
         },
       },
     );
-  } catch {
+  } catch (error) {
+    const failedStage =
+      error instanceof AcceptanceStageError ? error.stage : stage;
+
+    console.info("[item74h-authoritative-spatial]", {
+      status: "failed",
+      stage: failedStage,
+      privacy: {
+        addressLogged: false,
+        coordinatesLogged: false,
+        parcelIdentifiersLogged: false,
+        rawErrorLogged: false,
+      },
+      commercial: {
+        productionCheckoutEnabled: false,
+        paidOutputsMutated: false,
+      },
+    });
+
     return NextResponse.json(
       {
         status: "failed",
         code: "AUTHORITATIVE_SPATIAL_ACCEPTANCE_FAILED",
+        stage: failedStage,
       },
       {
         status: 502,
