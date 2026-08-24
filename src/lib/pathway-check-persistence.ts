@@ -600,7 +600,7 @@ export async function bindPathwayArtefact(
     fail('ARTEFACT_EVIDENCE_MISMATCH', 'Artefact scope and evidence must match exactly');
   }
 
-  const paid = input.commercialStage !== 'FREE_PATHWAY';
+  const paid = input.commercialStage !== 'FREE_PATHWAY_CHECK';
   if (paid) {
     const trusted = [
       'EVIDENCE_VERIFIED',
