@@ -50,6 +50,38 @@ describe("site-resolver (nsw property fallback)", () => {
     expect(receivedUrl).toContain("NSW");
   });
 
+  it("suppresses resolver logs within the controlled execution scope", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              id: "quiet",
+              formattedAddress: "10 Test Street, Test NSW 2000",
+              lgaName: "Test",
+            },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+
+    const result = await resolveSiteFromText("10 Test Street", {
+      source: "site-search",
+      suppressLogs: true,
+    });
+
+    expect(result.status).toEqual("ok");
+    expect(log).not.toHaveBeenCalled();
+    expect(info).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it("gracefully reports missing NSW configuration when Google is unavailable", async () => {
     delete process.env.NSW_PROPERTY_API_URL;
     delete process.env.NSW_PROPERTY_API_KEY;

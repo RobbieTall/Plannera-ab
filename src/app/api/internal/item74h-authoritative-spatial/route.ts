@@ -125,27 +125,6 @@ function lotSchemaSummary(response: ArcGisFeatureResponse) {
   };
 }
 
-async function withoutSourceLogging<T>(action: () => Promise<T>): Promise<T> {
-  const originalLog = console.log;
-  const originalInfo = console.info;
-  const originalWarn = console.warn;
-  const originalError = console.error;
-  const silent = () => undefined;
-
-  console.log = silent;
-  console.info = silent;
-  console.warn = silent;
-  console.error = silent;
-  try {
-    return await action();
-  } finally {
-    console.log = originalLog;
-    console.info = originalInfo;
-    console.warn = originalWarn;
-    console.error = originalError;
-  }
-}
-
 async function fetchJson<T>(
   url: string,
   stage: AcceptanceStage,
@@ -186,12 +165,11 @@ export async function GET() {
   let stage: AcceptanceStage = "RESOLVE_SITE";
 
   try {
-    const resolved = await withoutSourceLogging(() =>
-      resolveSiteFromText(address, {
-        source: "site-search",
-        limit: 10,
-      }),
-    );
+    const resolved = await resolveSiteFromText(address, {
+      source: "site-search",
+      limit: 10,
+      suppressLogs: true,
+    });
 
     stage = "VALIDATE_SITE";
     const resolutionStatusOk = resolved.status === "ok";
@@ -255,14 +233,12 @@ export async function GET() {
     }
 
     stage = "RESOLVE_ZONING";
-    const zoning = await withoutSourceLogging(() =>
-      getZoningForSite({
-        coords: {
-          lat: latitude,
-          lng: longitude,
-        },
-      }),
-    );
+    const zoning = await getZoningForSite({
+      coords: {
+        lat: latitude,
+        lng: longitude,
+      },
+    });
 
     stage = "VALIDATE_SCOPE";
     if (

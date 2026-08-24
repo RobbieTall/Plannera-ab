@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import type { SiteCandidate } from "@/types/site";
 
 export type SiteResolverSource = "chat" | "site-search" | "site-suggest";
@@ -33,6 +35,23 @@ export type SiteResolverConfigStatus =
   | { status: "missing_env"; missing: string[] };
 
 type SiteSearchErrorCode = "property_search_not_configured" | "property_search_failed";
+
+const siteResolverLoggingScope = new AsyncLocalStorage<boolean>();
+
+const siteResolverConsole = {
+  log: (...args: Parameters<typeof console.log>) => {
+    if (!siteResolverLoggingScope.getStore()) console.log(...args);
+  },
+  info: (...args: Parameters<typeof console.info>) => {
+    if (!siteResolverLoggingScope.getStore()) console.info(...args);
+  },
+  warn: (...args: Parameters<typeof console.warn>) => {
+    if (!siteResolverLoggingScope.getStore()) console.warn(...args);
+  },
+  error: (...args: Parameters<typeof console.error>) => {
+    if (!siteResolverLoggingScope.getStore()) console.error(...args);
+  },
+};
 
 const getErrorDetails = (error: unknown) => {
   if (error instanceof SiteSearchError) {
@@ -449,7 +468,7 @@ const logSiteSearchRequest = (params: {
   strategy: PropertySearchStrategy;
 }) => {
   const { queryText, normalized, strategy } = params;
-  console.log("[site-search-request]", {
+  siteResolverConsole.log("[site-search-request]", {
     strategy,
     q: queryText,
     normalized,
@@ -464,7 +483,7 @@ const logSiteSearchResponse = (params: {
   results: SiteCandidate[];
 }) => {
   const { strategy, normalized, status, results } = params;
-  console.log("[site-search-response]", {
+  siteResolverConsole.log("[site-search-response]", {
     strategy,
     q: normalized,
     status,
@@ -512,7 +531,7 @@ const fetchPropertySearch = async (
       cache: "no-store",
     });
   } catch (networkError) {
-    console.error("[site-search-error]", {
+    siteResolverConsole.error("[site-search-error]", {
       strategy,
       q: normalized,
       message: "Failed to reach NSW property search API",
@@ -523,7 +542,7 @@ const fetchPropertySearch = async (
   const bodyText = await response.text();
   const status = response.status;
   if (!response.ok) {
-    console.error("[site-search-error]", {
+    siteResolverConsole.error("[site-search-error]", {
       strategy,
       q: normalized,
       status,
@@ -539,7 +558,7 @@ const fetchPropertySearch = async (
   try {
     parsed = bodyText ? JSON.parse(bodyText) : null;
   } catch {
-    console.error("[site-search-error]", {
+    siteResolverConsole.error("[site-search-error]", {
       strategy,
       q: normalized,
       status,
@@ -620,7 +639,7 @@ export const requestGoogleAutocomplete = async (
     input: queryText,
     includedRegionCodes: ["AU"],
   };
-  console.log("[site-resolver-google-request]", {
+  siteResolverConsole.log("[site-resolver-google-request]", {
     provider: "google",
     source: "autocomplete",
     body,
@@ -638,7 +657,7 @@ export const requestGoogleAutocomplete = async (
       cache: "no-store",
     });
   } catch (error) {
-    console.error("[site-resolver-error]", {
+    siteResolverConsole.error("[site-resolver-error]", {
       provider: "google",
       q: queryText,
       source: "autocomplete",
@@ -657,7 +676,7 @@ export const requestGoogleAutocomplete = async (
   try {
     payload = bodyText ? (JSON.parse(bodyText) as GooglePlacesResponse | GooglePlacesErrorResponse) : null;
   } catch (error) {
-    console.error("[site-resolver-error]", {
+    siteResolverConsole.error("[site-resolver-error]", {
       provider: "google",
       q: queryText,
       source: "autocomplete",
@@ -710,7 +729,7 @@ const fetchGoogleAutocomplete = async (
     : [];
 
   if (!ok) {
-    console.error("[site-resolver-error]", {
+    siteResolverConsole.error("[site-resolver-error]", {
       provider: "google",
       q: queryText,
       source: "autocomplete",
@@ -742,7 +761,7 @@ const fetchGoogleAutocomplete = async (
         } => Boolean(prediction),
       );
 
-    console.info("[site-resolver-google-response]", {
+    siteResolverConsole.info("[site-resolver-google-response]", {
       provider: "google",
       status: googleStatus,
       suggestions: suggestions.length,
@@ -753,7 +772,7 @@ const fetchGoogleAutocomplete = async (
   }
 
   if (googleStatus === "ZERO_RESULTS") {
-    console.info("[site-resolver-google-response]", {
+    siteResolverConsole.info("[site-resolver-google-response]", {
       provider: "google",
       status: googleStatus,
       suggestions: suggestions.length,
@@ -767,7 +786,7 @@ const fetchGoogleAutocomplete = async (
     };
   }
 
-  console.warn("[site-resolver-google-error]", {
+  siteResolverConsole.warn("[site-resolver-google-error]", {
     status: googleStatus,
     error_message: googleErrorMessage,
     provider: "google",
@@ -803,7 +822,7 @@ const geocodePlaceId = async (placeId: string, config: { key: string }) => {
   try {
     response = await fetch(url.toString(), { cache: "no-store" });
   } catch (error) {
-    console.warn("[site-resolver-warning]", {
+    siteResolverConsole.warn("[site-resolver-warning]", {
       provider: "google",
       stage: "geocode",
       code: "geocode_unavailable",
@@ -826,7 +845,7 @@ const geocodePlaceId = async (placeId: string, config: { key: string }) => {
   try {
     payload = bodyText ? JSON.parse(bodyText) : null;
   } catch (error) {
-    console.warn("[site-resolver-warning]", {
+    siteResolverConsole.warn("[site-resolver-warning]", {
       provider: "google",
       stage: "geocode",
       code: "geocode_unavailable",
@@ -842,7 +861,7 @@ const geocodePlaceId = async (placeId: string, config: { key: string }) => {
   const googleErrorMessage = payload?.error_message ?? null;
 
   if (!response.ok || googleStatus !== "OK") {
-    console.warn("[site-resolver-warning]", {
+    siteResolverConsole.warn("[site-resolver-warning]", {
       provider: "google",
       stage: "geocode",
       code: "geocode_unavailable",
@@ -869,14 +888,14 @@ const resolveSiteWithGoogle = async (
 ): Promise<{ candidates: SiteCandidate[]; normalizedQuery: string; suggestionsCount: number; googleStatus: string }> => {
   const source = options?.source ?? "chat";
   const normalizedQuery = normaliseForGoogleSearch(addressText);
-  console.log("[site-resolver-request]", { provider: "google", q: normalizedQuery, source });
+  siteResolverConsole.log("[site-resolver-request]", { provider: "google", q: normalizedQuery, source });
   if (!normalizedQuery) {
     return { candidates: [], normalizedQuery, suggestionsCount: 0, googleStatus: "ZERO_RESULTS" };
   }
   const { predictions, suggestionsCount, googleStatus } = await fetchGoogleAutocomplete(normalizedQuery, config);
 
   if (googleStatus === "ZERO_RESULTS" || suggestionsCount === 0) {
-    console.info("[site-resolver-google-empty]", {
+    siteResolverConsole.info("[site-resolver-google-empty]", {
       provider: "google",
       q: normalizedQuery,
       source,
@@ -896,7 +915,7 @@ const resolveSiteWithGoogle = async (
     try {
       geocoded = await geocodePlaceId(prediction.place_id, config);
     } catch (error) {
-      console.error("[site-resolver-error]", { provider: "google", stage: "geocode", ...getErrorDetails(error) });
+      siteResolverConsole.error("[site-resolver-error]", { provider: "google", stage: "geocode", ...getErrorDetails(error) });
     }
 
     const formattedAddress = geocoded?.formattedAddress ?? prediction.description;
@@ -913,7 +932,7 @@ const resolveSiteWithGoogle = async (
   }
 
   const sortedCandidates = resolvedCandidates.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  console.log("[site-resolver-result]", {
+  siteResolverConsole.log("[site-resolver-result]", {
     provider: "google",
     q: normalizedQuery,
     source,
@@ -928,7 +947,7 @@ const resolveAddressToSite = async (
   options?: { source?: SiteResolverSource; limit?: number },
 ): Promise<{ candidates: SiteCandidate[]; normalizedQuery: string; status: number | null }> => {
   const source = options?.source ?? "chat";
-  console.log("[site-resolver-request]", { provider: "nsw-point", q: addressText, source });
+  siteResolverConsole.log("[site-resolver-request]", { provider: "nsw-point", q: addressText, source });
   let normalizedQuery = normaliseSearchQuery(addressText);
   let status: number | null = null;
   try {
@@ -968,7 +987,7 @@ const resolveAddressToSite = async (
       }
     }
 
-    console.log("[site-resolver-result]", {
+    siteResolverConsole.log("[site-resolver-result]", {
       provider: "nsw-point",
       q: normalizedQuery,
       source,
@@ -977,7 +996,7 @@ const resolveAddressToSite = async (
     });
     return { candidates: resolvedCandidates, normalizedQuery, status };
   } catch (error) {
-    console.error("[site-resolver-error]", { provider: "nsw-point", q: addressText, source, ...getErrorDetails(error) });
+    siteResolverConsole.error("[site-resolver-error]", { provider: "nsw-point", q: addressText, source, ...getErrorDetails(error) });
     throw error;
   }
 };
@@ -1000,8 +1019,21 @@ export const decideSiteFromCandidates = (candidates: SiteCandidate[]): SiteDecis
 
 export const resolveSiteFromText = async (
   addressText: string,
-  options?: { source?: SiteResolverSource; limit?: number },
+  options?: {
+    source?: SiteResolverSource;
+    limit?: number;
+    suppressLogs?: boolean;
+  },
 ): Promise<SiteResolverResult> => {
+  if (options?.suppressLogs) {
+    return siteResolverLoggingScope.run(true, () =>
+      resolveSiteFromText(addressText, {
+        ...options,
+        suppressLogs: false,
+      }),
+    );
+  }
+
   const source = options?.source ?? "chat";
   let googleError: SiteSearchError | null = null;
   let googleSuggestions = 0;
@@ -1029,7 +1061,7 @@ export const resolveSiteFromText = async (
           };
         }
 
-        console.info("[site-resolver-google-fallback]", {
+        siteResolverConsole.info("[site-resolver-google-fallback]", {
           provider: "google",
           status: resolvedStatus,
           suggestions: suggestionsCount,
@@ -1045,7 +1077,7 @@ export const resolveSiteFromText = async (
           errorDetails.details && "googleErrorMessage" in errorDetails.details
             ? (errorDetails.details.googleErrorMessage as string | null)
             : errorDetails.message;
-        console.warn("[site-resolver-google-error]", {
+        siteResolverConsole.warn("[site-resolver-google-error]", {
           provider: "google",
           status: googleStatus,
           error_message: googleErrorMessage,
@@ -1061,7 +1093,7 @@ export const resolveSiteFromText = async (
 
     const { candidates, normalizedQuery } = await resolveAddressToSite(addressText, options);
     const decision = decideSiteFromCandidates(candidates);
-    console.log("[site-resolver-fallback]", {
+    siteResolverConsole.log("[site-resolver-fallback]", {
       from: "google",
       reason:
         googleError?.details?.googleStatus ?? (googleSuggestions === 0 ? "google_zero_results" : "google_candidates_empty"),

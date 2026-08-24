@@ -121,7 +121,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             {showItem74hAcceptance ? (
               <Link
-                href="/api/internal/item74h-authoritative-spatial"
+                href="/api/internal/item74h-authoritative-spatial" prefetch={false}
                 className="font-medium text-amber-800 hover:text-amber-950"
               >
                 Item 74H acceptance
