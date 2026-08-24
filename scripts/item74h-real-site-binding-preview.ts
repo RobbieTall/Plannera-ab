@@ -262,7 +262,7 @@ async function cleanup(
   prefix: string,
 ): Promise<void> {
   const assessments = await prisma.pathwayAssessment.findMany({
-    where: { scopeKey: { startsWith: prefix } },
+    where: { projectId: { startsWith: prefix } },
     select: { id: true },
   });
   const assessmentIds = assessments.map((item) => item.id);
@@ -305,7 +305,7 @@ async function residualCount(
 ): Promise<number> {
   const counts = await Promise.all([
     prisma.pathwayAssessment.count({
-      where: { scopeKey: { startsWith: prefix } },
+      where: { projectId: { startsWith: prefix } },
     }),
     prisma.pathwayDefinition.count({
       where: { versionKey: { startsWith: prefix } },
