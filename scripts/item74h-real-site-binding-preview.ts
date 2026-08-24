@@ -42,6 +42,10 @@ const sha256 = (value: string) =>
 const isoOffset = (now: Date, milliseconds: number) =>
   new Date(now.getTime() + milliseconds).toISOString();
 
+export const item74hPaidAssessmentSelector = (prefix: string) => ({
+  projectId: { startsWith: prefix },
+}) as const;
+
 function buildRealSiteEvidencePackage(
   now: Date,
   projectRef: string,
@@ -262,7 +266,7 @@ async function cleanup(
   prefix: string,
 ): Promise<void> {
   const assessments = await prisma.pathwayAssessment.findMany({
-    where: { projectId: { startsWith: prefix } },
+    where: item74hPaidAssessmentSelector(prefix),
     select: { id: true },
   });
   const assessmentIds = assessments.map((item) => item.id);
@@ -305,7 +309,7 @@ async function residualCount(
 ): Promise<number> {
   const counts = await Promise.all([
     prisma.pathwayAssessment.count({
-      where: { projectId: { startsWith: prefix } },
+      where: item74hPaidAssessmentSelector(prefix),
     }),
     prisma.pathwayDefinition.count({
       where: { versionKey: { startsWith: prefix } },

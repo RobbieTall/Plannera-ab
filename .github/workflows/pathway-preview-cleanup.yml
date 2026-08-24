@@ -1,0 +1,43 @@
+name: Pathway Preview Cleanup Contract
+
+on:
+  pull_request:
+    paths:
+      - "scripts/item74h-real-site-binding-preview.ts"
+      - "scripts/item74h-real-site-binding-preview.test.ts"
+      - "scripts/pathway-persistence-preview-acceptance.ts"
+      - "docs/operations/item74h-real-site-preview-persistence.md"
+      - ".github/workflows/pathway-preview-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Synthetic project-scope cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify project-scoped cleanup selector
+        run: npx vitest run scripts/item74h-real-site-binding-preview.test.ts
+
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"
