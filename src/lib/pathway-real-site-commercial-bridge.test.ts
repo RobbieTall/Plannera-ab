@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { ByronRoadClassificationEvidence } from "./pathway-byron-rural-setbacks";
+import { evaluatePaidArtefactBindingPolicy } from "./pathway-paid-artefact-policy";
+import { evaluatePathwayCommercialBindingPersistence } from "./pathway-persisted-commercial-binding";
 import {
   evaluatePathwayRealSiteCommercialBridge,
   formatPathwaySideRearSetbacks,
@@ -273,6 +275,47 @@ describe("Item 74H real-site commercial bridge", () => {
       acceptedInput().manifest.siteEvidenceDigest,
     );
     expect(result.redactedEvidenceSummary.containsRawSiteIdentifiers).toBe(false);
+
+    const binding = result.commercialBinding;
+    const exactScope = binding.exactScope!;
+    expect(
+      evaluatePathwayCommercialBindingPersistence({
+        result: { decision: "PROCEED" },
+        binding,
+        scopeKey: exactScope.scopeDigest,
+        evidenceDigest: exactScope.siteEvidenceDigest,
+        decision: "PROCEED",
+      }).allowed,
+    ).toBe(true);
+
+    const currentAssessment = {
+      decision: "PROCEED",
+      trustLevel: "EVIDENCE_VERIFIED",
+      isCurrent: true,
+      evidenceCurrent: true,
+      controlsCurrent: true,
+    };
+    expect(
+      evaluatePaidArtefactBindingPolicy({
+        commercialStage: "PLANNING_CONTROLS_PACK",
+        scopeKey: exactScope.scopeDigest,
+        evidenceDigest: exactScope.siteEvidenceDigest,
+        commercialBinding: binding,
+        assessment: currentAssessment,
+      }).allowed,
+    ).toBe(true);
+    expect(
+      evaluatePaidArtefactBindingPolicy({
+        commercialStage: "SUBMISSION_SEE",
+        scopeKey: exactScope.scopeDigest,
+        evidenceDigest: exactScope.siteEvidenceDigest,
+        commercialBinding: binding,
+        assessment: {
+          ...currentAssessment,
+          trustLevel: "OPERATOR_APPROVED",
+        },
+      }).allowed,
+    ).toBe(true);
   });
 
   it("blocks the pack when the manifest measurements differ from the reviewed plan", () => {

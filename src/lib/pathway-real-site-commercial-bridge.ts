@@ -4,6 +4,7 @@ import {
   computePathwayCommercialScopeDigest,
   evaluatePathwayCommercialBinding,
   type PathwayCommercialBindingBlocker,
+  type PathwayCommercialBindingEvaluation,
   type PathwayExactCommercialScope,
 } from "./pathway-commercial-binding";
 import type { ByronRoadClassificationEvidence } from "./pathway-byron-rural-setbacks";
@@ -41,6 +42,7 @@ export type PathwayRealSiteCommercialBridgeEvaluation = {
   submissionSeeEligible: boolean;
   blockers: PathwayRealSiteCommercialBlocker[];
   exactScope: PathwayExactCommercialScope | null;
+  commercialBinding: PathwayCommercialBindingEvaluation;
   redactedEvidenceSummary: {
     status: "EVIDENCE_CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
     acceptedDocumentCount: number;
@@ -259,6 +261,16 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     };
   }
 
+  const commercialBinding: PathwayCommercialBindingEvaluation = {
+    bindingVersion: base.bindingVersion,
+    productionCheckoutEnabled: false,
+    freePathwayCheckEligible: base.freePathwayCheckEligible,
+    planningControlsPackEligible,
+    submissionSeeEligible,
+    blockers: base.blockers,
+    exactScope,
+  };
+
   return {
     bridgeVersion: PATHWAY_REAL_SITE_COMMERCIAL_BRIDGE_VERSION,
     productionCheckoutEnabled: false,
@@ -267,6 +279,7 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     submissionSeeEligible,
     blockers: Array.from(new Set(blockers)),
     exactScope,
+    commercialBinding,
     redactedEvidenceSummary: {
       status: realSite.status,
       acceptedDocumentCount: realSite.redactedSummary.acceptedDocumentCount,
