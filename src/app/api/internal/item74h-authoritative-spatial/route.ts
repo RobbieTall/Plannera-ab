@@ -126,11 +126,29 @@ export async function GET() {
     );
 
     stage = "VALIDATE_SITE";
+    const resolutionStatusOk = resolved.status === "ok";
+    const resolutionDecisionAuto =
+      resolutionStatusOk && resolved.decision === "auto";
+    const candidatePresent =
+      resolutionStatusOk && resolved.candidates.length > 0;
+
     if (
-      resolved.status !== "ok" ||
-      resolved.decision !== "auto" ||
-      resolved.candidates.length === 0
+      !resolutionStatusOk ||
+      !resolutionDecisionAuto ||
+      !candidatePresent
     ) {
+      console.info("[item74h-authoritative-spatial-validation]", {
+        resolutionStatusOk,
+        resolutionDecisionAuto,
+        candidatePresent,
+        lgaAllowlisted: false,
+        coordinatesFinite: false,
+        privacy: {
+          addressLogged: false,
+          candidateValuesLogged: false,
+          rawResolverPayloadLogged: false,
+        },
+      });
       throw new AcceptanceStageError(stage);
     }
 
@@ -138,15 +156,26 @@ export async function GET() {
     const lga = candidate.lgaName?.trim().toUpperCase() ?? null;
     const latitude = candidate.latitude;
     const longitude = candidate.longitude;
+    const lgaAllowlisted = Boolean(lga && BYRON_LGA_NAMES.has(lga));
+    const coordinatesFinite =
+      typeof latitude === "number" &&
+      Number.isFinite(latitude) &&
+      typeof longitude === "number" &&
+      Number.isFinite(longitude);
 
-    if (
-      !lga ||
-      !BYRON_LGA_NAMES.has(lga) ||
-      typeof latitude !== "number" ||
-      !Number.isFinite(latitude) ||
-      typeof longitude !== "number" ||
-      !Number.isFinite(longitude)
-    ) {
+    if (!lgaAllowlisted || !coordinatesFinite) {
+      console.info("[item74h-authoritative-spatial-validation]", {
+        resolutionStatusOk,
+        resolutionDecisionAuto,
+        candidatePresent,
+        lgaAllowlisted,
+        coordinatesFinite,
+        privacy: {
+          addressLogged: false,
+          candidateValuesLogged: false,
+          rawResolverPayloadLogged: false,
+        },
+      });
       throw new AcceptanceStageError(stage);
     }
 
