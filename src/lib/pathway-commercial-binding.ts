@@ -197,19 +197,19 @@ export function evaluatePathwayCommercialBinding(
           bindingVersion: PATHWAY_COMMERCIAL_BINDING_VERSION,
           siteEvidenceDigest: input.manifest.siteEvidenceDigest,
           controlId: roadSetback.controlId,
-          roadCategory: roadSetback.confirmedRoadCategory,
+          roadCategory: roadSetback.confirmedRoadCategory!,
           minimumRoadSetbackMetres:
-            roadSetback.minimumRoadSetbackMetres,
+            roadSetback.minimumRoadSetbackMetres!,
           proposedRoadSetbackMetres:
-            roadSetback.proposedRoadSetbackMetres,
-          outcome: roadSetback.roadSetbackDecision,
+            roadSetback.proposedRoadSetbackMetres!,
+          outcome: roadSetback.roadSetbackDecision as Exclude<\n            ByronRoadSetbackDecision,\n            "MORE_EVIDENCE_REQUIRED"\n          >,
         }),
         siteEvidenceDigest: input.manifest.siteEvidenceDigest,
         controlId: roadSetback.controlId,
-        roadCategory: roadSetback.confirmedRoadCategory,
-        minimumRoadSetbackMetres: roadSetback.minimumRoadSetbackMetres,
-        proposedRoadSetbackMetres: roadSetback.proposedRoadSetbackMetres,
-        outcome: roadSetback.roadSetbackDecision,
+        roadCategory: roadSetback.confirmedRoadCategory!,
+        minimumRoadSetbackMetres: roadSetback.minimumRoadSetbackMetres!,
+        proposedRoadSetbackMetres: roadSetback.proposedRoadSetbackMetres!,
+        outcome: roadSetback.roadSetbackDecision as Exclude<\n            ByronRoadSetbackDecision,\n            "MORE_EVIDENCE_REQUIRED"\n          >,
       }
     : null;
 
