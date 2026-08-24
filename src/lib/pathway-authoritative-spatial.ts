@@ -232,6 +232,8 @@ function normalizeAreaSquareMetres(area: unknown, unit: unknown): number {
     "SQM",
     "SQUAREMETRE",
     "SQUAREMETRES",
+    "METERS",
+    "METRES",
   ]);
   const hectareUnits = new Set(["HA", "HECTARE", "HECTARES"]);
 

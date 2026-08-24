@@ -81,6 +81,26 @@ test("normalizes cadastral hectares and never carries parcel identifiers", () =>
   assert.equal(serialized.includes("geometry"), false);
 });
 
+test("normalizes the NSW cadastral Meters token as square metres", () => {
+  const result = parseLotEvidence(
+    {
+      features: [
+        {
+          attributes: {
+            planlotarea: 29_810.936,
+            planlotareaunits: "Meters",
+          },
+        },
+      ],
+    },
+    CHECKED_AT,
+  );
+
+  assert.equal(result.status, "SITE_CONFIRMED");
+  assert.equal(result.value.areaSquareMetres, 29_810.94);
+  assert.equal(result.value.unit, "sqm");
+});
+
 test("fails closed for ambiguous lots and unsupported area units", () => {
   assert.throws(
     () => parseLotEvidence({ features: [] }, CHECKED_AT),
