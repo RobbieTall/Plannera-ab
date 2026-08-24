@@ -79,6 +79,52 @@ function normaliseAddressKey(value: string): string {
   return normalized.replace(/[^A-Z0-9]/g, "");
 }
 
+function lotSchemaSummary(response: ArcGisFeatureResponse) {
+  const featureArrayReturned = Array.isArray(response.features);
+  const featureCount = featureArrayReturned ? response.features!.length : null;
+  const attributes =
+    featureArrayReturned &&
+    featureCount === 1 &&
+    response.features![0]?.attributes &&
+    typeof response.features![0].attributes === "object"
+      ? response.features![0].attributes
+      : null;
+  const area = attributes?.planlotarea;
+  const unit = attributes?.planlotareaunits;
+  const normalizedUnit =
+    typeof unit === "string"
+      ? unit.trim().toUpperCase().replaceAll(".", "").replaceAll(" ", "")
+      : null;
+  const areaUnitClass =
+    normalizedUnit &&
+    new Set(["M2", "SQM", "SQUAREMETRE", "SQUAREMETRES"]).has(normalizedUnit)
+      ? "SQUARE_METRES"
+      : normalizedUnit &&
+          new Set(["HA", "HECTARE", "HECTARES"]).has(normalizedUnit)
+        ? "HECTARES"
+        : normalizedUnit
+          ? "UNSUPPORTED"
+          : "MISSING";
+
+  return {
+    arcGisErrorReturned: response.error !== undefined,
+    featureArrayReturned,
+    featureCount,
+    attributesPresent: attributes !== null,
+    areaNumericFinitePositive:
+      typeof area === "number" && Number.isFinite(area) && area > 0,
+    areaUnitClass,
+    privacy: {
+      areaValueLogged: false,
+      areaUnitValueLogged: false,
+      lotOrPlanLogged: false,
+      parcelIdentifierLogged: false,
+      geometryLogged: false,
+      rawResponseLogged: false,
+    },
+  };
+}
+
 async function withoutSourceLogging<T>(action: () => Promise<T>): Promise<T> {
   const originalLog = console.log;
   const originalInfo = console.info;
@@ -278,6 +324,10 @@ export async function GET() {
     const checkedAt = new Date();
 
     stage = "PARSE_LOT";
+    console.info(
+      "[item74h-authoritative-spatial-lot-schema]",
+      lotSchemaSummary(lotResponse),
+    );
     const lotObservation = parseLotEvidence(lotResponse, checkedAt);
     stage = "PARSE_BUSHFIRE";
     const bushfireObservation = parseBushfireEvidence(
