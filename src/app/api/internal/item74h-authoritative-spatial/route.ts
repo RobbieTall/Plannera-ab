@@ -17,15 +17,23 @@ import {
   type ArcGisFeatureResponse,
 } from "@/lib/pathway-authoritative-spatial";
 import { resolveSiteFromText } from "@/lib/site-resolver";
+import { getZoningForSite } from "@/lib/nsw-zoning";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const ACCEPTANCE_FLAG = "ITEM74H_AUTHORITATIVE_SPATIAL_ACCEPTANCE";
 const CONTROLLED_ADDRESS = "ITEM74H_CONTROLLED_ADDRESS";
+const BYRON_LGA_NAMES = new Set([
+  "BYRON",
+  "BYRON SHIRE",
+  "BYRON SHIRE COUNCIL",
+]);
 
 type AcceptanceStage =
   | "RESOLVE_SITE"
+  | "VALIDATE_SITE"
+  | "RESOLVE_ZONING"
   | "VALIDATE_SCOPE"
   | "BUILD_QUERIES"
   | "FETCH_LOT"
@@ -49,7 +57,7 @@ class AcceptanceStageError extends Error {
   }
 }
 
-async function withoutResolverLogging<T>(action: () => Promise<T>): Promise<T> {
+async function withoutSourceLogging<T>(action: () => Promise<T>): Promise<T> {
   const originalLog = console.log;
   const originalInfo = console.info;
   const originalWarn = console.warn;
@@ -110,14 +118,14 @@ export async function GET() {
   let stage: AcceptanceStage = "RESOLVE_SITE";
 
   try {
-    const resolved = await withoutResolverLogging(() =>
+    const resolved = await withoutSourceLogging(() =>
       resolveSiteFromText(address, {
         source: "site-search",
         limit: 10,
       }),
     );
 
-    stage = "VALIDATE_SCOPE";
+    stage = "VALIDATE_SITE";
     if (
       resolved.status !== "ok" ||
       resolved.decision !== "auto" ||
@@ -128,17 +136,36 @@ export async function GET() {
 
     const candidate = resolved.candidates[0];
     const lga = candidate.lgaName?.trim().toUpperCase() ?? null;
-    const zone = candidate.zone?.trim().toUpperCase() ?? null;
     const latitude = candidate.latitude;
     const longitude = candidate.longitude;
 
     if (
-      lga !== "BYRON" ||
-      zone !== "RU2" ||
+      !lga ||
+      !BYRON_LGA_NAMES.has(lga) ||
       typeof latitude !== "number" ||
       !Number.isFinite(latitude) ||
       typeof longitude !== "number" ||
       !Number.isFinite(longitude)
+    ) {
+      throw new AcceptanceStageError(stage);
+    }
+
+    stage = "RESOLVE_ZONING";
+    const zoning = await withoutSourceLogging(() =>
+      getZoningForSite({
+        coords: {
+          lat: latitude,
+          lng: longitude,
+        },
+      }),
+    );
+
+    stage = "VALIDATE_SCOPE";
+    if (
+      !zoning ||
+      zoning.source !== "NSW_EPI_LZN" ||
+      zoning.resolutionMethod !== "coordinate_intersection" ||
+      zoning.zoneCode.trim().toUpperCase() !== "RU2"
     ) {
       throw new AcceptanceStageError(stage);
     }
@@ -238,6 +265,12 @@ export async function GET() {
     console.info("[item74h-authoritative-spatial]", {
       status: "accepted",
       observationCount: observations.length,
+      scopeEvidence: {
+        lgaAllowlisted: true,
+        zoningSourceAuthoritative: true,
+        zoningByCoordinateIntersection: true,
+        zoningMatchesRu2: true,
+      },
       privacy: {
         addressReturned: false,
         coordinatesReturned: false,
@@ -260,6 +293,8 @@ export async function GET() {
           zone: "RU2",
           proposalType: "SHED_OUTBUILDING",
           resolutionDecision: "auto",
+          zoningSource: "NSW_EPI_LZN",
+          zoningResolutionMethod: "coordinate_intersection",
         },
         observationCount: observations.length,
         observations,
