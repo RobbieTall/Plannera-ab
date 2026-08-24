@@ -460,12 +460,17 @@ async function runControlledPersistence(
     });
     const dcpHash = digest(
       dcpClauses
-        .map((item) => ({
-          ref: item.ref,
-          title: item.title,
-          bodyText: item.bodyText,
-          sourceUrl: sourceUrlFromMeta(item.numericMeta, dcpSourceUrl),
-        }))
+        .map((item) => {
+          if (!item.ref) {
+            throw new Error('Byron DCP clause is missing its source reference.');
+          }
+          return {
+            ref: item.ref,
+            title: item.title,
+            bodyText: item.bodyText,
+            sourceUrl: sourceUrlFromMeta(item.numericMeta, dcpSourceUrl),
+          };
+        })
         .sort((a, b) => a.ref.localeCompare(b.ref)),
     );
     const codesHash = digest(
