@@ -1373,3 +1373,15 @@ Minimum contract:
 - LGA preparation is shared infrastructure after completion, but each A$49 purchase remains a proposal-specific analysis and may earn only its own exact-scope SEE credit.
 
 Success signal: a clean text-PDF council can be registered, prepared and made searchable without application branching, then promoted through repeatable automated/operator QA and notified back to the paying project without claiming whole-LGA verification from one site or zone.
+
+## Item 74H protected Preview evidence flight: 2026-08-25
+
+Status: **AUTHORITATIVE SITE EVIDENCE ACCEPTED / PAID ELIGIBILITY STILL BLOCKED**
+
+- A controlled Byron RU2 shed/outbuilding Preview flight uniquely resolved the site and authoritative coordinate-intersection zoning.
+- Seven cadastral, hazard, proximity, road-reference, heritage, flood-planning, and biodiversity observation groups were retrieved without returning raw site identifiers or geometry.
+- Persistence remained replay-safe and cleanup returned zero residual synthetic rows.
+- Production checkout stayed disabled; the A$49 pack and A$749 SEE remain blocked at `MORE_EVIDENCE_REQUIRED`.
+- A protected-log privacy failure in an earlier run was invalidated, corrected with request-scoped resolver suppression, and successfully rerun without the resolver disclosure.
+- Temporary branch-scoped Preview acceptance variables were removed. Clean deployment: `dpl_Hf6FDPm2G9WdWcKEtxnw1JqmBJRY`; exact head: `0730fc762ad86a4a4ae2fabfe23cd1bf93216b43`.
+- Next delivery boundary: complete the evidence-confirmed road/setback and mapped-constraint interpretation required to bind an exact paid scope. Do not make either paid output eligible until that manifest is complete.

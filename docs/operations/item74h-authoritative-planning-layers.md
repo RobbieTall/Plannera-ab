@@ -65,3 +65,15 @@ controlled Byron address. It must emit only aggregate statuses, source
 references, dates and hashes, then remove temporary protected variables and
 synthetic records. It must never print or persist the address, coordinates,
 parcel identifiers or raw ArcGIS responses.
+
+## Protected Preview acceptance: 2026-08-25
+
+- Accepted flight: `dpl_FcyaLKA11xz3MzzXXsHUZq3ML8fQ` at commit `155063e4af21324f025512f89076fdd2fee2b5dc`.
+- Scope was uniquely resolved to the controlled Byron RU2 shed/outbuilding case using an exact normalized address match and authoritative NSW EPI coordinate-intersection zoning.
+- Seven authoritative observation groups were retrieved: cadastral lot, bushfire, water proximity, road reference, heritage, flood planning, and biodiversity values.
+- The response returned no address, coordinates, parcel identifiers, geometry, or raw source responses.
+- Production checkout remained disabled. The A$49 Planning Controls Pack and A$749 submission SEE remained ineligible, with the pathway held at `MORE_EVIDENCE_REQUIRED`.
+- An earlier run was invalidated after a resolver diagnostic included the controlled input in protected Preview logs. Request-scoped resolver log suppression was added and contract-tested before the accepted rerun; the accepted run produced only privacy-safe stage and evidence summaries.
+- Both temporary branch-scoped Preview variables were removed immediately after acceptance.
+- Clean closure deployment `dpl_Hf6FDPm2G9WdWcKEtxnw1JqmBJRY` at commit `0730fc762ad86a4a4ae2fabfe23cd1bf93216b43` completed successfully with the controlled acceptances disabled, paid outputs blocked, Production checkout off, and synthetic persistence cleanup at zero residual rows.
+- The exact-head Pathway Check, authoritative spatial, authoritative planning-layer, site-evidence manifest, submission SEE credit, and commercial funnel workflows all passed.

@@ -497,3 +497,17 @@ Decision: a project upload has two independent persisted states. Readability rec
 Every supported upload retains a SHA-256 hash, extraction method/time and structured extraction metadata. PDF page and spreadsheet-sheet provenance travels into source chunks. Parser warnings, unsupported legacy formats, text-empty scans and indexing failures remain visible. Storage success alone never establishes accepted facts, applicability, freshness or submission readiness; OCR, map/plan interpretation, conflict resolution and SEE section acceptance remain separate gates.
 
 Reference: docs/project-memory/build-next.md Item 74A; DR-048
+
+## 2026-08-25 - Item 74H controlled evidence acceptance boundary
+
+Decision: Accept the protected Preview flight as proof of authoritative retrieval and privacy-safe deterministic gating, but do not treat it as paid-product acceptance.
+
+Rationale:
+
+- The controlled Byron RU2 site was uniquely resolved and produced seven authoritative observation groups.
+- The deterministic result remained `MORE_EVIDENCE_REQUIRED`, which correctly blocks the A$49 Planning Controls Pack and A$749 submission SEE.
+- Production checkout remained disabled and no Production mutation occurred.
+- An earlier protected-log disclosure was invalidated; request-scoped resolver suppression was added and the final run completed without that disclosure.
+- Temporary Preview variables were removed and the clean exact-head deployment completed with acceptance phases disabled.
+
+Consequence: Item 74H proceeds to evidence-confirmed road/setback and mapped-constraint interpretation. No developer may weaken a missing-evidence state, infer unsupported controls, or activate paid eligibility to make this slice appear complete.
