@@ -202,14 +202,20 @@ export function evaluatePathwayCommercialBinding(
             roadSetback.minimumRoadSetbackMetres!,
           proposedRoadSetbackMetres:
             roadSetback.proposedRoadSetbackMetres!,
-          outcome: roadSetback.roadSetbackDecision as Exclude<\n            ByronRoadSetbackDecision,\n            "MORE_EVIDENCE_REQUIRED"\n          >,
+          outcome: roadSetback.roadSetbackDecision as Exclude<
+            ByronRoadSetbackDecision,
+            "MORE_EVIDENCE_REQUIRED"
+          >,
         }),
         siteEvidenceDigest: input.manifest.siteEvidenceDigest,
         controlId: roadSetback.controlId,
         roadCategory: roadSetback.confirmedRoadCategory!,
         minimumRoadSetbackMetres: roadSetback.minimumRoadSetbackMetres!,
         proposedRoadSetbackMetres: roadSetback.proposedRoadSetbackMetres!,
-        outcome: roadSetback.roadSetbackDecision as Exclude<\n            ByronRoadSetbackDecision,\n            "MORE_EVIDENCE_REQUIRED"\n          >,
+        outcome: roadSetback.roadSetbackDecision as Exclude<
+            ByronRoadSetbackDecision,
+            "MORE_EVIDENCE_REQUIRED"
+          >,
       }
     : null;
 
