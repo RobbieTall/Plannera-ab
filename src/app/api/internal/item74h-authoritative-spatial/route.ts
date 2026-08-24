@@ -29,6 +29,20 @@ const BYRON_LGA_NAMES = new Set([
   "BYRON SHIRE",
   "BYRON SHIRE COUNCIL",
 ]);
+const ADDRESS_ABBREVIATIONS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bSTREET\b/g, "ST"],
+  [/\bROAD\b/g, "RD"],
+  [/\bAVENUE\b/g, "AVE"],
+  [/\bBOULEVARD\b/g, "BLVD"],
+  [/\bLANE\b/g, "LN"],
+  [/\bDRIVE\b/g, "DR"],
+  [/\bPARADE\b/g, "PDE"],
+  [/\bPLACE\b/g, "PL"],
+  [/\bTERRACE\b/g, "TERR"],
+  [/\bHIGHWAY\b/g, "HWY"],
+  [/\bCIRCUIT\b/g, "CCT"],
+  [/\bCOURT\b/g, "CT"],
+];
 
 type AcceptanceStage =
   | "RESOLVE_SITE"
@@ -55,6 +69,14 @@ class AcceptanceStageError extends Error {
   constructor(readonly stage: AcceptanceStage) {
     super(stage);
   }
+}
+
+function normaliseAddressKey(value: string): string {
+  let normalized = value.trim().toUpperCase().replace(/\bAUSTRALIA\b/g, " ");
+  for (const [pattern, replacement] of ADDRESS_ABBREVIATIONS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+  return normalized.replace(/[^A-Z0-9]/g, "");
 }
 
 async function withoutSourceLogging<T>(action: () => Promise<T>): Promise<T> {
@@ -127,20 +149,27 @@ export async function GET() {
 
     stage = "VALIDATE_SITE";
     const resolutionStatusOk = resolved.status === "ok";
-    const resolutionDecisionAuto =
-      resolutionStatusOk && resolved.decision === "auto";
     const candidatePresent =
       resolutionStatusOk && resolved.candidates.length > 0;
+    const controlledAddressKey = normaliseAddressKey(address);
+    const exactMatches = resolutionStatusOk
+      ? resolved.candidates.filter(
+          (candidate) =>
+            normaliseAddressKey(candidate.formattedAddress) ===
+            controlledAddressKey,
+        )
+      : [];
+    const uniqueExactAddressMatch = exactMatches.length === 1;
 
     if (
       !resolutionStatusOk ||
-      !resolutionDecisionAuto ||
-      !candidatePresent
+      !candidatePresent ||
+      !uniqueExactAddressMatch
     ) {
       console.info("[item74h-authoritative-spatial-validation]", {
         resolutionStatusOk,
-        resolutionDecisionAuto,
         candidatePresent,
+        uniqueExactAddressMatch,
         lgaAllowlisted: false,
         coordinatesFinite: false,
         privacy: {
@@ -152,7 +181,7 @@ export async function GET() {
       throw new AcceptanceStageError(stage);
     }
 
-    const candidate = resolved.candidates[0];
+    const candidate = exactMatches[0];
     const lga = candidate.lgaName?.trim().toUpperCase() ?? null;
     const latitude = candidate.latitude;
     const longitude = candidate.longitude;
@@ -166,8 +195,8 @@ export async function GET() {
     if (!lgaAllowlisted || !coordinatesFinite) {
       console.info("[item74h-authoritative-spatial-validation]", {
         resolutionStatusOk,
-        resolutionDecisionAuto,
         candidatePresent,
+        uniqueExactAddressMatch,
         lgaAllowlisted,
         coordinatesFinite,
         privacy: {
@@ -295,6 +324,7 @@ export async function GET() {
       status: "accepted",
       observationCount: observations.length,
       scopeEvidence: {
+        uniqueExactAddressMatch: true,
         lgaAllowlisted: true,
         zoningSourceAuthoritative: true,
         zoningByCoordinateIntersection: true,
@@ -321,7 +351,7 @@ export async function GET() {
           lga: "BYRON",
           zone: "RU2",
           proposalType: "SHED_OUTBUILDING",
-          resolutionDecision: "auto",
+          resolutionDecision: "unique_exact_address_match",
           zoningSource: "NSW_EPI_LZN",
           zoningResolutionMethod: "coordinate_intersection",
         },
