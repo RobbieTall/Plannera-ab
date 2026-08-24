@@ -246,7 +246,7 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
         lgaCode: 'BYRON',
         zoneCode: 'RU2',
         payload: { fixture: true, authoritative: false },
-        trustLevel: 'SYNTHETIC',
+        trustLevel: 'SITE_CONFIRMED',
       },
       definition: {
         versionKey: prefix + 'byron-ru2-shed-v1',
@@ -368,7 +368,7 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
         ...persistenceInput,
         idempotencyKey: prefix + 'unsafe-proceed',
         decision: 'PROCEED',
-        trustLevel: 'EVIDENCE_CONFIRMED',
+        trustLevel: 'EVIDENCE_VERIFIED',
         gates: [
           {
             ...persistenceInput.gates[0],
@@ -391,14 +391,14 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
     const free = await bindPathwayArtefact(prisma, {
       assessmentId: first.assessment.id,
       artefactId: ids.free,
-      commercialStage: 'FREE_PATHWAY',
+      commercialStage: 'FREE_PATHWAY_CHECK',
       scopeKey,
       evidenceDigest,
     });
     const freeReplay = await bindPathwayArtefact(prisma, {
       assessmentId: first.assessment.id,
       artefactId: ids.free,
-      commercialStage: 'FREE_PATHWAY',
+      commercialStage: 'FREE_PATHWAY_CHECK',
       scopeKey,
       evidenceDigest,
     });
