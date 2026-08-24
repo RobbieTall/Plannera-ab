@@ -2,35 +2,20 @@
 
 ## Purpose
 
-A passing in-memory commercial binding is not enough. The persistent artefact binding must enforce the same exact site evidence, deterministic outcome and stage trust for both creation and replay.
+The exact commercial binding is embedded in the persisted Preview assessment result. The artefact binder reads durable evidence instead of trusting a new caller-supplied eligibility object. No schema change is required.
 
-## Enforced policy
+## Assessment write enforcement
 
-Paid artefact creation and replay require:
+When a commercial binding is supplied, persistence requires a recomputed valid scope digest; matching assessment scope, evidence digest and decision; Planning Controls Pack eligibility; and Production checkout disabled. The versioned binding participates in idempotent replay identity.
 
-- an eligible Item 74H commercial binding;
-- a non-null exact scope digest;
-- exact equality between the persisted assessment scope key and the commercial scope digest;
-- exact equality between the persisted evidence digest and the bound site-evidence digest;
-- a persisted assessment decision matching `PROCEED` or `MERIT_ASSESSED`;
-- a current active assessment, evidence snapshots and control snapshots;
-- at least `EVIDENCE_VERIFIED` trust for the A$49 Planning Controls Pack; and
-- at least `OPERATOR_APPROVED` trust for the A$749 submission SEE.
+Assessments without a commercial binding remain valid for free or `MORE_EVIDENCE_REQUIRED` flows, but cannot bind a paid artefact.
 
-The policy also requires `productionCheckoutEnabled: false`.
+## Paid creation and replay
 
-## Replay safety
+Both first creation and replay require the persisted binding, current assessment/evidence/controls, exact scope and evidence equality, and matching deterministic outcome. The A$49 pack requires `EVIDENCE_VERIFIED` trust. The A$749 SEE requires `OPERATOR_APPROVED` trust.
 
-An existing paid binding is not returned before policy evaluation. Replay must present the same assessment, stage, scope key, evidence digest and currently eligible commercial binding.
+## Merit safety
 
-This prevents an old binding from bypassing later source expiry, control staleness, trust reduction or scope changes.
+`MERIT_ASSESSMENT` receives the same currency, evidence, spatial and control checks as `PROCEED`. Merit gates may contain only `PROCEED` or `MERIT_ASSESSMENT`; any STOP or unresolved gate blocks the assessment.
 
-## Decision semantics
-
-The commercial contract uses `MERIT_ASSESSED`; persistence stores the equivalent `MERIT_ASSESSMENT` decision. This mapping is explicit and tested.
-
-A merit result is not represented as compliance. It can support a paid scope only when the evidence manifest is complete and, for a submission SEE, an operator has approved that exact merit scope.
-
-## Safety boundary
-
-This change is code and contract enforcement only. It adds no schema, data, environment variable or payment mutation. Production checkout remains disabled.
+This is protected Preview code only. It makes no schema, Production data, environment, checkout or payment change.

@@ -4,6 +4,12 @@ import { Prisma, PrismaClient } from '@prisma/client';
 
 import type { PathwayCommercialBindingEvaluation } from './pathway-commercial-binding';
 import { evaluatePaidArtefactBindingPolicy } from './pathway-paid-artefact-policy';
+import {
+  attachPersistedPathwayCommercialBinding,
+  commercialBindingReplayMatches,
+  evaluatePathwayCommercialBindingPersistence,
+  readPersistedPathwayCommercialBinding,
+} from './pathway-persisted-commercial-binding';
 
 export const PATHWAY_DECISIONS = [
   'STOP',
@@ -129,6 +135,7 @@ export type PersistPathwayAssessmentInput = {
   scopeKey: string;
   inputHash: string;
   evidenceDigest: string;
+  commercialBinding?: PathwayCommercialBindingEvaluation;
   decision: PathwayDecision;
   trustLevel: PathwayTrustLevel;
   input: JsonValue;
@@ -190,6 +197,10 @@ function canonicalReplayMatches(
     existing.scopeKey === input.scopeKey &&
     existing.inputHash === input.inputHash &&
     existing.evidenceDigest === input.evidenceDigest &&
+    commercialBindingReplayMatches(
+      existing.result,
+      input.commercialBinding || null,
+    ) &&
     existing.decision === input.decision &&
     existing.trustLevel === input.trustLevel &&
     existing.assessmentVersion === input.assessmentVersion &&
@@ -218,6 +229,22 @@ export function validatePathwayPersistenceInput(
     ['definition.graphHash', input.definition.graphHash],
     ['spatial.contentHash', input.spatial.contentHash],
   ].forEach(([field, value]) => assertNonEmpty(value, field));
+
+  const commercialBindingPersistence =
+    evaluatePathwayCommercialBindingPersistence({
+      result: input.result,
+      binding: input.commercialBinding || null,
+      scopeKey: input.scopeKey,
+      evidenceDigest: input.evidenceDigest,
+      decision: input.decision,
+    });
+  if (!commercialBindingPersistence.allowed) {
+    fail(
+      'INVALID_COMMERCIAL_BINDING',
+      'Commercial binding is invalid: ' +
+        commercialBindingPersistence.blockers.join(', '),
+    );
+  }
 
   if (input.definition.lgaCode !== input.spatial.lgaCode) {
     fail('LGA_MISMATCH', 'Definition and spatial LGA must match');
@@ -299,7 +326,10 @@ export function validatePathwayPersistenceInput(
     fail('DECISION_GATE_MISMATCH', 'MERIT_ASSESSMENT requires a merit gate');
   }
 
-  if (input.decision === 'PROCEED') {
+  const deterministicPaidDecision =
+    input.decision === 'PROCEED' ||
+    input.decision === 'MERIT_ASSESSMENT';
+  if (deterministicPaidDecision) {
     const requiredKinds = ['LEP', 'DCP', 'SPATIAL'];
     const kinds = new Set(input.evidence.map((item) => item.evidenceKind));
     const paidTrust = [
@@ -309,29 +339,47 @@ export function validatePathwayPersistenceInput(
     ].includes(input.trustLevel);
 
     if (input.definition.status !== 'ACTIVE') {
-      fail('INACTIVE_DEFINITION', 'PROCEED requires an active definition');
+      fail(
+        'INACTIVE_DEFINITION',
+        'A deterministic paid decision requires an active definition',
+      );
     }
     if (!paidTrust) {
-      fail('INSUFFICIENT_TRUST', 'PROCEED requires evidence-confirmed trust');
+      fail(
+        'INSUFFICIENT_TRUST',
+        'A deterministic paid decision requires evidence-confirmed trust',
+      );
     }
     if (
       input.spatial.trustLevel !== 'EVIDENCE_VERIFIED' &&
       input.spatial.trustLevel !== 'OPERATOR_APPROVED'
     ) {
-      fail('UNVERIFIED_SPATIAL', 'PROCEED requires verified spatial evidence');
+      fail(
+        'UNVERIFIED_SPATIAL',
+        'A deterministic paid decision requires verified spatial evidence',
+      );
     }
     if (input.staleAt || input.spatial.staleAt) {
-      fail('STALE_EVIDENCE', 'PROCEED cannot use stale assessment or spatial evidence');
+      fail(
+        'STALE_EVIDENCE',
+        'A deterministic paid decision cannot use stale assessment or spatial evidence',
+      );
     }
     if (!requiredKinds.every((kind) => kinds.has(kind))) {
-      fail('INCOMPLETE_EVIDENCE', 'PROCEED requires LEP, DCP and SPATIAL evidence');
+      fail(
+        'INCOMPLETE_EVIDENCE',
+        'A deterministic paid decision requires LEP, DCP and SPATIAL evidence',
+      );
     }
     if (
       input.evidence.some(
         (item) => !item.isCurrentAtAssessment || Boolean(item.staleAt),
       )
     ) {
-      fail('STALE_EVIDENCE', 'PROCEED requires current evidence snapshots');
+      fail(
+        'STALE_EVIDENCE',
+        'A deterministic paid decision requires current evidence snapshots',
+      );
     }
     if (
       input.controls.length === 0 ||
@@ -339,16 +387,37 @@ export function validatePathwayPersistenceInput(
         (item) => !item.isCurrentAtAssessment || Boolean(item.staleAt),
       )
     ) {
-      fail('STALE_CONTROL', 'PROCEED requires at least one current control');
+      fail(
+        'STALE_CONTROL',
+        'A deterministic paid decision requires at least one current control',
+      );
+    }
+    if (input.gates.length === 0) {
+      fail('UNRESOLVED_GATE', 'A deterministic decision requires gates');
     }
     if (
-      input.gates.length === 0 ||
+      input.decision === 'PROCEED' &&
       input.gates.some((gate) => gate.outcome !== 'PROCEED')
     ) {
-      fail('UNRESOLVED_GATE', 'Every gate must PROCEED for an overall PROCEED');
+      fail(
+        'UNRESOLVED_GATE',
+        'Every gate must PROCEED for an overall PROCEED',
+      );
     }
-  }
-}
+    if (
+      input.decision === 'MERIT_ASSESSMENT' &&
+      input.gates.some(
+        (gate) =>
+          gate.outcome !== 'PROCEED' &&
+          gate.outcome !== 'MERIT_ASSESSMENT',
+      )
+    ) {
+      fail(
+        'UNRESOLVED_GATE',
+        'A merit assessment cannot contain STOP or unresolved gates',
+      );
+    }
+  }}
 
 async function loadAssessment(
   prisma: PrismaClient,
@@ -452,7 +521,10 @@ export async function persistPathwayAssessment(
             decision: input.decision,
             trustLevel: input.trustLevel,
             input: input.input,
-            result: input.result,
+            result: attachPersistedPathwayCommercialBinding(
+              input.result,
+              input.commercialBinding || null,
+            ),
             assessedAt: input.assessedAt,
             staleAt: input.staleAt,
           },
@@ -565,7 +637,6 @@ export async function bindPathwayArtefact(
     commercialStage: PathwayCommercialStage;
     scopeKey: string;
     evidenceDigest: string;
-    commercialBinding?: PathwayCommercialBindingEvaluation;
   },
 ) {
   const existing = await prisma.pathwayArtefactBinding.findUnique({
@@ -613,7 +684,9 @@ export async function bindPathwayArtefact(
       commercialStage: input.commercialStage,
       scopeKey: input.scopeKey,
       evidenceDigest: input.evidenceDigest,
-      commercialBinding: input.commercialBinding || null,
+      commercialBinding: readPersistedPathwayCommercialBinding(
+        assessment.result,
+      ),
       assessment: {
         decision: assessment.decision,
         trustLevel: assessment.trustLevel,

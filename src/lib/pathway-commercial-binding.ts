@@ -54,6 +54,40 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function computePathwayCommercialScopeDigest(
+  scope: Omit<PathwayExactCommercialScope, "scopeDigest">,
+): string {
+  return sha256(
+    JSON.stringify({
+      bindingVersion: scope.bindingVersion,
+      siteEvidenceDigest: scope.siteEvidenceDigest,
+      controlId: scope.controlId,
+      roadCategory: scope.roadCategory,
+      minimumRoadSetbackMetres: scope.minimumRoadSetbackMetres,
+      proposedRoadSetbackMetres: scope.proposedRoadSetbackMetres,
+      outcome: scope.outcome,
+    }),
+  );
+}
+
+export function verifyPathwayExactCommercialScope(
+  scope: PathwayExactCommercialScope,
+): boolean {
+  return (
+    /^[a-f0-9]{64}$/.test(scope.scopeDigest) &&
+    scope.scopeDigest ===
+      computePathwayCommercialScopeDigest({
+        bindingVersion: scope.bindingVersion,
+        siteEvidenceDigest: scope.siteEvidenceDigest,
+        controlId: scope.controlId,
+        roadCategory: scope.roadCategory,
+        minimumRoadSetbackMetres: scope.minimumRoadSetbackMetres,
+        proposedRoadSetbackMetres: scope.proposedRoadSetbackMetres,
+        outcome: scope.outcome,
+      })
+  );
+}
+
 function isObservationCurrent(
   observation: PathwaySiteEvidenceManifest["observations"][number],
   assessedAt: number,
@@ -159,19 +193,17 @@ export function evaluatePathwayCommercialBinding(
   const exactScope: PathwayExactCommercialScope | null = roadScopeReady
     ? {
         bindingVersion: PATHWAY_COMMERCIAL_BINDING_VERSION,
-        scopeDigest: sha256(
-          JSON.stringify({
-            bindingVersion: PATHWAY_COMMERCIAL_BINDING_VERSION,
-            siteEvidenceDigest: input.manifest.siteEvidenceDigest,
-            controlId: roadSetback.controlId,
-            roadCategory: roadSetback.confirmedRoadCategory,
-            minimumRoadSetbackMetres:
-              roadSetback.minimumRoadSetbackMetres,
-            proposedRoadSetbackMetres:
-              roadSetback.proposedRoadSetbackMetres,
-            outcome: roadSetback.roadSetbackDecision,
-          }),
-        ),
+        scopeDigest: computePathwayCommercialScopeDigest({
+          bindingVersion: PATHWAY_COMMERCIAL_BINDING_VERSION,
+          siteEvidenceDigest: input.manifest.siteEvidenceDigest,
+          controlId: roadSetback.controlId,
+          roadCategory: roadSetback.confirmedRoadCategory,
+          minimumRoadSetbackMetres:
+            roadSetback.minimumRoadSetbackMetres,
+          proposedRoadSetbackMetres:
+            roadSetback.proposedRoadSetbackMetres,
+          outcome: roadSetback.roadSetbackDecision,
+        }),
         siteEvidenceDigest: input.manifest.siteEvidenceDigest,
         controlId: roadSetback.controlId,
         roadCategory: roadSetback.confirmedRoadCategory,
