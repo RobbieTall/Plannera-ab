@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Prisma, PrismaClient } from '@prisma/client';
 
 export const PATHWAY_DECISIONS = [
@@ -454,59 +456,59 @@ export async function persistPathwayAssessment(
         });
 
         const evidenceIds = new Map<string, string>();
-        for (const item of input.evidence) {
-          const created = await tx.pathwayEvidenceSnapshot.create({
-            data: {
-              assessmentId: assessment.id,
-              evidenceKind: item.evidenceKind,
-              authority: item.authority,
-              sourceUrl: item.sourceUrl,
-              sourceVersion: item.sourceVersion,
-              sourceReference: item.sourceReference,
-              effectiveFrom: item.effectiveFrom,
-              effectiveTo: item.effectiveTo,
-              retrievedAt: item.retrievedAt,
-              contentHash: item.contentHash,
-              citation: item.citation,
-              snapshot: item.snapshot,
-              isCurrentAtAssessment: item.isCurrentAtAssessment,
-              staleAt: item.staleAt,
-              clauseId: item.clauseId,
-              dcpClauseId: item.dcpClauseId,
-              workspaceUploadId: item.workspaceUploadId,
-            },
-          });
-          evidenceIds.set(item.evidenceKey, created.id);
-        }
+        const evidenceRows = input.evidence.map((item) => {
+          const id = randomUUID();
+          evidenceIds.set(item.evidenceKey, id);
+          return {
+            id,
+            assessmentId: assessment.id,
+            evidenceKind: item.evidenceKind,
+            authority: item.authority,
+            sourceUrl: item.sourceUrl,
+            sourceVersion: item.sourceVersion,
+            sourceReference: item.sourceReference,
+            effectiveFrom: item.effectiveFrom,
+            effectiveTo: item.effectiveTo,
+            retrievedAt: item.retrievedAt,
+            contentHash: item.contentHash,
+            citation: item.citation,
+            snapshot: item.snapshot,
+            isCurrentAtAssessment: item.isCurrentAtAssessment,
+            staleAt: item.staleAt,
+            clauseId: item.clauseId,
+            dcpClauseId: item.dcpClauseId,
+            workspaceUploadId: item.workspaceUploadId,
+          };
+        });
+        await tx.pathwayEvidenceSnapshot.createMany({ data: evidenceRows });
 
-        for (const item of input.controls) {
+        const controlRows = input.controls.map((item) => {
           const evidenceSnapshotId = evidenceIds.get(item.evidenceKey);
           if (!evidenceSnapshotId) {
             fail('MISSING_CONTROL_EVIDENCE', 'Control evidence disappeared');
           }
-          await tx.pathwayControlSnapshot.create({
-            data: {
-              assessmentId: assessment.id,
-              evidenceSnapshotId,
-              controlKey: item.controlKey,
-              label: item.label,
-              applicabilityHash: item.applicabilityHash,
-              operator: item.operator,
-              numericValue: item.numericValue,
-              lowerBound: item.lowerBound,
-              upperBound: item.upperBound,
-              textValue: item.textValue,
-              unit: item.unit,
-              landAreaMinSqm: item.landAreaMinSqm,
-              landAreaMaxSqm: item.landAreaMaxSqm,
-              applicability: item.applicability,
-              sourceReference: item.sourceReference,
-              contentHash: item.contentHash,
-              isCurrentAtAssessment: item.isCurrentAtAssessment,
-              staleAt: item.staleAt,
-            },
-          });
-        }
+          return {
+            assessmentId: assessment.id,
+            evidenceSnapshotId,
+            controlKey: item.controlKey,
+            label: item.label,
+            applicabilityHash: item.applicabilityHash,
+            operator: item.operator,
+            numericValue: item.numericValue,
+            lowerBound: item.lowerBound,
+            upperBound: item.upperBound,
+            textValue: item.textValue,
+            unit: item.unit,
+            landAreaMinSqm: item.landAreaMinSqm,
+            landAreaMaxSqm: item.landAreaMaxSqm,
+            applicability: item.applicability,
+            sourceReference: item.sourceReference,
+            contentHash: item.contentHash,
+            isCurrentAtAssessment: item.isCurrentAtAssessment,
+            staleAt: item.staleAt,
+          };
+        });
+        await tx.pathwayControlSnapshot.createMany({ data: controlRows });
 
         await tx.pathwayGateSnapshot.createMany({
           data: input.gates.map((gate) => ({
