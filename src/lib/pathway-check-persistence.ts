@@ -10,10 +10,12 @@ export const PATHWAY_DECISIONS = [
 export type PathwayDecision = (typeof PATHWAY_DECISIONS)[number];
 export type PathwayTrustLevel =
   | 'GENERAL_GUIDANCE'
-  | 'EVIDENCE_CONFIRMED'
-  | 'OPERATOR_ACCEPTED';
+  | 'SITE_CONFIRMED'
+  | 'EVIDENCE_VERIFIED'
+  | 'OPERATOR_APPROVED'
+  | 'SUBMISSION_READY';
 export type PathwayCommercialStage =
-  | 'FREE_PATHWAY'
+  | 'FREE_PATHWAY_CHECK'
   | 'PLANNING_CONTROLS_PACK'
   | 'SUBMISSION_SEE';
 
@@ -295,9 +297,11 @@ export function validatePathwayPersistenceInput(
   if (input.decision === 'PROCEED') {
     const requiredKinds = ['LEP', 'DCP', 'SPATIAL'];
     const kinds = new Set(input.evidence.map((item) => item.evidenceKind));
-    const paidTrust =
-      input.trustLevel === 'EVIDENCE_CONFIRMED' ||
-      input.trustLevel === 'OPERATOR_ACCEPTED';
+    const paidTrust = [
+      'EVIDENCE_VERIFIED',
+      'OPERATOR_APPROVED',
+      'SUBMISSION_READY',
+    ].includes(input.trustLevel);
 
     if (input.definition.status !== 'ACTIVE') {
       fail('INACTIVE_DEFINITION', 'PROCEED requires an active definition');
@@ -305,8 +309,11 @@ export function validatePathwayPersistenceInput(
     if (!paidTrust) {
       fail('INSUFFICIENT_TRUST', 'PROCEED requires evidence-confirmed trust');
     }
-    if (input.spatial.trustLevel !== 'AUTHORITATIVE_VERIFIED') {
-      fail('UNVERIFIED_SPATIAL', 'PROCEED requires authoritative spatial evidence');
+    if (
+      input.spatial.trustLevel !== 'EVIDENCE_VERIFIED' &&
+      input.spatial.trustLevel !== 'OPERATOR_APPROVED'
+    ) {
+      fail('UNVERIFIED_SPATIAL', 'PROCEED requires verified spatial evidence');
     }
     if (input.staleAt || input.spatial.staleAt) {
       fail('STALE_EVIDENCE', 'PROCEED cannot use stale assessment or spatial evidence');
@@ -595,9 +602,11 @@ export async function bindPathwayArtefact(
 
   const paid = input.commercialStage !== 'FREE_PATHWAY';
   if (paid) {
-    const trusted =
-      assessment.trustLevel === 'EVIDENCE_CONFIRMED' ||
-      assessment.trustLevel === 'OPERATOR_ACCEPTED';
+    const trusted = [
+      'EVIDENCE_VERIFIED',
+      'OPERATOR_APPROVED',
+      'SUBMISSION_READY',
+    ].includes(assessment.trustLevel);
     const currentEvidence = assessment.evidenceSnapshots.every(
       (item) => item.isCurrentAtAssessment && !item.staleAt,
     );
