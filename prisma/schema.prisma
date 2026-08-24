@@ -100,6 +100,7 @@ model Project {
   entitlements           Entitlement[]
   consultantReferrals    ConsultantReferral[]
   siteContext            SiteContext?
+  pathwayAssessments     PathwayAssessment[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 
@@ -244,6 +245,7 @@ model Artefact {
   purchases              Purchase[]              @relation("PurchaseQuickSiteCheckArtefact")
   entitlements           Entitlement[]           @relation("EntitlementQuickSiteCheckArtefact")
   consultantReferrals    ConsultantReferral[]
+  pathwayBinding         PathwayArtefactBinding?
 
   @@index([projectId])
 }
@@ -555,8 +557,9 @@ model Clause {
   effectiveTo   DateTime?
   retrievedAt   DateTime?
   contentHash   String
-  searchIndex   ClauseSearchIndex?
-  createdAt     DateTime           @default(now())
+  searchIndex              ClauseSearchIndex?
+  pathwayEvidenceSnapshots PathwayEvidenceSnapshot[]
+  createdAt                DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   @@unique([instrumentId, clauseKey, version])
@@ -643,7 +646,8 @@ model WorkspaceUpload {
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
 
-  sourceChunks WorkspaceSourceChunk[]
+  sourceChunks              WorkspaceSourceChunk[]
+  pathwayEvidenceSnapshots PathwayEvidenceSnapshot[]
 
   @@index([projectId])
   @@index([userId])
@@ -723,8 +727,9 @@ model DCPClause {
   bodyHtml       String
   bodyText       String
   topicTags      String[] @default([])
-  numericMeta    Json?
-  createdAt      DateTime @default(now())
+  numericMeta              Json?
+  pathwayEvidenceSnapshots PathwayEvidenceSnapshot[]
+  createdAt                DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([lgaCode])
@@ -754,8 +759,10 @@ model SiteContext {
   planNumber       String?
   latitude         Float?
   longitude        Float?
-  zone             String?
-  createdAt        DateTime @default(now())
+  zone               String?
+  spatialProvenance  SiteSpatialProvenance[]
+  pathwayAssessments PathwayAssessment[]
+  createdAt          DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
 
@@ -786,4 +793,187 @@ model SubmissionSeeCredit {
 
   @@index([sourceEntitlementId, status])
   @@index([scopeKey, status])
+}
+
+/// Immutable authoritative spatial evidence used by an Item 74H assessment.
+model SiteSpatialProvenance {
+  id             String              @id @default(cuid())
+  siteContextId  String
+  siteContext    SiteContext         @relation(fields: [siteContextId], references: [id], onDelete: Restrict)
+  authority      String
+  datasetName    String
+  sourceUrl      String
+  sourceVersion  String?
+  retrievedAt    DateTime
+  effectiveAt    DateTime?
+  contentHash    String
+  matchMethod    String
+  parcelId       String?
+  lot            String?
+  planNumber     String?
+  lgaCode        String
+  zoneCode       String?
+  latitude       Float?
+  longitude      Float?
+  payload        Json                @db.JsonB
+  trustLevel     String
+  staleAt        DateTime?
+  assessments    PathwayAssessment[]
+  createdAt      DateTime            @default(now())
+
+  @@unique([siteContextId, contentHash])
+  @@index([siteContextId])
+}
+
+/// Authored and versioned decision graph for an LGA, zone and proposal type.
+model PathwayDefinition {
+  id            String              @id @default(cuid())
+  versionKey    String              @unique
+  lgaCode       String
+  zoneCode      String
+  proposalType  String
+  status        String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  graphHash     String
+  graph         Json                @db.JsonB
+  assessments   PathwayAssessment[]
+  createdAt     DateTime            @default(now())
+
+  @@index([lgaCode, zoneCode, proposalType, status], map: "PathwayDefinition_lookup_idx")
+}
+
+/// Durable, replay-safe result for one site, definition, input and evidence set.
+model PathwayAssessment {
+  id                       String                    @id @default(cuid())
+  projectId                String
+  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  siteContextId            String
+  siteContext              SiteContext               @relation(fields: [siteContextId], references: [id], onDelete: Restrict)
+  spatialProvenanceId      String
+  spatialProvenance        SiteSpatialProvenance     @relation(fields: [spatialProvenanceId], references: [id], onDelete: Restrict)
+  pathwayDefinitionId      String
+  pathwayDefinition        PathwayDefinition         @relation(fields: [pathwayDefinitionId], references: [id], onDelete: Restrict)
+  supersedesAssessmentId   String?
+  supersedesAssessment     PathwayAssessment?        @relation("PathwayAssessmentSupersession", fields: [supersedesAssessmentId], references: [id], onDelete: SetNull)
+  supersededBy             PathwayAssessment[]       @relation("PathwayAssessmentSupersession")
+  environment              String                    @default("PREVIEW")
+  assessmentVersion        String
+  idempotencyKey           String                    @unique
+  scopeKey                 String
+  inputHash                String
+  evidenceDigest           String
+  decision                 String
+  trustLevel               String
+  input                    Json                      @db.JsonB
+  result                   Json                      @db.JsonB
+  assessedAt               DateTime                  @default(now())
+  staleAt                  DateTime?
+  isCurrent                Boolean                   @default(true)
+  evidenceSnapshots        PathwayEvidenceSnapshot[]
+  controlSnapshots         PathwayControlSnapshot[]
+  gateSnapshots            PathwayGateSnapshot[]
+  artefactBindings         PathwayArtefactBinding[]
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  @@index([projectId, isCurrent], map: "PathwayAssessment_project_current_idx")
+  @@index([siteContextId])
+  @@index([scopeKey])
+}
+
+/// Immutable citation and source snapshot used by one assessment.
+model PathwayEvidenceSnapshot {
+  id                    String                   @id @default(cuid())
+  assessmentId          String
+  assessment            PathwayAssessment        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  clauseId              String?
+  clause                Clause?                  @relation(fields: [clauseId], references: [id], onDelete: Restrict)
+  dcpClauseId           String?
+  dcpClause             DCPClause?               @relation(fields: [dcpClauseId], references: [id], onDelete: Restrict)
+  workspaceUploadId     String?
+  workspaceUpload       WorkspaceUpload?         @relation(fields: [workspaceUploadId], references: [id], onDelete: Restrict)
+  evidenceKind          String
+  authority             String
+  sourceUrl             String
+  sourceVersion         String?
+  sourceReference       String
+  effectiveFrom         DateTime?
+  effectiveTo           DateTime?
+  retrievedAt           DateTime
+  contentHash           String
+  citation              Json                     @db.JsonB
+  snapshot              Json                     @db.JsonB
+  isCurrentAtAssessment Boolean
+  staleAt               DateTime?
+  controls              PathwayControlSnapshot[]
+  createdAt             DateTime                 @default(now())
+
+  @@unique([assessmentId, evidenceKind, contentHash], map: "PathwayEvidenceSnapshot_assessment_kind_hash_key")
+  @@index([assessmentId])
+}
+
+/// Normalized numeric or textual control value frozen at assessment time.
+model PathwayControlSnapshot {
+  id                    String                  @id @default(cuid())
+  assessmentId          String
+  assessment            PathwayAssessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  evidenceSnapshotId    String
+  evidenceSnapshot      PathwayEvidenceSnapshot @relation(fields: [evidenceSnapshotId], references: [id], onDelete: Restrict)
+  controlKey            String
+  label                 String
+  applicabilityHash     String
+  operator              String?
+  numericValue          Decimal?                @db.Decimal(18, 6)
+  lowerBound            Decimal?                @db.Decimal(18, 6)
+  upperBound            Decimal?                @db.Decimal(18, 6)
+  textValue             String?
+  unit                  String?
+  landAreaMinSqm        Decimal?                @db.Decimal(18, 3)
+  landAreaMaxSqm        Decimal?                @db.Decimal(18, 3)
+  applicability         Json                    @db.JsonB
+  sourceReference       String
+  contentHash           String
+  isCurrentAtAssessment Boolean
+  staleAt               DateTime?
+  createdAt             DateTime                @default(now())
+
+  @@unique([assessmentId, controlKey, applicabilityHash], map: "PathwayControlSnapshot_assessment_control_applicability_key")
+  @@index([assessmentId])
+}
+
+/// Ordered deterministic gate outcome and its supporting references.
+model PathwayGateSnapshot {
+  id           String             @id @default(cuid())
+  assessmentId String
+  assessment   PathwayAssessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  gateKey      String
+  sequence     Int
+  question     String
+  outcome      String
+  reason       String
+  condition    Json               @db.JsonB
+  evidenceRefs Json               @db.JsonB
+  controlRefs  Json               @db.JsonB
+  createdAt    DateTime           @default(now())
+
+  @@unique([assessmentId, gateKey], map: "PathwayGateSnapshot_assessment_gate_key")
+  @@unique([assessmentId, sequence], map: "PathwayGateSnapshot_assessment_sequence_key")
+  @@index([assessmentId])
+}
+
+/// Binds one accepted assessment digest to each commercial output stage.
+model PathwayArtefactBinding {
+  id              String            @id @default(cuid())
+  assessmentId    String
+  assessment      PathwayAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  artefactId      String            @unique
+  artefact        Artefact          @relation(fields: [artefactId], references: [id], onDelete: Restrict)
+  commercialStage String
+  scopeKey        String
+  evidenceDigest  String
+  createdAt       DateTime          @default(now())
+
+  @@unique([assessmentId, commercialStage], map: "PathwayArtefactBinding_assessment_stage_key")
+  @@index([assessmentId])
 }
