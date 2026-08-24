@@ -1,0 +1,35 @@
+name: Pathway Commercial Binding Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-commercial-binding.ts"
+      - "src/lib/pathway-commercial-binding.test.ts"
+      - "src/lib/pathway-byron-rural-setbacks.ts"
+      - "src/lib/pathway-site-evidence.ts"
+      - "docs/operations/item74h-commercial-binding.md"
+      - ".github/workflows/pathway-commercial-binding.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run commercial binding contract
+        run: npx vitest run src/lib/pathway-commercial-binding.test.ts
