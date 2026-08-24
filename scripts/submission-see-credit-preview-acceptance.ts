@@ -32,6 +32,7 @@ if (!enabled) {
     })}\n`,
   );
 } else {
+  void (async () => {
   const runId = randomUUID().replaceAll("-", "").slice(0, 16);
   const prefix = `item74g-${runId}`;
   const userId = `${prefix}-user`;
@@ -412,4 +413,5 @@ if (!enabled) {
       })}\n`,
     );
   }
+  })();
 }
