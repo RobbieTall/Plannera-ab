@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 
 const TARGET_BRANCH = "agent/item74h-pathway-check";
 const TARGET_NEON_ENDPOINT_PREFIX = "ep-misty-dream-a7l6wcp8";
+const ITEM74H_SQL = "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql";
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function skip(reason: string): never {
@@ -45,12 +46,21 @@ if (
   throw new Error("[item74h:migrate] refused: DATABASE_URL is not the approved Item 74H Neon endpoint");
 }
 
-console.log("[item74h:migrate] protected Preview target confirmed; applying pending Prisma migrations");
+console.log("[item74h:migrate] protected Preview target confirmed; applying approved replay-safe SQL");
 
 const command = process.platform === "win32" ? "npx.cmd" : "npx";
 const migration = spawnSync(
   command,
-  ["--no-install", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"],
+  [
+    "--no-install",
+    "prisma",
+    "db",
+    "execute",
+    "--file",
+    ITEM74H_SQL,
+    "--schema",
+    "prisma/schema.prisma",
+  ],
   {
     env: process.env,
     stdio: "inherit",
@@ -62,7 +72,7 @@ if (migration.error) {
 }
 
 if (migration.status !== 0) {
-  throw new Error(`[item74h:migrate] Prisma migration failed with exit code ${migration.status ?? "unknown"}`);
+  throw new Error(`[item74h:migrate] approved SQL failed with exit code ${migration.status ?? "unknown"}`);
 }
 
-console.log("[item74h:migrate] pending Prisma migrations applied successfully");
+console.log("[item74h:migrate] approved Item 74H SQL executed successfully");

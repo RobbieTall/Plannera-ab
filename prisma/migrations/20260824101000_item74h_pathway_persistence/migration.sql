@@ -1,9 +1,11 @@
 -- Item 74H protected Preview persistence.
--- Additive only: no existing table, column, row, price, credit, or checkout setting is changed.
+-- Additive and replay-safe: no existing table, column, row, price, credit, or checkout setting is changed.
+-- This migration is executed by the exact-branch Preview runner because the legacy Prisma
+-- migration ledger is incomplete. General Vercel migrations remain disabled.
 
 BEGIN;
 
-CREATE TABLE "SiteSpatialProvenance" (
+CREATE TABLE IF NOT EXISTS "SiteSpatialProvenance" (
     "id" TEXT NOT NULL,
     "siteContextId" TEXT NOT NULL,
     "authority" TEXT NOT NULL,
@@ -28,10 +30,13 @@ CREATE TABLE "SiteSpatialProvenance" (
 
     CONSTRAINT "SiteSpatialProvenance_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "SiteSpatialProvenance_trustLevel_check"
-      CHECK ("trustLevel" IN ('SITE_CONFIRMED', 'EVIDENCE_VERIFIED', 'OPERATOR_APPROVED'))
+      CHECK ("trustLevel" IN ('SITE_CONFIRMED', 'EVIDENCE_VERIFIED', 'OPERATOR_APPROVED')),
+    CONSTRAINT "SiteSpatialProvenance_siteContextId_fkey"
+      FOREIGN KEY ("siteContextId") REFERENCES "SiteContext"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE "PathwayDefinition" (
+CREATE TABLE IF NOT EXISTS "PathwayDefinition" (
     "id" TEXT NOT NULL,
     "versionKey" TEXT NOT NULL,
     "lgaCode" TEXT NOT NULL,
@@ -49,7 +54,7 @@ CREATE TABLE "PathwayDefinition" (
       CHECK ("status" IN ('DRAFT', 'ACTIVE', 'RETIRED'))
 );
 
-CREATE TABLE "PathwayAssessment" (
+CREATE TABLE IF NOT EXISTS "PathwayAssessment" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
     "siteContextId" TEXT NOT NULL,
@@ -78,10 +83,25 @@ CREATE TABLE "PathwayAssessment" (
     CONSTRAINT "PathwayAssessment_decision_check"
       CHECK ("decision" IN ('STOP', 'PROCEED', 'MERIT_ASSESSMENT', 'MORE_EVIDENCE_REQUIRED')),
     CONSTRAINT "PathwayAssessment_trustLevel_check"
-      CHECK ("trustLevel" IN ('GENERAL_GUIDANCE', 'SITE_CONFIRMED', 'EVIDENCE_VERIFIED', 'OPERATOR_APPROVED', 'SUBMISSION_READY'))
+      CHECK ("trustLevel" IN ('GENERAL_GUIDANCE', 'SITE_CONFIRMED', 'EVIDENCE_VERIFIED', 'OPERATOR_APPROVED', 'SUBMISSION_READY')),
+    CONSTRAINT "PathwayAssessment_projectId_fkey"
+      FOREIGN KEY ("projectId") REFERENCES "Project"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayAssessment_siteContextId_fkey"
+      FOREIGN KEY ("siteContextId") REFERENCES "SiteContext"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayAssessment_spatialProvenanceId_fkey"
+      FOREIGN KEY ("spatialProvenanceId") REFERENCES "SiteSpatialProvenance"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayAssessment_pathwayDefinitionId_fkey"
+      FOREIGN KEY ("pathwayDefinitionId") REFERENCES "PathwayDefinition"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayAssessment_supersedesAssessmentId_fkey"
+      FOREIGN KEY ("supersedesAssessmentId") REFERENCES "PathwayAssessment"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE "PathwayEvidenceSnapshot" (
+CREATE TABLE IF NOT EXISTS "PathwayEvidenceSnapshot" (
     "id" TEXT NOT NULL,
     "assessmentId" TEXT NOT NULL,
     "clauseId" TEXT,
@@ -104,10 +124,22 @@ CREATE TABLE "PathwayEvidenceSnapshot" (
 
     CONSTRAINT "PathwayEvidenceSnapshot_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "PathwayEvidenceSnapshot_evidenceKind_check"
-      CHECK ("evidenceKind" IN ('LEP', 'DCP', 'SPATIAL', 'UPLOAD', 'OPERATOR_NOTE'))
+      CHECK ("evidenceKind" IN ('LEP', 'DCP', 'SPATIAL', 'UPLOAD', 'OPERATOR_NOTE')),
+    CONSTRAINT "PathwayEvidenceSnapshot_assessmentId_fkey"
+      FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "PathwayEvidenceSnapshot_clauseId_fkey"
+      FOREIGN KEY ("clauseId") REFERENCES "Clause"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayEvidenceSnapshot_dcpClauseId_fkey"
+      FOREIGN KEY ("dcpClauseId") REFERENCES "DCPClause"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayEvidenceSnapshot_workspaceUploadId_fkey"
+      FOREIGN KEY ("workspaceUploadId") REFERENCES "WorkspaceUpload"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE "PathwayControlSnapshot" (
+CREATE TABLE IF NOT EXISTS "PathwayControlSnapshot" (
     "id" TEXT NOT NULL,
     "assessmentId" TEXT NOT NULL,
     "evidenceSnapshotId" TEXT NOT NULL,
@@ -129,10 +161,16 @@ CREATE TABLE "PathwayControlSnapshot" (
     "staleAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "PathwayControlSnapshot_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "PathwayControlSnapshot_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "PathwayControlSnapshot_assessmentId_fkey"
+      FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "PathwayControlSnapshot_evidenceSnapshotId_fkey"
+      FOREIGN KEY ("evidenceSnapshotId") REFERENCES "PathwayEvidenceSnapshot"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE "PathwayGateSnapshot" (
+CREATE TABLE IF NOT EXISTS "PathwayGateSnapshot" (
     "id" TEXT NOT NULL,
     "assessmentId" TEXT NOT NULL,
     "gateKey" TEXT NOT NULL,
@@ -147,10 +185,13 @@ CREATE TABLE "PathwayGateSnapshot" (
 
     CONSTRAINT "PathwayGateSnapshot_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "PathwayGateSnapshot_outcome_check"
-      CHECK ("outcome" IN ('STOP', 'PROCEED', 'MERIT_ASSESSMENT', 'MORE_EVIDENCE_REQUIRED'))
+      CHECK ("outcome" IN ('STOP', 'PROCEED', 'MERIT_ASSESSMENT', 'MORE_EVIDENCE_REQUIRED')),
+    CONSTRAINT "PathwayGateSnapshot_assessmentId_fkey"
+      FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE "PathwayArtefactBinding" (
+CREATE TABLE IF NOT EXISTS "PathwayArtefactBinding" (
     "id" TEXT NOT NULL,
     "assessmentId" TEXT NOT NULL,
     "artefactId" TEXT NOT NULL,
@@ -161,116 +202,56 @@ CREATE TABLE "PathwayArtefactBinding" (
 
     CONSTRAINT "PathwayArtefactBinding_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "PathwayArtefactBinding_stage_check"
-      CHECK ("commercialStage" IN ('FREE_PATHWAY_CHECK', 'PLANNING_CONTROLS_PACK', 'SUBMISSION_SEE'))
+      CHECK ("commercialStage" IN ('FREE_PATHWAY_CHECK', 'PLANNING_CONTROLS_PACK', 'SUBMISSION_SEE')),
+    CONSTRAINT "PathwayArtefactBinding_assessmentId_fkey"
+      FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "PathwayArtefactBinding_artefactId_fkey"
+      FOREIGN KEY ("artefactId") REFERENCES "Artefact"("id")
+      ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX "SiteSpatialProvenance_siteContextId_contentHash_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "SiteSpatialProvenance_siteContextId_contentHash_key"
   ON "SiteSpatialProvenance"("siteContextId", "contentHash");
-CREATE INDEX "SiteSpatialProvenance_siteContextId_idx"
+CREATE INDEX IF NOT EXISTS "SiteSpatialProvenance_siteContextId_idx"
   ON "SiteSpatialProvenance"("siteContextId");
 
-CREATE UNIQUE INDEX "PathwayDefinition_versionKey_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayDefinition_versionKey_key"
   ON "PathwayDefinition"("versionKey");
-CREATE INDEX "PathwayDefinition_lookup_idx"
+CREATE INDEX IF NOT EXISTS "PathwayDefinition_lookup_idx"
   ON "PathwayDefinition"("lgaCode", "zoneCode", "proposalType", "status");
 
-CREATE UNIQUE INDEX "PathwayAssessment_idempotencyKey_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayAssessment_idempotencyKey_key"
   ON "PathwayAssessment"("idempotencyKey");
-CREATE INDEX "PathwayAssessment_project_current_idx"
+CREATE INDEX IF NOT EXISTS "PathwayAssessment_project_current_idx"
   ON "PathwayAssessment"("projectId", "isCurrent");
-CREATE INDEX "PathwayAssessment_siteContextId_idx"
+CREATE INDEX IF NOT EXISTS "PathwayAssessment_siteContextId_idx"
   ON "PathwayAssessment"("siteContextId");
-CREATE INDEX "PathwayAssessment_scopeKey_idx"
+CREATE INDEX IF NOT EXISTS "PathwayAssessment_scopeKey_idx"
   ON "PathwayAssessment"("scopeKey");
 
-CREATE UNIQUE INDEX "PathwayEvidenceSnapshot_assessment_kind_hash_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayEvidenceSnapshot_assessment_kind_hash_key"
   ON "PathwayEvidenceSnapshot"("assessmentId", "evidenceKind", "contentHash");
-CREATE INDEX "PathwayEvidenceSnapshot_assessmentId_idx"
+CREATE INDEX IF NOT EXISTS "PathwayEvidenceSnapshot_assessmentId_idx"
   ON "PathwayEvidenceSnapshot"("assessmentId");
 
-CREATE UNIQUE INDEX "PathwayControlSnapshot_assessment_control_applicability_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayControlSnapshot_assessment_control_applicability_key"
   ON "PathwayControlSnapshot"("assessmentId", "controlKey", "applicabilityHash");
-CREATE INDEX "PathwayControlSnapshot_assessmentId_idx"
+CREATE INDEX IF NOT EXISTS "PathwayControlSnapshot_assessmentId_idx"
   ON "PathwayControlSnapshot"("assessmentId");
 
-CREATE UNIQUE INDEX "PathwayGateSnapshot_assessment_gate_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayGateSnapshot_assessment_gate_key"
   ON "PathwayGateSnapshot"("assessmentId", "gateKey");
-CREATE UNIQUE INDEX "PathwayGateSnapshot_assessment_sequence_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayGateSnapshot_assessment_sequence_key"
   ON "PathwayGateSnapshot"("assessmentId", "sequence");
-CREATE INDEX "PathwayGateSnapshot_assessmentId_idx"
+CREATE INDEX IF NOT EXISTS "PathwayGateSnapshot_assessmentId_idx"
   ON "PathwayGateSnapshot"("assessmentId");
 
-CREATE UNIQUE INDEX "PathwayArtefactBinding_artefactId_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayArtefactBinding_artefactId_key"
   ON "PathwayArtefactBinding"("artefactId");
-CREATE UNIQUE INDEX "PathwayArtefactBinding_assessment_stage_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "PathwayArtefactBinding_assessment_stage_key"
   ON "PathwayArtefactBinding"("assessmentId", "commercialStage");
-CREATE INDEX "PathwayArtefactBinding_assessmentId_idx"
+CREATE INDEX IF NOT EXISTS "PathwayArtefactBinding_assessmentId_idx"
   ON "PathwayArtefactBinding"("assessmentId");
-
-ALTER TABLE "SiteSpatialProvenance"
-  ADD CONSTRAINT "SiteSpatialProvenance_siteContextId_fkey"
-  FOREIGN KEY ("siteContextId") REFERENCES "SiteContext"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-
-ALTER TABLE "PathwayAssessment"
-  ADD CONSTRAINT "PathwayAssessment_projectId_fkey"
-  FOREIGN KEY ("projectId") REFERENCES "Project"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayAssessment"
-  ADD CONSTRAINT "PathwayAssessment_siteContextId_fkey"
-  FOREIGN KEY ("siteContextId") REFERENCES "SiteContext"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayAssessment"
-  ADD CONSTRAINT "PathwayAssessment_spatialProvenanceId_fkey"
-  FOREIGN KEY ("spatialProvenanceId") REFERENCES "SiteSpatialProvenance"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayAssessment"
-  ADD CONSTRAINT "PathwayAssessment_pathwayDefinitionId_fkey"
-  FOREIGN KEY ("pathwayDefinitionId") REFERENCES "PathwayDefinition"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayAssessment"
-  ADD CONSTRAINT "PathwayAssessment_supersedesAssessmentId_fkey"
-  FOREIGN KEY ("supersedesAssessmentId") REFERENCES "PathwayAssessment"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
-
-ALTER TABLE "PathwayEvidenceSnapshot"
-  ADD CONSTRAINT "PathwayEvidenceSnapshot_assessmentId_fkey"
-  FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PathwayEvidenceSnapshot"
-  ADD CONSTRAINT "PathwayEvidenceSnapshot_clauseId_fkey"
-  FOREIGN KEY ("clauseId") REFERENCES "Clause"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayEvidenceSnapshot"
-  ADD CONSTRAINT "PathwayEvidenceSnapshot_dcpClauseId_fkey"
-  FOREIGN KEY ("dcpClauseId") REFERENCES "DCPClause"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayEvidenceSnapshot"
-  ADD CONSTRAINT "PathwayEvidenceSnapshot_workspaceUploadId_fkey"
-  FOREIGN KEY ("workspaceUploadId") REFERENCES "WorkspaceUpload"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-
-ALTER TABLE "PathwayControlSnapshot"
-  ADD CONSTRAINT "PathwayControlSnapshot_assessmentId_fkey"
-  FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PathwayControlSnapshot"
-  ADD CONSTRAINT "PathwayControlSnapshot_evidenceSnapshotId_fkey"
-  FOREIGN KEY ("evidenceSnapshotId") REFERENCES "PathwayEvidenceSnapshot"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-
-ALTER TABLE "PathwayGateSnapshot"
-  ADD CONSTRAINT "PathwayGateSnapshot_assessmentId_fkey"
-  FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
-
-ALTER TABLE "PathwayArtefactBinding"
-  ADD CONSTRAINT "PathwayArtefactBinding_assessmentId_fkey"
-  FOREIGN KEY ("assessmentId") REFERENCES "PathwayAssessment"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "PathwayArtefactBinding"
-  ADD CONSTRAINT "PathwayArtefactBinding_artefactId_fkey"
-  FOREIGN KEY ("artefactId") REFERENCES "Artefact"("id")
-  ON DELETE RESTRICT ON UPDATE CASCADE;
 
 COMMIT;
