@@ -3,6 +3,8 @@ name: Submission SEE Credit Contract
 on:
   pull_request:
     paths:
+      - "package.json"
+      - "scripts/submission-see-credit-preview-acceptance.ts"
       - "src/lib/submission-see-credit.ts"
       - "src/lib/submission-see-credit.test.ts"
       - "src/lib/submission-see-credit-persistence.ts"
@@ -46,3 +48,6 @@ jobs:
 
       - name: Run exact-scope credit contract and persistence tests
         run: npx vitest run src/lib/submission-see-credit.test.ts src/lib/submission-see-credit-persistence.test.ts
+
+      - name: Prove protected Preview acceptance is disabled by default
+        run: npm run accept:submission-see-credit-preview
