@@ -97,7 +97,9 @@ function lotSchemaSummary(response: ArcGisFeatureResponse) {
       : null;
   const areaUnitClass =
     normalizedUnit &&
-    new Set(["M2", "SQM", "SQUAREMETRE", "SQUAREMETRES", "METERS", "METRES"]).has(\n        normalizedUnit,\n      )
+    new Set(["M2", "SQM", "SQUAREMETRE", "SQUAREMETRES", "METERS", "METRES"]).has(
+        normalizedUnit,
+      )
       ? "SQUARE_METRES"
       : normalizedUnit &&
           new Set(["HA", "HECTARE", "HECTARES"]).has(normalizedUnit)
