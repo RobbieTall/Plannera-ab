@@ -30,10 +30,10 @@ jobs:
       - name: Checkout exact revision
         uses: actions/checkout@v4
 
-      - name: Use repository Node version
+      - name: Use Node 20
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version: "20"
           cache: npm
 
       - name: Install locked dependencies
