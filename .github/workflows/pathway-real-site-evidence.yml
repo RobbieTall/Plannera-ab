@@ -1,0 +1,45 @@
+name: Pathway Real-Site Evidence Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-real-site-evidence.ts"
+      - "src/lib/pathway-real-site-evidence.test.ts"
+      - "docs/operations/item74h-real-site-evidence-intake.md"
+      - ".github/workflows/pathway-real-site-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-intake:
+    name: Protected evidence intake contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: "false"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify fail-closed real-site evidence intake
+        run: npx vitest run src/lib/pathway-real-site-evidence.test.ts
+
+      - name: Confirm commercial safety boundary
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"
+          test "$ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE" = "false"
