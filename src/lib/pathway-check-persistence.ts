@@ -524,7 +524,7 @@ export async function persistPathwayAssessment(
             result: attachPersistedPathwayCommercialBinding(
               input.result,
               input.commercialBinding || null,
-            ),
+            ) as Prisma.InputJsonValue,
             assessedAt: input.assessedAt,
             staleAt: input.staleAt,
           },
