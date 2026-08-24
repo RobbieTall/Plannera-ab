@@ -16,7 +16,7 @@ const ENABLE_FLAG = "SUBMISSION_SEE_CREDIT_ACCEPTANCE_ENABLED";
 const EXPECTED_GIT_REF = "agent/item74f-see-credit";
 const EXPECTED_NEON_ENDPOINT_PREFIX = "ep-winter-fog-a76nvixu";
 
-const assert = (condition: unknown, reason: string): asserts condition => {
+const assert: (condition: unknown, reason: string) => asserts condition = (condition, reason) => {
   if (!condition) throw new Error(reason);
 };
 
