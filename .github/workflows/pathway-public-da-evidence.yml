@@ -1,0 +1,42 @@
+name: Pathway Public DA Evidence Catalog
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-public-da-evidence.ts"
+      - "src/lib/pathway-public-da-evidence.test.ts"
+      - "docs/operations/item74h-public-da-evidence.md"
+      - ".github/workflows/pathway-public-da-evidence.yml"
+  push:
+    branches:
+      - "agent/item74h-pathway-check"
+    paths:
+      - "src/lib/pathway-public-da-evidence.ts"
+      - "src/lib/pathway-public-da-evidence.test.ts"
+      - "docs/operations/item74h-public-da-evidence.md"
+      - ".github/workflows/pathway-public-da-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-da-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install vitest run src/lib/pathway-public-da-evidence.test.ts
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"
