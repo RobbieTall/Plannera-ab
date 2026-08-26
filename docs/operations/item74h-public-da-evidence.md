@@ -128,3 +128,41 @@ The database stores this curated, metadata-only catalog under the existing
 `public-da-catalog` evidence key and
 `pathway-public-da-evidence.v1` source version. It is not represented as an
 uploaded PDF, LEP, DCP or spatial layer.
+
+
+## Protected Preview durable-binding acceptance: 2026-08-27
+
+Repository commit: `c4c7cacf815ae55bad3ebbce460551f80171bb04`
+
+Controlled Preview deployment: `dpl_DUAsaQgJT4KcuBL5svwfTVLSptYu`
+
+All 20 exact-head GitHub workflows passed. The hosted controlled flight
+confirmed:
+
+- one official Byron RU2 site and current LEP/DCP evidence;
+- `MORE_EVIDENCE_REQUIRED` retained;
+- 5 evidence snapshots, including the curated public DA catalog;
+- `CATALOG_CONFIRMED` and the catalog digest persisted and reloaded;
+- the token-free Council tracker URL preserved;
+- no direct-download token retained;
+- 17 control snapshots and 6 deterministic gate snapshots;
+- create-once and replay-safe assessment persistence;
+- unsafe `PROCEED` rejected without a write;
+- replay-safe free Pathway Check binding;
+- A$49 Planning Controls Pack blocked;
+- A$749 submission SEE blocked;
+- raw address, coordinates and parcel identifiers not retained;
+- cleanup residual rows equal to zero; and
+- Production checkout and Production mutation both false.
+
+Two earlier controlled attempts failed closed before acceptance. The first
+identified that the catalog requires a full SHA-256 fingerprint rather than
+the redacted logging prefix. The second identified the approved database
+evidence-kind constraint. Both transactions rolled back. The final contract
+hashes the redacted preflight identifier and uses the existing
+`OPERATOR_NOTE` metadata category without changing or weakening either
+validator.
+
+The two temporary branch-scoped Preview Secret variables were deleted after
+the accepted flight. A clean-state deployment must keep both controlled
+runners disabled with reason `approval_gated`.

@@ -70,3 +70,26 @@ This acceptance proves the durable free site-triage path and its evidence bounda
 The next evidence work must resolve the site facts still required for an evidence-verified decision, including proposal dimensions and use, legal landholding area, existing farm-building aggregate, road classification and setbacks, waterbody/ridgeline/heritage/environmental-sensitivity checks, mapped constraints, source currentness and operator review.
 
 Only after those facts are genuinely verified may the same accepted evidence scope bind to the A$49 Planning Controls Pack and then feed the A$749 submission SEE.
+
+
+## Public DA catalog binding acceptance: 2026-08-27
+
+Repository commit `c4c7cacf815ae55bad3ebbce460551f80171bb04` and protected
+Preview deployment `dpl_DUAsaQgJT4KcuBL5svwfTVLSptYu` extend the accepted
+controlled scope without a schema change.
+
+The same controlled Byron RU2 assessment now persists 5 evidence snapshots.
+The fifth is a metadata-only official Council DA catalog, stored under the
+existing `OPERATOR_NOTE` evidence kind and identified by
+`pathway-public-da-evidence.v1`. Its deterministic digest participates in
+the assessment-wide evidence digest and survives replay/reload with the
+token-free Council tracker URL.
+
+This does not verify document content or proposal measurements. The accepted
+result remains `MORE_EVIDENCE_REQUIRED`, both paid artefacts remain blocked,
+cleanup reconciles to zero rows, and Production checkout and mutation remain
+false.
+
+The temporary controlled-address variables were deleted immediately after the
+flight. The next clean-state deployment must report both controlled runners as
+disabled with reason `approval_gated`.
