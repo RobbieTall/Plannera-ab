@@ -24,7 +24,7 @@ const candidate = (): PathwayCheckCandidate => ({
     addressFingerprint: null,
     lgaCode: "BYRON",
     zoneCode: "RU2",
-    lotAreaSqm: 25_000,
+    lotAreaSqm: 32_000,
     spatialProvenance: {
       status: "unresolved",
       authoritative: false,
@@ -124,7 +124,7 @@ test("renders a safe free result from the supplied shed estimates", () => {
   assert.equal(result.freeOutputEligible, true);
   assert.equal(result.decision, "MORE_EVIDENCE_REQUIRED");
   assert.equal(result.proposal.trust, "USER_ATTESTED");
-  assert.equal(result.proposal.landAreaSquareMetres, 25_000);
+  assert.equal(result.proposal.landAreaSquareMetres, 32_000);
   assert.equal(
     result.proposal.aggregateFarmBuildingFootprintSquareMetres,
     80,

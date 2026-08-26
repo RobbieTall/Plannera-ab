@@ -25,7 +25,7 @@ describe("protected pathway proposal attestation", () => {
       classifiedRoad: 55,
       otherRoad: 15,
     });
-    expect(result.landAreaSquareMetres).toBe(25_000);
+    expect(result.landAreaSquareMetres).toBe(32_000);
     expect(result.aggregateFarmBuildingFootprintSquareMetres).toBe(96);
     expect(result.aggregateSiteCoveragePercent).toBeCloseTo(0.32);
     expect(result.preliminaryRoadSetbackOutcome).toBe(
