@@ -5,9 +5,12 @@ const TARGET_NEON_ENDPOINT_PREFIX = "ep-misty-dream-a7l6wcp8";
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
   "prisma/migrations/20260826113000_item74h_proposal_attestation/migration.sql",
+  "prisma/migrations/20260826121000_item74h_attestation_assessment_binding/migration.sql",
 ] as const;
-const ITEM74H_ATTESTATION_ACCEPTANCE =
-  "scripts/item74h-proposal-attestation-preview.ts";
+const ITEM74H_ACCEPTANCE_FILES = [
+  "scripts/item74h-proposal-attestation-preview.ts",
+  "scripts/item74h-proposal-assessment-binding-preview.ts",
+] as const;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function skip(reason: string): never {
@@ -97,29 +100,30 @@ for (const sqlFile of ITEM74H_SQL_FILES) {
   console.log(`[item74h:migrate] applied ${sqlFile}`);
 }
 
-console.log(
-  "[item74h:migrate] schema ready; running synthetic write, reload, and cleanup acceptance",
-);
-
-const acceptance = spawnSync(
-  command,
-  ["--no-install", "tsx", ITEM74H_ATTESTATION_ACCEPTANCE],
-  {
-    env: process.env,
-    stdio: "inherit",
-  },
-);
-
-if (acceptance.error) {
-  throw acceptance.error;
-}
-
-if (acceptance.status !== 0) {
-  throw new Error(
-    `[item74h:migrate] proposal attestation acceptance failed with exit code ${acceptance.status ?? "unknown"}`,
+for (const acceptanceFile of ITEM74H_ACCEPTANCE_FILES) {
+  console.log(
+    `[item74h:migrate] running protected synthetic acceptance ${acceptanceFile}`,
   );
+  const acceptance = spawnSync(
+    command,
+    ["--no-install", "tsx", acceptanceFile],
+    {
+      env: process.env,
+      stdio: "inherit",
+    },
+  );
+
+  if (acceptance.error) {
+    throw acceptance.error;
+  }
+
+  if (acceptance.status !== 0) {
+    throw new Error(
+      `[item74h:migrate] protected acceptance failed for ${acceptanceFile} with exit code ${acceptance.status ?? "unknown"}`,
+    );
+  }
 }
 
 console.log(
-  "[item74h:migrate] approved Item 74H SQL and zero-residue acceptance executed successfully",
+  "[item74h:migrate] approved Item 74H SQL and zero-residue acceptances executed successfully",
 );
