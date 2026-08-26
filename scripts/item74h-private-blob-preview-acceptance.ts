@@ -8,6 +8,7 @@ import {
   type PathwayPrivateBlobAcceptanceDependencies,
 } from "../src/lib/pathway-private-evidence-blob-acceptance";
 
+const main = async () => {
 const enabled =
   process.env.ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED === "true";
 
@@ -149,3 +150,9 @@ console.log(
     ...report,
   }),
 );
+};
+
+void main().catch(() => {
+  console.error("Item 74H private Blob acceptance failed closed");
+  process.exitCode = 1;
+});
