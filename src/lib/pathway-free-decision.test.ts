@@ -127,9 +127,9 @@ test("renders a safe free result from the supplied shed estimates", () => {
   assert.equal(result.proposal.landAreaSquareMetres, 32_000);
   assert.equal(
     result.proposal.aggregateFarmBuildingFootprintSquareMetres,
-    80,
+    96,
   );
-  assert.equal(result.proposal.aggregateSiteCoveragePercent, 0.32);
+  assert.equal(result.proposal.aggregateSiteCoveragePercent, 0.3);
   assert.equal(result.proposal.roadDistanceRobustToUnresolvedCategory, true);
   assert.equal(result.planningControlsPackEligible, false);
   assert.equal(result.submissionSeeEligible, false);

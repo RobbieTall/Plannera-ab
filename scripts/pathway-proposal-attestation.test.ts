@@ -27,7 +27,7 @@ describe("protected pathway proposal attestation", () => {
     });
     expect(result.landAreaSquareMetres).toBe(32_000);
     expect(result.aggregateFarmBuildingFootprintSquareMetres).toBe(96);
-    expect(result.aggregateSiteCoveragePercent).toBeCloseTo(0.32);
+    expect(result.aggregateSiteCoveragePercent).toBeCloseTo(0.3);
     expect(result.preliminaryRoadSetbackOutcome).toBe(
       "MEETS_BOTH_POSSIBLE_MINIMUMS",
     );
