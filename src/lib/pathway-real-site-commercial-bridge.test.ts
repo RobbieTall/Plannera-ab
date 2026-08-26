@@ -6,9 +6,11 @@ import type { ByronRoadClassificationEvidence } from "./pathway-byron-rural-setb
 import { evaluatePaidArtefactBindingPolicy } from "./pathway-paid-artefact-policy";
 import { evaluatePathwayCommercialBindingPersistence } from "./pathway-persisted-commercial-binding";
 import {
+  computePathwayProposalAttestationDigest,
   evaluatePathwayRealSiteCommercialBridge,
   formatPathwaySideRearSetbacks,
 } from "./pathway-real-site-commercial-bridge";
+import type { ProposalAttestationInput } from "./pathway-proposal-attestation";
 import {
   assessPathwayRealSiteEvidence,
   PATHWAY_REAL_SITE_EVIDENCE_VERSION,
@@ -234,13 +236,34 @@ const manifest = (
   });
 };
 
+const proposalAttestation = (): ProposalAttestationInput => ({
+  proposalPurpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE",
+  landAreaHectares: 4,
+  proposedBuildingFootprintSquareMetres: 120,
+  existingFarmBuildingFootprintSquareMetres: 20,
+  proposedBuildingHeightMetres: 4.8,
+  roadSetbackMetres: 62,
+  sideSetbackMetres: 18,
+  otherBoundarySetbackMetres: 24,
+  roadCategory: "UNRESOLVED",
+});
+
 const acceptedInput = () => {
   const packageInput = evidencePackage();
   const evidenceDigest = assessDigest(packageInput);
+  const attestation = proposalAttestation();
   return {
     manifest: manifest(evidenceDigest),
     evidencePackage: packageInput,
     roadEvidence: roadEvidence(),
+    proposalAttestation: attestation,
+    proposalReview: {
+      status: "EVIDENCE_VERIFIED" as const,
+      attestationDigest:
+        computePathwayProposalAttestationDigest(attestation),
+      otherBoundaryRole: "REAR" as const,
+      reviewedAt: "2026-08-24T02:00:00.000Z",
+    },
     asOf: NOW,
   };
 };
@@ -274,6 +297,8 @@ describe("Item 74H real-site commercial bridge", () => {
     expect(result.exactScope?.siteEvidenceDigest).not.toBe(
       acceptedInput().manifest.siteEvidenceDigest,
     );
+    expect(result.redactedEvidenceSummary.proposalReviewAccepted).toBe(true);
+    expect(result.redactedEvidenceSummary.proposalAttestationMatched).toBe(true);
     expect(result.redactedEvidenceSummary.containsRawSiteIdentifiers).toBe(false);
 
     const binding = result.commercialBinding;
@@ -316,6 +341,46 @@ describe("Item 74H real-site commercial bridge", () => {
         },
       }).allowed,
     ).toBe(true);
+  });
+
+  it("blocks both paid stages when reviewed evidence silently changes the free proposal", () => {
+    const input = acceptedInput();
+    input.proposalAttestation = {
+      ...input.proposalAttestation,
+      proposedBuildingFootprintSquareMetres: 121,
+    };
+    input.proposalReview = {
+      ...input.proposalReview,
+      attestationDigest: computePathwayProposalAttestationDigest(
+        input.proposalAttestation,
+      ),
+    };
+
+    const result = evaluatePathwayRealSiteCommercialBridge(input);
+
+    expect(result.planningControlsPackEligible).toBe(false);
+    expect(result.submissionSeeEligible).toBe(false);
+    expect(result.exactScope).toBeNull();
+    expect(result.blockers).toContain(
+      "PROPOSAL_ATTESTATION_SCOPE_MISMATCH",
+    );
+  });
+
+  it("blocks both paid stages when the proposal review is not bound to the attestation", () => {
+    const input = acceptedInput();
+    input.proposalReview = {
+      ...input.proposalReview,
+      attestationDigest: hash("f"),
+    };
+
+    const result = evaluatePathwayRealSiteCommercialBridge(input);
+
+    expect(result.planningControlsPackEligible).toBe(false);
+    expect(result.submissionSeeEligible).toBe(false);
+    expect(result.exactScope).toBeNull();
+    expect(result.blockers).toContain(
+      "PROPOSAL_ATTESTATION_REVIEW_REQUIRED",
+    );
   });
 
   it("blocks the pack when the manifest measurements differ from the reviewed plan", () => {

@@ -10,6 +10,7 @@ import {
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
 import {
+  computePathwayProposalAttestationDigest,
   evaluatePathwayRealSiteCommercialBridge,
   formatPathwaySideRearSetbacks,
 } from '../src/lib/pathway-real-site-commercial-bridge';
@@ -366,9 +367,29 @@ export async function runItem74hRealSiteBindingPreviewAcceptance(
       now,
       packageAssessment.confirmedEvidence.siteEvidenceDigest,
     );
+    const proposalAttestation = {
+      proposalPurpose:
+        'NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE',
+      landAreaHectares: 4,
+      proposedBuildingFootprintSquareMetres: 120,
+      existingFarmBuildingFootprintSquareMetres: 20,
+      proposedBuildingHeightMetres: 4.8,
+      roadSetbackMetres: 62,
+      sideSetbackMetres: 18,
+      otherBoundarySetbackMetres: 24,
+      roadCategory: 'UNRESOLVED',
+    } as const;
     const bridge = evaluatePathwayRealSiteCommercialBridge({
       manifest,
       evidencePackage: packageInput,
+      proposalAttestation,
+      proposalReview: {
+        status: 'EVIDENCE_VERIFIED',
+        attestationDigest:
+          computePathwayProposalAttestationDigest(proposalAttestation),
+        otherBoundaryRole: 'REAR',
+        reviewedAt: isoOffset(now, -6 * 60 * 60 * 1000),
+      },
       roadEvidence: {
         category: 'CLASSIFIED_ROAD',
         basis: 'TFNSW_POSITIVE_STATE_OR_REGIONAL_MATCH',
@@ -382,6 +403,10 @@ export async function runItem74hRealSiteBindingPreviewAcceptance(
     assert(bridge.planningControlsPackEligible, 'Synthetic pack scope must be eligible');
     assert(bridge.submissionSeeEligible, 'Synthetic SEE scope must be eligible');
     assert(bridge.exactScope, 'Synthetic exact commercial scope is required');
+    assert(
+      bridge.redactedEvidenceSummary.proposalAttestationMatched,
+      'Synthetic reviewed proposal must match the verified scope',
+    );
     assert(!bridge.productionCheckoutEnabled, 'Production checkout must stay disabled');
 
     await prisma.user.create({

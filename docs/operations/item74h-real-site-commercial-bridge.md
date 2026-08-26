@@ -58,3 +58,30 @@ Do not place the private site plan or its site identifiers in GitHub, workflow
 inputs, PR comments, Vercel logs or a public object URL. Complete the separate
 private storage and authenticated access-control acceptance before Plannera
 receives the file directly.
+
+
+## Free-to-paid proposal reconciliation
+
+The bridge also binds the reviewed evidence back to the proposal captured by the
+free Pathway Check. The proposal review must:
+
+- carry the SHA-256 digest of the complete user attestation;
+- be marked `EVIDENCE_VERIFIED`;
+- explicitly map the v1 `otherBoundarySetbackMetres` field to the reviewed
+  rear-boundary measurement;
+- have a valid review time no later than the commercial assessment.
+
+The reviewed manifest and private package must then match the attested land
+area, existing farm-building area, proposed footprint, height, road setback,
+side setback and rear setback exactly. Agricultural purpose and non-habitable
+design must also be verified in the manifest.
+
+A valid review whose evidence differs from the free proposal produces
+`PROPOSAL_ATTESTATION_SCOPE_MISMATCH`. A missing, stale or incorrectly bound
+review produces `PROPOSAL_ATTESTATION_REVIEW_REQUIRED`. Either result blocks
+both paid stages and prevents creation of an exact scope.
+
+The composite site-evidence digest now includes the reviewed proposal
+attestation digest. This prevents a paid artefact from being replayed against a
+different customer proposal even when the verified documents are otherwise
+unchanged.

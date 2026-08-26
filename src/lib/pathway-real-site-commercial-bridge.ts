@@ -8,6 +8,7 @@ import {
   type PathwayExactCommercialScope,
 } from "./pathway-commercial-binding";
 import type { ByronRoadClassificationEvidence } from "./pathway-byron-rural-setbacks";
+import type { ProposalAttestationInput } from "./pathway-proposal-attestation";
 import {
   assessPathwayRealSiteEvidence,
   type PathwayRealSiteEvidencePackage,
@@ -18,19 +19,30 @@ import type {
 } from "./pathway-site-evidence";
 
 export const PATHWAY_REAL_SITE_COMMERCIAL_BRIDGE_VERSION =
-  "byron-ru2-shed-real-site-commercial-bridge.v1" as const;
+  "byron-ru2-shed-real-site-commercial-bridge.v2" as const;
 
 export type PathwayRealSiteCommercialBlocker =
   | PathwayCommercialBindingBlocker
   | "REAL_SITE_EVIDENCE_REQUIRED"
   | "REAL_SITE_ROAD_SOURCE_MISMATCH"
   | "REAL_SITE_MANIFEST_SCOPE_MISMATCH"
-  | "REAL_SITE_UPLOAD_SET_MISMATCH";
+  | "REAL_SITE_UPLOAD_SET_MISMATCH"
+  | "PROPOSAL_ATTESTATION_REVIEW_REQUIRED"
+  | "PROPOSAL_ATTESTATION_SCOPE_MISMATCH";
+
+export type PathwayProposalEvidenceReview = {
+  status: "EVIDENCE_VERIFIED";
+  attestationDigest: string;
+  otherBoundaryRole: "REAR";
+  reviewedAt: string;
+};
 
 export type PathwayRealSiteCommercialBridgeInput = {
   manifest: PathwaySiteEvidenceManifest;
   evidencePackage: PathwayRealSiteEvidencePackage;
   roadEvidence: ByronRoadClassificationEvidence | null;
+  proposalAttestation: ProposalAttestationInput;
+  proposalReview: PathwayProposalEvidenceReview;
   asOf: Date;
 };
 
@@ -47,6 +59,8 @@ export type PathwayRealSiteCommercialBridgeEvaluation = {
     status: "EVIDENCE_CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
     acceptedDocumentCount: number;
     manuallyReviewedDocumentCount: number;
+    proposalReviewAccepted: boolean;
+    proposalAttestationMatched: boolean;
     containsRawSiteIdentifiers: false;
   };
 };
@@ -56,6 +70,27 @@ const sha256 = (value: string) =>
 
 const canonicalValue = (value: PathwaySiteEvidenceValue) =>
   JSON.stringify(value);
+
+export const computePathwayProposalAttestationDigest = (
+  attestation: ProposalAttestationInput,
+) =>
+  sha256(
+    JSON.stringify({
+      proposalPurpose: attestation.proposalPurpose,
+      landAreaHectares: attestation.landAreaHectares,
+      proposedBuildingFootprintSquareMetres:
+        attestation.proposedBuildingFootprintSquareMetres,
+      existingFarmBuildingFootprintSquareMetres:
+        attestation.existingFarmBuildingFootprintSquareMetres,
+      proposedBuildingHeightMetres:
+        attestation.proposedBuildingHeightMetres,
+      roadSetbackMetres: attestation.roadSetbackMetres,
+      sideSetbackMetres: attestation.sideSetbackMetres,
+      otherBoundarySetbackMetres:
+        attestation.otherBoundarySetbackMetres,
+      roadCategory: attestation.roadCategory,
+    }),
+  );
 
 const isObservationCurrent = (
   observation: PathwaySiteEvidenceManifest["observations"][number],
@@ -82,8 +117,12 @@ const isObservationCurrent = (
 const manifestValue = (
   manifest: PathwaySiteEvidenceManifest,
   factKey:
+    | "AGRICULTURAL_ANCILLARY_USE"
+    | "NON_HABITABLE_DESIGN"
     | "PROPOSAL_FOOTPRINT_SQM"
     | "PROPOSAL_HEIGHT_M"
+    | "LANDHOLDING_AREA_SQM"
+    | "EXISTING_FARM_BUILDING_AREA_SQM"
     | "ROAD_CLASSIFICATION"
     | "ROAD_BOUNDARY_SETBACK_M"
     | "SIDE_REAR_SETBACK_M"
@@ -166,18 +205,60 @@ const manifestCommercialFactsMatch = (
       }),
     );
 
+const proposalReviewAccepted = (
+  attestation: ProposalAttestationInput,
+  review: PathwayProposalEvidenceReview,
+  asOf: Date,
+) => {
+  const reviewedAt = Date.parse(review.reviewedAt);
+  return (
+    review.status === "EVIDENCE_VERIFIED" &&
+    review.otherBoundaryRole === "REAR" &&
+    /^[a-f0-9]{64}$/.test(review.attestationDigest) &&
+    review.attestationDigest ===
+      computePathwayProposalAttestationDigest(attestation) &&
+    Number.isFinite(reviewedAt) &&
+    reviewedAt <= asOf.getTime()
+  );
+};
+
+const proposalAttestationMatchesScope = (
+  attestation: ProposalAttestationInput,
+  manifest: PathwaySiteEvidenceManifest,
+  confirmed: NonNullable<
+    ReturnType<typeof assessPathwayRealSiteEvidence>["confirmedEvidence"]
+  >,
+) =>
+  attestation.proposalPurpose ===
+    "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE" &&
+  manifestValue(manifest, "AGRICULTURAL_ANCILLARY_USE") === true &&
+  manifestValue(manifest, "NON_HABITABLE_DESIGN") === true &&
+  attestation.landAreaHectares * 10_000 ===
+    manifestValue(manifest, "LANDHOLDING_AREA_SQM") &&
+  attestation.existingFarmBuildingFootprintSquareMetres ===
+    manifestValue(manifest, "EXISTING_FARM_BUILDING_AREA_SQM") &&
+  attestation.proposedBuildingFootprintSquareMetres ===
+    confirmed.shedFootprintSqm &&
+  attestation.proposedBuildingHeightMetres === confirmed.shedHeightM &&
+  attestation.roadSetbackMetres === confirmed.roadSetbackM &&
+  attestation.sideSetbackMetres === confirmed.sideSetbackM &&
+  attestation.otherBoundarySetbackMetres === confirmed.rearSetbackM;
+
 const compositeSiteEvidenceDigest = ({
   manifestDigest,
   realSiteDigest,
+  proposalAttestationDigest,
 }: {
   manifestDigest: string;
   realSiteDigest: string;
+  proposalAttestationDigest: string;
 }) =>
   sha256(
     JSON.stringify({
       bridgeVersion: PATHWAY_REAL_SITE_COMMERCIAL_BRIDGE_VERSION,
       manifestDigest,
       realSiteDigest,
+      proposalAttestationDigest,
     }),
   );
 
@@ -215,6 +296,27 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     blockers.push("REAL_SITE_MANIFEST_SCOPE_MISMATCH");
   }
 
+  const proposalReviewIsAccepted = proposalReviewAccepted(
+    input.proposalAttestation,
+    input.proposalReview,
+    input.asOf,
+  );
+  if (!proposalReviewIsAccepted) {
+    blockers.push("PROPOSAL_ATTESTATION_REVIEW_REQUIRED");
+  }
+
+  const proposalScopeMatches =
+    confirmed !== null &&
+    proposalReviewIsAccepted &&
+    proposalAttestationMatchesScope(
+      input.proposalAttestation,
+      input.manifest,
+      confirmed,
+    );
+  if (confirmed && proposalReviewIsAccepted && !proposalScopeMatches) {
+    blockers.push("PROPOSAL_ATTESTATION_SCOPE_MISMATCH");
+  }
+
   const uploadSetMatches =
     confirmed !== null &&
     manifestValue(input.manifest, "EVIDENCE_UPLOAD_SET") ===
@@ -231,7 +333,9 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     base.planningControlsPackEligible &&
     confirmed !== null &&
     roadSourceMatches &&
-    factsMatch;
+    factsMatch &&
+    proposalReviewIsAccepted &&
+    proposalScopeMatches;
   const submissionSeeEligible =
     base.submissionSeeEligible &&
     planningControlsPackEligible &&
@@ -242,6 +346,7 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     const siteEvidenceDigest = compositeSiteEvidenceDigest({
       manifestDigest: input.manifest.siteEvidenceDigest,
       realSiteDigest: confirmed.siteEvidenceDigest,
+      proposalAttestationDigest: input.proposalReview.attestationDigest,
     });
     const scopeWithoutDigest = {
       bindingVersion: base.exactScope.bindingVersion,
@@ -285,6 +390,8 @@ export const evaluatePathwayRealSiteCommercialBridge = (
       acceptedDocumentCount: realSite.redactedSummary.acceptedDocumentCount,
       manuallyReviewedDocumentCount:
         realSite.redactedSummary.manuallyReviewedRoles.length,
+      proposalReviewAccepted: proposalReviewIsAccepted,
+      proposalAttestationMatched: proposalScopeMatches,
       containsRawSiteIdentifiers: false,
     },
   };
