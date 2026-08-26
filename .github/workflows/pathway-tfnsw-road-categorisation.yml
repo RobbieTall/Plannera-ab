@@ -16,6 +16,9 @@ jobs:
   contract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,3 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install tsx src/lib/pathway-tfnsw-road-categorisation.test.ts
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"
