@@ -6,6 +6,8 @@ const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
   "prisma/migrations/20260826113000_item74h_proposal_attestation/migration.sql",
 ] as const;
+const ITEM74H_ATTESTATION_ACCEPTANCE =
+  "scripts/item74h-proposal-attestation-preview.ts";
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function skip(reason: string): never {
@@ -95,4 +97,29 @@ for (const sqlFile of ITEM74H_SQL_FILES) {
   console.log(`[item74h:migrate] applied ${sqlFile}`);
 }
 
-console.log("[item74h:migrate] approved Item 74H SQL executed successfully");
+console.log(
+  "[item74h:migrate] schema ready; running synthetic write, reload, and cleanup acceptance",
+);
+
+const acceptance = spawnSync(
+  command,
+  ["--no-install", "tsx", ITEM74H_ATTESTATION_ACCEPTANCE],
+  {
+    env: process.env,
+    stdio: "inherit",
+  },
+);
+
+if (acceptance.error) {
+  throw acceptance.error;
+}
+
+if (acceptance.status !== 0) {
+  throw new Error(
+    `[item74h:migrate] proposal attestation acceptance failed with exit code ${acceptance.status ?? "unknown"}`,
+  );
+}
+
+console.log(
+  "[item74h:migrate] approved Item 74H SQL and zero-residue acceptance executed successfully",
+);
