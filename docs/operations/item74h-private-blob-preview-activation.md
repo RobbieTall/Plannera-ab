@@ -1,6 +1,6 @@
 # Item 74H Preview private Blob activation and rollback
 
-Status: **PREPARED / NOT EXECUTED / APPROVAL REQUIRED**
+Status: **PRIVATE PREVIEW RESOURCES CONNECTED / SYNTHETIC FLIGHT PENDING**
 
 Last updated: 2026-08-27 (Australia/Sydney)
 
@@ -11,9 +11,9 @@ private-evidence proof. It turns the accepted quarantine contract into a
 repeatable Preview flight without exposing a customer document, credential,
 object URL or Production setting.
 
-It does not authorize the flight. Creating a Blob store, upgrading the storage
-SDK and changing protected environment configuration require explicit operator
-approval.
+The operator approved the Preview-only resource, SDK and synthetic acceptance
+boundary on 2026-08-27. This approval does not extend to Production, real
+documents, paid checkout activation or a fabricated malware-clean result.
 
 ## Exact protected scope
 
@@ -66,19 +66,25 @@ All of the following must be true before resource creation:
 
 ## Safe resource sequence
 
-1. Create a Blob store with access `private` and environment `preview`.
-2. Confirm the store reports private access without displaying any token.
-3. Confirm no Production environment gained a Blob variable.
+1. The private `plannera-item74h-preview-private` Blob store was created in
+   `SYD1` and connected to `plannera-ab` for Preview only.
+2. The project environment screen confirmed these names as Preview-only without
+   revealing values: `ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN`,
+   `ITEM74H_PRIVATE_BLOB_STORE_ID` and
+   `ITEM74H_PRIVATE_BLOB_WEBHOOK_PUBLIC_KEY`.
+3. No Production environment gained an Item 74H private Blob variable.
 4. Prefer Vercel OIDC for server-side private reads where supported.
 5. If a static Blob credential is necessary, keep it Sensitive and
    Preview/branch scoped; never copy or print its value.
-6. Upgrade `@vercel/blob` through the locked dependency workflow and review
-   the lockfile diff.
+6. Upgrade `@vercel/blob` to the private-storage-capable current SDK and add the
+   current `@vercel/sandbox` SDK through the locked dependency workflow.
 7. Implement the injected private quarantine adapter behind
    `intakePathwayPrivateEvidence`.
-8. Keep `ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED=false` until the exact
-   protected deployment is ready for the synthetic flight.
-9. Enable that flag only for Preview and the Item 74H branch.
+8. Keep `ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED=false`. The one-flight build
+   gate uses the separate
+   `ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED=true` switch.
+9. Enable the acceptance switch only for Preview and
+   `agent/item74h-pathway-check`, then remove it after the accepted flight.
 10. Do not add a public upload endpoint until owner authentication, size/type
     enforcement, quarantine persistence and cleanup are all server-authoritative.
 
@@ -107,6 +113,11 @@ It must prove:
 This first flight does not fabricate a `CLEAN` malware result. A real scanner
 and operator-review queue must be accepted separately before a document can
 enter the evidence-confirmed package.
+
+The build command `npm run accept:item74h-private-blob-preview` is a safe no-op
+unless the dedicated acceptance switch is true. When enabled, it emits only an
+aggregate report. It never logs the token, store id, object reference, private
+host, object URL or synthetic bytes.
 
 ## Rollback
 

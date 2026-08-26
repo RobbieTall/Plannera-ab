@@ -7,7 +7,7 @@
     "migrate:deploy": "echo 'migrate disabled on vercel'",
     "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "npm run migrate:item74h-preview && node ./scripts/prisma-generate.js && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && next build",
+    "vercel-build": "npm run migrate:item74h-preview && node ./scripts/prisma-generate.js && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && npm run accept:item74h-private-blob-preview && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:node && npm run test:vitest",
@@ -41,14 +41,16 @@
     "accept:item74h-real-site-preview": "tsx scripts/pathway-persistence-preview-acceptance.ts",
     "accept:item74h-controlled-address-preview": "tsx scripts/item74h-controlled-address-preflight.ts",
     "accept:item74h-controlled-persistence-preview": "tsx scripts/item74h-controlled-persistence-preview.ts",
-    "migrate:item74h-preview": "tsx scripts/item74h-preview-migrate.ts"
+    "migrate:item74h-preview": "tsx scripts/item74h-preview-migrate.ts",
+    "accept:item74h-private-blob-preview": "tsx scripts/item74h-private-blob-preview-acceptance.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@auth/prisma-adapter": "^2.11.1",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.0",
-    "@vercel/blob": "^2.0.0",
+    "@vercel/blob": "^2.8.0",
+    "@vercel/sandbox": "^3.1.0",
     "lucide-react": "^0.553.0",
     "mammoth": "^1.12.0",
     "next": "14.2.33",

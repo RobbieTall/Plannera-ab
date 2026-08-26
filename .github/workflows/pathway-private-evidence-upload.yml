@@ -9,6 +9,11 @@ on:
       - "src/lib/pathway-private-evidence-intake.test.ts"
       - "src/lib/pathway-private-evidence-review.ts"
       - "src/lib/pathway-private-evidence-review.test.ts"
+      - "src/lib/pathway-private-evidence-blob-acceptance.ts"
+      - "src/lib/pathway-private-evidence-blob-acceptance.test.ts"
+      - "scripts/item74h-private-blob-preview-acceptance.ts"
+      - "package.json"
+      - "package-lock.json"
       - "docs/operations/item74h-private-evidence-upload.md"
       - "docs/operations/item74h-private-evidence-review.md"
       - ".github/workflows/pathway-private-evidence-upload.yml"
@@ -41,7 +46,7 @@ jobs:
         run: npm ci
 
       - name: Verify private evidence policy, quarantine and review
-        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts
+        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts
 
       - name: Confirm activation and Production checkout remain disabled
         run: |
