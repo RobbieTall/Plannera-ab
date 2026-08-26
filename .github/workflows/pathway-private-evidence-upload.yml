@@ -7,7 +7,10 @@ on:
       - "src/lib/pathway-private-evidence-upload.test.ts"
       - "src/lib/pathway-private-evidence-intake.ts"
       - "src/lib/pathway-private-evidence-intake.test.ts"
+      - "src/lib/pathway-private-evidence-review.ts"
+      - "src/lib/pathway-private-evidence-review.test.ts"
       - "docs/operations/item74h-private-evidence-upload.md"
+      - "docs/operations/item74h-private-evidence-review.md"
       - ".github/workflows/pathway-private-evidence-upload.yml"
   workflow_dispatch:
 
@@ -16,7 +19,7 @@ permissions:
 
 jobs:
   policy:
-    name: Authenticated private upload and quarantine
+    name: Authenticated private upload, quarantine and review
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -37,8 +40,8 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Verify private evidence policy and quarantine coordinator
-        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts
+      - name: Verify private evidence policy, quarantine and review
+        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts
 
       - name: Confirm activation and Production checkout remain disabled
         run: |
