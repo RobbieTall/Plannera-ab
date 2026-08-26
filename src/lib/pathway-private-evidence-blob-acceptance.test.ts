@@ -61,6 +61,7 @@ describe("Item 74H private Blob acceptance coordinator", () => {
     let deletes = 0;
     const deps: PathwayPrivateBlobAcceptanceDependencies = {
       putOrReuse: async ({ objectRef, bytes }) => {
+        if (objects.has(objectRef)) return { created: false };
         objects.set(objectRef, bytes);
         return { created: true };
       },
