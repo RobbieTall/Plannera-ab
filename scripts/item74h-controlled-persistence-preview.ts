@@ -364,7 +364,7 @@ async function runControlledPersistence(
     applicationNumber: '10.2025.340.1',
     proposalKind: 'FARM_SHED',
     trackerUrl: PUBLIC_DA_TRACKER_URL,
-    addressFingerprint: preflight.addressFingerprint,
+    addressFingerprint: digest(preflight.addressFingerprint),
     propertyLotRefHash: digest('official-public-byron-da-lot-1-dp1258730'),
     proposalDescriptionHash: digest('construction-of-three-farm-buildings-sheds'),
     determination: {
