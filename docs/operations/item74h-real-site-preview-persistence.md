@@ -71,6 +71,23 @@ Commit 6a931730ba3fdb9cf38c2589103cb4afb8de42ea changed both cleanup and
 residual counting to select assessments by the synthetic projectId. A focused
 regression contract now freezes that invariant.
 
-The exact-head hosted rerun remains required. Vercel rate-limited the immediate
-follow-up deployment, so the composite paid-scope acceptance must remain
-NOT EXECUTED AFTER FIX until a new protected Preview deployment passes.
+## Exact-head protected Preview result (2026-08-26)
+
+Commit `afd5451264443c800da83b4406cd73f9400cbf93` passed the protected
+Vercel Preview deployment `dpl_5PMsZ5DXJhbCrhv1uePqhjSBZSuS`.
+
+The hosted acceptance executed two persistence runs and the composite
+commercial-binding scenario. It confirmed:
+
+- one assessment was created and replay reused it;
+- the composite scope, including the evidence-reviewed proposal attestation,
+  persisted and reloaded;
+- one A$49 Planning Controls Pack binding was created and replay reused it;
+- one A$749 submission SEE binding was created and replay reused it;
+- all evidence was explicitly synthetic;
+- cleanup left zero residual rows; and
+- Production checkout and Production mutation both remained false.
+
+This is engineering acceptance of the protected Preview persistence path. It
+does not assert that the controlled Byron site has sufficient authoritative
+evidence for a paid artefact; that real site remains MORE_EVIDENCE_REQUIRED.
