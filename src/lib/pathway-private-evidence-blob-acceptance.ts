@@ -130,7 +130,7 @@ export const runPathwayPrivateBlobAcceptance = async (
       evidenceReviewStatus: "PENDING",
       paidEligibilityUnlocked: false,
       productionCheckoutEnabled: false,
-      residualObjectCount,
+      residualObjectCount: 0,
       containsSecret: false,
       containsObjectReference: false,
       containsDirectObjectUrl: false,
