@@ -7,6 +7,7 @@ import {
   reloadPathwayAssessment,
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
+import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
 import { runItem74hRealSiteBindingPreviewAcceptance } from './item74h-real-site-binding-preview';
 
 const EXPECTED_REF = 'agent/item74h-pathway-check';
@@ -342,6 +343,35 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
     const first = await persistPathwayAssessment(prisma, persistenceInput);
     const replay = await persistPathwayAssessment(prisma, persistenceInput);
     const loaded = await reloadPathwayAssessment(prisma, first.assessment.id);
+    const customerResult = toPathwayCustomerResult(loaded, now);
+
+    assert(
+      customerResult.status === 'available',
+      'Reloaded assessment did not produce a customer pathway result',
+    );
+    assert(
+      customerResult.decision === 'MORE_EVIDENCE_REQUIRED',
+      'Customer pathway decision must remain evidence-blocked',
+    );
+    assert(
+      customerResult.gates.length === 1 &&
+        customerResult.gates[0].outcome === 'MORE_EVIDENCE_REQUIRED',
+      'Customer pathway lost the persisted unresolved gate',
+    );
+    assert(
+      customerResult.commercial.planningControlsPackEligible === false &&
+        customerResult.commercial.submissionSeeEligible === false &&
+        customerResult.commercial.productionCheckoutEnabled === false,
+      'Customer pathway must keep all paid products and Production checkout blocked',
+    );
+    assert(
+      customerResult.privacy.rawAddressReturned === false &&
+        customerResult.privacy.coordinatesReturned === false &&
+        customerResult.privacy.parcelIdentifiersReturned === false &&
+        customerResult.privacy.rawSpatialPayloadReturned === false &&
+        customerResult.privacy.evidenceDigestsReturned === false,
+      'Customer pathway privacy projection is incomplete',
+    );
 
     assert(!first.replayed, 'First persistence must create one assessment');
     assert(replay.replayed, 'Second persistence must be an idempotent replay');
@@ -434,6 +464,9 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
       assessmentCreatedOnce: true,
       replayReturnedSameAssessment: true,
       reloadPreservedSpatialDefinitionEvidenceControlsAndGates: true,
+      customerResultRenderedFromReload: true,
+      customerResultPaidProductsBlocked: true,
+      customerResultPrivacyRedacted: true,
       unsafeProceedBlockedWithoutWrite: true,
       freeBindingReplaySafe: true,
       paidPackBlocked: deniedStages.includes('PLANNING_CONTROLS_PACK'),

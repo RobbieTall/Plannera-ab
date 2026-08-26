@@ -51,3 +51,18 @@ binding and are always false when evidence is stale, absent or unresolved.
 `productionCheckoutEnabled` is a literal false in every customer response.
 Production checkout remains disabled. This slice performs no Production
 schema, data, environment, payment or checkout mutation.
+
+## Hosted acceptance
+
+The protected `accept:pathway-persistence-preview` scenario projects every
+reloaded synthetic assessment through the same customer adapter before
+cleanup. Each run must prove:
+
+- the customer result renders from the reloaded record;
+- the persisted `MORE_EVIDENCE_REQUIRED` gate remains ordered and intact;
+- both paid products remain blocked;
+- all privacy flags remain false for protected values; and
+- cleanup still returns zero residual rows.
+
+This connects the renderer to durable Prisma persistence rather than relying
+only on an in-memory fixture.

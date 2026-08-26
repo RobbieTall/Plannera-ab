@@ -7,6 +7,7 @@ on:
       - "src/lib/pathway-customer-result.test.ts"
       - "src/app/api/projects/[projectId]/pathway-check/route.ts"
       - "src/components/projects/quick-site-check-modal.tsx"
+      - "scripts/pathway-persistence-preview-acceptance.ts"
       - "docs/operations/item74h-customer-pathway-check.md"
       - ".github/workflows/pathway-customer-result.yml"
   workflow_dispatch:
