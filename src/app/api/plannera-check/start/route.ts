@@ -5,6 +5,10 @@ import { z } from "zod";
 import { recordCommercialFunnelEventSafely } from "@/lib/commercial-funnel-events";
 import { getUserContext } from "@/lib/getUserContext";
 import { evaluateProposalAttestation } from "@/lib/pathway-proposal-attestation";
+import {
+  createProjectWithProposalAttestationForRequester,
+  type ProposalAttestationPersistence,
+} from "@/lib/pathway-proposal-attestation-persistence";
 import { createProjectForRequester } from "@/lib/projects";
 
 const proposalAttestationSchema = z
@@ -54,11 +58,28 @@ export async function POST(request: NextRequest) {
   }
 
   const requester = await getUserContext();
-  const project = await createProjectForRequester(
-    requester.sessionId,
-    requester.userId,
-    parsed.data.title,
-  );
+  let project;
+  let proposalAttestationPersistence: ProposalAttestationPersistence | null =
+    null;
+
+  if (parsed.data.proposalAttestation && proposalAttestation) {
+    const creation = await createProjectWithProposalAttestationForRequester({
+      sessionId: requester.sessionId,
+      userId: requester.userId,
+      title: parsed.data.title,
+      input: parsed.data.proposalAttestation,
+      evaluation: proposalAttestation,
+    });
+    project = creation.project;
+    proposalAttestationPersistence = creation.persistence;
+  } else {
+    project = await createProjectForRequester(
+      requester.sessionId,
+      requester.userId,
+      parsed.data.title,
+    );
+  }
+
   await recordCommercialFunnelEventSafely({
     eventName: "CHECK_STARTED",
     projectId: project.id,
@@ -72,5 +93,6 @@ export async function POST(request: NextRequest) {
       title: project.title,
     },
     proposalAttestation,
+    proposalAttestationPersistence,
   });
 }
