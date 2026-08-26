@@ -8,6 +8,11 @@ import {
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
 import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
+import {
+  computePathwayProposalAttestationDigest,
+  evaluateProposalAttestation,
+} from '../src/lib/pathway-proposal-attestation';
+import { bindProposalAttestationToPathwayAssessment } from '../src/lib/pathway-proposal-assessment-binding';
 import { runItem74hRealSiteBindingPreviewAcceptance } from './item74h-real-site-binding-preview';
 
 const EXPECTED_REF = 'agent/item74h-pathway-check';
@@ -99,6 +104,18 @@ async function residualCount(prisma: PrismaClient, prefix: string): Promise<numb
       prisma.property.count({ where: { id: { startsWith: prefix } } }),
       prisma.user.count({ where: { id: { startsWith: prefix } } }),
     ]);
+  const [proposalAttestations, proposalBindings] = await Promise.all([
+    prisma.$queryRaw<Array<{ count: number }>>`
+      SELECT COUNT(*)::int AS "count"
+      FROM "PathwayProposalAttestation"
+      WHERE "projectId" LIKE ${prefix + '%'}
+    `,
+    prisma.$queryRaw<Array<{ count: number }>>`
+      SELECT COUNT(*)::int AS "count"
+      FROM "PathwayAssessmentProposalAttestation"
+      WHERE "assessmentId" LIKE ${prefix + '%'}
+    `,
+  ]);
   return (
     assessments +
     definitions +
@@ -108,7 +125,9 @@ async function residualCount(prisma: PrismaClient, prefix: string): Promise<numb
     sites +
     projects +
     properties +
-    users
+    users +
+    Number(proposalAttestations[0]?.count || 0) +
+    Number(proposalBindings[0]?.count || 0)
   );
 }
 
@@ -124,10 +143,27 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
     free: prefix + 'free',
     pack: prefix + 'pack',
     see: prefix + 'see',
+    proposalAttestation: prefix + 'proposal-attestation',
   };
   const scopeKey = prefix + 'scope';
   const evidenceDigest = prefix + 'evidence-digest';
   const now = new Date();
+  const proposalAttestation = {
+    proposalPurpose:
+      'NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE',
+    landAreaHectares: 2.5,
+    proposedBuildingFootprintSquareMetres: 80,
+    existingFarmBuildingFootprintSquareMetres: 0,
+    proposedBuildingHeightMetres: 3.5,
+    roadSetbackMetres: 100,
+    sideSetbackMetres: 10,
+    otherBoundarySetbackMetres: 50,
+    roadCategory: 'UNRESOLVED',
+  } as const;
+  const proposalEvaluation =
+    evaluateProposalAttestation(proposalAttestation);
+  const proposalDigest =
+    computePathwayProposalAttestationDigest(proposalAttestation);
 
   await cleanupFixture(prisma, prefix);
 
@@ -163,6 +199,38 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
         isDemo: true,
       },
     });
+    const proposalJson = JSON.stringify(proposalAttestation);
+    const proposalEvaluationJson = JSON.stringify(proposalEvaluation);
+    await prisma.$executeRaw`
+      INSERT INTO "PathwayProposalAttestation" (
+        "id",
+        "projectId",
+        "environment",
+        "version",
+        "inputHash",
+        "input",
+        "evaluation",
+        "trust",
+        "decision",
+        "paidArtefactsEligible",
+        "createdAt",
+        "updatedAt"
+      ) VALUES (
+        ${ids.proposalAttestation},
+        ${ids.project},
+        'PREVIEW',
+        'pathway-proposal-attestation.v1',
+        ${proposalDigest},
+        ${proposalJson}::jsonb,
+        ${proposalEvaluationJson}::jsonb,
+        'USER_ATTESTED',
+        'MORE_EVIDENCE_REQUIRED',
+        false,
+        ${now},
+        ${now}
+      )
+    `;
+
     await prisma.siteContext.create({
       data: {
         id: ids.site,
@@ -343,11 +411,66 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
     const first = await persistPathwayAssessment(prisma, persistenceInput);
     const replay = await persistPathwayAssessment(prisma, persistenceInput);
     const loaded = await reloadPathwayAssessment(prisma, first.assessment.id);
-    const customerResult = toPathwayCustomerResult(loaded, now);
+    const firstProposalBinding =
+      await bindProposalAttestationToPathwayAssessment(prisma, {
+        assessmentId: first.assessment.id,
+        projectId: ids.project,
+      });
+    const replayedProposalBinding =
+      await bindProposalAttestationToPathwayAssessment(prisma, {
+        assessmentId: first.assessment.id,
+        projectId: ids.project,
+      });
+    assert(
+      !firstProposalBinding.replayed && replayedProposalBinding.replayed,
+      'Proposal-to-assessment binding must replay idempotently',
+    );
+    assert(
+      firstProposalBinding.binding.bindingHash ===
+        replayedProposalBinding.binding.bindingHash,
+      'Proposal-to-assessment replay changed the binding',
+    );
+    const proposalRows = await prisma.$queryRaw<
+      Array<{
+        input: unknown;
+        trust: string;
+        decision: string;
+        paidArtefactsEligible: boolean;
+      }>
+    >`
+      SELECT
+        proposal."input",
+        binding."trust",
+        binding."decision",
+        binding."paidArtefactsEligible"
+      FROM "PathwayAssessmentProposalAttestation" binding
+      INNER JOIN "PathwayProposalAttestation" proposal
+        ON proposal."id" = binding."proposalAttestationId"
+      WHERE binding."assessmentId" = ${first.assessment.id}
+      LIMIT 1
+    `;
+    const customerResult = toPathwayCustomerResult(
+      {
+        ...loaded,
+        proposalAttestation: proposalRows[0] ?? null,
+      },
+      now,
+    );
 
     assert(
       customerResult.status === 'available',
       'Reloaded assessment did not produce a customer pathway result',
+    );
+    assert(
+      customerResult.proposal?.trust === 'USER_ATTESTED' &&
+        customerResult.proposal.landAreaHectares === 2.5 &&
+        customerResult.proposal.proposedBuildingFootprintSquareMetres === 80 &&
+        customerResult.proposal.proposedBuildingHeightMetres === 3.5 &&
+        customerResult.proposal.roadSetbackMetres === 100 &&
+        customerResult.proposal.sideSetbackMetres === 10 &&
+        customerResult.proposal.otherBoundarySetbackMetres === 50 &&
+        customerResult.proposal.paidEligibilityUnlocked === false,
+      'Bound user proposal was not rendered with its evidence boundary',
     );
     assert(
       customerResult.decision === 'MORE_EVIDENCE_REQUIRED',
@@ -465,6 +588,8 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
       replayReturnedSameAssessment: true,
       reloadPreservedSpatialDefinitionEvidenceControlsAndGates: true,
       customerResultRenderedFromReload: true,
+      proposalAttestationBoundAndRendered: true,
+      proposalBindingReplaySafe: true,
       customerResultPaidProductsBlocked: true,
       customerResultPrivacyRedacted: true,
       unsafeProceedBlockedWithoutWrite: true,

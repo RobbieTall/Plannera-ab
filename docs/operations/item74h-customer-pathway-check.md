@@ -81,3 +81,15 @@ or unresolved road category differs from the accepted contract.
 No binding hash, input hash, address, reviewer detail or upload metadata is
 returned. User estimates guide the free pathway only and cannot unlock either
 paid product.
+
+## Hosted bound-proposal acceptance
+
+The always-on protected Preview scenario also persists the worked shed
+attestation, binds it to the unresolved assessment twice and requires the
+second binding to replay. The reloaded customer result must show the attested
+figures, retain `MORE_EVIDENCE_REQUIRED`, and keep both paid products false.
+
+Cleanup reconciliation includes both
+`PathwayProposalAttestation` and
+`PathwayAssessmentProposalAttestation`. A successful deployment must leave
+zero rows across the complete synthetic scope.
