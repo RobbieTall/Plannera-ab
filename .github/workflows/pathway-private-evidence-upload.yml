@@ -5,6 +5,8 @@ on:
     paths:
       - "src/lib/pathway-private-evidence-upload.ts"
       - "src/lib/pathway-private-evidence-upload.test.ts"
+      - "src/lib/pathway-private-evidence-intake.ts"
+      - "src/lib/pathway-private-evidence-intake.test.ts"
       - "docs/operations/item74h-private-evidence-upload.md"
       - ".github/workflows/pathway-private-evidence-upload.yml"
   workflow_dispatch:
@@ -35,8 +37,8 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Verify private evidence policy
-        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts
+      - name: Verify private evidence policy and quarantine coordinator
+        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts
 
       - name: Confirm activation and Production checkout remain disabled
         run: |
