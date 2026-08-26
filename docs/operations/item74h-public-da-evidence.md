@@ -121,3 +121,10 @@ controlled evidence scope. It does not treat the PDFs as ingested, does not
 verify dimensions or setbacks, and does not change the deterministic
 `MORE_EVIDENCE_REQUIRED` decision. Both paid outputs remain blocked until the
 separate proposal-evidence and operator-review requirements are satisfied.
+
+
+The database stores this curated, metadata-only catalog under the existing
+`OPERATOR_NOTE` evidence kind, identified by the unique
+`public-da-catalog` evidence key and
+`pathway-public-da-evidence.v1` source version. It is not represented as an
+uploaded PDF, LEP, DCP or spatial layer.

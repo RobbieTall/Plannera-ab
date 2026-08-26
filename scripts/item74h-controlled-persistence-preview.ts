@@ -1112,7 +1112,7 @@ async function runControlledPersistence(
         },
         {
           evidenceKey: 'public-da-catalog',
-          evidenceKind: 'PUBLIC_DA_CATALOG',
+          evidenceKind: 'OPERATOR_NOTE',
           authority: 'Byron Shire Council',
           sourceUrl: PUBLIC_DA_TRACKER_URL,
           sourceVersion: PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
@@ -1250,7 +1250,9 @@ async function runControlledPersistence(
     );
     assert(loaded.evidenceSnapshots.length === 5, 'Controlled evidence reload was incomplete');
     const reloadedPublicDaCatalog = loaded.evidenceSnapshots.find(
-      (snapshot) => snapshot.evidenceKind === 'PUBLIC_DA_CATALOG',
+      (snapshot) =>
+        snapshot.evidenceKind === 'OPERATOR_NOTE' &&
+        snapshot.sourceVersion === PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
     );
     assert(reloadedPublicDaCatalog, 'Public DA catalog evidence was not reloaded');
     assert(
