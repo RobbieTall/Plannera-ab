@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { PrismaClient } from '@prisma/client';
 
 import {
@@ -8,10 +10,7 @@ import {
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
 import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
-import {
-  computePathwayProposalAttestationDigest,
-  evaluateProposalAttestation,
-} from '../src/lib/pathway-proposal-attestation';
+import { evaluateProposalAttestation } from '../src/lib/pathway-proposal-attestation';
 import { bindProposalAttestationToPathwayAssessment } from '../src/lib/pathway-proposal-assessment-binding';
 import { runItem74hRealSiteBindingPreviewAcceptance } from './item74h-real-site-binding-preview';
 
@@ -162,8 +161,16 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
   } as const;
   const proposalEvaluation =
     evaluateProposalAttestation(proposalAttestation);
-  const proposalDigest =
-    computePathwayProposalAttestationDigest(proposalAttestation);
+  const proposalJson = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(proposalAttestation).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ),
+  );
+  const proposalDigest = createHash('sha256')
+    .update(proposalJson)
+    .digest('hex');
 
   await cleanupFixture(prisma, prefix);
 
@@ -199,7 +206,6 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
         isDemo: true,
       },
     });
-    const proposalJson = JSON.stringify(proposalAttestation);
     const proposalEvaluationJson = JSON.stringify(proposalEvaluation);
     await prisma.$executeRaw`
       INSERT INTO "PathwayProposalAttestation" (
