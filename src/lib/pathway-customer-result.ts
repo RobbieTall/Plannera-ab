@@ -13,7 +13,7 @@ type DateLike = Date | string | null | undefined;
 type DecimalLike = { toString(): string } | string | number | null | undefined;
 
 export type PathwayCustomerResultInput = {
-  decision: PathwayCustomerDecision;
+  decision: string;
   trustLevel: string;
   isCurrent: boolean;
   assessedAt: DateLike;
@@ -206,9 +206,10 @@ export function toPathwayCustomerResult(
   input: PathwayCustomerResultInput,
   asOf = new Date(),
 ): PathwayCustomerResult {
-  if (!decisions.has(input.decision)) {
+  if (!decisions.has(input.decision as PathwayCustomerDecision)) {
     throw new Error("Unsupported pathway decision.");
   }
+  const decision = input.decision as PathwayCustomerDecision;
   const assessedAt = iso(input.assessedAt);
   if (!assessedAt) throw new Error("A valid assessment time is required.");
 
@@ -272,9 +273,9 @@ export function toPathwayCustomerResult(
   return {
     version: PATHWAY_CUSTOMER_RESULT_VERSION,
     status: "available",
-    decision: input.decision,
-    decisionLabel: decisionLabel[input.decision],
-    message: decisionMessage[input.decision],
+    decision,
+    decisionLabel: decisionLabel[decision],
+    message: decisionMessage[decision],
     trustLevel: input.trustLevel,
     assessmentVersion: input.pathwayDefinition.versionKey,
     assessedAt,
