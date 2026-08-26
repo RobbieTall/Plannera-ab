@@ -12,10 +12,17 @@ import {
   type PathwayControlInput,
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
+import {
+  PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
+  assessPathwayPublicDaEvidenceCatalog,
+  type PathwayPublicDaEvidenceCatalog,
+} from '../src/lib/pathway-public-da-evidence';
 
 const EXPECTED_REF = 'agent/item74h-pathway-check';
 const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
 const ENABLE_FLAG = 'ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE';
+const PUBLIC_DA_TRACKER_URL =
+  'https://datracker.byron.nsw.gov.au/masterviewui-external/application/applicationdetails/010.2025.00000340.001/';
 const MAX_PREFLIGHT_OUTPUT_BYTES = 512_000;
 const SPATIAL_SOURCE_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
@@ -348,6 +355,83 @@ async function runControlledPersistence(
   };
   const redactedAddress = 'REDACTED CONTROLLED PUBLIC ADDRESS ' + preflight.addressFingerprint;
   const now = new Date();
+  const publicDaObservedAt = new Date('2026-08-26T00:00:00.000Z');
+  const publicDaStaleAt = new Date('2026-09-26T00:00:00.000Z');
+  const publicDaCatalog: PathwayPublicDaEvidenceCatalog = {
+    version: PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
+    authority: 'BYRON_SHIRE_COUNCIL',
+    applicationType: 'DEVELOPMENT_APPLICATION',
+    applicationNumber: '10.2025.340.1',
+    proposalKind: 'FARM_SHED',
+    trackerUrl: PUBLIC_DA_TRACKER_URL,
+    addressFingerprint: preflight.addressFingerprint,
+    propertyLotRefHash: digest('official-public-byron-da-lot-1-dp1258730'),
+    proposalDescriptionHash: digest('construction-of-three-farm-buildings-sheds'),
+    determination: {
+      status: 'APPROVED',
+      determinedAt: '2025-09-24T00:00:00.000Z',
+    },
+    documents: [
+      {
+        recordNumber: 'E2025/105887',
+        role: 'APPROVED_PLANS',
+        contentType: 'application/pdf',
+        sizeBytes: 480_000,
+        labelHash: digest('approved-plans'),
+      },
+      {
+        recordNumber: 'E2025/108172',
+        role: 'DETERMINATION',
+        contentType: 'application/pdf',
+        sizeBytes: 300_000,
+        labelHash: digest('notice-of-determination'),
+      },
+      {
+        recordNumber: 'E2025/86989',
+        role: 'FLOOR_ELEVATION_PLAN',
+        contentType: 'application/pdf',
+        sizeBytes: 240_000,
+        labelHash: digest('floor-and-elevation-plans'),
+      },
+      {
+        recordNumber: 'E2025/86994',
+        role: 'SITE_PLAN',
+        contentType: 'application/pdf',
+        sizeBytes: 220_000,
+        labelHash: digest('site-plans'),
+      },
+      {
+        recordNumber: 'E2025/86995',
+        role: 'PLANNING_REPORT',
+        contentType: 'application/pdf',
+        sizeBytes: 2_280_000,
+        labelHash: digest('planning-report'),
+      },
+      {
+        recordNumber: 'E2025/86986',
+        role: 'SUPPORTING',
+        contentType: 'application/pdf',
+        sizeBytes: 230_000,
+        labelHash: digest('fire-safety-certificate-one'),
+      },
+      {
+        recordNumber: 'E2025/86988',
+        role: 'SUPPORTING',
+        contentType: 'application/pdf',
+        sizeBytes: 230_000,
+        labelHash: digest('fire-safety-certificate-two'),
+      },
+    ],
+    sourceObservedAt: publicDaObservedAt.toISOString(),
+    sourceStaleAt: publicDaStaleAt.toISOString(),
+    rawAddressRetained: false,
+    directDownloadTokensRetained: false,
+  };
+  const publicDaAssessment = assessPathwayPublicDaEvidenceCatalog(publicDaCatalog, now);
+  assert(
+    publicDaAssessment.status === 'CATALOG_CONFIRMED' && publicDaAssessment.catalogDigest,
+    'Official public DA catalog was not current and complete',
+  );
 
   await cleanupFixture(prisma, prefix);
 
@@ -489,6 +573,7 @@ async function runControlledPersistence(
       lep: lepHash,
       dcp: dcpHash,
       codes: codesHash,
+      publicDaCatalog: publicDaAssessment.catalogDigest,
     });
 
     const controls: PathwayControlInput[] = [
@@ -1025,6 +1110,33 @@ async function runControlledPersistence(
           staleAt: codesStaleAt,
           clauseId: primaryCode.id,
         },
+        {
+          evidenceKey: 'public-da-catalog',
+          evidenceKind: 'PUBLIC_DA_CATALOG',
+          authority: 'Byron Shire Council',
+          sourceUrl: PUBLIC_DA_TRACKER_URL,
+          sourceVersion: PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
+          sourceReference: 'Development application 10.2025.340.1 document catalog',
+          retrievedAt: publicDaObservedAt,
+          contentHash: publicDaAssessment.catalogDigest,
+          citation: {
+            applicationNumber: publicDaCatalog.applicationNumber,
+            authority: publicDaCatalog.authority,
+            documentCount: publicDaAssessment.redactedSummary.documentCount,
+          },
+          snapshot: {
+            catalogDigest: publicDaAssessment.catalogDigest,
+            proposalKind: publicDaAssessment.redactedSummary.proposalKind,
+            acceptedRoles: publicDaAssessment.redactedSummary.acceptedRoles,
+            proposalMeasurementsVerified: false,
+            paidPlanningControlsPackEligible: false,
+            paidSubmissionSeeEligible: false,
+            rawAddressRetained: false,
+            directDownloadTokensRetained: false,
+          },
+          isCurrentAtAssessment: true,
+          staleAt: publicDaStaleAt,
+        },
       ],
       controls,
       gates: [
@@ -1109,7 +1221,7 @@ async function runControlledPersistence(
           outcome: 'MORE_EVIDENCE_REQUIRED',
           reason: 'DCP character, siting, buffers and land-use-conflict evidence require proposal and site facts.',
           condition: { meritEvidenceComplete: false },
-          evidenceRefs: ['lep', 'dcp', 'spatial'],
+          evidenceRefs: ['lep', 'dcp', 'spatial', 'public-da-catalog'],
           controlRefs: [
             'lep-farm-building-permission',
             'dcp-classified-road-setback',
@@ -1136,7 +1248,20 @@ async function runControlledPersistence(
       })) === 1,
       'Controlled replay left more than one assessment',
     );
-    assert(loaded.evidenceSnapshots.length === 4, 'Controlled evidence reload was incomplete');
+    assert(loaded.evidenceSnapshots.length === 5, 'Controlled evidence reload was incomplete');
+    const reloadedPublicDaCatalog = loaded.evidenceSnapshots.find(
+      (snapshot) => snapshot.evidenceKind === 'PUBLIC_DA_CATALOG',
+    );
+    assert(reloadedPublicDaCatalog, 'Public DA catalog evidence was not reloaded');
+    assert(
+      reloadedPublicDaCatalog.contentHash === publicDaAssessment.catalogDigest &&
+        reloadedPublicDaCatalog.sourceUrl === PUBLIC_DA_TRACKER_URL,
+      'Public DA catalog digest or token-free source changed during persistence',
+    );
+    assert(
+      !reloadedPublicDaCatalog.sourceUrl.includes('?'),
+      'Public DA catalog source retained a direct-download token',
+    );
     assert(
       loaded.controlSnapshots.length === controls.length,
       'Controlled control reload was incomplete',
@@ -1213,6 +1338,9 @@ async function runControlledPersistence(
       decision: first.assessment.decision,
       trustLevel: first.assessment.trustLevel,
       evidenceSnapshots: loaded.evidenceSnapshots.length,
+      publicDaCatalogStatus: publicDaAssessment.status,
+      publicDaCatalogDigestBound: true,
+      directDownloadTokensRetained: false,
       controlSnapshots: loaded.controlSnapshots.length,
       gateSnapshots: loaded.gateSnapshots.length,
       assessmentCreatedOnce: true,

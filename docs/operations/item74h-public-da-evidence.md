@@ -107,3 +107,17 @@ The controlled persistence flight then passed with:
 The temporary controlled-address variables were deleted immediately after the
 flight. A clean-state deployment must confirm both controlled runners are
 disabled with reason `approval_gated` before the next evidence step.
+
+
+## Durable controlled-assessment binding
+
+The protected persistence harness binds the confirmed official catalog as a
+fifth evidence snapshot on the same controlled Byron RU2 assessment. The
+assessment-wide evidence digest includes the catalog digest, and replay/reload
+must preserve both that digest and the token-free Council tracker URL.
+
+This binding proves only that the official document inventory belongs to the
+controlled evidence scope. It does not treat the PDFs as ingested, does not
+verify dimensions or setbacks, and does not change the deterministic
+`MORE_EVIDENCE_REQUIRED` decision. Both paid outputs remain blocked until the
+separate proposal-evidence and operator-review requirements are satisfied.
