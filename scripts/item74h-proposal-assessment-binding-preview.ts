@@ -41,13 +41,13 @@ async function main(): Promise<void> {
   const now = new Date();
   const attestationInput = {
     proposalPurpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE",
-    landAreaHectares: 2.5,
-    proposedBuildingFootprintSquareMetres: 80,
+    landAreaHectares: 3.2,
+    proposedBuildingFootprintSquareMetres: 96,
     existingFarmBuildingFootprintSquareMetres: 0,
-    proposedBuildingHeightMetres: 3.5,
-    roadSetbackMetres: 100,
-    sideSetbackMetres: 10,
-    otherBoundarySetbackMetres: 50,
+    proposedBuildingHeightMetres: 4.2,
+    roadSetbackMetres: 72,
+    sideSetbackMetres: 24,
+    otherBoundarySetbackMetres: 35,
     roadCategory: "UNRESOLVED",
   };
   const attestationEvaluation = {
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     decision: "MORE_EVIDENCE_REQUIRED",
     paidArtefactsEligible: false,
     landAreaSquareMetres: 25_000,
-    aggregateFarmBuildingFootprintSquareMetres: 80,
+    aggregateFarmBuildingFootprintSquareMetres: 96,
     siteCoveragePercent: 0.32,
     preliminaryRoadSetbackOutcome: "MEETS_BOTH_POSSIBLE_MINIMUMS",
     roadDistanceRobustToUnresolvedCategory: true,

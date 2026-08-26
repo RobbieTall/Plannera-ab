@@ -85,13 +85,13 @@ const candidate = (): PathwayCheckCandidate => ({
 
 const proposalAttestation = {
   proposalPurpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE" as const,
-  landAreaHectares: 2.5,
-  proposedBuildingFootprintSquareMetres: 80,
+  landAreaHectares: 3.2,
+  proposedBuildingFootprintSquareMetres: 96,
   existingFarmBuildingFootprintSquareMetres: 0,
-  proposedBuildingHeightMetres: 3.5,
-  roadSetbackMetres: 100,
-  sideSetbackMetres: 10,
-  otherBoundarySetbackMetres: 50,
+  proposedBuildingHeightMetres: 4.2,
+  roadSetbackMetres: 72,
+  sideSetbackMetres: 24,
+  otherBoundarySetbackMetres: 35,
   roadCategory: "UNRESOLVED" as const,
 };
 

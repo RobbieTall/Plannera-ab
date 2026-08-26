@@ -12,19 +12,19 @@ This is the product behaviour needed before a customer is asked to pay: show wha
 
 ## Current worked input
 
-The synthetic acceptance uses the user's supplied proposal shape without retaining an address:
+The acceptance uses a deliberately fictional proposal, unrelated to any customer site:
 
 - non-habitable shed for agricultural machinery and goods;
-- 2.5 ha land area;
-- 80 m2 proposed footprint;
+- 3.2 ha land area;
+- 96 m2 proposed footprint;
 - no existing farm buildings;
-- 3.5 m proposed height;
-- approximately 100 m from the road;
-- approximately 10 m from the side boundary;
-- approximately 50 m from the other boundary;
+- 4.2 m proposed height;
+- 72 m from the road;
+- 24 m from the side boundary;
+- 35 m from the other boundary;
 - road category unresolved.
 
-These values are `USER_ATTESTED`. They are useful for orientation and structured input capture, not authoritative planning evidence.
+The fixture is classified as `USER_ATTESTED` so the trust boundary is exercised. They are useful for orientation and structured input capture, not authoritative planning evidence.
 
 ## Deterministic gate behaviour
 

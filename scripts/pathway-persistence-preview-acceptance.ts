@@ -150,13 +150,13 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
   const proposalAttestation = {
     proposalPurpose:
       'NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE',
-    landAreaHectares: 2.5,
-    proposedBuildingFootprintSquareMetres: 80,
+    landAreaHectares: 3.2,
+    proposedBuildingFootprintSquareMetres: 96,
     existingFarmBuildingFootprintSquareMetres: 0,
-    proposedBuildingHeightMetres: 3.5,
-    roadSetbackMetres: 100,
-    sideSetbackMetres: 10,
-    otherBoundarySetbackMetres: 50,
+    proposedBuildingHeightMetres: 4.2,
+    roadSetbackMetres: 72,
+    sideSetbackMetres: 24,
+    otherBoundarySetbackMetres: 35,
     roadCategory: 'UNRESOLVED',
   } as const;
   const proposalEvaluation =
@@ -469,12 +469,12 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
     );
     assert(
       customerResult.proposal?.trust === 'USER_ATTESTED' &&
-        customerResult.proposal.landAreaHectares === 2.5 &&
-        customerResult.proposal.proposedBuildingFootprintSquareMetres === 80 &&
-        customerResult.proposal.proposedBuildingHeightMetres === 3.5 &&
-        customerResult.proposal.roadSetbackMetres === 100 &&
-        customerResult.proposal.sideSetbackMetres === 10 &&
-        customerResult.proposal.otherBoundarySetbackMetres === 50 &&
+        customerResult.proposal.landAreaHectares === 3.2 &&
+        customerResult.proposal.proposedBuildingFootprintSquareMetres === 96 &&
+        customerResult.proposal.proposedBuildingHeightMetres === 4.2 &&
+        customerResult.proposal.roadSetbackMetres === 72 &&
+        customerResult.proposal.sideSetbackMetres === 24 &&
+        customerResult.proposal.otherBoundarySetbackMetres === 35 &&
         customerResult.proposal.paidEligibilityUnlocked === false,
       'Bound user proposal was not rendered with its evidence boundary',
     );

@@ -7,13 +7,13 @@ import {
 
 const baseInput = {
   proposalPurpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE" as const,
-  landAreaHectares: 2.5,
-  proposedBuildingFootprintSquareMetres: 80,
+  landAreaHectares: 3.2,
+  proposedBuildingFootprintSquareMetres: 96,
   existingFarmBuildingFootprintSquareMetres: 0,
-  proposedBuildingHeightMetres: 3.5,
-  roadSetbackMetres: 100,
-  sideSetbackMetres: 10,
-  otherBoundarySetbackMetres: 50,
+  proposedBuildingHeightMetres: 4.2,
+  roadSetbackMetres: 72,
+  sideSetbackMetres: 24,
+  otherBoundarySetbackMetres: 35,
   roadCategory: "UNRESOLVED" as const,
 };
 
@@ -26,7 +26,7 @@ describe("protected pathway proposal attestation", () => {
       otherRoad: 15,
     });
     expect(result.landAreaSquareMetres).toBe(25_000);
-    expect(result.aggregateFarmBuildingFootprintSquareMetres).toBe(80);
+    expect(result.aggregateFarmBuildingFootprintSquareMetres).toBe(96);
     expect(result.aggregateSiteCoveragePercent).toBeCloseTo(0.32);
     expect(result.preliminaryRoadSetbackOutcome).toBe(
       "MEETS_BOTH_POSSIBLE_MINIMUMS",

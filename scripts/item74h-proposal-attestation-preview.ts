@@ -35,13 +35,13 @@ const input = {
   proposalType: "RURAL_SHED",
   habitable: false,
   purpose: "MACHINERY_AND_AGRICULTURAL_GOODS_STORAGE",
-  landAreaHectares: 2.5,
-  proposedFootprintSquareMetres: 80,
+  landAreaHectares: 3.2,
+  proposedFootprintSquareMetres: 96,
   existingFarmBuildingFootprintSquareMetres: 0,
-  buildingHeightMetres: 3.5,
-  roadSetbackMetres: 100,
-  sideBoundarySetbackMetres: 10,
-  otherBoundarySetbackMetres: 50,
+  buildingHeightMetres: 4.2,
+  roadSetbackMetres: 72,
+  sideBoundarySetbackMetres: 24,
+  otherBoundarySetbackMetres: 35,
   roadClassification: "UNRESOLVED_ASSUMED_LOCAL",
 } as unknown as ProposalAttestationInput;
 
@@ -50,7 +50,7 @@ const evaluation = {
   decision: "MORE_EVIDENCE_REQUIRED",
   paidArtefactsEligible: false,
   landAreaSquareMetres: 25_000,
-  aggregateBuildingFootprintSquareMetres: 80,
+  aggregateBuildingFootprintSquareMetres: 96,
   siteCoveragePercent: 0.32,
   unresolvedEvidence: [
     "AUTHORITATIVE_ADDRESS",
