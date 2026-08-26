@@ -66,6 +66,23 @@ const input = (): PathwayCustomerResultInput & Record<string, unknown> => ({
       staleAt: new Date("2026-09-26T00:00:00.000Z"),
     },
   ],
+  proposalAttestation: {
+    trust: "USER_ATTESTED",
+    decision: "MORE_EVIDENCE_REQUIRED",
+    paidArtefactsEligible: false,
+    input: {
+      proposalPurpose:
+        "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE",
+      landAreaHectares: 2.5,
+      proposedBuildingFootprintSquareMetres: 80,
+      existingFarmBuildingFootprintSquareMetres: 0,
+      proposedBuildingHeightMetres: 3.5,
+      roadSetbackMetres: 100,
+      sideSetbackMetres: 10,
+      otherBoundarySetbackMetres: 50,
+      roadCategory: "UNRESOLVED",
+    },
+  },
   gateSnapshots: [
     {
       sequence: 1,
@@ -103,6 +120,19 @@ describe("Item 74H customer pathway result", () => {
         submissionSeeEligible: false,
         productionCheckoutEnabled: false,
       },
+      proposal: {
+        trust: "USER_ATTESTED",
+        evidenceState: "MORE_EVIDENCE_REQUIRED",
+        landAreaHectares: 2.5,
+        proposedBuildingFootprintSquareMetres: 80,
+        existingFarmBuildingFootprintSquareMetres: 0,
+        proposedBuildingHeightMetres: 3.5,
+        roadSetbackMetres: 100,
+        sideSetbackMetres: 10,
+        otherBoundarySetbackMetres: 50,
+        roadCategory: "UNRESOLVED",
+        paidEligibilityUnlocked: false,
+      },
       privacy: {
         rawAddressReturned: false,
         coordinatesReturned: false,
@@ -128,6 +158,20 @@ describe("Item 74H customer pathway result", () => {
     ]) {
       expect(serialized).not.toContain(secret);
     }
+  });
+
+  it("rejects an attestation with any unsupported field", () => {
+    const unsafe = input();
+    unsafe.proposalAttestation = {
+      ...unsafe.proposalAttestation!,
+      input: {
+        ...(unsafe.proposalAttestation!.input as Record<string, unknown>),
+        privateSurveyNote: "must not render",
+      },
+    };
+    const result = toPathwayCustomerResult(unsafe, asOf);
+    expect(result).toMatchObject({ status: "available", proposal: null });
+    expect(JSON.stringify(result)).not.toContain("privateSurveyNote");
   });
 
   it("marks stale evidence as non-current and keeps paid products locked", () => {

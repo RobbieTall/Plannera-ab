@@ -50,6 +50,7 @@ export async function GET(
       where: { projectId: project.id },
       orderBy: { assessedAt: "desc" },
       select: {
+        id: true,
         decision: true,
         trustLevel: true,
         isCurrent: true,
@@ -111,10 +112,37 @@ export async function GET(
       },
     });
 
+    if (!assessment) {
+      return NextResponse.json(
+        unavailablePathwayCustomerResult("NO_PERSISTED_ASSESSMENT"),
+      );
+    }
+
+    const proposalRows = await prisma.$queryRaw<
+      Array<{
+        input: unknown;
+        trust: string;
+        decision: string;
+        paidArtefactsEligible: boolean;
+      }>
+    >`
+      SELECT
+        proposal."input",
+        binding."trust",
+        binding."decision",
+        binding."paidArtefactsEligible"
+      FROM "PathwayAssessmentProposalAttestation" binding
+      INNER JOIN "PathwayProposalAttestation" proposal
+        ON proposal."id" = binding."proposalAttestationId"
+      WHERE binding."assessmentId" = ${assessment.id}
+      LIMIT 1
+    `;
+
     return NextResponse.json(
-      assessment
-        ? toPathwayCustomerResult(assessment)
-        : unavailablePathwayCustomerResult("NO_PERSISTED_ASSESSMENT"),
+      toPathwayCustomerResult({
+        ...assessment,
+        proposalAttestation: proposalRows[0] ?? null,
+      }),
     );
   } catch (error) {
     if (error instanceof ArtefactAccessError) {

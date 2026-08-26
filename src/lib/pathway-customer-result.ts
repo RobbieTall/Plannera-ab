@@ -61,6 +61,12 @@ export type PathwayCustomerResultInput = {
     outcome: string;
     reason: string;
   }>;
+  proposalAttestation?: {
+    input: unknown;
+    trust: string;
+    decision: string;
+    paidArtefactsEligible: boolean;
+  } | null;
 };
 
 export type PathwayCustomerResult =
@@ -87,6 +93,20 @@ export type PathwayCustomerResult =
       assessmentVersion: string;
       assessedAt: string;
       current: boolean;
+      proposal: {
+        trust: "USER_ATTESTED";
+        evidenceState: "MORE_EVIDENCE_REQUIRED";
+        purpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE";
+        landAreaHectares: number;
+        proposedBuildingFootprintSquareMetres: number;
+        existingFarmBuildingFootprintSquareMetres: number;
+        proposedBuildingHeightMetres: number;
+        roadSetbackMetres: number;
+        sideSetbackMetres: number;
+        otherBoundarySetbackMetres: number;
+        roadCategory: "UNRESOLVED";
+        paidEligibilityUnlocked: false;
+      } | null;
       sources: Array<{
         kind: "LEP" | "DCP" | "SPATIAL";
         authority: string;
@@ -202,6 +222,76 @@ export function unavailablePathwayCustomerResult(
   };
 }
 
+const proposalKeys = [
+  "proposalPurpose",
+  "landAreaHectares",
+  "proposedBuildingFootprintSquareMetres",
+  "existingFarmBuildingFootprintSquareMetres",
+  "proposedBuildingHeightMetres",
+  "roadSetbackMetres",
+  "sideSetbackMetres",
+  "otherBoundarySetbackMetres",
+  "roadCategory",
+].sort();
+
+const customerProposal = (
+  attestation: PathwayCustomerResultInput["proposalAttestation"],
+): Extract<PathwayCustomerResult, { status: "available" }>["proposal"] => {
+  if (
+    !attestation ||
+    attestation.trust !== "USER_ATTESTED" ||
+    attestation.decision !== "MORE_EVIDENCE_REQUIRED" ||
+    attestation.paidArtefactsEligible !== false ||
+    !attestation.input ||
+    typeof attestation.input !== "object" ||
+    Array.isArray(attestation.input)
+  ) {
+    return null;
+  }
+  const value = attestation.input as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(proposalKeys) ||
+    value.proposalPurpose !==
+      "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE" ||
+    value.roadCategory !== "UNRESOLVED"
+  ) {
+    return null;
+  }
+  const numericKeys = proposalKeys.filter(
+    (key) => key !== "proposalPurpose" && key !== "roadCategory",
+  );
+  if (
+    numericKeys.some(
+      (key) =>
+        typeof value[key] !== "number" ||
+        !Number.isFinite(value[key]) ||
+        (key === "existingFarmBuildingFootprintSquareMetres"
+          ? (value[key] as number) < 0
+          : (value[key] as number) <= 0),
+    )
+  ) {
+    return null;
+  }
+  return {
+    trust: "USER_ATTESTED",
+    evidenceState: "MORE_EVIDENCE_REQUIRED",
+    purpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE",
+    landAreaHectares: value.landAreaHectares as number,
+    proposedBuildingFootprintSquareMetres:
+      value.proposedBuildingFootprintSquareMetres as number,
+    existingFarmBuildingFootprintSquareMetres:
+      value.existingFarmBuildingFootprintSquareMetres as number,
+    proposedBuildingHeightMetres:
+      value.proposedBuildingHeightMetres as number,
+    roadSetbackMetres: value.roadSetbackMetres as number,
+    sideSetbackMetres: value.sideSetbackMetres as number,
+    otherBoundarySetbackMetres:
+      value.otherBoundarySetbackMetres as number,
+    roadCategory: "UNRESOLVED",
+    paidEligibilityUnlocked: false,
+  };
+};
+
 export function toPathwayCustomerResult(
   input: PathwayCustomerResultInput,
   asOf = new Date(),
@@ -280,6 +370,7 @@ export function toPathwayCustomerResult(
     assessmentVersion: input.pathwayDefinition.versionKey,
     assessedAt,
     current,
+    proposal: customerProposal(input.proposalAttestation),
     sources,
     controls: input.controlSnapshots.map((control) => ({
       label: control.label,

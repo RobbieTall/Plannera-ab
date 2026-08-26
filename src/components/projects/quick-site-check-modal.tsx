@@ -366,6 +366,39 @@ export function QuickSiteCheckModal({
           <p className="mt-2 leading-6 text-amber-900 dark:text-amber-100">
             {pathwayResult.message}
           </p>
+          {pathwayResult.proposal ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  Your shed estimates
+                </p>
+                <span className="text-xs font-semibold text-amber-800 dark:text-amber-100">
+                  USER ATTESTED - MORE EVIDENCE REQUIRED
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-700 sm:grid-cols-4 dark:text-slate-200">
+                {[
+                  ["Land", `${pathwayResult.proposal.landAreaHectares} ha`],
+                  ["Shed", `${pathwayResult.proposal.proposedBuildingFootprintSquareMetres} m2`],
+                  ["Existing farm buildings", `${pathwayResult.proposal.existingFarmBuildingFootprintSquareMetres} m2`],
+                  ["Height", `${pathwayResult.proposal.proposedBuildingHeightMetres} m`],
+                  ["Road setback", `${pathwayResult.proposal.roadSetbackMetres} m`],
+                  ["Side setback", `${pathwayResult.proposal.sideSetbackMetres} m`],
+                  ["Other boundary", `${pathwayResult.proposal.otherBoundarySetbackMetres} m`],
+                  ["Road class", "Unresolved"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+                    <dd className="font-semibold text-slate-900 dark:text-slate-100">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-xs text-amber-900 dark:text-amber-100">
+                These figures guide the free check. They are not surveyed facts and cannot unlock a paid product.
+              </p>
+            </div>
+          ) : null}
+
           <ol className="mt-4 space-y-3">
             {pathwayResult.gates.map((gate) => (
               <li key={`${gate.order}-${gate.question}`} className="rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">

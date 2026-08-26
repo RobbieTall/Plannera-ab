@@ -66,3 +66,18 @@ cleanup. Each run must prove:
 
 This connects the renderer to durable Prisma persistence rather than relying
 only on an in-memory fixture.
+
+## Bound user proposal
+
+When a persisted proposal attestation is joined to the same assessment through
+`PathwayAssessmentProposalAttestation`, the endpoint may render the exact
+allowed proposal fields as `USER_ATTESTED`.
+
+The joined row must remain `MORE_EVIDENCE_REQUIRED` with
+`paidArtefactsEligible=false`. The adapter rejects the entire proposal summary
+if any extra field is present, if a numeric value is invalid, or if the purpose
+or unresolved road category differs from the accepted contract.
+
+No binding hash, input hash, address, reviewer detail or upload metadata is
+returned. User estimates guide the free pathway only and cannot unlock either
+paid product.
