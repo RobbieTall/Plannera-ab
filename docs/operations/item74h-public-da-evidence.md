@@ -71,3 +71,39 @@ temporary Preview rows must reconcile to zero.
 No PDF is downloaded by this catalog contract. Official files remain referenced
 through Council record numbers until a separately approved safe ingestion path
 is available.
+
+
+## Protected Preview acceptance: 2026-08-26
+
+Repository commit: `fb51b8c058079867db356dd9da0cc900f1eb6bbf`
+
+Controlled Preview deployment: `dpl_FKJCCRz87XF8dVJxUNQPPYabtvuz`
+
+The public DA candidate passed the existing read-only preflight:
+
+- one uniquely resolved Byron site;
+- Byron Local Environmental Plan 2014;
+- RU2 Rural Landscape;
+- shed/outbuilding proposal scope;
+- current repository LEP and DCP evidence;
+- a deterministic site-evidence digest; and
+- `MORE_EVIDENCE_REQUIRED` retained as the only safe decision.
+
+The controlled persistence flight then passed with:
+
+- 4 evidence snapshots;
+- 17 control snapshots;
+- 6 deterministic gate snapshots;
+- create-once and replay-safe assessment persistence;
+- reload preserving evidence, controls, gates and spatial provenance;
+- unsafe `PROCEED` rejected without a write;
+- replay-safe free Pathway Check binding;
+- A$49 Planning Controls Pack blocked;
+- A$749 submission SEE blocked;
+- raw address, coordinates and parcel identifiers not retained;
+- cleanup residual rows equal to zero; and
+- Production checkout and Production mutation both false.
+
+The temporary controlled-address variables were deleted immediately after the
+flight. A clean-state deployment must confirm both controlled runners are
+disabled with reason `approval_gated` before the next evidence step.
