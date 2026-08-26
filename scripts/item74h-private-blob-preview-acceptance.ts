@@ -61,7 +61,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
       return { created: false };
     }
 
-    const blob = await put(ref, body, {
+    const blob = await put(ref, Buffer.from(body), {
       access: "private",
       token,
       storeId,
