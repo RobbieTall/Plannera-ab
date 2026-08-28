@@ -84,11 +84,13 @@ const runAcceptance = async () => {
     .digest("hex");
   let preparationSandbox: ManagedSandbox | null = null;
   let scannerSandbox: ManagedSandbox | null = null;
+  let createdSnapshotId: string | null = null;
   let observationWithoutStop:
     | Omit<PathwayPrivateEvidenceScannerObservation, "sandboxStopped">
     | null = null;
   let scannerStopped = false;
   let preparationStopped = false;
+  let snapshotRemoved = true;
   let cleanupSucceeded = false;
   let stage = "CREATE_PREPARATION_SANDBOX";
   let operationFailureCode: string | null = null;
@@ -135,6 +137,8 @@ const runAcceptance = async () => {
     preparationStopped = true;
     const snapshotId = preparationStopResult.snapshot?.id;
     if (!snapshotId) throw new Error("snapshot unavailable");
+    createdSnapshotId = snapshotId;
+    snapshotRemoved = false;
     const snapshotCreatedAt = new Date().toISOString();
 
     stage = "CREATE_SCANNER_SANDBOX";
@@ -240,11 +244,23 @@ const runAcceptance = async () => {
   } finally {
     stage = "CLEANUP";
     scannerStopped = await stopAndDelete(scannerSandbox);
+    if (createdSnapshotId) {
+      try {
+        const createdSnapshot = await Snapshot.get({
+          snapshotId: createdSnapshotId,
+        });
+        await createdSnapshot.delete();
+        snapshotRemoved = true;
+      } catch {
+        snapshotRemoved = false;
+      }
+    }
     const preparationRemoved = await stopAndDelete(
       preparationSandbox,
       preparationStopped,
     );
-    cleanupSucceeded = scannerStopped && preparationRemoved;
+    cleanupSucceeded =
+      scannerStopped && preparationRemoved && snapshotRemoved;
     if (!cleanupSucceeded && !operationFailureCode) {
       operationFailureCode = "CLEANUP_FAILED";
     }
@@ -269,9 +285,14 @@ const runAcceptance = async () => {
   const residualSandboxCount = (
     await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
   ).length;
-  const residualSnapshotCount = (
-    await (await Snapshot.list({ name: `${sandboxNamePrefix}-prep` })).toArray()
-  ).length;
+  const projectSnapshots = await (await Snapshot.list()).toArray();
+  const residualSnapshotCount =
+    createdSnapshotId &&
+    projectSnapshots.some(
+      (snapshot) => snapshot.snapshotId === createdSnapshotId,
+    )
+      ? 1
+      : 0;
   const residualResourceCount =
     residualSandboxCount + residualSnapshotCount;
 
