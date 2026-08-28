@@ -244,6 +244,10 @@ const runAcceptance = async () => {
   } finally {
     stage = "CLEANUP";
     scannerStopped = await stopAndDelete(scannerSandbox);
+    const preparationRemoved = await stopAndDelete(
+      preparationSandbox,
+      preparationStopped,
+    );
     if (createdSnapshotId) {
       try {
         const createdSnapshot = await Snapshot.get({
@@ -255,10 +259,6 @@ const runAcceptance = async () => {
         snapshotRemoved = false;
       }
     }
-    const preparationRemoved = await stopAndDelete(
-      preparationSandbox,
-      preparationStopped,
-    );
     cleanupSucceeded =
       scannerStopped && preparationRemoved && snapshotRemoved;
     if (!cleanupSucceeded && !operationFailureCode) {
