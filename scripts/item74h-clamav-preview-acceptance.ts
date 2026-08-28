@@ -234,7 +234,7 @@ const runAcceptance = async () => {
     },
   });
   const residualResourceCount = (
-    await Sandbox.list({ namePrefix: sandboxNamePrefix }).toArray()
+    await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
   ).length;
 
   if (
