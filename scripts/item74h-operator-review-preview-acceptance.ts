@@ -50,7 +50,10 @@ class AcceptanceError extends Error {
 const enabled = (value: string | undefined) =>
   ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
 
-const assert: (condition: unknown, stage: string) => asserts condition = (\n  condition,\n  stage,\n) => {
+const assert: (condition: unknown, stage: string) => asserts condition = (
+  condition,
+  stage,
+) => {
   if (!condition) throw new AcceptanceError(stage);
 };
 
