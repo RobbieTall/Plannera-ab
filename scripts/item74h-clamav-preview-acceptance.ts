@@ -94,27 +94,21 @@ const runAcceptance = async () => {
       timeout: 600_000,
       persistent: false,
       networkPolicy: {
-        allow: ["*.ubuntu.com", "*.clamav.net"],
+        allow: ["cdn.amazonlinux.com", "*.clamav.net"],
       },
       tags: { purpose: "item74h-clamav-preview", synthetic: "true" },
     });
 
-    stage = "APT_UPDATE";
+    stage = "DNF_CLEAN";
     await commandSucceeded(preparationSandbox, {
-      cmd: "apt-get",
-      args: ["update"],
+      cmd: "dnf",
+      args: ["clean", "all"],
       sudo: true,
     });
-    stage = "APT_INSTALL";
+    stage = "DNF_INSTALL";
     await commandSucceeded(preparationSandbox, {
-      cmd: "apt-get",
-      args: [
-        "install",
-        "-y",
-        "--no-install-recommends",
-        "clamav",
-        "clamav-freshclam",
-      ],
+      cmd: "dnf",
+      args: ["install", "-y", "clamav1.4", "clamav1.4-freshclam"],
       sudo: true,
     });
     stage = "STOP_BACKGROUND_UPDATER";
