@@ -6,15 +6,17 @@ const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
   "prisma/migrations/20260826113000_item74h_proposal_attestation/migration.sql",
   "prisma/migrations/20260826121000_item74h_attestation_assessment_binding/migration.sql",
+  "prisma/migrations/20260828100000_item74h_private_evidence_operator_review/migration.sql",
 ] as const;
 const ITEM74H_ACCEPTANCE_FILES = [
   "scripts/item74h-proposal-attestation-preview.ts",
   "scripts/item74h-proposal-assessment-binding-preview.ts",
+  "scripts/item74h-operator-review-preview-acceptance.ts",
 ] as const;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function skip(reason: string): never {
-  console.log(`[item74h:migrate] skipped: ${reason}`);
+  console.log("[item74h:migrate] skipped: " + reason);
   process.exit(0);
 }
 
@@ -37,7 +39,7 @@ for (const variable of [
   const value = process.env[variable]?.trim().toLowerCase() ?? "";
   if (ENABLED_VALUES.has(value)) {
     throw new Error(
-      `[item74h:migrate] refused: ${variable} must remain disabled`,
+      "[item74h:migrate] refused: " + variable + " must remain disabled",
     );
   }
 }
@@ -93,16 +95,20 @@ for (const sqlFile of ITEM74H_SQL_FILES) {
 
   if (migration.status !== 0) {
     throw new Error(
-      `[item74h:migrate] approved SQL failed for ${sqlFile} with exit code ${migration.status ?? "unknown"}`,
+      "[item74h:migrate] approved SQL failed for " +
+        sqlFile +
+        " with exit code " +
+        (migration.status ?? "unknown"),
     );
   }
 
-  console.log(`[item74h:migrate] applied ${sqlFile}`);
+  console.log("[item74h:migrate] applied " + sqlFile);
 }
 
 for (const acceptanceFile of ITEM74H_ACCEPTANCE_FILES) {
   console.log(
-    `[item74h:migrate] running protected synthetic acceptance ${acceptanceFile}`,
+    "[item74h:migrate] running protected synthetic acceptance " +
+      acceptanceFile,
   );
   const acceptance = spawnSync(
     command,
@@ -119,7 +125,10 @@ for (const acceptanceFile of ITEM74H_ACCEPTANCE_FILES) {
 
   if (acceptance.status !== 0) {
     throw new Error(
-      `[item74h:migrate] protected acceptance failed for ${acceptanceFile} with exit code ${acceptance.status ?? "unknown"}`,
+      "[item74h:migrate] protected acceptance failed for " +
+        acceptanceFile +
+        " with exit code " +
+        (acceptance.status ?? "unknown"),
     );
   }
 }

@@ -977,3 +977,48 @@ model PathwayArtefactBinding {
   @@unique([assessmentId, commercialStage], map: "PathwayArtefactBinding_assessment_stage_key")
   @@index([assessmentId])
 }
+
+/// Append-only protected Preview operator-review record for one private evidence object.
+model PathwayPrivateEvidenceOperatorReview {
+  id                 String   @id
+  environment        String   @default("PREVIEW")
+  evidenceRef        String
+  contentHash        String
+  role               String
+  status             String
+  actorRef           String
+  reviewerRef        String?
+  reviewedAt         DateTime?
+  pageReferences     Json     @db.JsonB
+  rejectionCode      String?
+  reviewVersion      String
+  revision           Int
+  idempotencyKey     String   @unique
+  requestHash        String
+  recordHash         String   @unique
+  previousRecordHash String?
+  createdAt          DateTime
+  promotions         PathwayPrivateEvidencePromotion[]
+
+  @@unique([evidenceRef, contentHash, revision], map: "PathwayPrivateEvidenceOperatorReview_evidence_revision_key")
+  @@index([evidenceRef, contentHash, revision], map: "PathwayPrivateEvidenceOperatorReview_latest_idx")
+}
+
+/// Idempotent marker that one reviewed document may enter an evidence package.
+model PathwayPrivateEvidencePromotion {
+  id               String                                @id
+  environment      String                                @default("PREVIEW")
+  evidenceRef      String
+  contentHash      String
+  role             String
+  reviewRecordHash String
+  reviewRecord     PathwayPrivateEvidenceOperatorReview @relation(fields: [reviewRecordHash], references: [recordHash], onDelete: Restrict)
+  status           String
+  promotionVersion String
+  idempotencyKey   String                                @unique
+  createdAt        DateTime                              @default(now())
+
+  @@unique([evidenceRef, contentHash, role], map: "PathwayPrivateEvidencePromotion_scope_key")
+  @@index([reviewRecordHash], map: "PathwayPrivateEvidencePromotion_review_idx")
+}
+
