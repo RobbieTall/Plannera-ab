@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { Sandbox, Snapshot } from "@vercel/sandbox";
+import { APIError, Sandbox, Snapshot } from "@vercel/sandbox";
 
 import {
   evaluatePathwayPrivateEvidenceScan,
@@ -282,29 +282,44 @@ const runAcceptance = async () => {
     },
   });
   stage = "RESIDUE_RECONCILIATION";
-  let residualSandboxCount: number;
-  try {
-    residualSandboxCount = (
-      await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
-    ).length;
-  } catch {
-    throw new AcceptanceFailure("SANDBOX_RESIDUE_QUERY_FAILED");
+  const resourceAbsent = async (lookup: () => Promise<unknown>) => {
+    try {
+      await lookup();
+      return false;
+    } catch (error) {
+      if (error instanceof APIError && error.response.status === 404) {
+        return true;
+      }
+      throw error;
+    }
+  };
+  let residualSandboxCount = 0;
+  for (const name of [
+    `${sandboxNamePrefix}-prep`,
+    `${sandboxNamePrefix}-scan`,
+  ]) {
+    try {
+      if (!(await resourceAbsent(() => Sandbox.get({ name })))) {
+        residualSandboxCount += 1;
+      }
+    } catch {
+      throw new AcceptanceFailure("SANDBOX_RESIDUE_QUERY_FAILED");
+    }
   }
-  let projectSnapshots: Awaited<ReturnType<
-    Awaited<ReturnType<typeof Snapshot.list>>["toArray"]
-  >>;
-  try {
-    projectSnapshots = await (await Snapshot.list()).toArray();
-  } catch {
-    throw new AcceptanceFailure("SNAPSHOT_RESIDUE_QUERY_FAILED");
+  let residualSnapshotCount = 0;
+  if (createdSnapshotId) {
+    try {
+      if (
+        !(await resourceAbsent(() =>
+          Snapshot.get({ snapshotId: createdSnapshotId! }),
+        ))
+      ) {
+        residualSnapshotCount = 1;
+      }
+    } catch {
+      throw new AcceptanceFailure("SNAPSHOT_RESIDUE_QUERY_FAILED");
+    }
   }
-  const residualSnapshotCount =
-    createdSnapshotId &&
-    projectSnapshots.some(
-      (snapshot) => snapshot.snapshotId === createdSnapshotId,
-    )
-      ? 1
-      : 0;
   const residualResourceCount =
     residualSandboxCount + residualSnapshotCount;
 
