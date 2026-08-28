@@ -282,10 +282,19 @@ const runAcceptance = async () => {
     },
   });
   stage = "RESIDUE_RECONCILIATION";
-  const resourceAbsent = async (lookup: () => Promise<unknown>) => {
+  const resourceAbsent = async (
+    lookup: () => Promise<unknown>,
+    deletedTombstoneIsAbsent = false,
+  ) => {
     try {
-      await lookup();
-      return false;
+      const resource = await lookup();
+      return (
+        deletedTombstoneIsAbsent &&
+        Boolean(resource) &&
+        typeof resource === "object" &&
+        "status" in resource &&
+        resource.status === "deleted"
+      );
     } catch (error) {
       if (error instanceof APIError && error.response.status === 404) {
         return true;
@@ -295,9 +304,10 @@ const runAcceptance = async () => {
   };
   const waitForResourceAbsence = async (
     lookup: () => Promise<unknown>,
+    deletedTombstoneIsAbsent = false,
   ) => {
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      if (await resourceAbsent(lookup)) return true;
+      if (await resourceAbsent(lookup, deletedTombstoneIsAbsent)) return true;
       await new Promise((resolve) =>
         setTimeout(resolve, 500 * (attempt + 1)),
       );
@@ -321,8 +331,9 @@ const runAcceptance = async () => {
   if (createdSnapshotId) {
     try {
       if (
-        !(await waitForResourceAbsence(() =>
-          Snapshot.get({ snapshotId: createdSnapshotId! }),
+        !(await waitForResourceAbsence(
+          () => Snapshot.get({ snapshotId: createdSnapshotId! }),
+          true,
         ))
       ) {
         residualSnapshotCount = 1;
