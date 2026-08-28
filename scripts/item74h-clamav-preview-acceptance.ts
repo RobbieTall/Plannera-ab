@@ -99,7 +99,6 @@ const runAcceptance = async () => {
       runtime: "node24",
       timeout: 600_000,
       persistent: true,
-      snapshotExpiration: 60 * 60 * 1000,
       networkPolicy: {
         allow: ["cdn.amazonlinux.com", "*.clamav.net"],
       },
