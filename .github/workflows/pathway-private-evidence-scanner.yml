@@ -1,0 +1,31 @@
+name: Pathway Private Evidence Scanner Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-private-evidence-scan.ts"
+      - "src/lib/pathway-private-evidence-scan.test.ts"
+      - "src/lib/pathway-private-evidence-review.ts"
+      - "src/lib/pathway-private-evidence-review.test.ts"
+      - ".github/workflows/pathway-private-evidence-scanner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathway-private-evidence-scanner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run src/lib/pathway-private-evidence-scan.test.ts src/lib/pathway-private-evidence-review.test.ts

@@ -1,6 +1,12 @@
 import {
   type PathwayPrivateEvidenceRole,
 } from "./pathway-private-evidence-upload";
+import {
+  PATHWAY_PRIVATE_EVIDENCE_DEFINITION_FRESHNESS_MS,
+  type PathwayPrivateEvidenceScanRecord,
+} from "./pathway-private-evidence-scan";
+
+export type { PathwayPrivateEvidenceScanRecord } from "./pathway-private-evidence-scan";
 
 export const PATHWAY_PRIVATE_EVIDENCE_REVIEW_VERSION =
   "item74h-private-evidence-review.v1" as const;
@@ -34,17 +40,6 @@ export type PathwayPrivateEvidenceRecord = {
   contentHash: string;
   storageAccess: "private" | "public" | "unknown";
   quarantineStatus: "QUARANTINED" | "READY" | "REJECTED";
-};
-
-export type PathwayPrivateEvidenceScanRecord = {
-  recordSource: "SERVER_SECURITY_SCAN";
-  evidenceRef: string;
-  contentHash: string;
-  status: "PENDING" | "CLEAN" | "INFECTED" | "ERROR";
-  scannerEngine: string | null;
-  engineVersion: string | null;
-  definitionVersion: string | null;
-  scannedAt: string | null;
 };
 
 export type PathwayPrivateEvidenceOperatorReviewRecord = {
@@ -142,7 +137,22 @@ const SCAN_KEYS = new Set([
   "scannerEngine",
   "engineVersion",
   "definitionVersion",
+  "scannerSnapshotRef",
+  "snapshotCreatedAt",
+  "definitionsRetrievedAt",
   "scannedAt",
+  "targetFileCount",
+  "maxFileSizeBytes",
+  "maxScanSizeBytes",
+  "maxRecursionDepth",
+  "maxScanTimeMs",
+  "fileSizeLimitHit",
+  "scanSizeLimitHit",
+  "recursionLimitHit",
+  "timeLimitHit",
+  "encryptedContent",
+  "networkDenied",
+  "sandboxStopped",
 ]);
 const REVIEW_KEYS = new Set([
   "recordSource",
@@ -229,6 +239,8 @@ const evaluateRecords = (
   const blockers: PathwayPrivateEvidenceReviewBlocker[] = [];
   const evaluatedAt = parsedTime(request.evaluatedAt);
   const scannedAt = parsedTime(scan.scannedAt);
+  const snapshotCreatedAt = parsedTime(scan.snapshotCreatedAt);
+  const definitionsRetrievedAt = parsedTime(scan.definitionsRetrievedAt);
   const reviewedAt = parsedTime(review.reviewedAt);
 
   if (
@@ -271,9 +283,34 @@ const evaluateRecords = (
       Boolean(
         scan.definitionVersion && VERSION_TOKEN.test(scan.definitionVersion),
       ) &&
+      Boolean(
+        scan.scannerSnapshotRef && OPAQUE_REF.test(scan.scannerSnapshotRef),
+      ) &&
+      definitionsRetrievedAt !== null &&
+      snapshotCreatedAt !== null &&
       scannedAt !== null &&
       evaluatedAt !== null &&
-      scannedAt <= evaluatedAt);
+      definitionsRetrievedAt <= snapshotCreatedAt &&
+      snapshotCreatedAt <= scannedAt &&
+      scannedAt <= evaluatedAt &&
+      evaluatedAt - definitionsRetrievedAt <=
+        PATHWAY_PRIVATE_EVIDENCE_DEFINITION_FRESHNESS_MS &&
+      scan.targetFileCount === 1 &&
+      Number.isInteger(scan.maxFileSizeBytes) &&
+      scan.maxFileSizeBytes! > 0 &&
+      Number.isInteger(scan.maxScanSizeBytes) &&
+      scan.maxScanSizeBytes! > 0 &&
+      Number.isInteger(scan.maxRecursionDepth) &&
+      scan.maxRecursionDepth! > 0 &&
+      Number.isInteger(scan.maxScanTimeMs) &&
+      scan.maxScanTimeMs! > 0 &&
+      scan.fileSizeLimitHit === false &&
+      scan.scanSizeLimitHit === false &&
+      scan.recursionLimitHit === false &&
+      scan.timeLimitHit === false &&
+      scan.encryptedContent === false &&
+      scan.networkDenied === true &&
+      scan.sandboxStopped === true);
   if (!scannerProvenanceValid) {
     blockers.push("SCANNER_PROVENANCE_REQUIRED");
   }
