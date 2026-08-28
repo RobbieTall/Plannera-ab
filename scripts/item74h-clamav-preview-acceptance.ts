@@ -293,13 +293,24 @@ const runAcceptance = async () => {
       throw error;
     }
   };
+  const waitForResourceAbsence = async (
+    lookup: () => Promise<unknown>,
+  ) => {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (await resourceAbsent(lookup)) return true;
+      await new Promise((resolve) =>
+        setTimeout(resolve, 500 * (attempt + 1)),
+      );
+    }
+    return false;
+  };
   let residualSandboxCount = 0;
   for (const name of [
     `${sandboxNamePrefix}-prep`,
     `${sandboxNamePrefix}-scan`,
   ]) {
     try {
-      if (!(await resourceAbsent(() => Sandbox.get({ name })))) {
+      if (!(await waitForResourceAbsence(() => Sandbox.get({ name })))) {
         residualSandboxCount += 1;
       }
     } catch {
@@ -310,7 +321,7 @@ const runAcceptance = async () => {
   if (createdSnapshotId) {
     try {
       if (
-        !(await resourceAbsent(() =>
+        !(await waitForResourceAbsence(() =>
           Snapshot.get({ snapshotId: createdSnapshotId! }),
         ))
       ) {
@@ -323,8 +334,10 @@ const runAcceptance = async () => {
   const residualResourceCount =
     residualSandboxCount + residualSnapshotCount;
 
-  if (residualResourceCount !== 0)
-    throw new AcceptanceFailure("RESIDUE_DETECTED");
+  if (residualSandboxCount !== 0)
+    throw new AcceptanceFailure("SANDBOX_RESIDUE_DETECTED");
+  if (residualSnapshotCount !== 0)
+    throw new AcceptanceFailure("SNAPSHOT_RESIDUE_DETECTED");
   if (evaluation.status !== "CLEAN" || !evaluation.remainsQuarantined)
     throw new AcceptanceFailure("CONTRACT_REJECTED");
 
