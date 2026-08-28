@@ -182,7 +182,6 @@ const runAcceptance = async () => {
     stage = "SYNTHETIC_SCAN";
     const scanResult = await scannerSandbox.runCommand("clamscan", [
       "--stdout",
-      "--infected",
       "--no-summary",
       "--alert-encrypted=yes",
       `--max-filesize=${MAX_FILE_SIZE_BYTES}`,
@@ -350,7 +349,9 @@ const runAcceptance = async () => {
   if (residualSnapshotCount !== 0)
     throw new AcceptanceFailure("SNAPSHOT_RESIDUE_DETECTED");
   if (evaluation.status !== "CLEAN" || !evaluation.remainsQuarantined)
-    throw new AcceptanceFailure("CONTRACT_REJECTED");
+    throw new AcceptanceFailure(
+      `CONTRACT_REJECTED_${evaluation.errorCode}`,
+    );
 
   return {
     gate: "item74h-clamav-preview",
