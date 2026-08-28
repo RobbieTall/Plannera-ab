@@ -1,6 +1,6 @@
 # Item 74H private evidence operator-review persistence
 
-Status: **IMPLEMENTED AS PREVIEW-ONLY CONTRACT / HOSTED SYNTHETIC FLIGHT PENDING**
+Status: **ACCEPTED IN PREVIEW / DISABLED IN NORMAL BUILDS**
 
 Last updated: 2026-08-28 (Australia/Sydney)
 
@@ -48,8 +48,34 @@ The public result contains only status, role, revision, reference count and stru
 
 Every result keeps both paid products and Production checkout false.
 
-## Hosted acceptance
+## Accepted hosted synthetic flight
 
-The disabled-by-default hosted runner will use synthetic records only. It must prove pending creation and replay, one terminal verified transition and replay, terminal immutability, idempotent evidence-package promotion, and cleanup to zero database residue.
+- Flight commit: `7e51ff6659f3ace48ef9467192022caad72078cf`.
+- Protected Preview deployment: `dpl_FHwt679d1xzHtPhpwD9LdNLPXfNg`.
+- GitHub result: 22 of 22 workflows passed.
+- Vercel result: `READY`.
+- Gate result: `PASS` with synthetic data only.
+- One pending record was created and replayed without duplication.
+- One verified terminal record was created and replayed without duplication.
+- A conflicting terminal decision was refused.
+- Evidence-package promotion was persisted once and replayed without duplication.
+- A$49 and A$749 eligibility remained false.
+- Production checkout remained false.
+- Cleanup reconciled both review and promotion tables to zero rows.
+- The aggregate record contained no secret, evidence reference, content hash, reviewer reference or page reference.
 
-No real document is permitted in this acceptance.
+## Restored disabled state
+
+- The temporary branch-only activation variable was deleted after the flight.
+- Clean-state commit: `0754444844f7763b51d9df57ef41a6beb4f1e897`.
+- Clean-state deployment: `dpl_9QqoAVWjNwFXss2j9DwrWtenPoMx`.
+- GitHub result: 22 of 22 workflows passed.
+- Vercel result: `READY`.
+- Gate result: `SKIPPED_FEATURE_DISABLED`.
+- Production checkout remained false.
+
+## Remaining boundary
+
+This acceptance proves the durable review transition for one synthetic document. A real Byron pathway remains `MORE_EVIDENCE_REQUIRED` until all required roles are privately supplied, scanned, reviewed, promoted and bound to the same confirmed site and proposal measurements.
+
+No real document was used or certified by this acceptance.
