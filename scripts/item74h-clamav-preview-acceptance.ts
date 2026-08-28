@@ -45,7 +45,7 @@ const stopAndDelete = async (sandbox: ManagedSandbox | null) => {
     stopped = false;
   }
   try {
-    await sandbox.delete({ deleteOrphanSnapshots: true });
+    await sandbox.delete();
     deleted = true;
   } catch {
     deleted = false;
