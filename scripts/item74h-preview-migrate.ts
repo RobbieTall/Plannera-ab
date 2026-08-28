@@ -7,11 +7,13 @@ const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260826113000_item74h_proposal_attestation/migration.sql",
   "prisma/migrations/20260826121000_item74h_attestation_assessment_binding/migration.sql",
   "prisma/migrations/20260828100000_item74h_private_evidence_operator_review/migration.sql",
+  "prisma/migrations/20260828140000_item74h_private_evidence_package_assembly/migration.sql",
 ] as const;
 const ITEM74H_ACCEPTANCE_FILES = [
   "scripts/item74h-proposal-attestation-preview.ts",
   "scripts/item74h-proposal-assessment-binding-preview.ts",
   "scripts/item74h-operator-review-preview-acceptance.ts",
+  "scripts/item74h-evidence-package-preview-acceptance.ts",
 ] as const;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 

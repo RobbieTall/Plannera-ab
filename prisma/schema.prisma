@@ -1022,3 +1022,39 @@ model PathwayPrivateEvidencePromotion {
   @@index([reviewRecordHash], map: "PathwayPrivateEvidencePromotion_review_idx")
 }
 
+
+/// Replay-safe protected Preview binding of exactly three reviewed documents.
+model PathwayPrivateEvidencePackageAssembly {
+  id                 String   @id
+  environment        String   @default("PREVIEW")
+  packageRef         String
+  assemblyVersion    String
+  status             String
+  documentCount      Int
+  reviewSetDigest    String
+  siteEvidenceDigest String
+  idempotencyKey     String   @unique
+  requestHash        String
+  recordHash         String   @unique
+  createdAt          DateTime
+  items              PathwayPrivateEvidencePackageItem[]
+
+  @@index([packageRef, createdAt], map: "PathwayPrivateEvidencePackageAssembly_package_idx")
+}
+
+/// Exact document, promotion, and immutable-review binding in one assembly.
+model PathwayPrivateEvidencePackageItem {
+  id               String                                    @id
+  assemblyId       String
+  assembly         PathwayPrivateEvidencePackageAssembly     @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  role             String
+  evidenceRef      String
+  contentHash      String
+  promotionId      String
+  reviewRecordHash String
+
+  @@unique([assemblyId, role], map: "PathwayPrivateEvidencePackageItem_assembly_role_key")
+  @@unique([assemblyId, evidenceRef], map: "PathwayPrivateEvidencePackageItem_assembly_evidence_key")
+  @@index([promotionId], map: "PathwayPrivateEvidencePackageItem_promotion_idx")
+  @@index([reviewRecordHash], map: "PathwayPrivateEvidencePackageItem_review_idx")
+}
