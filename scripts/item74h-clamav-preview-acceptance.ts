@@ -282,10 +282,22 @@ const runAcceptance = async () => {
     },
   });
   stage = "RESIDUE_RECONCILIATION";
-  const residualSandboxCount = (
-    await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
-  ).length;
-  const projectSnapshots = await (await Snapshot.list()).toArray();
+  let residualSandboxCount: number;
+  try {
+    residualSandboxCount = (
+      await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
+    ).length;
+  } catch {
+    throw new AcceptanceFailure("SANDBOX_RESIDUE_QUERY_FAILED");
+  }
+  let projectSnapshots: Awaited<ReturnType<
+    Awaited<ReturnType<typeof Snapshot.list>>["toArray"]
+  >>;
+  try {
+    projectSnapshots = await (await Snapshot.list()).toArray();
+  } catch {
+    throw new AcceptanceFailure("SNAPSHOT_RESIDUE_QUERY_FAILED");
+  }
   const residualSnapshotCount =
     createdSnapshotId &&
     projectSnapshots.some(
