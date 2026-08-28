@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { Sandbox } from "@vercel/sandbox";
+import { Sandbox, Snapshot } from "@vercel/sandbox";
 
 import {
   evaluatePathwayPrivateEvidenceScan,
@@ -40,15 +40,20 @@ const commandSucceeded = async (
   return result;
 };
 
-const stopAndDelete = async (sandbox: ManagedSandbox | null) => {
+const stopAndDelete = async (
+  sandbox: ManagedSandbox | null,
+  alreadyStopped = false,
+) => {
   if (!sandbox) return true;
-  let stopped = false;
+  let stopped = alreadyStopped;
   let deleted = false;
-  try {
-    await sandbox.stop();
-    stopped = true;
-  } catch {
-    stopped = false;
+  if (!alreadyStopped) {
+    try {
+      await sandbox.stop();
+      stopped = true;
+    } catch {
+      stopped = false;
+    }
   }
   try {
     await sandbox.delete();
@@ -83,6 +88,7 @@ const runAcceptance = async () => {
     | Omit<PathwayPrivateEvidenceScannerObservation, "sandboxStopped">
     | null = null;
   let scannerStopped = false;
+  let preparationStopped = false;
   let cleanupSucceeded = false;
   let stage = "CREATE_PREPARATION_SANDBOX";
   let operationFailureCode: string | null = null;
@@ -92,7 +98,8 @@ const runAcceptance = async () => {
       name: `${sandboxNamePrefix}-prep`,
       runtime: "node24",
       timeout: 600_000,
-      persistent: false,
+      persistent: true,
+      snapshotExpiration: 60 * 60 * 1000,
       networkPolicy: {
         allow: ["cdn.amazonlinux.com", "*.clamav.net"],
       },
@@ -125,15 +132,16 @@ const runAcceptance = async () => {
     });
     const definitionsRetrievedAt = new Date().toISOString();
     stage = "SNAPSHOT_CREATE";
-    const snapshot = await preparationSandbox.snapshot({
-      expiration: 10 * 60 * 1000,
-    });
+    const preparationStopResult = await preparationSandbox.stop();
+    preparationStopped = true;
+    const snapshotId = preparationStopResult.snapshot?.id;
+    if (!snapshotId) throw new Error("snapshot unavailable");
     const snapshotCreatedAt = new Date().toISOString();
 
     stage = "CREATE_SCANNER_SANDBOX";
     scannerSandbox = await Sandbox.create({
       name: `${sandboxNamePrefix}-scan`,
-      source: { type: "snapshot", snapshotId: snapshot.snapshotId },
+      source: { type: "snapshot", snapshotId },
       timeout: 300_000,
       persistent: false,
       networkPolicy: "deny-all",
@@ -210,7 +218,7 @@ const runAcceptance = async () => {
       scannerEngine: "ClamAV",
       engineVersion: versionMatch?.[1] ?? "invalid",
       definitionVersion: versionMatch?.[2] ?? "invalid",
-      scannerSnapshotRef: snapshot.snapshotId,
+      scannerSnapshotRef: snapshotId,
       snapshotCreatedAt,
       definitionsRetrievedAt,
       scannedAt,
@@ -233,7 +241,10 @@ const runAcceptance = async () => {
   } finally {
     stage = "CLEANUP";
     scannerStopped = await stopAndDelete(scannerSandbox);
-    const preparationRemoved = await stopAndDelete(preparationSandbox);
+    const preparationRemoved = await stopAndDelete(
+      preparationSandbox,
+      preparationStopped,
+    );
     cleanupSucceeded = scannerStopped && preparationRemoved;
     if (!cleanupSucceeded && !operationFailureCode) {
       operationFailureCode = "CLEANUP_FAILED";
@@ -256,9 +267,14 @@ const runAcceptance = async () => {
     },
   });
   stage = "RESIDUE_RECONCILIATION";
-  const residualResourceCount = (
+  const residualSandboxCount = (
     await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
   ).length;
+  const residualSnapshotCount = (
+    await (await Snapshot.list({ name: `${sandboxNamePrefix}-prep` })).toArray()
+  ).length;
+  const residualResourceCount =
+    residualSandboxCount + residualSnapshotCount;
 
   if (residualResourceCount !== 0)
     throw new AcceptanceFailure("RESIDUE_DETECTED");
