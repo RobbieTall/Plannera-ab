@@ -25,6 +25,12 @@ const MAX_SCAN_TIME_MS = 120_000;
 
 type ManagedSandbox = Awaited<ReturnType<typeof Sandbox.create>>;
 
+class AcceptanceFailure extends Error {
+  constructor(readonly code: string) {
+    super("Item 74H scanner acceptance failed closed");
+  }
+}
+
 const commandSucceeded = async (
   sandbox: ManagedSandbox,
   command: { cmd: string; args: string[]; sudo?: boolean },
@@ -78,6 +84,8 @@ const runAcceptance = async () => {
     | null = null;
   let scannerStopped = false;
   let cleanupSucceeded = false;
+  let stage = "CREATE_PREPARATION_SANDBOX";
+  let operationFailureCode: string | null = null;
 
   try {
     preparationSandbox = await Sandbox.create({
@@ -91,11 +99,13 @@ const runAcceptance = async () => {
       tags: { purpose: "item74h-clamav-preview", synthetic: "true" },
     });
 
+    stage = "APT_UPDATE";
     await commandSucceeded(preparationSandbox, {
       cmd: "apt-get",
       args: ["update"],
       sudo: true,
     });
+    stage = "APT_INSTALL";
     await commandSucceeded(preparationSandbox, {
       cmd: "apt-get",
       args: [
@@ -107,22 +117,26 @@ const runAcceptance = async () => {
       ],
       sudo: true,
     });
+    stage = "STOP_BACKGROUND_UPDATER";
     await preparationSandbox.runCommand({
       cmd: "pkill",
       args: ["-f", "freshclam"],
       sudo: true,
     });
+    stage = "DEFINITIONS_UPDATE";
     await commandSucceeded(preparationSandbox, {
       cmd: "freshclam",
       args: ["--stdout"],
       sudo: true,
     });
     const definitionsRetrievedAt = new Date().toISOString();
+    stage = "SNAPSHOT_CREATE";
     const snapshot = await preparationSandbox.snapshot({
       expiration: 10 * 60 * 1000,
     });
     const snapshotCreatedAt = new Date().toISOString();
 
+    stage = "CREATE_SCANNER_SANDBOX";
     scannerSandbox = await Sandbox.create({
       name: `${sandboxNamePrefix}-scan`,
       source: { type: "snapshot", snapshotId: snapshot.snapshotId },
@@ -132,6 +146,7 @@ const runAcceptance = async () => {
       tags: { purpose: "item74h-clamav-preview", synthetic: "true" },
     });
 
+    stage = "NETWORK_DENIAL_PROBE";
     const networkProbe = await scannerSandbox.runCommand("node", [
       "-e",
       "fetch('https://example.com',{signal:AbortSignal.timeout(3000)}).then(()=>process.exit(0)).catch(()=>process.exit(7))",
@@ -139,16 +154,19 @@ const runAcceptance = async () => {
     const networkDenied = networkProbe.exitCode !== 0;
 
     const opaquePath = "/tmp/item74h-synthetic.bin";
+    stage = "WRITE_SYNTHETIC_FIXTURE";
     await scannerSandbox.writeFiles([
       { path: opaquePath, content: SAFE_SYNTHETIC_BYTES },
     ]);
 
+    stage = "PRE_SCAN_HASH";
     const hashResult = await commandSucceeded(scannerSandbox, {
       cmd: "sha256sum",
       args: [opaquePath],
     });
     const contentHashBefore = (await hashResult.stdout()).trim().split(/\s+/)[0];
 
+    stage = "SCANNER_VERSION";
     const versionResult = await commandSucceeded(scannerSandbox, {
       cmd: "clamscan",
       args: ["--version"],
@@ -156,6 +174,7 @@ const runAcceptance = async () => {
     const versionOutput = (await versionResult.stdout()).trim();
     const versionMatch = /^ClamAV\s+([^/\s]+)\/([^/\s]+)\//.exec(versionOutput);
 
+    stage = "SYNTHETIC_SCAN";
     const scanResult = await scannerSandbox.runCommand("clamscan", [
       "--stdout",
       "--infected",
@@ -170,6 +189,7 @@ const runAcceptance = async () => {
     const scanOutput = `${await scanResult.stdout()}\n${await scanResult.stderr()}`;
     const scannedAt = new Date().toISOString();
 
+    stage = "POST_SCAN_HASH";
     const postHashResult = await commandSucceeded(scannerSandbox, {
       cmd: "sha256sum",
       args: [opaquePath],
@@ -214,13 +234,21 @@ const runAcceptance = async () => {
       malformedOutput: !outputShapeValid,
       networkDenied,
     };
+  } catch {
+    operationFailureCode = stage;
   } finally {
+    stage = "CLEANUP";
     scannerStopped = await stopAndDelete(scannerSandbox);
     const preparationRemoved = await stopAndDelete(preparationSandbox);
     cleanupSucceeded = scannerStopped && preparationRemoved;
+    if (!cleanupSucceeded && !operationFailureCode) {
+      operationFailureCode = "CLEANUP_FAILED";
+    }
   }
 
+  if (operationFailureCode) throw new AcceptanceFailure(operationFailureCode);
   if (!observationWithoutStop) throw new Error("scan observation unavailable");
+  stage = "CONTRACT_EVALUATION";
   const evaluation = evaluatePathwayPrivateEvidenceScan({
     version: PATHWAY_PRIVATE_EVIDENCE_SCAN_VERSION,
     environment: "preview",
@@ -233,18 +261,15 @@ const runAcceptance = async () => {
       sandboxStopped: scannerStopped,
     },
   });
+  stage = "RESIDUE_RECONCILIATION";
   const residualResourceCount = (
     await (await Sandbox.list({ namePrefix: sandboxNamePrefix })).toArray()
   ).length;
 
-  if (
-    evaluation.status !== "CLEAN" ||
-    !evaluation.remainsQuarantined ||
-    !cleanupSucceeded ||
-    residualResourceCount !== 0
-  ) {
-    throw new Error("synthetic scanner acceptance failed closed");
-  }
+  if (residualResourceCount !== 0)
+    throw new AcceptanceFailure("RESIDUE_DETECTED");
+  if (evaluation.status !== "CLEAN" || !evaluation.remainsQuarantined)
+    throw new AcceptanceFailure("CONTRACT_REJECTED");
 
   return {
     gate: "item74h-clamav-preview",
@@ -276,11 +301,13 @@ const runAcceptance = async () => {
 const main = async () => {
   try {
     console.log(JSON.stringify(await runAcceptance()));
-  } catch {
+  } catch (error) {
     console.error(
       JSON.stringify({
         gate: "item74h-clamav-preview",
         status: "FAIL_CLOSED",
+        errorCode:
+          error instanceof AcceptanceFailure ? error.code : "UNCLASSIFIED",
         productionCheckoutEnabled: false,
         containsSecret: false,
         containsEvidenceReference: false,
