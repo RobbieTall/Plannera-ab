@@ -289,7 +289,7 @@ const runAcceptance = async () => {
       const resource = await lookup();
       return (
         deletedTombstoneIsAbsent &&
-        Boolean(resource) &&
+        resource !== null &&
         typeof resource === "object" &&
         "status" in resource &&
         resource.status === "deleted"
