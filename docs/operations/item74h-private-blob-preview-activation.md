@@ -1,8 +1,8 @@
 # Item 74H Preview private Blob activation and rollback
 
-Status: **PRIVATE PREVIEW RESOURCES CONNECTED / SYNTHETIC FLIGHT PENDING**
+Status: **PRIVATE PREVIEW LIFECYCLE ACCEPTED / CLEAN STATE DISABLED**
 
-Last updated: 2026-08-27 (Australia/Sydney)
+Last updated: 2026-08-28 (Australia/Sydney)
 
 ## Purpose
 
@@ -160,10 +160,28 @@ It must not contain:
 
 ## Current boundary
 
-Commit `3668de9f18cbe19fef15d4feed279874c486b321`
-passed 20/20 GitHub workflows and reached READY on protected Preview deployment
-`dpl_Cj7EBhMdDVcic2k1Q51U79eSef16`.
+The private synthetic flight ran at commit
+`c1b571830f84dfac12902933389ffb489a8c4bf4` on protected Preview deployment
+`dpl_3xJhSkPcuCN3Khn4ruBgWjh9V81Y`. The deployment was READY and all 20
+exact-head GitHub workflows passed.
 
-That acceptance proves the fail-closed quarantine coordinator. It does not
-prove a private store, real scanner, operator review, evidence-confirmed
-proposal or paid-output eligibility.
+Its aggregate acceptance record proved:
+
+- exactly one private synthetic write;
+- replay reused that object and created no duplicate;
+- unauthenticated direct access was denied;
+- authenticated and deny-all Sandbox SHA-256 checks matched;
+- the disposable Sandbox stopped;
+- the evidence remained `QUARANTINED` with scan `NOT_EXECUTED` and review
+  `PENDING`;
+- paid eligibility and Production checkout remained false; and
+- cleanup reconciled to zero residual objects.
+
+The temporary branch-scoped acceptance switch was deleted. Clean-state commit
+`28557377bb911a9bf56e71ac6ceff3f2961c5737` passed all 20 GitHub workflows and
+reached READY on Preview deployment `dpl_3JoLthts8RZwfgEkpbBr97iFbnTt`. Its
+private gate reported `SKIPPED_FEATURE_DISABLED` and Production checkout false.
+
+This acceptance proves the private Blob and isolated Sandbox lifecycle. It does
+not prove a current malware-signature `CLEAN` result, operator evidence review,
+real-document intake, evidence-confirmed proposal or paid-output eligibility.

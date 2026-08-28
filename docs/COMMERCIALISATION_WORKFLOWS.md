@@ -145,7 +145,7 @@ Separate LEP-based interim response from DCP-enhanced response in the UI
 
 2. Submission-Oriented SEE
 Roadmap status
-Commercial product contract approved; evidence intake, checkout/credit ledger, DOCX/PDF compilation and production activation are not yet implemented.
+Commercial product contract, exact-scope Preview binding, credit foundation and private synthetic Blob/Sandbox lifecycle are implemented. Real-document malware scanning, trusted evidence review, complete DOCX/PDF submission acceptance and Production activation remain unfinished.
 
 Price and credit
 The SEE list price is A$749 before credits. One settled, unrefunded and unconsumed A$49 Planning Controls Pack for the same requester, owned project, current-site QSC and normalized proposal may be consumed once, leaving A$700 payable. The credit is non-transferable, not cash-redeemable and cannot be reused across another site, project, QSC or materially changed proposal. Checkout must derive and itemise price, credit, balance and applicable GST on the server.
@@ -330,7 +330,7 @@ Planning Feasibility and Delivery Plan
 Open items before launch
 Complete truthful consultant referral submission/delivery and returned-report intake
 Define and operationally verify the LGA preparation service target and failed-preparation resolution
-Implement uploaded-document OCR/indexing, spatial provenance and evidence-conflict handling
+Complete uploaded-document malware scanning, trusted review, OCR/indexing, spatial provenance and evidence-conflict handling; the private synthetic Blob/Sandbox lifecycle is accepted but does not establish a clean or verified document
 Implement the A$749 SEE entitlement and single-use exact-scope A$49 credit ledger
 Build and visually verify professional DOCX/PDF SEE output against an approved example template
 Write consultant credential disclosure for directory and RFQ pages
