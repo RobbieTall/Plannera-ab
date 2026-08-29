@@ -1,0 +1,57 @@
+name: Submission SEE Synthetic Artefacts
+
+on:
+  pull_request:
+    paths:
+      - "scripts/submission-see-render-smoke.ts"
+      - ".github/workflows/submission-see-render-artifact.yml"
+      - "docs/operations/item74e-submission-see-render-artifact.md"
+      - "src/lib/submission-see-renderer.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submission-see-render-artifact-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artefacts:
+    name: Generate safe DOCX and PDF review files
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client without database access
+        run: npx prisma generate
+
+      - name: Render synthetic submission SEE
+        env:
+          SUBMISSION_SEE_RENDER_OUTPUT_DIR: ${{ runner.temp }}/item74e-see
+        run: npx tsx scripts/submission-see-render-smoke.ts
+
+      - name: Validate DOCX package
+        run: unzip -t "${{ runner.temp }}/item74e-see/"*.docx
+
+      - name: Validate PDF signature
+        run: file "${{ runner.temp }}/item74e-see/"*.pdf | grep -q "PDF document"
+
+      - name: Upload short-lived synthetic review artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: item74e-submission-see-synthetic-${{ github.sha }}
+          path: ${{ runner.temp }}/item74e-see/*
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,46 @@
+name: Submission SEE Output Rendering
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/submission-see-renderer.ts"
+      - "src/lib/submission-see-renderer.test.ts"
+      - ".github/workflows/submission-see-renderer.yml"
+      - "docs/operations/item74e-submission-see-renderer.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submission-see-renderer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  renderer:
+    name: Deterministic DOCX and PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client without database access
+        run: npx prisma generate
+
+      - name: Run output rendering tests
+        run: >-
+          npx vitest run
+          src/lib/submission-see-acceptance.test.ts
+          src/lib/submission-see-candidate.test.ts
+          src/lib/submission-see-sections.test.ts
+          src/lib/submission-see-renderer.test.ts
