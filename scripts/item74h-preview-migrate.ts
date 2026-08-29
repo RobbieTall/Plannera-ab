@@ -1,7 +1,13 @@
 import { spawnSync } from "node:child_process";
 
-const TARGET_BRANCH = "agent/item74h-pathway-check";
-const TARGET_NEON_ENDPOINT_PREFIX = "ep-misty-dream-a7l6wcp8";
+const TARGET_BRANCHES = new Set([
+  "agent/item74h-pathway-check",
+  "integration/item74h-resolution-20260830",
+]);
+const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
+  "ep-misty-dream-a7l6wcp8",
+  "ep-bold-shadow-a7y8j17d",
+]);
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
   "prisma/migrations/20260826113000_item74h_proposal_attestation/migration.sql",
@@ -32,7 +38,7 @@ if (process.env.VERCEL_ENV !== "preview") {
   skip("not a Vercel Preview deployment");
 }
 
-if (process.env.VERCEL_GIT_COMMIT_REF !== TARGET_BRANCH) {
+if (!TARGET_BRANCHES.has(process.env.VERCEL_GIT_COMMIT_REF ?? "")) {
   skip("not the protected Item 74H branch");
 }
 
@@ -61,7 +67,9 @@ try {
 }
 
 if (
-  !databaseHost.startsWith(TARGET_NEON_ENDPOINT_PREFIX) ||
+  ![...TARGET_NEON_ENDPOINT_PREFIXES].some((endpoint) =>
+    databaseHost.startsWith(endpoint),
+  ) ||
   !databaseHost.endsWith(".neon.tech")
 ) {
   throw new Error(
