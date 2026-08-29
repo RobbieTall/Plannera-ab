@@ -8,6 +8,8 @@ on:
       - "src/lib/pathway-evidence-checklist.ts"
       - "src/lib/pathway-evidence-checklist.test.ts"
       - "src/app/api/projects/[projectId]/pathway-check/route.ts"
+      - "src/components/projects/pathway-evidence-checklist-panel.tsx"
+      - "src/components/projects/pathway-evidence-checklist-panel.test.tsx"
       - "src/components/projects/quick-site-check-modal.tsx"
       - "scripts/pathway-persistence-preview-acceptance.ts"
       - "docs/operations/item74h-customer-pathway-check.md"
@@ -32,7 +34,7 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - run: npx --no-install vitest run src/lib/pathway-customer-result.test.ts src/lib/pathway-evidence-checklist.test.ts
+      - run: npx --no-install vitest run src/lib/pathway-customer-result.test.ts src/lib/pathway-evidence-checklist.test.ts src/components/projects/pathway-evidence-checklist-panel.test.tsx
       - name: Confirm Production checkout remains disabled
         run: |
           test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"

@@ -69,13 +69,18 @@ accepts no address, coordinate, parcel, digest, upload or reviewer field, and
 its focused regression proves that unsupported protected fields cannot be
 projected into the checklist.
 
-The redacted customer adapter now derives `evidenceChecklist` only after the
+The redacted customer adapter derives `evidenceChecklist` only after the
 allow-listed proposal, public sources, typed controls and gate snapshots have
 been projected. The existing authenticated Preview route therefore returns the
-checklist without selecting any additional database field. Modal rendering is
-the remaining integration boundary; until that is exact-head green, the
-existing customer gate list remains authoritative and paid products remain
-locked.
+checklist without selecting any additional database field.
+
+`PathwayEvidenceChecklistPanel` is the dedicated accessible renderer. It shows
+the exact evidence type, blocking gate, persisted reason and requested material,
+states that it does not predict approval, and keeps the A$49/A$749 lock visible.
+It renders nothing when no evidence request exists. The remaining modal edit is
+limited to importing this accepted panel and passing
+`pathwayResult.evidenceChecklist`; until that exact head is green, the existing
+customer gate list remains authoritative.
 
 ## Commercial safety
 
@@ -100,11 +105,11 @@ cleanup. Each run must prove:
 This connects the renderer to durable Prisma persistence rather than relying
 only on an in-memory fixture.
 
-The `Pathway Customer Result Contract` workflow also runs the focused
-checklist regression. It requires deterministic ordering, no checklist for
+The `Pathway Customer Result Contract` workflow also runs the focused engine
+and panel regressions. It requires deterministic ordering, no checklist for
 `PROCEED`, preservation of every blocking gate, explicit road/survey actions
-for the worked attestation, stale-source refresh, and no protected-site
-projection.
+for the worked attestation, stale-source refresh, no protected-site projection,
+an accessible customer heading and an explicit paid-output lock.
 
 ## Bound user proposal
 
