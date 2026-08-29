@@ -15,6 +15,7 @@ const ITEM74H_ACCEPTANCE_FILES = [
   "scripts/item74h-proposal-assessment-binding-preview.ts",
   "scripts/item74h-operator-review-preview-acceptance.ts",
   "scripts/item74h-evidence-package-preview-acceptance.ts",
+  "scripts/item74h-package-schema-preview-acceptance.ts",
 ] as const;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
