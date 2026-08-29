@@ -78,6 +78,38 @@ test("configuration exactly allowlists protected HTTPS target and denies live/pr
   assert.throws(() => validateAcceptanceConfiguration({ ...baseEnv, PLANNERA_STRIPE_TEST_VERCEL_BYPASS: "bad value with spaces" }));
 });
 
+test("checkout session IDs fail before any request, path construction, or summary exposure", async () => {
+  for (const sessionId of ["cs_test_", "cs_test_bad/segment", "cs_test_bad?expand=secret", "cs_test_good\nsecret", `cs_test_${"a".repeat(248)}`]) {
+    let requestCount = 0;
+    const result = await runStripeTestAcceptance(
+      { ...baseEnv, PLANNERA_STRIPE_TEST_SESSION_ID: sessionId },
+      (async () => { requestCount += 1; throw new Error("must not fetch"); }) as typeof fetch,
+    );
+    assert.equal(requestCount, 0);
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.summary.reason, "live_mode_denied");
+    assert.equal(result.summary.opaque.checkoutSessionId, "unavailable");
+    assert.equal(JSON.stringify(result.summary).includes(sessionId), false);
+  }
+});
+
+test("paid replay persists exactly one DPP and never POSTs exact generation again", async () => {
+  const h = harness("paid");
+
+  const first = await runStripeTestAcceptance(baseEnv, h.fetcher);
+  assert.equal(first.exitCode, 0);
+  assert.equal(first.summary.checks.dppCreatedThisRun, true);
+  assert.equal(h.calls.exactDpp, 1);
+  assert.equal(h.dppCount, 1);
+
+  const replay = await runStripeTestAcceptance(baseEnv, h.fetcher);
+  assert.equal(replay.exitCode, 0);
+  assert.equal(replay.summary.checks.dppCreatedThisRun, false);
+  assert.equal(replay.summary.checks.dppGate, true);
+  assert.equal(h.calls.exactDpp, 1);
+  assert.equal(h.dppCount, 1);
+});
+
 test("status parser locks acceptance to the exact shipped enabled/state response", () => {
   for (const state of ["available", "waiting", "paid", "failed", "cancelled", "refunded", "revoked"]) assert.deepEqual(parsePlanningPackStatus({ enabled: true, state }), { enabled: true, state });
   for (const invalid of [{ enabled: true, entitled: true, status: "PAID" }, { enabled: false, state: "free" }, { enabled: true, state: "pending" }, { enabled: true, state: "paid", extra: true }]) assert.throws(() => parsePlanningPackStatus(invalid));
