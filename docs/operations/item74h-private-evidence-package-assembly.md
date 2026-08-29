@@ -1,6 +1,6 @@
 # Item 74H private evidence-package assembly
 
-Status: **IMPLEMENTED AS PREVIEW-ONLY CONTRACT / HOSTED SYNTHETIC FLIGHT PENDING**
+Status: **ACCEPTED IN PROTECTED PREVIEW / NORMAL GATE DISABLED**
 
 ## Purpose
 
@@ -36,13 +36,33 @@ A replay with the same request returns the existing assembly. A changed request 
 
 The hosted acceptance script is scripts/item74h-evidence-package-preview-acceptance.ts.
 
-Normal builds and CI run it with ITEM74H_EVIDENCE_PACKAGE_ACCEPTANCE_ENABLED=false, producing SKIPPED_FEATURE_DISABLED.
+Normal builds and CI run it with ITEM74H_EVIDENCE_PACKAGE_ACCEPTANCE_ENABLED disabled, producing SKIPPED_FEATURE_DISABLED.
 
 A synthetic flight may run only on Vercel Preview for branch agent/item74h-pathway-check, using the approved isolated Item 74H Neon endpoint, while both checkout flags remain disabled and the branch-only acceptance flag is enabled.
 
 The flight uses synthetic records only, proves create and replay behavior, checks exactly three persisted role items, deletes in foreign-key-safe order, and fails unless review, promotion, assembly, and item residue are all zero.
 
-Never place secret values, private evidence references, hashes, reviewer references, page references, database hosts, or synthetic document bytes in logs, pull-request comments, or screenshots.
+Never place secret values, private evidence references, hashes, reviewer references, page references, database hosts, deployment identifiers, or synthetic document bytes in logs, pull-request comments, or screenshots.
+
+## Accepted evidence on 2026-08-29
+
+The contract baseline at commit 0081e36a7a0429356c0eb526c56016fc7960b59d passed all 23 GitHub workflows and reached Vercel READY with the acceptance gate disabled.
+
+The protected synthetic flight at commit 0e39cdc16e52ae8014b7548568a5750c594ad7cf passed all 23 GitHub workflows and reached Vercel READY. Its aggregate acceptance result proved:
+
+- the exact road, survey, and layout role set;
+- immutable review and promotion bindings;
+- caller-supplied verification was replaced by server-authoritative review data;
+- one assembly was created and replay reused it;
+- exactly three package items persisted;
+- the established real-site assessor returned evidence confirmed;
+- A$49 eligibility remained false;
+- A$749 eligibility remained false;
+- Production checkout remained false;
+- review, promotion, assembly, and item residue all returned to zero;
+- no secret, package reference, evidence reference, content hash, reviewer reference, or page reference was emitted.
+
+The temporary branch-only acceptance variable was then deleted. The clean checkpoint at commit 2dc643dc25d2f12744b219deb1cc00aaf8b66055 passed all 23 GitHub workflows, reached Vercel READY, and returned SKIPPED_FEATURE_DISABLED with Production checkout false.
 
 ## Commercial boundary
 
@@ -52,4 +72,6 @@ It does not mean the Planning Controls Pack is eligible. That later transition s
 
 It does not mean the submission SEE is eligible. That later transition still requires evidence-aware uploads, exact-scope binding, and OPERATOR_APPROVED.
 
-Production checkout remains disabled.
+No real document was used in this flight. The current Byron case remains MORE_EVIDENCE_REQUIRED until its actual authoritative road evidence, registered survey, and proposed shed layout complete the same chain.
+
+Production checkout remains disabled. Pull request 347 remains draft and unmerged.
