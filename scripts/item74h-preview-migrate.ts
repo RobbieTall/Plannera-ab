@@ -8,6 +8,7 @@ const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260826121000_item74h_attestation_assessment_binding/migration.sql",
   "prisma/migrations/20260828100000_item74h_private_evidence_operator_review/migration.sql",
   "prisma/migrations/20260828140000_item74h_private_evidence_package_assembly/migration.sql",
+  "prisma/migrations/20260829113000_item74h_package_assembly_hardening/migration.sql",
 ] as const;
 const ITEM74H_ACCEPTANCE_FILES = [
   "scripts/item74h-proposal-attestation-preview.ts",
