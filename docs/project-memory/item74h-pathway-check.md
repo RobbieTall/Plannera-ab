@@ -1,8 +1,8 @@
 # Item 74H: Pathway Check and shared planning evidence graph
 
-Status: ACTIVE DELIVERY OBJECTIVE / DOCUMENTED / NOT YET IMPLEMENTED
+Status: ACTIVE DELIVERY OBJECTIVE / IMPLEMENTED IN PROTECTED PREVIEW / SYNTHETIC ACCEPTANCE PROVEN / CONTROLLED REAL SITE MORE_EVIDENCE_REQUIRED / NOT MERGE-READY
 
-Last updated: 2026-08-24
+Last updated: 2026-08-29
 
 ## Decision
 
@@ -15,7 +15,8 @@ The first protected proof is:
 - Byron LGA;
 - RU2 zone, subject to exact current-source confirmation before fixture selection;
 - detached shed or outbuilding proposal;
-- one synthetic site followed by one controlled non-customer address;
+- synthetic persistence, replay, cleanup, private review and exact three-document evidence-package assembly accepted in protected Preview;
+- one controlled non-customer address harness implemented but not executed;
 - Preview or test mode only; and
 - Production checkout disabled.
 
@@ -106,19 +107,35 @@ The repository already provides important parts of this chain:
 - submission SEE source, section, output and operator-review acceptance; and
 - the persistent exact-scope A$49 credit ledger accepted in isolated Preview.
 
-## Material gaps
+## Implementation checkpoint
 
-Item 74H must close these gaps without weakening existing acceptance:
+The protected Preview branch now implements and contract-tests:
 
-- durable address-level spatial provenance that survives reload and artefact generation;
-- typed planning controls with value, unit, comparator and applicability;
-- immutable DCP edition and amendment lineage equivalent to LEP clause versioning;
-- land-area bands and other structured predicates;
-- versioned pathway definitions, nodes, edges and outcomes;
-- control-level and branch-level source citations, not section-level citations alone;
-- an immutable pathway assessment tied to exact site, proposal, graph and instrument versions;
-- stale, superseded, unresolved and incomplete evidence blockers; and
-- reuse of one accepted result across the free, A$49 and A$749 renderings.
+- versioned pathway definitions and deterministic STOP, PROCEED, MERIT_ASSESSED and MORE_EVIDENCE_REQUIRED decisions;
+- authoritative planning-layer, spatial and TfNSW road evidence boundaries;
+- durable synthetic site, proposal-attestation, pathway-assessment and exact commercial-scope bindings;
+- free Pathway Check, A$49 and A$749 eligibility decisions derived from one persisted evidence graph;
+- fail-closed paid artefact and replay policy;
+- private evidence upload, malware-scan, immutable operator-review and promotion boundaries;
+- replay-safe assembly of exactly one road-classification, cadastral-survey and proposed-shed-layout document; and
+- synthetic cleanup with zero accepted residue.
+
+This proves the protected architecture and synthetic lifecycle. It does not prove the controlled site's evidence, paid eligibility, operator approval, submission-ready output or Production readiness.
+
+## Remaining proof and commercial gaps
+
+Item 74H remains incomplete until these evidence and release gaps are closed without weakening existing acceptance:
+
+- execute one approved controlled non-customer Byron address flight without exposing the address;
+- persist authoritative road classification for that site;
+- accept a cadastral survey and proposed shed layout through the private review chain;
+- review the applicable current typed numeric controls, land-area predicates and immutable DCP edition/amendment lineage;
+- prove control-level and branch-level source citations against the real site;
+- persist and reload the real-site assessment tied to exact site, proposal, graph and instrument versions;
+- keep stale, superseded, unresolved and incomplete evidence fail-closed;
+- prove the same accepted result in the free, A$49 and A$749 renderings with the paid stages blocked until eligible;
+- complete operator approval and submission-grade output acceptance only when real evidence supports them; and
+- obtain a clean exact-head protected Vercel Preview after the migration-hardening checkpoint.
 
 ## Source and currentness contract
 
