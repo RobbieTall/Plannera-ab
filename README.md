@@ -172,3 +172,9 @@ App runs at http://localhost:3000. Before testing LEP-grounded features, set DAT
 - npm run test:node — Run Node test-runner tests under tests/*.test.ts
 - npm run test:vitest — Run the Vitest suite (src tests and compatible React tests)
 - npm run accept:consultant-referral — Run the protected, fail-closed non-production referral acceptance runner
+
+## Deployment and database change safety
+
+Vercel builds are schema-read-only. They generate the Prisma client, run the Byron/Kempsey read-only launch smoke, and compile the application; they do not run `prisma db push` or migrations. Database and data changes require a dedicated reviewed plan, isolated non-production verification, and separate explicit approval before any Production operation. Never copy database connection values into GitHub, documentation, chat, logs, artifacts, or tracked files.
+
+See [Database change control](docs/operations/database-change-control.md) and the [Byron/Kempsey soft-launch gate](docs/operations/soft-launch-gate.md).
