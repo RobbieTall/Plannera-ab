@@ -87,3 +87,10 @@ A read-only Preview query found no existing Byron RU2 demo SiteContext with an a
 - Stripe or payment execution: none
 - Customer data used: none
 - Merge: not performed
+
+## Production build boundary
+
+The Item 74H persistence acceptance runner is deliberately Preview-only. During a hosted Vercel Production build it reports a passing `disabled` phase and performs no database operation. In Preview it still requires the exact protected Item 74H branch, the approved isolated Neon endpoint, and both checkout flags disabled; any other attempted execution fails closed.
+
+This skip prevents Preview synthetic acceptance from blocking a legitimate Production compile while preserving the separate read-only launch and whole-LGA gates. It does not activate Item 74H, apply Production migrations, or certify a real customer pathway.
+
