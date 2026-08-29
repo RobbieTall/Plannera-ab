@@ -45,7 +45,9 @@ Before any repeat Byron/Kempsey Production write:
 4. Perform a data write only for a genuine evidence mismatch identified by a red gate, and limit the transaction to the affected evidence.
 5. Never reintroduce a persistent Production write hook, change schema, enable checkout, weaken a gate or replace authoritative evidence merely to force a rerun.
 
-A Vercel resource-provisioning failure that occurs before any build log or gate output is an infrastructure result, not evidence of planning-data drift. Retry the unchanged release input after capacity is available; never mutate the corpus in response to that error.\n\nA no-op revalidation is the successful safe outcome when the accepted corpus has not drifted.
+A Vercel resource-provisioning failure that occurs before any build log or gate output is an infrastructure result, not evidence of planning-data drift. Retry the unchanged release input after capacity is available; never mutate the corpus in response to that error.\n\nReopening a pull request reruns GitHub workflows but does not necessarily create a new Vercel deployment. After a pre-build provisioning failure, require a new exact-head Vercel deployment; a green build from another branch is evidence that capacity recovered, not acceptance for this release input.
+
+A no-op revalidation is the successful safe outcome when the accepted corpus has not drifted.
 
 ## Intentionally unmerged work
 
