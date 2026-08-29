@@ -7,8 +7,8 @@ This checkpoint records the authoritative release state after reconciling the op
 ## Current Production baseline
 
 - Repository: `RobbieTall/Plannera-ab`
-- Current accepted `main`: `bc6cb95e4b672bde587b9bc993488b222b83cd61`
-- Vercel Production deployment: `dpl_FNpsdPyRkVyp4QtySZhGaY35GYYz`
+- Current accepted application baseline: `f6f7aeb629bd367ca0428fcdcbfde1d7e6d16664`
+- Vercel Production deployment: `dpl_EKF7JBJwUi2voLUK4hURyVW3nq8s`
 - Production deployment state: `READY`
 - Production alias: `https://plannera-ab.vercel.app/`
 - Live response: HTTP 200 from the exact deployment above
@@ -33,12 +33,26 @@ The Production planning corpus currently passes the launch gates with:
 
 These results do not certify every address, every proposal, paid checkout, real operator approval or a customer-ready submission SEE.
 
+## Idempotent Production planning-data revalidation
+
+The one-time evidence-preserving Production corpus repair completed under PR #349, and PR #350 removed its temporary write hook. A later approval to repair the same evidence does not by itself justify repeating ingestion or replacing already accepted rows.
+
+Before any repeat Byron/Kempsey Production write:
+
+1. Confirm the accepted PR #349 evidence and PR #350 cleanup remain represented on `main`.
+2. Run `npm run smoke:launch` first and `npm run smoke:whole-lga` second in Vercel's protected Production build environment.
+3. Treat exact green results of 18/0/0 and 60/0, with the accepted 826/826 Byron and 1,496/1,496 Kempsey corpus evidence, as a no-op repair.
+4. Perform a data write only for a genuine evidence mismatch identified by a red gate, and limit the transaction to the affected evidence.
+5. Never reintroduce a persistent Production write hook, change schema, enable checkout, weaken a gate or replace authoritative evidence merely to force a rerun.
+
+A no-op revalidation is the successful safe outcome when the accepted corpus has not drifted.
+
 ## Intentionally unmerged work
 
 The following PRs remain open because merging them would introduce code expecting Production schema migrations that have not been approved or applied:
 
 - PR #346: A$49 submission SEE credit ledger and migration `20260821000000_submission_see_credit_ledger`.
-- PR #347: Item 74H Pathway Check and five additional persistence/private-evidence migrations; also depends on PR #346.
+- PR #347: Item 74H Pathway Check and six additional persistence/private-evidence migrations; also depends on PR #346.
 - PR #337: reviewed spatial-evidence schema and migration `20260803110000_add_spatial_evidence_review`.
 - PR #338: upload/spatial evidence applicability and topic migrations; also depends on PR #337.
 
