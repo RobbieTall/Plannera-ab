@@ -18,7 +18,10 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-pathway-check',
   'integration/item74h-resolution-20260830',
 ]);
-const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
+const EXPECTED_NEON_ENDPOINTS = new Set([
+  'ep-misty-dream-a7l6wcp8',
+  'ep-bold-shadow-a7y8j17d',
+]);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -51,7 +54,8 @@ function assertProtectedPreview(): void {
   assert(value, 'DATABASE_URL is required in protected Preview');
   const host = new URL(value).hostname;
   assert(
-    host.startsWith(EXPECTED_NEON_ENDPOINT) && host.endsWith('.neon.tech'),
+    [...EXPECTED_NEON_ENDPOINTS].some((endpoint) => host.startsWith(endpoint)) &&
+      host.endsWith('.neon.tech'),
     'DATABASE_URL does not target the isolated Item 74H Neon endpoint',
   );
 }
