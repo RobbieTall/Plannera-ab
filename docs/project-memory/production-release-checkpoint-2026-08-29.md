@@ -45,7 +45,7 @@ Before any repeat Byron/Kempsey Production write:
 4. Perform a data write only for a genuine evidence mismatch identified by a red gate, and limit the transaction to the affected evidence.
 5. Never reintroduce a persistent Production write hook, change schema, enable checkout, weaken a gate or replace authoritative evidence merely to force a rerun.
 
-A no-op revalidation is the successful safe outcome when the accepted corpus has not drifted.
+A Vercel resource-provisioning failure that occurs before any build log or gate output is an infrastructure result, not evidence of planning-data drift. Retry the unchanged release input after capacity is available; never mutate the corpus in response to that error.\n\nA no-op revalidation is the successful safe outcome when the accepted corpus has not drifted.
 
 ## Intentionally unmerged work
 
