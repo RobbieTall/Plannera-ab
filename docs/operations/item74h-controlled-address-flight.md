@@ -1,22 +1,36 @@
 # Item 74H controlled Byron address flight
 
-Status: REDACTED HARNESS IMPLEMENTED / DISABLED / NOT EXECUTED
+Status: READ-ONLY PREFLIGHT AND TEMPORARY PERSISTENCE ACCEPTED / DISABLED / INPUTS REMOVED / ZERO RESIDUE
 
-Last updated: 2026-08-24
+Last updated: 2026-08-29
 
 ## Purpose
 
-Safely confirm one non-customer, publicly advertised Byron rural property before persisting a shed/outbuilding pathway.
+Safely confirm one non-customer, publicly advertised Byron rural property before persisting a shed/outbuilding pathway, and preserve the approval boundary for any later rerun.
 
 The controlled address is not repository data. It must not appear in source, fixtures, workflow inputs, PR comments, deployment logs or acceptance summaries.
 
 ## Current boundary
 
-The synthetic persistence lifecycle is accepted. It proves replay, reload, unsafe-PROCEED rejection, free binding, paid blocking and zero-row cleanup.
+The protected read-only preflight and temporary persistence flight were accepted on 25 August 2026.
 
-No existing Byron RU2 demo SiteContext with an address, parcel or coordinates exists in the isolated Item 74H Preview database.
+The accepted flight proved:
 
-The controlled address preflight is therefore disabled and approval-gated.
+- exactly one precise public address result in Byron Shire;
+- exactly one official NSW EPI zoning polygon for Byron LEP 2014 and RU2;
+- current repository LEP, Byron DCP and Codes SEPP retrieval;
+- deterministic `MORE_EVIDENCE_REQUIRED`;
+- 4 evidence snapshots, 17 control snapshots and 6 gate snapshots;
+- replay and reload of the same assessment;
+- rejection of an unsafe `PROCEED` write;
+- replay-safe free Pathway Check binding;
+- blocked A$49 and A$749 bindings;
+- no retained raw address, coordinates or parcel identifiers; and
+- zero residual controlled records after cleanup.
+
+The temporary protected address and enable variables were removed. No existing controlled Byron RU2 SiteContext remains in the isolated Item 74H Preview database because cleanup is part of the accepted contract.
+
+The controlled address harness is now disabled and approval-gated. Its disabled normal state does not mean the accepted 25 August flight was never executed.
 
 ## Harness
 
@@ -73,11 +87,13 @@ The enabled preflight:
 
 It reports only hashes, public instrument metadata and counts. It performs no database writes.
 
-## Approval boundary
+## Re-execution approval boundary
 
-Before execution, obtain explicit approval for:
+The accepted flight does not grant standing authority to reintroduce the address or rerun controlled writes.
 
-- temporarily adding the public address as a protected Preview environment value;
+Before any re-execution, obtain explicit approval for:
+
+- temporarily adding a public address as a protected Preview environment value;
 - triggering the protected read-only deployment;
 - if preflight passes, creating temporary controlled Preview records;
 - deleting the temporary environment value after use; and
@@ -89,13 +105,14 @@ Production environment variables, data and schema remain prohibited.
 
 A green address preflight does not permit `PROCEED` or paid binding.
 
-Before persistence:
+Before paid eligibility:
 
 - verify exact LEP and DCP source locators;
 - validate every material numeric control;
-- identify the proposal's ancillary-use assumption;
-- determine land-area applicability;
-- resolve flood, minimum-lot-size and other required site predicates;
+- identify and verify the proposal's ancillary-use assumption;
+- determine legal land-area applicability;
+- resolve road classification, measured setbacks and all required mapped site predicates;
+- accept the real private road, survey and shed-layout evidence chain;
 - publish a reviewed pathway definition version; and
 - compute one evidence digest shared by every output.
 
@@ -103,7 +120,7 @@ Unknown or conflicting facts remain `MORE_EVIDENCE_REQUIRED`.
 
 ## Cleanup
 
-After the controlled flight:
+After every controlled flight:
 
 - remove the temporary address environment value;
 - remove the enable flag;
