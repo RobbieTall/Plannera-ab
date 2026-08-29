@@ -10,6 +10,7 @@ import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/type
 import type { WorkspaceSessionSignals } from "@/types/workspace";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import type { PathwayCustomerResult } from "@/lib/pathway-customer-result";
+import { PathwayEvidenceChecklistPanel } from "@/components/projects/pathway-evidence-checklist-panel";
 
 type QuickSiteCheckModalProps = {
   open: boolean;
@@ -399,6 +400,7 @@ export function QuickSiteCheckModal({
             </div>
           ) : null}
 
+          <PathwayEvidenceChecklistPanel items={pathwayResult.evidenceChecklist} />
           <ol className="mt-4 space-y-3">
             {pathwayResult.gates.map((gate) => (
               <li key={`${gate.order}-${gate.question}`} className="rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">
