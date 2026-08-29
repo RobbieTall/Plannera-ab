@@ -1,0 +1,37 @@
+name: Live NSW Spatial Provenance
+
+on:
+  pull_request:
+    paths:
+      - "scripts/spatial-provenance-live-smoke.ts"
+      - ".github/workflows/spatial-provenance-live.yml"
+      - "docs/operations/item74d-live-spatial-smoke.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-spatial-provenance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-provenance:
+    name: Byron and Kempsey official zoning evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run credential-free live NSW provenance gate
+        run: npx tsx scripts/spatial-provenance-live-smoke.ts

@@ -8,6 +8,11 @@ import { ALL_INSTRUMENT_CONFIG } from "./legislation/config";
 import { findLocalNswLepsByLga } from "./lep/nsw-lep-registry";
 import { resolveCanonicalNswLga } from "./lep/nsw-lga-normaliser";
 import { getLgaMapInfo } from "./lga-map-registry";
+import {
+  buildResolvedSiteProvenance,
+  buildStoredSiteProvenance,
+} from "./site-context-provenance";
+import type { SpatialProvenance } from "./spatial-provenance";
 import { formatZoningLabel, getZoningForSite, type ZoningResult } from "./nsw-zoning";
 import { findProjectByExternalId, normalizeProjectId } from "./project-identifiers";
 import {
@@ -31,6 +36,10 @@ export {
 };
 
 type LepZoneSummary = Pick<LepZoneUses, "zoneCode" | "zoneName">;
+
+type SiteContextWithSpatialProvenance = SiteContext & {
+  spatialProvenance?: SpatialProvenance;
+};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -106,6 +115,16 @@ const normalizeAddressFixtureKey = (value: string | null | undefined) =>
 const NSW_ZONE_CODE_PATTERN =
   /^(?:B[1-8]|C[1-4]|E[1-5]|IN[1-4]|MU1|R[1-5]|RE[1-2]|RU[1-6]|SP[1-3]|W[1-4])$/i;
 
+const fallbackZoningResult = (params: {
+  zoneCode: string;
+  zoneName: string;
+  source: "CANDIDATE" | "LAUNCH_FIXTURE";
+}): ZoningResult => ({
+  ...params,
+  resolutionMethod: "candidate_fallback",
+  resolvedAt: new Date().toISOString(),
+});
+
 const parseZoningLabel = (value: string | null | undefined): ZoningResult | null => {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -115,24 +134,36 @@ const parseZoningLabel = (value: string | null | undefined): ZoningResult | null
   if (!NSW_ZONE_CODE_PATTERN.test(zoneCode)) return null;
   const rawName = match[2]?.trim().replace(/^[-–—]+\s*/, "") ?? "";
   const zoneName = rawName.replace(new RegExp(`^${zoneCode}\\s*[–—-]?\\s*`, "i"), "").trim();
-  return {
+  return fallbackZoningResult({
     zoneCode,
     zoneName,
-    source: "NSW_EPI_LZN",
-  };
+    source: "CANDIDATE",
+  });
 };
 
 const resolveLaunchFixtureZoning = (address: string | null | undefined): ZoningResult | null => {
   const key = normalizeAddressFixtureKey(address);
   if (!key) return null;
   if (key.includes("45 broken head road") && key.includes("byron")) {
-    return { zoneCode: "SP3", zoneName: "Tourist", source: "NSW_EPI_LZN" };
+    return fallbackZoningResult({
+      zoneCode: "SP3",
+      zoneName: "Tourist",
+      source: "LAUNCH_FIXTURE",
+    });
   }
   if (key.includes("32 smith") && key.includes("kempsey")) {
-    return { zoneCode: "SP2", zoneName: "Infrastructure", source: "NSW_EPI_LZN" };
+    return fallbackZoningResult({
+      zoneCode: "SP2",
+      zoneName: "Infrastructure",
+      source: "LAUNCH_FIXTURE",
+    });
   }
   if (key.includes("52 belgrave") && key.includes("kempsey")) {
-    return { zoneCode: "E2", zoneName: "Commercial Centre", source: "NSW_EPI_LZN" };
+    return fallbackZoningResult({
+      zoneCode: "E2",
+      zoneName: "Commercial Centre",
+      source: "LAUNCH_FIXTURE",
+    });
   }
   return null;
 };
@@ -160,7 +191,7 @@ export const persistSiteContextFromCandidate = async (params: {
   projectId: string;
   addressInput: string;
   candidate: SiteCandidate;
-}): Promise<SiteContext> => {
+}): Promise<SiteContextWithSpatialProvenance> => {
   const start = Date.now();
   const { projectId, addressInput, candidate } = params;
   const normalizedProjectId = normalizeProjectId(projectId);
@@ -170,15 +201,25 @@ export const persistSiteContextFromCandidate = async (params: {
   }
   const normalizedAddressInput = addressInput.trim() || addressInput;
 
+  const location = {
+    coordinates:
+      typeof candidate.latitude === "number" &&
+      typeof candidate.longitude === "number"
+        ? { lat: candidate.latitude, lng: candidate.longitude }
+        : null,
+    parcelId:
+      candidate.parcelId ??
+      (candidate.lot && candidate.planNumber
+        ? `${candidate.lot}/${candidate.planNumber}`
+        : null),
+  };
+
   let zoningResult: ZoningResult | null = null;
   let zoningDurationMs = 0;
   try {
     const zoningStart = Date.now();
     zoningResult = await getZoningForSite({
-      coords:
-        typeof candidate.latitude === "number" && typeof candidate.longitude === "number"
-          ? { lat: candidate.latitude, lng: candidate.longitude }
-          : null,
+      coords: location.coordinates,
       parcel:
         candidate.lot && candidate.planNumber
           ? { lot: candidate.lot, dp: candidate.planNumber }
@@ -187,17 +228,18 @@ export const persistSiteContextFromCandidate = async (params: {
     zoningDurationMs = Date.now() - zoningStart;
   } catch (error) {
     console.warn("[site-context] zoning lookup failed", {
-      error,
+      errorType: error instanceof Error ? error.name : "UnknownError",
       provider: candidate.provider,
-      coords: { lat: candidate.latitude, lng: candidate.longitude },
-      lot: candidate.lot,
-      planNumber: candidate.planNumber,
     });
   }
 
   const fallbackZoning = zoningResult ? null : resolveFallbackZoning(candidate, normalizedAddressInput);
   const resolvedZoning = zoningResult ?? fallbackZoning;
   const zoningLabel = formatZoningLabel(resolvedZoning) ?? candidate.zone ?? null;
+  const spatialProvenance = buildResolvedSiteProvenance({
+    zoning: resolvedZoning,
+    location,
+  });
   const data = {
     projectId: project.id,
     addressInput: normalizedAddressInput,
@@ -235,7 +277,10 @@ export const persistSiteContextFromCandidate = async (params: {
     totalMs: Date.now() - start,
   });
 
-  return persisted;
+  return {
+    ...persisted,
+    spatialProvenance,
+  };
 };
 
 export const persistManualSiteContext = async (params: {
@@ -289,7 +334,7 @@ export const getSiteContextForProject = async (projectId: string): Promise<SiteC
 };
 
 export const serializeSiteContext = (
-  context: SiteContext | null,
+  context: SiteContextWithSpatialProvenance | null,
   project?: {
     zoningCode: string | null;
     zoningName: string | null;
@@ -300,6 +345,26 @@ export const serializeSiteContext = (
 ): SiteContextSummary | null => {
   if (!context) return null;
   const lgaMapInfo = context.lgaName ? getLgaMapInfo(context.lgaName) : null;
+  const location = {
+    coordinates:
+      typeof context.latitude === "number" &&
+      typeof context.longitude === "number"
+        ? { lat: context.latitude, lng: context.longitude }
+        : null,
+    parcelId:
+      context.parcelId ??
+      (context.lot && context.planNumber
+        ? `${context.lot}/${context.planNumber}`
+        : null),
+  };
+  const spatialProvenance =
+    context.spatialProvenance ??
+    buildStoredSiteProvenance({
+      zoneCode: project?.zoningCode,
+      zoningSource: project?.zoningSource,
+      location,
+    });
+
   return {
     id: context.id,
     projectId: context.projectId,
@@ -316,6 +381,7 @@ export const serializeSiteContext = (
     zoningCode: project?.zoningCode ?? null,
     zoningName: project?.zoningName ?? null,
     zoningSource: project?.zoningSource ?? null,
+    spatialProvenance,
     lepSummary: project?.lepData ? toLepSummary(project.lepData) : undefined,
     dcpSummary: project?.dcpData ? toDcpSummary(project.dcpData) : undefined,
     councilMap: lgaMapInfo

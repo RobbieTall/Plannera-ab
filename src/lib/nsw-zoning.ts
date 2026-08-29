@@ -1,9 +1,23 @@
 import { z } from "zod";
 
+import {
+  NSW_EPI_PLANNING_SERVICE_URL,
+  type SpatialResolutionMethod,
+} from "./spatial-provenance";
+
 export type ZoningResult = {
   zoneCode: string;
   zoneName: string;
-  source: "NSW_LZN" | "NSW_EPI_LZN";
+  source:
+    | "NSW_LZN"
+    | "NSW_EPI_LZN"
+    | "CANDIDATE"
+    | "LAUNCH_FIXTURE";
+  resolutionMethod: SpatialResolutionMethod;
+  serviceUrl?: string;
+  layerUrl?: string;
+  featureIdentifier?: string;
+  resolvedAt: string;
   raw?: unknown;
 };
 
@@ -14,10 +28,8 @@ export type ZoningQuery = {
   serviceUrl?: string;
 };
 
-const NSW_EPI_ZONING_SERVICE_URL =
-  "https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer";
-
-const DEFAULT_SERVICE_URL = process.env.NSW_PLANNING_SERVICE_URL ?? NSW_EPI_ZONING_SERVICE_URL;
+const DEFAULT_SERVICE_URL =
+  process.env.NSW_PLANNING_SERVICE_URL ?? NSW_EPI_PLANNING_SERVICE_URL;
 
 const ZONING_LAYER_NAME_HINTS = ["Land Zoning", "Land Zoning (LZN)", "Zoning", "LZN"];
 const KNOWN_ZONING_LAYER_ID = Number.parseInt(process.env.NSW_PLANNING_ZONING_LAYER_ID ?? "2", 10);
@@ -53,7 +65,7 @@ async function fetchJson<T>(
     throw new NswZoningError("NSW zoning API responded with a non-2xx status", {
       status: response.status,
       statusText: response.statusText,
-      url: url.toString(),
+      endpoint: `${url.origin}${url.pathname}`,
     });
   }
 
@@ -122,7 +134,9 @@ async function findParcelCentroid({ parcel, serviceUrl }: { parcel: NonNullable<
       });
       const parsed = findResponseSchema.safeParse(response.data);
       if (!parsed.success) {
-        console.warn("[nsw-zoning] Unexpected parcel find response", { term, issues: parsed.error.issues });
+        console.warn("[nsw-zoning] Unexpected parcel find response", {
+          issues: parsed.error.issues,
+        });
         continue;
       }
       const resultWithGeometry = parsed.data.results?.find((result) => result.geometry?.x && result.geometry?.y);
@@ -149,20 +163,37 @@ function normaliseZoneString(value: unknown): string | undefined {
   return undefined;
 }
 
+function featureIdentifier(
+  attributes: Record<string, unknown>,
+): string | undefined {
+  for (const field of ["OBJECTID", "FID", "FEATURE_ID", "ID"]) {
+    const value = attributes[field];
+    if (
+      (typeof value === "string" && value.trim()) ||
+      (typeof value === "number" && Number.isFinite(value))
+    ) {
+      return `${field}:${String(value).trim()}`;
+    }
+  }
+  return undefined;
+}
+
 async function queryZoningLayer(params: {
   layerId: number;
   coords: { lat: number; lng: number };
   serviceUrl: string;
+  resolutionMethod: SpatialResolutionMethod;
   includeRaw?: boolean;
 }): Promise<ZoningResult | null> {
-  const { layerId, coords, serviceUrl, includeRaw } = params;
-  const queryUrl = `${serviceUrl}/${layerId}/query`;
-  console.log("[nsw-zoning] querying zoning", {
-    serviceUrl,
-    coords,
+  const {
     layerId,
-    queryUrl,
-  });
+    coords,
+    serviceUrl,
+    resolutionMethod,
+    includeRaw,
+  } = params;
+  const queryUrl = `${serviceUrl}/${layerId}/query`;
+  console.log("[nsw-zoning] querying zoning layer", { layerId });
 
   const response = await fetchJson<unknown>(queryUrl, {
     f: "json",
@@ -181,10 +212,6 @@ async function queryZoningLayer(params: {
   }
   console.log("[nsw-zoning] query result", {
     featureCount: Array.isArray(rawData.features) ? rawData.features.length : 0,
-    sampleAttributes:
-      Array.isArray(rawData.features) && rawData.features.length > 0
-        ? (rawData.features[0] as { attributes?: unknown }).attributes ?? null
-        : null,
   });
 
   const parsed = queryResponseSchema.safeParse(response.data);
@@ -195,7 +222,6 @@ async function queryZoningLayer(params: {
 
   if (parsed.data.error) {
     console.warn("[nsw-zoning] zoning query returned error", {
-      coords,
       status: response.status,
       statusText: response.statusText,
       error: parsed.data.error,
@@ -207,8 +233,7 @@ async function queryZoningLayer(params: {
 
   const feature = parsed.data.features?.[0];
   if (!feature?.attributes) {
-    console.warn("[nsw-zoning] No zoning feature found for coordinates", {
-      coords,
+    console.warn("[nsw-zoning] No zoning feature found", {
       status: response.status,
     });
     return null;
@@ -235,16 +260,23 @@ async function queryZoningLayer(params: {
     null;
 
   if (!zoneCode) {
-    console.warn("[nsw-zoning] feature returned but no zone code field found", { attrs });
+    console.warn("[nsw-zoning] feature returned without a zone code");
     return null;
   }
 
-  console.log("[nsw-zoning] resolved zoning", { zoneCode, zoneName });
+  console.log("[nsw-zoning] resolved zoning", { zoneCode });
+
+  const normalisedServiceUrl = serviceUrl.replace(/\/$/, "");
 
   return {
     zoneCode,
     zoneName: zoneName ?? "",
     source: "NSW_EPI_LZN",
+    resolutionMethod,
+    serviceUrl: normalisedServiceUrl,
+    layerUrl: `${normalisedServiceUrl}/${layerId}`,
+    featureIdentifier: featureIdentifier(attrs),
+    resolvedAt: new Date().toISOString(),
     raw: includeRaw ? response.data : undefined,
   } satisfies ZoningResult;
 }
@@ -262,9 +294,13 @@ export async function getZoningForSite(query: ZoningQuery): Promise<ZoningResult
   const coords = query.coords ?? null;
   const parcel = query.parcel ?? null;
 
-  const targetCoords = coords ?? (parcel ? await findParcelCentroid({ parcel, serviceUrl }) : null);
+  const targetCoords =
+    coords ?? (parcel ? await findParcelCentroid({ parcel, serviceUrl }) : null);
+  const resolutionMethod: SpatialResolutionMethod = coords
+    ? "coordinate_intersection"
+    : "parcel_lookup";
   if (!targetCoords) {
-    console.warn("[nsw-zoning] Unable to determine coordinates for zoning lookup", { parcel });
+    console.warn("[nsw-zoning] Unable to determine coordinates for zoning lookup");
     return null;
   }
 
@@ -284,6 +320,7 @@ export async function getZoningForSite(query: ZoningQuery): Promise<ZoningResult
         layerId,
         coords: targetCoords,
         serviceUrl,
+        resolutionMethod,
         includeRaw: query.includeRaw,
       });
       if (result) return result;

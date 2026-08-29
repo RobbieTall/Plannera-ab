@@ -1,0 +1,49 @@
+name: Spatial Provenance Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/spatial-provenance.ts"
+      - "src/lib/spatial-provenance.test.ts"
+      - "src/lib/site-context-provenance.ts"
+      - "src/lib/site-context-provenance.test.ts"
+      - "src/lib/site-context.ts"
+      - "src/lib/nsw-zoning.ts"
+      - "src/types/site.ts"
+      - ".github/workflows/spatial-provenance.yml"
+      - "docs/operations/item74d-spatial-provenance.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spatial-provenance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provenance:
+    name: Fail-closed provenance boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client without database access
+        run: npx prisma generate
+
+      - name: Run deterministic spatial provenance acceptance tests
+        run: >-
+          npx vitest run
+          src/lib/spatial-provenance.test.ts
+          src/lib/site-context-provenance.test.ts

@@ -1,3 +1,5 @@
+import type { SpatialProvenance } from "@/lib/spatial-provenance";
+
 export type SiteCandidate = {
   id: string;
   formattedAddress: string;
@@ -26,7 +28,12 @@ export type PersistableSiteCandidate = SiteCandidate & {
 };
 
 export type CouncilMapContext = {
-  platform: "arcgis" | "intramaps" | "pozi" | "none";
+  platform:
+    | "arcgis"
+    | "intramaps"
+    | "pozi"
+    | "nsw_spatial_viewer"
+    | "none";
   url: string | null;
 };
 
@@ -46,6 +53,7 @@ export type SiteContextSummary = {
   zoningCode: string | null;
   zoningName: string | null;
   zoningSource: string | null;
+  spatialProvenance: SpatialProvenance;
   lepSummary?: {
     lgaName: string;
     instrumentName: string;
