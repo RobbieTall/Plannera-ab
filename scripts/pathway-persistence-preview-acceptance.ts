@@ -14,7 +14,10 @@ import { evaluateProposalAttestation } from '../src/lib/pathway-proposal-attesta
 import { bindProposalAttestationToPathwayAssessment } from '../src/lib/pathway-proposal-assessment-binding';
 import { runItem74hRealSiteBindingPreviewAcceptance } from './item74h-real-site-binding-preview';
 
-const EXPECTED_REF = 'agent/item74h-pathway-check';
+const EXPECTED_REFS = new Set([
+  'agent/item74h-pathway-check',
+  'integration/item74h-resolution-20260830',
+]);
 const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -28,7 +31,7 @@ function assertProtectedPreview(): void {
     'Item 74H acceptance is restricted to Vercel Preview',
   );
   assert(
-    process.env.VERCEL_GIT_COMMIT_REF === EXPECTED_REF,
+    EXPECTED_REFS.has(process.env.VERCEL_GIT_COMMIT_REF || ''),
     'Item 74H acceptance requires the exact protected branch',
   );
   assert(
