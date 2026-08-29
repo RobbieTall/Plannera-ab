@@ -7,6 +7,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
 import { AlertTriangle, Check, X, XCircle } from "lucide-react";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
+import { parseSeeEvidenceTopics, SEE_EVIDENCE_TOPICS, type SeeEvidenceTopicId } from "@/lib/see-evidence-topics";
 
 interface MapSnapshotsPanelProps {
   projectId: string;
@@ -44,6 +45,7 @@ interface MapSnapshotArtefact {
     status: "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONFLICT" | "SUPERSEDED";
     reviewedAt?: string | null;
     reviewNote?: string | null;
+    applicabilityTopics?: unknown;
   } | null;
 }
 
@@ -130,6 +132,7 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
   const [sourceEffectiveAt, setSourceEffectiveAt] = useState("");
   const [sourceCheckedAt, setSourceCheckedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [reviewNote, setReviewNote] = useState("");
+  const [reviewTopics, setReviewTopics] = useState<SeeEvidenceTopicId[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
@@ -195,6 +198,12 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
+
+  useEffect(() => {
+    setReviewTopics(parseSeeEvidenceTopics(activeSnapshot?.spatialEvidence?.applicabilityTopics));
+    setReviewNote(activeSnapshot?.spatialEvidence?.reviewNote ?? "");
+    setReviewError(null);
+  }, [activeSnapshot]);
 
   const handleFileSelection = (fileList: FileList | null) => {
     if (!fileList?.length) return;
@@ -300,6 +309,10 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       setReviewError("Add a review note before rejecting evidence or marking a conflict.");
       return;
     }
+    if ((decision === "ACCEPT" || decision === "MARK_CONFLICT") && reviewTopics.length === 0) {
+      setReviewError("Select at least one SEE topic affected by this map observation.");
+      return;
+    }
     setIsReviewing(true);
     setReviewError(null);
     try {
@@ -307,7 +320,7 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ decision, note: reviewNote.trim() || undefined }),
+        body: JSON.stringify({ decision, topics: reviewTopics, note: reviewNote.trim() || undefined }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Unable to review spatial evidence");
@@ -734,8 +747,43 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                 {activeSnapshot.spatialEvidence.reviewNote ? (
                   <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Review note</p><p className="mt-1 text-sm text-slate-800">{activeSnapshot.spatialEvidence.reviewNote}</p></div>
                 ) : null}
+                {parseSeeEvidenceTopics(activeSnapshot.spatialEvidence.applicabilityTopics).length ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">SEE topics</p>
+                    <p className="mt-1 text-sm text-slate-800">
+                      {parseSeeEvidenceTopics(activeSnapshot.spatialEvidence.applicabilityTopics).map((topicId) => SEE_EVIDENCE_TOPICS.find((topic) => topic.id === topicId)?.label ?? topicId).join(", ")}
+                    </p>
+                  </div>
+                ) : null}
                 {activeSnapshot.spatialEvidence.status !== "SUPERSEDED" ? (
                   <div className="space-y-3 border-t border-slate-200 pt-4">
+                    <fieldset>
+                      <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">SEE topics</legend>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {SEE_EVIDENCE_TOPICS.map((topic) => {
+                          const checked = reviewTopics.includes(topic.id);
+                          return (
+                            <label key={topic.id} className={cn(
+                              "flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-xs transition",
+                              checked ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600 hover:border-slate-400",
+                            )}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setReviewTopics((current) => checked
+                                    ? current.filter((topicId) => topicId !== topic.id)
+                                    : [...current, topic.id]);
+                                  setReviewError(null);
+                                }}
+                                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                              />
+                              <span>{topic.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Review note</label>
                     <textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} rows={3} placeholder="Required for rejection or conflict; optional when accepting." className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900" />
                     {reviewError ? <p className="text-sm text-rose-600">{reviewError}</p> : null}

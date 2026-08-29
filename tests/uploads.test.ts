@@ -24,6 +24,8 @@ class MockPrisma {
       const record = {
         id: `upload-${this.uploads.length + 1}`,
         createdAt: new Date(),
+        applicabilityStatus: "PENDING_REVIEW",
+        applicabilityVersion: 1,
         ...data,
         projectId,
       };
@@ -95,6 +97,7 @@ test("stores extracted evidence provenance and marks successful indexing ready",
   assert.equal(prisma.uploads[0].contentHash, "a".repeat(64));
   assert.equal(prisma.uploads[0].evidenceStatus, "READY");
   assert.equal(prisma.uploads[0].indexingStatus, "READY");
+  assert.equal(uploads[0].applicabilityStatus, "PENDING_REVIEW");
   assert.deepEqual(indexed, ["upload-1"]);
   assert.equal(prisma.uploads[0].projectId, "db-proj-1");
 

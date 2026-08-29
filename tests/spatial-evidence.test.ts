@@ -23,6 +23,7 @@ const site = {
   zone: "SP3 Tourist",
 };
 const siteFingerprint = buildSpatialSiteFingerprint(site);
+const reviewTopics = ["bushfire"];
 
 const makeEvidence = (overrides: Partial<SpatialEvidenceRecord> = {}): SpatialEvidenceRecord => ({
   id: "spatial-1",
@@ -40,6 +41,7 @@ const makeEvidence = (overrides: Partial<SpatialEvidenceRecord> = {}): SpatialEv
   sourceCheckedAt: NOW,
   expiresAt: buildSpatialEvidenceExpiry(NOW),
   status: "PENDING_REVIEW",
+  applicabilityTopics: [],
   version: 1,
   ...overrides,
 });
@@ -70,6 +72,7 @@ class ReviewPrisma {
         version: this.record.version + 1,
         reviewedAt: data.reviewedAt,
         reviewNote: data.reviewNote,
+        applicabilityTopics: data.applicabilityTopics,
         reviewEvents: [...this.events],
       };
       return this.record;
@@ -102,7 +105,7 @@ test("spatial site fingerprints are deterministic and change with the confirmed 
 
 test("readiness consumes only accepted, current, non-expired evidence with a usable legend", () => {
   const result = assessSpatialEvidenceReadiness({
-    evidence: [makeEvidence({ status: "ACCEPTED" })],
+    evidence: [makeEvidence({ status: "ACCEPTED", applicabilityTopics: reviewTopics })],
     currentSiteFingerprint: siteFingerprint,
     now: NOW,
   });
@@ -115,9 +118,9 @@ test("readiness exposes pending, conflicting, stale and changed-site evidence", 
   const result = assessSpatialEvidenceReadiness({
     evidence: [
       makeEvidence(),
-      makeEvidence({ id: "spatial-2", artefactId: "artefact-2", status: "CONFLICT", reviewNote: "Council and NSW layers disagree." }),
-      makeEvidence({ id: "spatial-3", artefactId: "artefact-3", status: "ACCEPTED", expiresAt: new Date("2026-08-02T00:00:00.000Z") }),
-      makeEvidence({ id: "spatial-4", artefactId: "artefact-4", status: "ACCEPTED", siteFingerprint: "different-site" }),
+      makeEvidence({ id: "spatial-2", artefactId: "artefact-2", status: "CONFLICT", applicabilityTopics: reviewTopics, reviewNote: "Council and NSW layers disagree." }),
+      makeEvidence({ id: "spatial-3", artefactId: "artefact-3", status: "ACCEPTED", applicabilityTopics: reviewTopics, expiresAt: new Date("2026-08-02T00:00:00.000Z") }),
+      makeEvidence({ id: "spatial-4", artefactId: "artefact-4", status: "ACCEPTED", applicabilityTopics: reviewTopics, siteFingerprint: "different-site" }),
     ],
     currentSiteFingerprint: siteFingerprint,
     now: NOW,
@@ -126,11 +129,21 @@ test("readiness exposes pending, conflicting, stale and changed-site evidence", 
   assert.deepEqual(new Set(result.blockers.map((blocker) => blocker.code)), new Set(["PENDING_REVIEW", "CONFLICT", "STALE", "SITE_MISMATCH", "NO_ACCEPTED_EVIDENCE"]));
 });
 
+test("accepted spatial evidence without an SEE topic fails closed", () => {
+  const result = assessSpatialEvidenceReadiness({
+    evidence: [makeEvidence({ status: "ACCEPTED" })],
+    currentSiteFingerprint: siteFingerprint,
+    now: NOW,
+  });
+  assert.equal(result.ready, false);
+  assert.ok(result.blockers.some((blocker) => blocker.code === "NO_TOPICS"));
+});
+
 test("accepts exact-site current evidence and appends a review event", async () => {
   const prisma = new ReviewPrisma(projectRecord, makeEvidence());
   const result: any = await reviewSpatialEvidence({
     artefactId: "artefact-1",
-    body: { decision: "ACCEPT" },
+    body: { decision: "ACCEPT", topics: reviewTopics },
     projectId: "proj-public",
     userId: "user-1",
     now: NOW,
@@ -140,6 +153,8 @@ test("accepts exact-site current evidence and appends a review event", async () 
   assert.equal(result.reviewEvents.length, 1);
   assert.equal(result.reviewEvents[0].previousStatus, "PENDING_REVIEW");
   assert.equal(result.reviewEvents[0].resultingStatus, "ACCEPTED");
+  assert.deepEqual(result.applicabilityTopics, reviewTopics);
+  assert.deepEqual(result.reviewEvents[0].topics, reviewTopics);
 });
 
 test("refuses acceptance after the project site changes", async () => {
@@ -148,7 +163,7 @@ test("refuses acceptance after the project site changes", async () => {
     siteContext: { ...projectRecord.siteContext, lot: "2" },
   }, makeEvidence());
   await assert.rejects(
-    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT" }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: prisma as any }),
+    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT", topics: reviewTopics }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: prisma as any }),
     (error) => error instanceof SpatialEvidenceError && error.status === 409 && error.message.includes("earlier or different"),
   );
 });
@@ -156,13 +171,13 @@ test("refuses acceptance after the project site changes", async () => {
 test("refuses stale or legend-less evidence acceptance", async () => {
   const stale = new ReviewPrisma(projectRecord, makeEvidence({ expiresAt: new Date("2026-08-02T00:00:00.000Z") }));
   await assert.rejects(
-    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT" }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: stale as any }),
+    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT", topics: reviewTopics }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: stale as any }),
     (error) => error instanceof SpatialEvidenceError && error.status === 409 && error.message.includes("90-day"),
   );
 
   const noLegend = new ReviewPrisma(projectRecord, makeEvidence({ legendStatus: "NOT_AVAILABLE" }));
   await assert.rejects(
-    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT" }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: noLegend as any }),
+    () => reviewSpatialEvidence({ artefactId: "artefact-1", body: { decision: "ACCEPT", topics: reviewTopics }, projectId: "project-1", userId: "user-1", now: NOW, prismaClient: noLegend as any }),
     (error) => error instanceof SpatialEvidenceError && error.status === 409 && error.message.includes("legend"),
   );
 });
@@ -175,7 +190,7 @@ test("conflict decisions require a note and remain visible in the review ledger"
   );
   const result: any = await reviewSpatialEvidence({
     artefactId: "artefact-1",
-    body: { decision: "MARK_CONFLICT", note: "Council flood layer conflicts with the supplied survey." },
+    body: { decision: "MARK_CONFLICT", topics: reviewTopics, note: "Council flood layer conflicts with the supplied survey." },
     projectId: "project-1",
     userId: "user-1",
     now: NOW,
@@ -183,4 +198,5 @@ test("conflict decisions require a note and remain visible in the review ledger"
   });
   assert.equal(result.status, "CONFLICT");
   assert.equal(result.reviewEvents[0].decision, "MARK_CONFLICT");
+  assert.deepEqual(result.applicabilityTopics, reviewTopics);
 });

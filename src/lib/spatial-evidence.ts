@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { parseSeeEvidenceTopics, SEE_EVIDENCE_TOPIC_IDS } from "@/lib/see-evidence-topics";
 
 export const SPATIAL_EVIDENCE_MAX_AGE_DAYS = 90;
 
@@ -48,6 +49,7 @@ export type SpatialEvidenceRecord = {
   status: SpatialEvidenceStatusValue;
   reviewedAt?: Date | string | null;
   reviewNote?: string | null;
+  applicabilityTopics?: unknown;
   version: number;
 };
 
@@ -57,6 +59,7 @@ export type SpatialEvidenceBlockerCode =
   | "CONFLICT"
   | "STALE"
   | "SITE_MISMATCH"
+  | "NO_TOPICS"
   | "LEGEND_UNRESOLVED";
 
 export type SpatialEvidenceBlocker = {
@@ -96,10 +99,14 @@ export const buildSpatialEvidenceExpiry = (sourceCheckedAt: Date) =>
 
 export const spatialEvidenceReviewSchema = z.object({
   decision: z.enum(["ACCEPT", "REJECT", "MARK_CONFLICT", "SUPERSEDE"]),
+  topics: z.array(z.enum(SEE_EVIDENCE_TOPIC_IDS)).max(12).default([]),
   note: z.string().trim().max(2000).optional(),
 }).superRefine((value, context) => {
   if ((value.decision === "REJECT" || value.decision === "MARK_CONFLICT" || value.decision === "SUPERSEDE") && !value.note) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["note"], message: "A review note is required for this decision" });
+  }
+  if ((value.decision === "ACCEPT" || value.decision === "MARK_CONFLICT") && value.topics.length === 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["topics"], message: "Select at least one SEE topic for this spatial evidence decision" });
   }
 });
 
@@ -143,10 +150,18 @@ export const assessSpatialEvidenceReadiness = ({
       continue;
     }
     if (record.status === "CONFLICT") {
+      if (parseSeeEvidenceTopics(record.applicabilityTopics).length === 0) {
+        blockers.push({ artefactId: record.artefactId, code: "NO_TOPICS", layers, message: "The spatial conflict has not been assigned to an SEE evidence topic." });
+        continue;
+      }
       blockers.push({ artefactId: record.artefactId, code: "CONFLICT", layers, message: record.reviewNote || "Spatial evidence conflicts with another source or the statutory chain." });
       continue;
     }
     if (record.status !== "ACCEPTED") continue;
+    if (parseSeeEvidenceTopics(record.applicabilityTopics).length === 0) {
+      blockers.push({ artefactId: record.artefactId, code: "NO_TOPICS", layers, message: "Accepted spatial evidence has not been assigned to an SEE evidence topic." });
+      continue;
+    }
     const expiresAt = toDate(record.expiresAt);
     if (!expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt <= now) {
       blockers.push({ artefactId: record.artefactId, code: "STALE", layers, message: "Accepted spatial evidence is outside the 90-day source-check window." });
@@ -266,9 +281,16 @@ export async function reviewSpatialEvidence({
 
   if (record.status === "SUPERSEDED") throw new SpatialEvidenceError("Superseded evidence cannot be reviewed again", 409);
   const resultingStatus = reviewStatusByDecision[parsed.data.decision];
+  const applicabilityTopics = parsed.data.decision === "REJECT" || parsed.data.decision === "SUPERSEDE"
+    ? []
+    : parseSeeEvidenceTopics(parsed.data.topics);
   const note = parsed.data.note || (parsed.data.decision === "ACCEPT" ? "Accepted for the current confirmed site and source-check window." : null);
 
-  if (record.status === resultingStatus && (record.reviewNote ?? null) === note) return record;
+  if (
+    record.status === resultingStatus &&
+    JSON.stringify(parseSeeEvidenceTopics(record.applicabilityTopics)) === JSON.stringify(applicabilityTopics) &&
+    (record.reviewNote ?? null) === note
+  ) return record;
 
   try {
     return await prismaClient.spatialEvidence.update({
@@ -279,12 +301,14 @@ export async function reviewSpatialEvidence({
         reviewedAt: now,
         reviewedBy: userId === "dev-bypass-user" ? { disconnect: true } : { connect: { id: userId } },
         reviewNote: note,
+        applicabilityTopics,
         reviewEvents: {
           create: {
             actor: userId === "dev-bypass-user" ? undefined : { connect: { id: userId } },
             decision: parsed.data.decision,
             previousStatus: record.status,
             resultingStatus,
+            topics: applicabilityTopics,
             note,
           },
         },
