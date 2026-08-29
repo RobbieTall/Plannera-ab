@@ -94,6 +94,7 @@ import {
   toPersistableSiteCandidate,
 } from "@/lib/site-context-client";
 import { ACCEPTED_EXTENSIONS } from "@/lib/upload-constraints";
+import { parseSeeEvidenceTopics, SEE_EVIDENCE_TOPICS, type SeeEvidenceTopicId } from "@/lib/see-evidence-topics";
 import { useLgaCoverageStatus } from "@/hooks/use-lga-coverage-status";
 import { cn } from "@/lib/utils";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
@@ -194,8 +195,22 @@ type WorkspaceUploadResponse = {
   reviewReason?: string | null;
   indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
   indexingError?: string | null;
+  applicabilityStatus?:
+    | "PENDING_REVIEW"
+    | "ACCEPTED"
+    | "REJECTED"
+    | "CONFLICT"
+    | "SUPERSEDED";
+  applicabilityArtefactId?: string | null;
+  applicabilityTopics?: unknown;
+  sourceDocumentDate?: string | null;
+  validUntil?: string | null;
+  applicabilityReviewedAt?: string | null;
+  applicabilityReviewNote?: string | null;
   createdAt: string;
 };
+
+type EvidenceApplicabilityDecision = "ACCEPT" | "REJECT" | "MARK_CONFLICT";
 
 const normaliseCandidateForRequest = toPersistableSiteCandidate;
 
@@ -250,6 +265,22 @@ const evidenceStatusClasses: Record<NonNullable<WorkspaceSource["evidenceStatus"
   NEEDS_REVIEW: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200",
 };
 
+const applicabilityStatusLabels: Record<NonNullable<WorkspaceSource["applicabilityStatus"]>, string> = {
+  PENDING_REVIEW: "Review pending",
+  ACCEPTED: "Accepted for planning use",
+  REJECTED: "Not applicable",
+  CONFLICT: "Conflict flagged",
+  SUPERSEDED: "Superseded",
+};
+
+const applicabilityStatusClasses: Record<NonNullable<WorkspaceSource["applicabilityStatus"]>, string> = {
+  PENDING_REVIEW: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+  ACCEPTED: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+  REJECTED: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  CONFLICT: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
+  SUPERSEDED: "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400",
+};
+
 const mapUploadToWorkspaceSource = (upload: WorkspaceUploadResponse): WorkspaceSource => {
   const indexingIssue = upload.indexingStatus === "FAILED"
     ? `Indexing failed${upload.indexingError ? `: ${upload.indexingError}` : "."}`
@@ -269,6 +300,13 @@ const mapUploadToWorkspaceSource = (upload: WorkspaceUploadResponse): WorkspaceS
     statusDetail: indexingIssue ?? upload.reviewReason ?? undefined,
     evidenceStatus,
     indexingStatus: upload.indexingStatus,
+    applicabilityStatus: upload.applicabilityStatus ?? "PENDING_REVIEW",
+    applicabilityArtefactId: upload.applicabilityArtefactId,
+    applicabilityTopics: parseSeeEvidenceTopics(upload.applicabilityTopics),
+    sourceDocumentDate: upload.sourceDocumentDate,
+    validUntil: upload.validUntil,
+    applicabilityReviewedAt: upload.applicabilityReviewedAt,
+    applicabilityReviewNote: upload.applicabilityReviewNote,
     contentHash: upload.contentHash,
     url: upload.publicUrl,
     fileExtension: upload.fileExtension ?? null,
@@ -1357,6 +1395,14 @@ export function ProjectWorkspace({
   } | null>(null);
   const [hasClaimedProjects, setHasClaimedProjects] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [evidenceReviewSource, setEvidenceReviewSource] = useState<WorkspaceSource | null>(null);
+  const [evidenceReviewDecision, setEvidenceReviewDecision] = useState<EvidenceApplicabilityDecision>("ACCEPT");
+  const [evidenceReviewTopics, setEvidenceReviewTopics] = useState<SeeEvidenceTopicId[]>([]);
+  const [evidenceDocumentDate, setEvidenceDocumentDate] = useState("");
+  const [evidenceValidUntil, setEvidenceValidUntil] = useState("");
+  const [evidenceReviewNote, setEvidenceReviewNote] = useState("");
+  const [evidenceReviewError, setEvidenceReviewError] = useState<string | null>(null);
+  const [isReviewingEvidence, setIsReviewingEvidence] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<File[]>([]);
   const [uploadStatuses, setUploadStatuses] = useState<
     Record<
@@ -2994,6 +3040,71 @@ export function ProjectWorkspace({
     }
   };
 
+  const openEvidenceApplicabilityReview = (source: WorkspaceSource) => {
+    setEvidenceReviewSource(source);
+    setEvidenceReviewDecision(source.applicabilityStatus === "CONFLICT" ? "MARK_CONFLICT" : source.applicabilityStatus === "REJECTED" ? "REJECT" : "ACCEPT");
+    setEvidenceReviewTopics(parseSeeEvidenceTopics(source.applicabilityTopics));
+    setEvidenceDocumentDate(source.sourceDocumentDate?.slice(0, 10) ?? "");
+    setEvidenceValidUntil(source.validUntil?.slice(0, 10) ?? "");
+    setEvidenceReviewNote(source.applicabilityReviewNote ?? "");
+    setEvidenceReviewError(null);
+  };
+
+  const closeEvidenceApplicabilityReview = () => {
+    if (isReviewingEvidence) return;
+    setEvidenceReviewSource(null);
+    setEvidenceReviewError(null);
+  };
+
+  const handleEvidenceApplicabilityReview = async () => {
+    if (!evidenceReviewSource || !latestDetailedPlanningPackArtefact) return;
+    if (evidenceReviewDecision === "ACCEPT" && !evidenceDocumentDate) {
+      setEvidenceReviewError("Record the date shown on the document before accepting it.");
+      return;
+    }
+    if (evidenceReviewDecision !== "ACCEPT" && !evidenceReviewNote.trim()) {
+      setEvidenceReviewError("Add a short review note explaining this decision.");
+      return;
+    }
+    if (evidenceReviewDecision !== "REJECT" && evidenceReviewTopics.length === 0) {
+      setEvidenceReviewError("Select at least one SEE topic affected by this document.");
+      return;
+    }
+
+    setIsReviewingEvidence(true);
+    setEvidenceReviewError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectKey}/uploads/${evidenceReviewSource.id}/applicability`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: evidenceReviewDecision,
+          sourceDetailedPlanningPackArtefactId: latestDetailedPlanningPackArtefact.id,
+          sourceDocumentDate: evidenceDocumentDate || undefined,
+          validUntil: evidenceValidUntil || undefined,
+          topics: evidenceReviewTopics,
+          note: evidenceReviewNote.trim() || undefined,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        upload?: WorkspaceUploadResponse;
+        error?: string;
+      };
+      if (!response.ok || !payload.upload) {
+        throw new Error(payload.error || "Unable to record this evidence review.");
+      }
+
+      const reviewedSource = mapUploadToWorkspaceSource(payload.upload);
+      setSources((previous) => previous.map((source) => source.id === reviewedSource.id ? reviewedSource : source));
+      setEvidenceReviewSource(null);
+      showToast(evidenceReviewDecision === "ACCEPT" ? "Evidence accepted for the current planning pack." : "Evidence review recorded.");
+    } catch (error) {
+      setEvidenceReviewError(error instanceof Error ? error.message : "Unable to record this evidence review.");
+    } finally {
+      setIsReviewingEvidence(false);
+    }
+  };
+
   const experienceArtefacts = getArtefacts(projectKey);
   const artefacts = useMemo(() => {
     const merged = new Map<string, WorkspaceArtefact>();
@@ -3976,81 +4087,85 @@ export function ProjectWorkspace({
               <ul className="space-y-3">
                 {displayedSources.map((source) => {
                   const Icon = sourceIcons[source.type] ?? FileText;
+                  const applicabilityStatus = source.applicabilityStatus ?? "PENDING_REVIEW";
+                  const canReviewApplicability = source.evidenceStatus === "READY" &&
+                    source.indexingStatus === "READY" &&
+                    Boolean(latestDetailedPlanningPackArtefact) &&
+                    applicabilityStatus !== "SUPERSEDED";
                   return (
                     <li
                       key={source.id}
                       className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 transition-colors dark:border-slate-800 dark:bg-slate-800/70"
                     >
-                      {source.url ? (
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-start gap-3 no-underline hover:text-slate-900 dark:hover:text-white"
-                        >
-                          <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <div className="flex items-start gap-3">
+                        <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="break-words text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {source.name}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-300">
-                              {source.detail}
-                              {source.fileExtension ? (
-                                <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
-                                  {source.fileExtension}
-                                </span>
-                              ) : null}
-                            </p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                              {source.uploadedAt} · {source.sizeLabel}
-                            </p>
-                            {source.statusDetail ? (
-                              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
-                                {source.statusDetail}
-                              </p>
+                            {source.url ? (
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open source document"
+                                aria-label={`Open ${source.name}`}
+                                className="shrink-0 rounded-md p-1 text-slate-500 transition hover:bg-white hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
                             ) : null}
                           </div>
-                          {source.status ? (
-                            <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
-                              {source.status}
+                          <p className="text-xs text-slate-500 dark:text-slate-300">
+                            {source.detail}
+                            {source.fileExtension ? (
+                              <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
+                                {source.fileExtension}
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            {source.uploadedAt} · {source.sizeLabel}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {source.status ? (
+                              <span className={cn("rounded-full px-2 py-1 text-[11px] font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
+                                {source.status}
+                              </span>
+                            ) : null}
+                            <span className={cn("rounded-full border px-2 py-1 text-[11px] font-semibold", applicabilityStatusClasses[applicabilityStatus])}>
+                              {applicabilityStatusLabels[applicabilityStatus]}
                             </span>
+                            {canReviewApplicability ? (
+                              <button
+                                type="button"
+                                onClick={() => openEvidenceApplicabilityReview(source)}
+                                className="rounded-md border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-slate-900 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-300"
+                              >
+                                {applicabilityStatus === "PENDING_REVIEW" ? "Review" : "Update review"}
+                              </button>
+                            ) : null}
+                          </div>
+                          {source.statusDetail ? (
+                            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
+                              {source.statusDetail}
+                            </p>
                           ) : null}
-                        </a>
-                      ) : (
-                        <div className="flex items-start gap-3">
-                          <span className="mt-1 rounded-xl bg-white p-2 text-slate-600 transition-colors dark:bg-slate-800 dark:text-slate-200">
-                            <Icon className="h-4 w-4" />
-                          </span>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                              {source.name}
+                          {source.applicabilityReviewNote ? (
+                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300">
+                              {source.applicabilityReviewNote}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-300">
-                              {source.detail}
-                              {source.fileExtension ? (
-                                <span className="ml-2 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] uppercase text-slate-600 transition-colors dark:border-slate-700 dark:text-slate-200">
-                                  {source.fileExtension}
-                                </span>
-                              ) : null}
+                          ) : null}
+                          {source.applicabilityTopics?.length ? (
+                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300">
+                              Applies to: {source.applicabilityTopics.map((topicId) => SEE_EVIDENCE_TOPICS.find((topic) => topic.id === topicId)?.label ?? topicId).join(", ")}
                             </p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                              {source.uploadedAt} · {source.sizeLabel}
-                            </p>
-                            {source.statusDetail ? (
-                              <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
-                                {source.statusDetail}
-                              </p>
-                            ) : null}
-                          </div>
-                          {source.status ? (
-                            <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
-                              {source.status}
-                            </span>
                           ) : null}
                         </div>
-                      )}
+                      </div>
                     </li>
                   );
                 })}
@@ -4880,6 +4995,135 @@ export function ProjectWorkspace({
         onClose={() => setIsMapsToolsModalOpen(false)}
         siteContext={siteContext}
       />
+
+      <Modal
+        open={Boolean(evidenceReviewSource)}
+        onClose={closeEvidenceApplicabilityReview}
+        title="Review planning evidence"
+        description="Record whether this document can support the current proposal. The decision is bound to the exact site and Planning Controls Pack."
+      >
+        {evidenceReviewSource ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="break-words text-sm font-semibold text-slate-900">{evidenceReviewSource.name}</p>
+              <p className="mt-1 text-xs text-slate-600">
+                Planning Controls Pack: {latestDetailedPlanningPackArtefact?.title ?? "No current pack"}
+              </p>
+            </div>
+
+            <fieldset>
+              <legend className="text-xs font-semibold uppercase text-slate-500">Decision</legend>
+              <div className="mt-2 grid grid-cols-3 gap-2" role="group" aria-label="Evidence review decision">
+                {([
+                  { value: "ACCEPT" as const, label: "Accept", icon: Check },
+                  { value: "MARK_CONFLICT" as const, label: "Conflict", icon: AlertTriangle },
+                  { value: "REJECT" as const, label: "Not applicable", icon: X },
+                ]).map(({ value, label, icon: DecisionIcon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={evidenceReviewDecision === value}
+                    onClick={() => {
+                      setEvidenceReviewDecision(value);
+                      setEvidenceReviewError(null);
+                    }}
+                    className={cn(
+                      "flex min-h-16 flex-col items-center justify-center gap-1 rounded-md border px-2 py-2 text-xs font-semibold transition",
+                      evidenceReviewDecision === value
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-400",
+                    )}
+                  >
+                    <DecisionIcon className="h-4 w-4" />
+                    <span className="text-center">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            {evidenceReviewDecision !== "REJECT" ? (
+              <fieldset>
+                <legend className="text-xs font-semibold uppercase text-slate-500">SEE topics</legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {SEE_EVIDENCE_TOPICS.map((topic) => {
+                    const checked = evidenceReviewTopics.includes(topic.id);
+                    return (
+                      <label key={topic.id} className={cn(
+                        "flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-xs transition",
+                        checked ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600 hover:border-slate-400",
+                      )}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setEvidenceReviewTopics((current) => checked
+                              ? current.filter((topicId) => topicId !== topic.id)
+                              : [...current, topic.id]);
+                            setEvidenceReviewError(null);
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                        />
+                        <span>{topic.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+
+            {evidenceReviewDecision === "ACCEPT" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-700">
+                  Document date
+                  <input
+                    type="date"
+                    value={evidenceDocumentDate}
+                    onChange={(event) => setEvidenceDocumentDate(event.target.value)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    required
+                    className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Valid until <span className="font-normal text-slate-400">(optional)</span>
+                  <input
+                    type="date"
+                    value={evidenceValidUntil}
+                    onChange={(event) => setEvidenceValidUntil(event.target.value)}
+                    min={new Date().toISOString().slice(0, 10)}
+                    className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            <label className="block text-xs font-semibold text-slate-700">
+              Review note {evidenceReviewDecision === "ACCEPT" ? <span className="font-normal text-slate-400">(optional)</span> : null}
+              <textarea
+                value={evidenceReviewNote}
+                onChange={(event) => setEvidenceReviewNote(event.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder={evidenceReviewDecision === "ACCEPT" ? "Record any limitations or assumptions." : "Explain why this document cannot be relied on."}
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900"
+              />
+            </label>
+
+            {evidenceReviewError ? (
+              <p role="alert" className="text-sm font-semibold text-rose-600">{evidenceReviewError}</p>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={closeEvidenceApplicabilityReview} disabled={isReviewingEvidence}>
+                Cancel
+              </Button>
+              <Button onClick={handleEvidenceApplicabilityReview} disabled={isReviewingEvidence || !latestDetailedPlanningPackArtefact}>
+                {isReviewingEvidence ? "Saving…" : "Save review"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         open={showUploadModal}

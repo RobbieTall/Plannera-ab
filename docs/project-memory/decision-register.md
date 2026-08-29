@@ -1199,3 +1199,41 @@ Rationale:
 Consequence: the next Item 74H slice is a fail-closed scanner record and operator-review promotion using synthetic safe content. Real Byron documents and paid eligibility remain blocked until that chain is accepted.
 
 Reference: docs/operations/item74h-private-blob-preview-activation.md; docs/operations/item74h-malware-scanning-architecture.md
+
+## DR-051 — A Map Image Is Evidence Only After Site-Bound Review
+
+Status: Active
+
+Decision: a map screenshot or plan image is an immutable capture, not proof that a mapped constraint applies. Spatial evidence must bind the original image hash to the exact confirmed site fingerprint, source authority and URL, selected layer or plan topic, legend state, capture/effective/source-check dates, user-confirmed observation and explicit limitation. Government and council captures require an authoritative URL. Future dates, absent topics, unconfirmed observations and unexplained legend gaps fail closed.
+
+The mutable fact is the review decision, not the captured source. Spatial evidence begins `Pending review` and may become `Accepted`, `Rejected`, `Conflict` or `Superseded`; each transition appends an actor/time/note event and uses optimistic versioning. Acceptance is refused when the project site has changed, the source-check window is older than 90 days, or the legend is unresolved. Legacy screenshots remain visible but cannot support a final SEE without recapture under this contract.
+
+Downstream document readiness may consume only accepted, current-site, non-expired spatial evidence. Pending, conflicting, stale, site-mismatched or legend-unresolved evidence remains an explicit blocker for the affected SEE topics and must never be converted into a confident statement by model inference.
+
+Accepted or conflicting spatial evidence must additionally name one or more finite SEE evidence topics. Layer names remain immutable source metadata and are never heuristically converted into section applicability. A legacy accepted observation without topic assignment fails closed until reviewed again.
+
+Reference: docs/project-memory/build-next.md Item 74A; DR-048; DR-050
+
+## DR-052 — Readable Uploads Require Exact-Scope Planning Acceptance
+
+Status: Active
+
+Decision: successful storage, text extraction and indexing make an uploaded document retrievable, not applicable. Every project upload begins `Pending review`. A planning-use decision must resolve the requester-owned project, current confirmed site, exact Detailed Planning Pack, normalized proposal and the real current Quick Site Check cited by that pack on the server. The resulting site, proposal and pack fingerprints plus one or more finite SEE evidence topics are persisted with an append-only actor/time/decision event; optimistic versioning prevents a concurrent review from being overwritten. Topic assignment is mandatory for accepted or conflicting material so one report cannot lend confidence to unrelated sections.
+
+Only a fully readable, successfully indexed document may be accepted. Acceptance records the source document date, rejects future dates and may record an expiry date. Pending, conflicting, expired or cross-scope evidence blocks the affected final SEE evidence path; accepted evidence from an earlier site, proposal or pack is never silently carried forward. Rejected and superseded material remains visible project history but cannot support or block the final document.
+
+The review state does not certify consultant competence, report correctness or council acceptance. It records that a human has assessed the exact document as applicable to the exact current planning chain, with limitations or conflicts preserved for reconciliation and citation. The final SEE compiler may consume only accepted, current, readable, indexed and conflict-free evidence and must retain source/page provenance.
+
+Reference: docs/project-memory/build-next.md Item 74A; DR-048; DR-050; DR-051
+
+## DR-053 — Evidence Confidence Is Section-Bound, Never Document-Wide
+
+Status: Active
+
+Decision: Plannera uses one finite, version-controlled SEE evidence-topic registry across uploaded documents and spatial observations. An accepted or conflicting review must explicitly select one or more topics. The selection is copied into the append-only review event and may affect only those sections. Source filenames, document wording, map layer labels and model similarity are not authority to assign evidence to an SEE section.
+
+The registry covers site context/survey, statutory planning, built form/design, access/parking/traffic, flood/stormwater, bushfire, biodiversity/landscaping, heritage/Aboriginal heritage, contamination/geotechnical, servicing/waste, acoustic/amenity, and social/economic/public-interest effects. Rejected or superseded material has no supporting topic. Accepted legacy evidence with no topic assignment fails closed and must be reviewed again before final-document use.
+
+Topic assignment establishes scope only; it does not prove the evidence resolves the topic. Section readiness must separately reconcile current accepted sources, conflicts, expiry, statutory gaps and required professional inputs. No strong source in one topic may raise confidence in an unrelated section or in the document as a whole.
+
+Reference: docs/project-memory/build-next.md Item 74A; DR-048; DR-051; DR-052
