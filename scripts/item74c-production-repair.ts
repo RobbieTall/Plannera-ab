@@ -465,11 +465,17 @@ const assertExactObservedProductionDeficits = async () => {
 };
 
 export const runItem74cProductionRepair = async () => {
-  if (process.env.VERCEL_ENV !== "production") {
+  if (
+    process.env.VERCEL_ENV !== "production" ||
+    process.env.ITEM74C_PRODUCTION_WRITE_APPROVED !== "1"
+  ) {
     return {
       ok: true as const,
       skipped: true as const,
-      reason: "not_production",
+      reason:
+        process.env.VERCEL_ENV !== "production"
+          ? "not_production"
+          : "approval_flag_absent",
     };
   }
 
