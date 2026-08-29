@@ -93,3 +93,19 @@ commercial-binding scenario. It confirmed:
 This is engineering acceptance of the protected Preview persistence path. It
 does not assert that the controlled Byron site has sufficient authoritative
 evidence for a paid artefact; that real site remains MORE_EVIDENCE_REQUIRED.
+
+## Integration Preview provisioning boundary (2026-08-30)
+
+The disposable clean-integration Preview uses its own exact Neon branch and
+endpoint pair. The four prerequisite spatial/applicability migrations were
+provisioned once on that isolated branch through the proven ten-migration
+rehearsal. They are not replayed by the hosted build because they were not
+authored as replay-safe migrations.
+
+The hosted build continues to apply only the six replay-safe Item 74H
+migrations before running the synthetic acceptance suite. This keeps repeat
+deployments deterministic while preserving the zero-residue contract.
+
+This allowlist extension authorizes only the named integration Preview pair.
+It grants no Production database, schema, checkout, payment or deployment
+authority.
