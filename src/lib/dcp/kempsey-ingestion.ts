@@ -1,25 +1,51 @@
 import { createHash } from "node:crypto";
 
-import { LgaCoverageMaturity, type PrismaClient } from "@prisma/client";
+import {
+  LgaCoverageMaturity,
+  WorkspaceSourceType,
+  type PrismaClient,
+} from "@prisma/client";
 import pdfParse from "pdf-parse";
 
 import { prisma as defaultPrisma } from "@/lib/prisma";
 
+export const KEMPSEY_DCP_2026_PAGE_URL =
+  "https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan";
+export const KEMPSEY_DCP_2026_PDF_URL =
+  "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/kempsey-shire-council-development-control-plan-2026.pdf";
+
 export const KEMPSEY_DCP_2026_PARTS = [
+  {
+    slug: "part-a-explanation",
+    title: "Part A - Explanation",
+    url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-a-explanation-kempsey-shire-council-development-control-plan-2026.pdf",
+  },
   {
     slug: "part-b-shire-wide-requirements",
     title: "Part B - Shire-wide requirements",
     url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-b-shire-wide-requirements-kempsey-shire-council-development-control-plan-2026.pdf",
   },
   {
+    slug: "part-c-place-based-requirements",
+    title: "Part C - Place-based requirements",
+    url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-c-place-based-requirements-kempsey-shire-council-development-control-plan-2026.pdf",
+  },
+  {
     slug: "part-d-development-requirements",
     title: "Part D - Development requirements",
     url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-d-development-requirements-kempsey-shire-council-development-control-plan-2026.pdf",
   },
+  {
+    slug: "part-e-appendices",
+    title: "Part E - Appendices",
+    url: "https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-e-appendices-kempsey-shire-council-development-control-plan-2026.pdf",
+  },
 ] as const;
 
 const LGA_CODE = "KEMPSEY";
-const SOURCE = "KEMPSEY_DCP_2026";
+const SOURCE = "kempsey-dcp-2026";
+const DOCUMENT_TITLE = "Kempsey Development Control Plan 2026";
+const DOCUMENT_FILE_NAME = "kempsey-shire-council-development-control-plan-2026.pdf";
 const FETCH_TIMEOUT_MS = 30_000;
 const TARGET_CHUNK_LENGTH = 800;
 const MAX_CHUNK_LENGTH = 1_200;
@@ -60,7 +86,12 @@ const fetchPdfBytes = async (part: KempseyDcpPart) => {
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return Buffer.from(await response.arrayBuffer());
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      throw new Error("Response is not a PDF");
+    }
+    return buffer;
   } finally {
     clearTimeout(timeout);
   }
@@ -78,7 +109,7 @@ const isLikelyHeading = (line: string) => {
     /^\d+(?:\.\d+)*\s+\S/.test(trimmed) ||
     /^Part\s+[A-Z]\b/i.test(trimmed) ||
     /^Section\s+\d+/i.test(trimmed) ||
-    /^[A-Z][A-Z0-9 /,&()'’\-]+$/.test(trimmed)
+    /^[A-Z][A-Z0-9 /,&()'’-]+$/.test(trimmed)
   );
 };
 
@@ -137,35 +168,32 @@ const sectionTitleFor = (chunk: string, fallback: string) => {
   return firstLine.length > 160 ? `${firstLine.slice(0, 157)}...` : firstLine;
 };
 
-export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
-  const parsedParts = [] as Array<{
-    part: KempseyDcpPart;
-    chapterRef: string;
-    chunks: string[];
-  }>;
+const parsePart = async (part: KempseyDcpPart) => {
+  try {
+    const buffer = await fetchPdfBytes(part);
+    const text = await extractPdfText(buffer);
+    const chunks = splitTextIntoChunks(text);
 
-  for (const part of KEMPSEY_DCP_2026_PARTS) {
-    try {
-      const buffer = await fetchPdfBytes(part);
-      const text = await extractPdfText(buffer);
-      const chunks = splitTextIntoChunks(text);
-
-      if (!chunks.length) {
-        console.warn("[kempsey-dcp] No chunks parsed for PDF part", {
-          part: part.title,
-          url: part.url,
-        });
-        continue;
-      }
-
-      parsedParts.push({ part, chapterRef: chapterRefFor(part), chunks });
-    } catch (error) {
-      console.warn("[kempsey-dcp] Skipping PDF part after fetch/parse failure", {
-        part: part.title,
-        url: part.url,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    if (!chunks.length) {
+      throw new Error("No substantive text chunks were parsed");
     }
+
+    return { part, chapterRef: chapterRefFor(part), chunks };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown error";
+    throw new Error(
+      `Kempsey DCP 2026 ingestion stopped at ${part.title}: ${reason}`,
+    );
+  }
+};
+
+export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
+  const parsedParts = await Promise.all(
+    KEMPSEY_DCP_2026_PARTS.map((part) => parsePart(part)),
+  );
+
+  if (parsedParts.length !== KEMPSEY_DCP_2026_PARTS.length) {
+    throw new Error("All five Kempsey DCP 2026 parts are required");
   }
 
   const clauses = parsedParts.flatMap(({ part, chapterRef, chunks }) =>
@@ -180,15 +208,47 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
   );
 
   if (!clauses.length) {
-    throw new Error("No Kempsey DCP 2026 PDF parts could be fetched and parsed");
+    throw new Error("No Kempsey DCP 2026 clauses were parsed");
   }
 
   await db.$transaction(async (tx) => {
     const ingestedAt = new Date();
-
-    await tx.dCPClause.deleteMany({
-      where: { lgaCode: LGA_CODE, instrumentSlug: SOURCE },
+    const councilDocument = await tx.councilDocument.upsert({
+      where: { lgaCode: LGA_CODE },
+      update: {
+        title: DOCUMENT_TITLE,
+        sourceUrl: KEMPSEY_DCP_2026_PAGE_URL,
+        fileName: DOCUMENT_FILE_NAME,
+        fileExtension: "pdf",
+        mimeType: "application/pdf",
+        storagePath: KEMPSEY_DCP_2026_PDF_URL,
+        publicUrl: KEMPSEY_DCP_2026_PDF_URL,
+        extractedText: null,
+      },
+      create: {
+        lgaCode: LGA_CODE,
+        title: DOCUMENT_TITLE,
+        sourceUrl: KEMPSEY_DCP_2026_PAGE_URL,
+        fileName: DOCUMENT_FILE_NAME,
+        fileExtension: "pdf",
+        mimeType: "application/pdf",
+        storagePath: KEMPSEY_DCP_2026_PDF_URL,
+        publicUrl: KEMPSEY_DCP_2026_PDF_URL,
+      },
     });
+
+    await tx.workspaceSourceChunk.deleteMany({
+      where: {
+        lgaCode: LGA_CODE,
+        sourceType: {
+          in: [WorkspaceSourceType.council_dcp, WorkspaceSourceType.dcp],
+        },
+      },
+    });
+    await tx.dCPClause.deleteMany({
+      where: { lgaCode: LGA_CODE },
+    });
+
     const dcpInsert = await tx.dCPClause.createMany({
       data: clauses.map((clause) => ({
         lgaCode: LGA_CODE,
@@ -208,7 +268,10 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         topicTags: [],
         numericMeta: {
           sourceUrl: clause.part.url,
+          sourcePageUrl: KEMPSEY_DCP_2026_PAGE_URL,
           source: SOURCE,
+          edition: 2026,
+          effectiveFrom: "2026-07-01",
           chapterRef: clause.chapterRef,
           sectionTitle: clause.title,
           partSlug: clause.part.slug,
@@ -217,22 +280,50 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         },
       })),
     });
-    if (dcpInsert.count > 0) {
-      await tx.lgaCoverageState.upsert({
-        where: { lgaCode: LGA_CODE },
-        update: {
-          state: LgaCoverageMaturity.SEARCHABLE_READY,
-          lastPreparedAt: ingestedAt,
-          errorMessage: null,
+
+    const chunkInsert = await tx.workspaceSourceChunk.createMany({
+      data: clauses.map((clause) => ({
+        councilDocumentId: councilDocument.id,
+        lgaCode: LGA_CODE,
+        heading: `${clause.chapterRef} - ${clause.title}`,
+        content: clause.content,
+        sourceType: WorkspaceSourceType.council_dcp,
+        metadata: {
+          sourceUrl: clause.part.url,
+          sourcePageUrl: KEMPSEY_DCP_2026_PAGE_URL,
+          source: SOURCE,
+          edition: 2026,
+          effectiveFrom: "2026-07-01",
+          chapterRef: clause.chapterRef,
+          sectionTitle: clause.title,
+          partSlug: clause.part.slug,
+          chunkIndex: clause.index,
+          contentHash: hashContent(`${clause.part.url}:${clause.content}`),
         },
-        create: {
-          lgaCode: LGA_CODE,
-          state: LgaCoverageMaturity.SEARCHABLE_READY,
-          lastPreparedAt: ingestedAt,
-        },
-      });
+      })),
+    });
+
+    if (
+      dcpInsert.count !== clauses.length ||
+      chunkInsert.count !== clauses.length
+    ) {
+      throw new Error("Kempsey DCP 2026 corpus replacement was incomplete");
     }
-  });
+
+    await tx.lgaCoverageState.upsert({
+      where: { lgaCode: LGA_CODE },
+      update: {
+        state: LgaCoverageMaturity.SEARCHABLE_READY,
+        lastPreparedAt: ingestedAt,
+        errorMessage: null,
+      },
+      create: {
+        lgaCode: LGA_CODE,
+        state: LgaCoverageMaturity.SEARCHABLE_READY,
+        lastPreparedAt: ingestedAt,
+      },
+    });
+  }, { maxWait: 10_000, timeout: 60_000 });
 
   return {
     ok: true as const,
