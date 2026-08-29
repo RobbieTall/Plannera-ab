@@ -324,3 +324,14 @@ Pre-SEE key development standards now promote retrieved LEP development-standard
 Success signal: Byron/Kempsey SEE generation can populate height, FSR, and minimum lot size from ingested LEP clause text with LEP citations instead of always showing the unmapped fallback.
 
 #
+
+## 2026-08-29 main release integration checkpoint
+
+- Merged to `main`: PR #339 (Council Edition strategy), PR #341 (Stripe test-acceptance hardening), PR #340 (representative Byron/Kempsey launch gate), and PR #343 (whole-LGA source matrix gate).
+- Production checkout remains disabled. Item 72C hardening remains implemented and not re-executed.
+- The first Production whole-LGA deployment failed safely before application compilation because the read-only `smoke:launch` gate returned 14 green and 4 red. Vercel retained the preceding Ready deployment, so no live outage or database mutation occurred.
+- Production evidence gaps are exact and must not be weakened: Byron coverage is `QUEUED`; Byron has no council-source chunks; Kempsey coverage is `SEARCHABLE_READY`; and Kempsey LEP provenance has no valid authoritative HTTPS source.
+- PRs #337/#338 remain unmerged because their additive schema is used by existing workspace queries and therefore requires an explicitly approved, forward-only Production migration before application deployment.
+- PRs #344-#347 remain release candidates until the Production planning-data gate is repaired through a separately approved, evidence-preserving operation and reruns green.
+- The Item 74H Preview persistence runner now skips only hosted Production builds with a truthful disabled result; protected Preview execution remains exact-branch, isolated-database, checkout-disabled, and fail-closed.
+
