@@ -47,3 +47,16 @@ A failed ingestion, unexpected starting state, incomplete official source set, i
 ## Acceptance boundary
 
 A green repair certifies the representative launch gate and whole-LGA source matrix only. It does not activate checkout, apply Item 74H schema, certify a real customer pathway, approve a paid SEE, or replace operator review.
+
+## Accepted Production result
+
+Production deployment `dpl_DcqLDRd2xgAgZagPABSPNPdp5me7` reached Ready after the approved repair.
+
+- Byron: 39 pinned official sources, 826 DCP clauses, and 826 council-source chunks.
+- Kempsey: all five official DCP 2026 parts, 1,496 DCP clauses, and 1,496 council-source chunks.
+- `smoke:launch`: 18 green, 0 amber, 0 red.
+- `smoke:whole-lga`: 60 green, 0 red.
+- Production checkout remained disabled.
+- No Production schema operation occurred.
+- The one-time build hook was removed immediately after acceptance; subsequent builds return to Prisma generation, both read-only gates, then application compilation.
+
