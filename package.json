@@ -7,7 +7,7 @@
     "migrate:deploy": "echo 'migrate disabled on vercel'",
     "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "node ./scripts/prisma-generate.js && npx tsx scripts/item74c-production-repair.ts && npm run smoke:launch && npm run smoke:whole-lga && next build",
+    "vercel-build": "node ./scripts/prisma-generate.js && npm run smoke:launch && npm run smoke:whole-lga && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:node && npm run test:vitest",
