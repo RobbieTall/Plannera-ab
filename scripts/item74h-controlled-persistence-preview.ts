@@ -18,8 +18,14 @@ import {
   type PathwayPublicDaEvidenceCatalog,
 } from '../src/lib/pathway-public-da-evidence';
 
-const EXPECTED_REF = 'agent/item74h-pathway-check';
-const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
+const EXPECTED_REFS = new Set([
+  'agent/item74h-pathway-check',
+  'integration/item74h-resolution-20260830',
+]);
+const EXPECTED_NEON_ENDPOINTS = new Set([
+  'ep-misty-dream-a7l6wcp8',
+  'ep-bold-shadow-a7y8j17d',
+]);
 const ENABLE_FLAG = 'ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE';
 const PUBLIC_DA_TRACKER_URL =
   'https://datracker.byron.nsw.gov.au/masterviewui-external/application/applicationdetails/010.2025.00000340.001/';
@@ -75,7 +81,7 @@ function assertProtectedPreview(): void {
     'Controlled persistence is restricted to Vercel Preview',
   );
   assert(
-    process.env.VERCEL_GIT_COMMIT_REF === EXPECTED_REF,
+    EXPECTED_REFS.has(process.env.VERCEL_GIT_COMMIT_REF ?? ''),
     'Controlled persistence requires the exact protected branch',
   );
   assert(
@@ -95,7 +101,7 @@ function assertProtectedPreview(): void {
   assert(value, 'DATABASE_URL is required in protected Preview');
   const host = new URL(value).hostname;
   assert(
-    host.startsWith(EXPECTED_NEON_ENDPOINT) && host.endsWith('.neon.tech'),
+    [...EXPECTED_NEON_ENDPOINTS].some((endpoint) => host.startsWith(endpoint)) && host.endsWith('.neon.tech'),
     'DATABASE_URL does not target the isolated Item 74H Neon endpoint',
   );
 }
