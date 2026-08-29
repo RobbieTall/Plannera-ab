@@ -77,6 +77,8 @@ type ResidueRow = {
   itemCount: number;
 };
 
+let currentStage = "startup";
+
 function skip(reason: string): never {
   console.log("[item74h:package-schema] skipped: " + reason);
   process.exit(0);
@@ -137,6 +139,7 @@ if (
 }
 
 const main = async () => {
+  currentStage = "timestamp_contract";
   const columns = await prisma.$queryRaw<ColumnRow[]>`
     SELECT
       data_type AS "dataType",
@@ -154,6 +157,7 @@ const main = async () => {
     "createdAt is not TIMESTAMP(3) without time zone",
   );
 
+  currentStage = "constraint_inventory";
   const constraints = await prisma.$queryRaw<ConstraintRow[]>`
     SELECT
       conname AS "constraintName",
@@ -173,6 +177,7 @@ const main = async () => {
   );
 
   for (const [constraintName, requiredTerms] of EXPECTED_CONSTRAINTS) {
+    currentStage = "constraint_contract_" + constraintName;
     const definition = actual.get(constraintName);
     assertCondition(definition, "missing constraint " + constraintName);
     for (const requiredTerm of requiredTerms) {
@@ -183,6 +188,7 @@ const main = async () => {
     }
   }
 
+  currentStage = "residue_contract";
   const residue = await prisma.$queryRaw<ResidueRow[]>`
     SELECT
       (SELECT COUNT(*)::integer
@@ -208,7 +214,9 @@ const main = async () => {
 main()
   .catch((error) => {
     console.error(
-      "[item74h:package-schema] failed type=" +
+      "[item74h:package-schema] failed stage=" +
+        currentStage +
+        " type=" +
         (error instanceof Error ? error.name : "unknown_error"),
     );
     process.exitCode = 1;
