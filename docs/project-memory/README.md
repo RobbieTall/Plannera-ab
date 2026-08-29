@@ -16,9 +16,10 @@ Its purpose is to keep strategic direction durable and discoverable so planning,
 
 1. Product philosophy: `docs/plannera-product-philosophy.md`
 2. JIT LGA architecture: `docs/architecture/just-in-time-lga-activation.md`
-3. Project memory index (this folder): `docs/project-memory/README.md`
-4. Build-next queue: `docs/project-memory/build-next.md`
-5. Active decisions register: `docs/project-memory/decision-register.md`
+3. Council Edition strategy: `docs/project-memory/council-assessment-strategy.md`
+4. Project memory index (this folder): `docs/project-memory/README.md`
+5. Build-next queue: `docs/project-memory/build-next.md`
+6. Active decisions register: `docs/project-memory/decision-register.md`
 
 ## Maintenance rule
 
