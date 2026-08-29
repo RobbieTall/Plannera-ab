@@ -1373,3 +1373,17 @@ Minimum contract:
 - LGA preparation is shared infrastructure after completion, but each A$49 purchase remains a proposal-specific analysis and may earn only its own exact-scope SEE credit.
 
 Success signal: a clean text-PDF council can be registered, prepared and made searchable without application branching, then promoted through repeatable automated/operator QA and notified back to the paying project without claiming whole-LGA verification from one site or zone.
+
+## 2026-08-29 Production launch-gate acceptance
+
+- Merged PRs #339, #341, #340, #343, and #349 to `main`.
+- The approved evidence-preserving Production planning-data repair completed without a schema operation.
+- Byron now has 39 pinned official DCP 2014 sources, 826 DCP clauses, 826 council-source chunks, authoritative HTTPS provenance, and `VERIFIED` coverage.
+- Kempsey now has all five official DCP 2026 parts, 1,496 DCP clauses, 1,496 council-source chunks, authoritative HTTPS LEP/DCP provenance, and `VERIFIED` coverage.
+- Production `smoke:launch` passed 18 green, 0 amber, 0 red.
+- Production `smoke:whole-lga` passed 60 green, 0 red.
+- Vercel Production deployment `dpl_DcqLDRd2xgAgZagPABSPNPdp5me7` reached Ready.
+- Production checkout remained disabled. The one-time data-repair hook was removed immediately after acceptance.
+- PRs #337/#338 remain held for their separately approved forward-only Production schema migration.
+- The next merge candidate is the fail-closed Item 74 spatial/SEE/credit/Pathway Check stack, beginning with PR #344 and retaining the Preview-only Item 74H activation boundary.
+
