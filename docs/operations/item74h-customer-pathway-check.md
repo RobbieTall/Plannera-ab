@@ -46,6 +46,33 @@ told that versioned LEP, DCP and spatial evidence is still being assembled.
 The A$49 and A$749 states are derived from the persisted exact commercial
 binding and are always false when evidence is stale, absent or unresolved.
 
+## Actionable missing-evidence contract
+
+`src/lib/pathway-evidence-checklist.ts` is the deterministic customer checklist
+engine. It does not query a database, call an LLM, inspect uploads or infer a
+favourable outcome.
+
+For `MORE_EVIDENCE_REQUIRED` it can request only evidence justified by the
+persisted customer projection:
+
+- authoritative TfNSW or council road-classification and legal-frontage evidence
+  when the bound road category is `UNRESOLVED`;
+- a current cadastral survey and proposed shed layout when dimensions remain
+  `USER_ATTESTED`;
+- refreshed authoritative sources or typed controls when persisted evidence is
+  not current; and
+- one evidence request for each persisted blocking gate, preserving its exact
+  question, reasoning and order.
+
+A current `PROCEED` decision produces no missing-evidence requests. The helper
+accepts no address, coordinate, parcel, digest, upload or reviewer field, and
+its focused regression proves that unsupported protected fields cannot be
+projected into the checklist.
+
+The engine is deliberately committed and tested before response/UI integration.
+Until that integration is exact-head green, the modal's existing gate list
+remains authoritative and paid products remain locked.
+
 ## Commercial safety
 
 `productionCheckoutEnabled` is a literal false in every customer response.
@@ -66,6 +93,11 @@ cleanup. Each run must prove:
 
 This connects the renderer to durable Prisma persistence rather than relying
 only on an in-memory fixture.
+
+The `Pathway Customer Result Contract` workflow also runs the focused
+checklist regression. It requires deterministic ordering, no checklist for
+`PROCEED`, preservation of every blocking gate, explicit road/survey actions
+for the worked attestation, and no protected-site projection.
 
 ## Bound user proposal
 
