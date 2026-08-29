@@ -488,6 +488,11 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
       'Customer pathway lost the persisted unresolved gate',
     );
     assert(
+      customerResult.evidenceChecklist.map((item) => item.id).join('|') ===
+        'authoritative-road-classification|reviewed-site-measurements|gate-0',
+      'Reloaded customer pathway lost its deterministic evidence checklist',
+    );
+    assert(
       customerResult.commercial.planningControlsPackEligible === false &&
         customerResult.commercial.submissionSeeEligible === false &&
         customerResult.commercial.productionCheckoutEnabled === false,
@@ -594,6 +599,7 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
       replayReturnedSameAssessment: true,
       reloadPreservedSpatialDefinitionEvidenceControlsAndGates: true,
       customerResultRenderedFromReload: true,
+      customerChecklistRenderedFromReload: true,
       proposalAttestationBoundAndRendered: true,
       proposalBindingReplaySafe: true,
       customerResultPaidProductsBlocked: true,
