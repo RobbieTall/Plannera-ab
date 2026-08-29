@@ -9,8 +9,14 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createProjectForRequester } from "@/lib/projects";
 
-const TARGET_BRANCH = "agent/item74h-pathway-check";
-const TARGET_NEON_ENDPOINT_PREFIX = "ep-misty-dream-a7l6wcp8";
+const TARGET_BRANCHES = new Set([
+  "agent/item74h-pathway-check",
+  "integration/item74h-resolution-20260830",
+]);
+const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
+  "ep-misty-dream-a7l6wcp8",
+  "ep-bold-shadow-a7y8j17d",
+]);
 const RECORD_VERSION = "pathway-proposal-attestation.v1";
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
@@ -44,7 +50,7 @@ export function isProtectedProposalAttestationPreview(
   if (
     env.VERCEL !== "1" ||
     env.VERCEL_ENV !== "preview" ||
-    env.VERCEL_GIT_COMMIT_REF !== TARGET_BRANCH
+    !TARGET_BRANCHES.has(env.VERCEL_GIT_COMMIT_REF ?? "")
   ) {
     return false;
   }
@@ -75,7 +81,9 @@ export function isProtectedProposalAttestationPreview(
   }
 
   if (
-    !host.startsWith(TARGET_NEON_ENDPOINT_PREFIX) ||
+    ![...TARGET_NEON_ENDPOINT_PREFIXES].some((endpoint) =>
+      host.startsWith(endpoint),
+    ) ||
     !host.endsWith(".neon.tech")
   ) {
     throw new Error(
