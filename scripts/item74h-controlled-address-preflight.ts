@@ -2,8 +2,14 @@ import { createHash } from 'node:crypto';
 
 import { PrismaClient } from '@prisma/client';
 
-const EXPECTED_REF = 'agent/item74h-pathway-check';
-const EXPECTED_NEON_ENDPOINT = 'ep-misty-dream-a7l6wcp8';
+const EXPECTED_REFS = new Set([
+  'agent/item74h-pathway-check',
+  'integration/item74h-resolution-20260830',
+]);
+const EXPECTED_NEON_ENDPOINTS = new Set([
+  'ep-misty-dream-a7l6wcp8',
+  'ep-bold-shadow-a7y8j17d',
+]);
 const NSW_ZONING_LAYER_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
 const GOOGLE_GEOCODING_URL =
@@ -60,7 +66,7 @@ function assertProtectedPreview(): void {
     'Controlled flight is restricted to Vercel Preview',
   );
   assert(
-    process.env.VERCEL_GIT_COMMIT_REF === EXPECTED_REF,
+    EXPECTED_REFS.has(process.env.VERCEL_GIT_COMMIT_REF ?? ''),
     'Controlled flight requires the exact Item 74H branch',
   );
   assert(
@@ -76,7 +82,7 @@ function assertProtectedPreview(): void {
   assert(databaseUrl, 'DATABASE_URL is required');
   const host = new URL(databaseUrl).hostname;
   assert(
-    host.startsWith(EXPECTED_NEON_ENDPOINT) && host.endsWith('.neon.tech'),
+    [...EXPECTED_NEON_ENDPOINTS].some((endpoint) => host.startsWith(endpoint)) && host.endsWith('.neon.tech'),
     'DATABASE_URL is not the isolated Item 74H Neon endpoint',
   );
 }
