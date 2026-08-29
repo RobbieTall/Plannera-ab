@@ -27,6 +27,7 @@ The scenario is restricted by the parent harness to:
 - Vercel Preview;
 - exact branch `agent/item74h-pathway-check` or the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`;
 - no wildcard or prefix branch matching;
+- each allowed branch remains bound to an exact isolated Neon endpoint allowlist; no general Neon-domain acceptance;
 - the isolated Item 74H Neon endpoint;
 - disabled Planning Controls Pack checkout;
 - disabled submission SEE checkout.
