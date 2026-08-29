@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: Confirm the protected three-phase acceptance for one dedicated Stripe test Checkout session.
+        description: Confirm one protected, non-production lifecycle using the same dedicated Stripe test Checkout session.
         required: true
         type: choice
         options:
@@ -16,7 +16,7 @@ on:
         options:
           - PROTECTED NON-PRODUCTION
       phase:
-        description: Select the lifecycle phase being proved.
+        description: "Lifecycle boundary: run before_payment before manual payment; run paid after payment and again for replay; run refunded after the full test refund."
         required: true
         type: choice
         options:
@@ -24,7 +24,7 @@ on:
           - paid
           - refunded
       checkout_session_id:
-        description: Opaque cs_test_ ID for the one dedicated test Checkout session (paid or unpaid according to phase).
+        description: Exact cs_test_ ID for the dedicated test Checkout session; reuse it for before_payment, paid, paid replay, and refunded.
         required: true
         type: string
 
