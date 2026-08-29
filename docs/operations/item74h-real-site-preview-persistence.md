@@ -25,7 +25,8 @@ bridge result can:
 The scenario is restricted by the parent harness to:
 
 - Vercel Preview;
-- branch agent/item74h-pathway-check;
+- exact branch `agent/item74h-pathway-check` or the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`;
+- no wildcard or prefix branch matching;
 - the isolated Item 74H Neon endpoint;
 - disabled Planning Controls Pack checkout;
 - disabled submission SEE checkout.
