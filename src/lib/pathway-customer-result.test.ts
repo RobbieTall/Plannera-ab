@@ -146,6 +146,18 @@ describe("Item 74H customer pathway result", () => {
       "DCP",
       "SPATIAL",
     ]);
+    expect(result.evidenceChecklist.map((item) => item.id)).toEqual([
+      "authoritative-road-classification",
+      "reviewed-site-measurements",
+      "gate-1",
+    ]);
+    expect(result.evidenceChecklist[0]).toMatchObject({
+      kind: "AUTHORITATIVE_ROAD_CLASSIFICATION",
+      blockingGateOrders: [1],
+    });
+    expect(result.evidenceChecklist[1].provide).toContain(
+      "proposed shed layout",
+    );
     const serialized = JSON.stringify(result);
     for (const secret of [
       "10 Private Road",
@@ -189,6 +201,12 @@ describe("Item 74H customer pathway result", () => {
         productionCheckoutEnabled: false,
       },
     });
+    if (result.status !== "available") throw new Error("Expected result");
+    expect(
+      result.evidenceChecklist.some(
+        (item) => item.id === "current-source-lep",
+      ),
+    ).toBe(true);
   });
 
   it("returns an explicit fail-closed response outside Preview", () => {

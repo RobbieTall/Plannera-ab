@@ -1,4 +1,8 @@
 import { readPersistedPathwayCommercialBinding } from "./pathway-persisted-commercial-binding";
+import {
+  buildPathwayEvidenceChecklist,
+  type PathwayEvidenceRequest,
+} from "./pathway-evidence-checklist";
 
 export const PATHWAY_CUSTOMER_RESULT_VERSION =
   "item74h-customer-result.v1" as const;
@@ -130,6 +134,7 @@ export type PathwayCustomerResult =
         outcome: PathwayCustomerDecision;
         reasoning: string;
       }>;
+      evidenceChecklist: PathwayEvidenceRequest[];
       commercial: {
         freePathwayCheckAvailable: true;
         planningControlsPackEligible: boolean;
@@ -360,6 +365,41 @@ export function toPathwayCustomerResult(
     });
   }
 
+  const proposal = customerProposal(input.proposalAttestation);
+  const controls = input.controlSnapshots.map((control) => ({
+    label: control.label,
+    operator: control.operator,
+    value: controlValue(control),
+    unit: control.unit,
+    sourceReference: control.sourceReference,
+    current: currentAt(
+      control.isCurrentAtAssessment,
+      control.staleAt,
+      asOf,
+    ),
+  }));
+  const gates = [...input.gateSnapshots]
+    .sort((left, right) => left.sequence - right.sequence)
+    .map((gate) => {
+      if (!decisions.has(gate.outcome as PathwayCustomerDecision)) {
+        throw new Error("Unsupported persisted gate outcome.");
+      }
+      return {
+        order: gate.sequence,
+        question: gate.question,
+        outcome: gate.outcome as PathwayCustomerDecision,
+        reasoning: gate.reason,
+      };
+    });
+  const evidenceChecklist = buildPathwayEvidenceChecklist({
+    decision,
+    current,
+    proposal,
+    sources,
+    controls,
+    gates,
+  });
+
   return {
     version: PATHWAY_CUSTOMER_RESULT_VERSION,
     status: "available",
@@ -370,33 +410,11 @@ export function toPathwayCustomerResult(
     assessmentVersion: input.pathwayDefinition.versionKey,
     assessedAt,
     current,
-    proposal: customerProposal(input.proposalAttestation),
+    proposal,
     sources,
-    controls: input.controlSnapshots.map((control) => ({
-      label: control.label,
-      operator: control.operator,
-      value: controlValue(control),
-      unit: control.unit,
-      sourceReference: control.sourceReference,
-      current: currentAt(
-        control.isCurrentAtAssessment,
-        control.staleAt,
-        asOf,
-      ),
-    })),
-    gates: [...input.gateSnapshots]
-      .sort((left, right) => left.sequence - right.sequence)
-      .map((gate) => {
-        if (!decisions.has(gate.outcome as PathwayCustomerDecision)) {
-          throw new Error("Unsupported persisted gate outcome.");
-        }
-        return {
-          order: gate.sequence,
-          question: gate.question,
-          outcome: gate.outcome as PathwayCustomerDecision,
-          reasoning: gate.reason,
-        };
-      }),
+    controls,
+    gates,
+    evidenceChecklist,
     commercial: {
       freePathwayCheckAvailable: true,
       planningControlsPackEligible: Boolean(

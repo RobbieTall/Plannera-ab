@@ -69,9 +69,13 @@ accepts no address, coordinate, parcel, digest, upload or reviewer field, and
 its focused regression proves that unsupported protected fields cannot be
 projected into the checklist.
 
-The engine is deliberately committed and tested before response/UI integration.
-Until that integration is exact-head green, the modal's existing gate list
-remains authoritative and paid products remain locked.
+The redacted customer adapter now derives `evidenceChecklist` only after the
+allow-listed proposal, public sources, typed controls and gate snapshots have
+been projected. The existing authenticated Preview route therefore returns the
+checklist without selecting any additional database field. Modal rendering is
+the remaining integration boundary; until that is exact-head green, the
+existing customer gate list remains authoritative and paid products remain
+locked.
 
 ## Commercial safety
 
@@ -87,6 +91,8 @@ cleanup. Each run must prove:
 
 - the customer result renders from the reloaded record;
 - the persisted `MORE_EVIDENCE_REQUIRED` gate remains ordered and intact;
+- the customer result contains only checklist actions derived from the redacted
+  projection;
 - both paid products remain blocked;
 - all privacy flags remain false for protected values; and
 - cleanup still returns zero residual rows.
@@ -97,7 +103,8 @@ only on an in-memory fixture.
 The `Pathway Customer Result Contract` workflow also runs the focused
 checklist regression. It requires deterministic ordering, no checklist for
 `PROCEED`, preservation of every blocking gate, explicit road/survey actions
-for the worked attestation, and no protected-site projection.
+for the worked attestation, stale-source refresh, and no protected-site
+projection.
 
 ## Bound user proposal
 
