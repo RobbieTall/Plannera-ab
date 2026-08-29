@@ -1,7 +1,13 @@
 import { prisma } from "../src/lib/prisma";
 
-const TARGET_BRANCH = "agent/item74h-pathway-check";
-const TARGET_NEON_ENDPOINT_PREFIX = "ep-misty-dream-a7l6wcp8";
+const TARGET_BRANCHES = new Set([
+  "agent/item74h-pathway-check",
+  "integration/item74h-resolution-20260830",
+]);
+const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
+  "ep-misty-dream-a7l6wcp8",
+  "ep-bold-shadow-a7y8j17d",
+]);
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
 const EXPECTED_CONSTRAINTS = new Map<string, readonly string[]>([
@@ -99,7 +105,7 @@ if (process.env.VERCEL_ENV !== "preview") {
   skip("not a Vercel Preview deployment");
 }
 
-if (process.env.VERCEL_GIT_COMMIT_REF !== TARGET_BRANCH) {
+if (!TARGET_BRANCHES.has(process.env.VERCEL_GIT_COMMIT_REF ?? "")) {
   skip("not the protected Item 74H branch");
 }
 
@@ -130,7 +136,9 @@ try {
 }
 
 if (
-  !databaseHost.startsWith(TARGET_NEON_ENDPOINT_PREFIX) ||
+  ![...TARGET_NEON_ENDPOINT_PREFIXES].some((endpoint) =>
+    databaseHost.startsWith(endpoint),
+  ) ||
   !databaseHost.endsWith(".neon.tech")
 ) {
   throw new Error(
