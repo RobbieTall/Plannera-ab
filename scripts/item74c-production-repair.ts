@@ -15,7 +15,7 @@ import {
 } from "../src/lib/dcp/kempsey-ingestion";
 import { prisma } from "../src/lib/prisma";
 
-const APPROVED_BRANCH = "agent/item74c-whole-lga-matrix";
+const APPROVED_BRANCH = "main";
 const KEMPSEY_LEP_SOURCE_URL =
   "https://legislation.nsw.gov.au/view/whole/html/inforce/current/epi-2013-0712";
 
@@ -102,22 +102,37 @@ function assertCondition(
 const isEnabled = (value: string | undefined) =>
   ["1", "true", "yes", "on"].includes(value?.trim().toLowerCase() ?? "");
 
-export const assertItem74cPreviewBoundary = () => {
+export const assertItem74cProductionBoundary = () => {
   assertCondition(
-    process.env.ITEM74C_PREVIEW_WRITE_APPROVED === "1",
-    "Explicit one-time Preview write approval flag is absent",
+    process.env.VERCEL === "1",
+    "Item 74C Production repair requires hosted Vercel execution",
   );
   assertCondition(
-    process.env.VERCEL_ENV === "preview",
-    "Item 74C repair may run only in Vercel Preview",
+    process.env.ITEM74C_PRODUCTION_WRITE_APPROVED === "1",
+    "Explicit one-time Production write approval flag is absent",
+  );
+  assertCondition(
+    process.env.VERCEL_ENV === "production",
+    "Item 74C repair may run only in Vercel Production",
   );
   assertCondition(
     process.env.VERCEL_GIT_COMMIT_REF === APPROVED_BRANCH,
-    "Item 74C repair may run only on the approved PR branch",
+    "Item 74C repair may run only on the approved Production branch",
   );
   assertCondition(
     !isEnabled(process.env.PLANNING_PACK_CHECKOUT_ENABLED),
-    "Item 74C repair refuses to run while Production checkout is enabled",
+    "Item 74C repair refuses to run while Planning Controls Pack checkout is enabled",
+  );
+  assertCondition(
+    !isEnabled(process.env.SUBMISSION_SEE_CHECKOUT_ENABLED),
+    "Item 74C repair refuses to run while submission SEE checkout is enabled",
+  );
+  const databaseUrl = process.env.DATABASE_URL;
+  assertCondition(databaseUrl, "Production DATABASE_URL is unavailable");
+  const databaseHost = new URL(databaseUrl).hostname;
+  assertCondition(
+    databaseHost.endsWith(".neon.tech"),
+    "Production DATABASE_URL is not a Neon endpoint",
   );
 };
 
@@ -295,7 +310,7 @@ const validateLgaEvidence = async (
   };
 };
 
-const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
+const repairAndCertifyProductionEvidence = async (tx: Transaction) => {
   setStage("kempsey_lep_provenance");
   const kempseyLepUpdate = await tx.instrument.updateMany({
     where: { slug: LGA_CONFIG.KEMPSEY.lepSlug },
@@ -396,9 +411,77 @@ const repairAndCertifyPreviewEvidence = async (tx: Transaction) => {
   return evidence;
 };
 
-export const runItem74cPreviewRepair = async () => {
-  setStage("preview_boundary");
-  assertItem74cPreviewBoundary();
+
+const assertExactObservedProductionDeficits = async () => {
+  setStage("production_preflight");
+  const [
+    byronCoverage,
+    byronDocument,
+    byronSourceChunks,
+    kempseyCoverage,
+    kempseyInstrument,
+  ] = await Promise.all([
+    prisma.lgaCoverageState.findUnique({
+      where: { lgaCode: "BYRON" },
+      select: { state: true },
+    }),
+    prisma.councilDocument.findUnique({
+      where: { lgaCode: "BYRON" },
+      select: { id: true },
+    }),
+    prisma.workspaceSourceChunk.count({
+      where: {
+        lgaCode: "BYRON",
+        sourceType: WorkspaceSourceType.council_dcp,
+      },
+    }),
+    prisma.lgaCoverageState.findUnique({
+      where: { lgaCode: "KEMPSEY" },
+      select: { state: true },
+    }),
+    prisma.instrument.findUnique({
+      where: { slug: LGA_CONFIG.KEMPSEY.lepSlug },
+      select: { sourceUrl: true },
+    }),
+  ]);
+
+  assertCondition(
+    byronCoverage?.state === LgaCoverageMaturity.QUEUED,
+    "Production preflight no longer matches the observed Byron coverage deficit",
+  );
+  assertCondition(
+    byronDocument && byronSourceChunks === 0,
+    "Production preflight no longer matches the observed Byron source-chunk deficit",
+  );
+  assertCondition(
+    kempseyCoverage?.state === LgaCoverageMaturity.SEARCHABLE_READY,
+    "Production preflight no longer matches the observed Kempsey coverage deficit",
+  );
+  assertCondition(
+    kempseyInstrument &&
+      !kempseyInstrument.sourceUrl.startsWith("https://"),
+    "Production preflight no longer matches the observed Kempsey LEP provenance deficit",
+  );
+};
+
+export const runItem74cProductionRepair = async () => {
+  if (
+    process.env.VERCEL_ENV !== "production" ||
+    process.env.ITEM74C_PRODUCTION_WRITE_APPROVED !== "1"
+  ) {
+    return {
+      ok: true as const,
+      skipped: true as const,
+      reason:
+        process.env.VERCEL_ENV !== "production"
+          ? "not_production"
+          : "approval_flag_absent",
+    };
+  }
+
+  setStage("production_boundary");
+  assertItem74cProductionBoundary();
+  await assertExactObservedProductionDeficits();
 
   setStage("byron_dcp_ingestion");
   const byronIngestion = await ingestByronDcp(prisma);
@@ -416,7 +499,7 @@ export const runItem74cPreviewRepair = async () => {
 
   setStage("evidence_transaction");
   const evidence = await prisma.$transaction(
-    (tx) => repairAndCertifyPreviewEvidence(tx),
+    (tx) => repairAndCertifyProductionEvidence(tx),
     { maxWait: 10_000, timeout: 120_000 },
   );
 
@@ -440,13 +523,13 @@ export const runItem74cPreviewRepair = async () => {
   };
 };
 
-runItem74cPreviewRepair()
+runItem74cProductionRepair()
   .then((result) => {
-    console.log("[item74c-preview-repair] completed", JSON.stringify(result));
+    console.log("[item74c-production-repair] completed", JSON.stringify(result));
   })
   .catch((error) => {
     console.error(
-      `[item74c-preview-repair] failed stage=${currentStage}`,
+      `[item74c-production-repair] failed stage=${currentStage}`,
       `type=${error instanceof Error ? error.name : "unknown_error"}`,
     );
     process.exitCode = 1;
