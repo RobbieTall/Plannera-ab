@@ -31,6 +31,8 @@ model User {
   purchases           Purchase[]
   entitlements        Entitlement[]
   consultantReferrals ConsultantReferral[]
+  spatialEvidenceReviews SpatialEvidenceReviewEvent[] @relation("SpatialEvidenceReviewActor")
+  spatialEvidenceLatestReviews SpatialEvidence[] @relation("SpatialEvidenceReviewedBy")
 }
 
 model Session {
@@ -99,6 +101,7 @@ model Project {
   purchases              Purchase[]
   entitlements           Entitlement[]
   consultantReferrals    ConsultantReferral[]
+  spatialEvidence        SpatialEvidence[]
   siteContext            SiteContext?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
@@ -244,8 +247,97 @@ model Artefact {
   purchases              Purchase[]              @relation("PurchaseQuickSiteCheckArtefact")
   entitlements           Entitlement[]           @relation("EntitlementQuickSiteCheckArtefact")
   consultantReferrals    ConsultantReferral[]
+  spatialEvidence         SpatialEvidence?
 
   @@index([projectId])
+}
+
+model SpatialEvidence {
+  id                     String                       @id @default(cuid())
+  artefactId             String                       @unique
+  artefact               Artefact                     @relation(fields: [artefactId], references: [id], onDelete: Cascade)
+  projectId              String
+  project                Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceAuthority        SpatialSourceAuthority
+  contentHash            String
+  siteFingerprint        String
+  siteAddress            String
+  parcelId               String?
+  lot                    String?
+  planNumber             String?
+  latitude               Float?
+  longitude              Float?
+  layers                 String[]
+  legendStatus           SpatialLegendStatus
+  legendNotes            String?
+  observation            String
+  limitation             String
+  observationConfirmedAt DateTime
+  sourceEffectiveAt      DateTime?
+  sourceCheckedAt        DateTime
+  expiresAt              DateTime
+  status                 SpatialEvidenceStatus        @default(PENDING_REVIEW)
+  reviewedAt             DateTime?
+  reviewedById           String?
+  reviewedBy             User?                        @relation("SpatialEvidenceReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote             String?
+  version                Int                          @default(1)
+  reviewEvents           SpatialEvidenceReviewEvent[]
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+
+  @@index([projectId])
+  @@index([siteFingerprint])
+  @@index([status])
+  @@index([expiresAt])
+  @@unique([id, version])
+}
+
+model SpatialEvidenceReviewEvent {
+  id                String                        @id @default(cuid())
+  spatialEvidenceId String
+  spatialEvidence   SpatialEvidence               @relation(fields: [spatialEvidenceId], references: [id], onDelete: Cascade)
+  actorUserId       String?
+  actor             User?                         @relation("SpatialEvidenceReviewActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  decision          SpatialEvidenceReviewDecision
+  previousStatus    SpatialEvidenceStatus
+  resultingStatus   SpatialEvidenceStatus
+  note              String?
+  createdAt         DateTime                      @default(now())
+
+  @@index([spatialEvidenceId])
+  @@index([actorUserId])
+}
+
+enum SpatialSourceAuthority {
+  NSW_GOVERNMENT
+  COUNCIL
+  CONSULTANT
+  SURVEYOR
+  USER_PROVIDED
+  OTHER
+}
+
+enum SpatialLegendStatus {
+  CAPTURED
+  SOURCE_LINKED
+  NOT_AVAILABLE
+  NOT_APPLICABLE
+}
+
+enum SpatialEvidenceStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+  CONFLICT
+  SUPERSEDED
+}
+
+enum SpatialEvidenceReviewDecision {
+  ACCEPT
+  REJECT
+  MARK_CONFLICT
+  SUPERSEDE
 }
 
 model Purchase {

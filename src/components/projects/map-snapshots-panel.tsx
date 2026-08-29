@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import { cn, formatDate } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
-import { X } from "lucide-react";
+import { AlertTriangle, Check, X, XCircle } from "lucide-react";
 import { useAuthGuard } from "@/components/providers/auth-guard-provider";
 
 interface MapSnapshotsPanelProps {
@@ -27,6 +27,24 @@ interface MapSnapshotArtefact {
   imageUrl: string;
   capturedAt: string;
   createdAt: string;
+  spatialEvidence?: {
+    id: string;
+    sourceAuthority: "NSW_GOVERNMENT" | "COUNCIL" | "CONSULTANT" | "SURVEYOR" | "USER_PROVIDED" | "OTHER";
+    contentHash: string;
+    siteFingerprint: string;
+    siteAddress: string;
+    layers: string[];
+    legendStatus: "CAPTURED" | "SOURCE_LINKED" | "NOT_AVAILABLE" | "NOT_APPLICABLE";
+    legendNotes?: string | null;
+    observation: string;
+    limitation: string;
+    sourceEffectiveAt?: string | null;
+    sourceCheckedAt: string;
+    expiresAt: string;
+    status: "PENDING_REVIEW" | "ACCEPTED" | "REJECTED" | "CONFLICT" | "SUPERSEDED";
+    reviewedAt?: string | null;
+    reviewNote?: string | null;
+  } | null;
 }
 
 const overlayOptions = [
@@ -43,8 +61,32 @@ const externalLinks = [
     label: "Open NSW Spatial Viewer",
     href: "https://www.planningportal.nsw.gov.au/spatialviewer/#/find-a-property/address",
   },
-  { label: "Open Council Web Map", href: "https://example.com/council-map" },
 ];
+
+const authorityOptions = [
+  { value: "NSW_GOVERNMENT", label: "NSW Government" },
+  { value: "COUNCIL", label: "Council" },
+  { value: "CONSULTANT", label: "Consultant" },
+  { value: "SURVEYOR", label: "Registered surveyor" },
+  { value: "USER_PROVIDED", label: "User provided" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+const spatialStatusLabels = {
+  PENDING_REVIEW: "Pending review",
+  ACCEPTED: "Accepted",
+  REJECTED: "Rejected",
+  CONFLICT: "Conflict",
+  SUPERSEDED: "Superseded",
+} as const;
+
+const spatialStatusClasses = {
+  PENDING_REVIEW: "bg-amber-100 text-amber-800",
+  ACCEPTED: "bg-emerald-100 text-emerald-800",
+  REJECTED: "bg-rose-100 text-rose-800",
+  CONFLICT: "bg-red-100 text-red-800",
+  SUPERSEDED: "bg-slate-100 text-slate-600",
+} as const;
 
 function getDefaultTitle(projectName: string) {
   const today = new Date().toLocaleDateString("en-AU", {
@@ -72,12 +114,24 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
 
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("NSW Spatial Viewer");
+  const [sourceAuthority, setSourceAuthority] = useState<(typeof authorityOptions)[number]["value"]>("NSW_GOVERNMENT");
   const [otherSource, setOtherSource] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [overlays, setOverlays] = useState<string[]>([]);
   const [includeOtherOverlay, setIncludeOtherOverlay] = useState(false);
   const [otherOverlay, setOtherOverlay] = useState("");
   const [notes, setNotes] = useState("");
+  const [legendStatus, setLegendStatus] = useState<"CAPTURED" | "SOURCE_LINKED" | "NOT_AVAILABLE" | "NOT_APPLICABLE">("SOURCE_LINKED");
+  const [legendNotes, setLegendNotes] = useState("");
+  const [observation, setObservation] = useState("");
+  const [limitation, setLimitation] = useState("");
+  const [observationConfirmed, setObservationConfirmed] = useState(false);
+  const [capturedAt, setCapturedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [sourceEffectiveAt, setSourceEffectiveAt] = useState("");
+  const [sourceCheckedAt, setSourceCheckedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reviewNote, setReviewNote] = useState("");
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const sortedSnapshots = useMemo(
     () => [...snapshots].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
@@ -87,12 +141,21 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
   const resetForm = useCallback(() => {
     setTitle(getDefaultTitle(projectName));
     setSource("NSW Spatial Viewer");
+    setSourceAuthority("NSW_GOVERNMENT");
     setOtherSource("");
     setSourceUrl("");
     setOverlays([]);
     setIncludeOtherOverlay(false);
     setOtherOverlay("");
     setNotes("");
+    setLegendStatus("SOURCE_LINKED");
+    setLegendNotes("");
+    setObservation("");
+    setLimitation("");
+    setObservationConfirmed(false);
+    setCapturedAt(new Date().toISOString().slice(0, 10));
+    setSourceEffectiveAt("");
+    setSourceCheckedAt(new Date().toISOString().slice(0, 10));
     setSubmitError(null);
   }, [projectName]);
 
@@ -175,6 +238,7 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
     formData.append("projectId", projectId);
     formData.append("title", title.trim());
     formData.append("source", resolvedSource);
+    formData.append("sourceAuthority", sourceAuthority);
     if (sourceUrl.trim()) {
       formData.append("sourceUrl", sourceUrl.trim());
     }
@@ -183,6 +247,14 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
       : overlays;
 
     overlaysToSubmit.forEach((overlay) => formData.append("overlays", overlay));
+    formData.append("legendStatus", legendStatus);
+    if (legendNotes.trim()) formData.append("legendNotes", legendNotes.trim());
+    formData.append("observation", observation.trim());
+    formData.append("limitation", limitation.trim());
+    formData.append("observationConfirmed", String(observationConfirmed));
+    formData.append("capturedAt", capturedAt);
+    formData.append("sourceCheckedAt", sourceCheckedAt);
+    if (sourceEffectiveAt) formData.append("sourceEffectiveAt", sourceEffectiveAt);
     if (notes.trim()) {
       formData.append("notes", notes.trim());
     }
@@ -220,6 +292,35 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     requireAuth(submitSnapshot);
+  };
+
+  const reviewSnapshot = async (decision: "ACCEPT" | "REJECT" | "MARK_CONFLICT") => {
+    if (!activeSnapshot) return;
+    if (decision !== "ACCEPT" && !reviewNote.trim()) {
+      setReviewError("Add a review note before rejecting evidence or marking a conflict.");
+      return;
+    }
+    setIsReviewing(true);
+    setReviewError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/artefacts/${activeSnapshot.id}/spatial-review`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ decision, note: reviewNote.trim() || undefined }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Unable to review spatial evidence");
+      const updated = { ...activeSnapshot, spatialEvidence: data.spatialEvidence };
+      setSnapshots((previous) => previous.map((snapshot) => snapshot.id === updated.id ? updated : snapshot));
+      setActiveSnapshot(updated);
+      setReviewNote("");
+      onToast(decision === "ACCEPT" ? "Spatial evidence accepted." : decision === "REJECT" ? "Spatial evidence rejected." : "Spatial conflict recorded.");
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Unable to review spatial evidence");
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   return (
@@ -334,7 +435,16 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                     <Image src={snapshot.imageUrl} alt={snapshot.title} fill className="object-cover transition group-hover:scale-105" />
                   </div>
                   <p className="mt-3 text-sm font-semibold text-slate-900">{snapshot.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{snapshot.source}</p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="text-xs text-slate-500">{snapshot.source}</p>
+                    {snapshot.spatialEvidence ? (
+                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", spatialStatusClasses[snapshot.spatialEvidence.status])}>
+                        {spatialStatusLabels[snapshot.spatialEvidence.status]}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Legacy</span>
+                    )}
+                  </div>
                   {snapshot.overlays?.length ? (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {snapshot.overlays.slice(0, 4).map((overlay) => (
@@ -371,7 +481,7 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
           resetForm();
         }}
         title="Save map snapshot"
-        description="Add a title, overlays, and context so your map screenshot is stored as an artefact."
+        description="Record the exact source, site, layers, observation and limitations before this image can be reviewed as evidence."
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-[2fr,1fr]">
@@ -403,13 +513,22 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                   className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none"
                 />
               ) : null}
-              <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">Source URL (optional)</label>
+              <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">Source authority</label>
+              <select
+                value={sourceAuthority}
+                onChange={(event) => setSourceAuthority(event.target.value as (typeof authorityOptions)[number]["value"])}
+                className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none"
+              >
+                {authorityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">Source URL</label>
               <input
                 type="url"
                 value={sourceUrl}
                 onChange={(event) => setSourceUrl(event.target.value)}
                 placeholder="https://"
                 className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none"
+                required={sourceAuthority === "NSW_GOVERNMENT" || sourceAuthority === "COUNCIL" || legendStatus === "SOURCE_LINKED"}
               />
             </div>
             <div>
@@ -422,6 +541,21 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Captured
+              <input type="date" value={capturedAt} onChange={(event) => setCapturedAt(event.target.value)} required className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Source checked
+              <input type="date" value={sourceCheckedAt} onChange={(event) => setSourceCheckedAt(event.target.value)} required className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Effective date
+              <input type="date" value={sourceEffectiveAt} onChange={(event) => setSourceEffectiveAt(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
           </div>
 
           <div className="space-y-3">
@@ -465,6 +599,38 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
             </div>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Legend evidence
+              <select value={legendStatus} onChange={(event) => setLegendStatus(event.target.value as typeof legendStatus)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900">
+                <option value="CAPTURED">Captured in image</option>
+                <option value="SOURCE_LINKED">Available at source URL</option>
+                <option value="NOT_AVAILABLE">Not available</option>
+                <option value="NOT_APPLICABLE">Not applicable</option>
+              </select>
+            </label>
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Legend note
+              <input value={legendNotes} onChange={(event) => setLegendNotes(event.target.value)} required={legendStatus === "NOT_AVAILABLE" || legendStatus === "NOT_APPLICABLE"} placeholder="Legend location or reason" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Observed on the map
+              <textarea value={observation} onChange={(event) => setObservation(event.target.value)} rows={4} required minLength={10} placeholder="State only what is visibly supported by the selected layer and legend." className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
+            <label className="space-y-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Limitation
+              <textarea value={limitation} onChange={(event) => setLimitation(event.target.value)} rows={4} required minLength={10} placeholder="Record scale, currency, boundary or interpretation limits." className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal normal-case text-slate-900" />
+            </label>
+          </div>
+
+          <label className="flex items-start gap-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+            <input type="checkbox" checked={observationConfirmed} onChange={(event) => setObservationConfirmed(event.target.checked)} required className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+            <span>I confirm the observation describes this exact captured map view and does not infer a constraint that is not visible in the source.</span>
+          </label>
+
           <div className="space-y-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Notes (optional)</label>
             <textarea
@@ -504,7 +670,11 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
 
       <Modal
         open={Boolean(activeSnapshot)}
-        onClose={() => setActiveSnapshot(null)}
+        onClose={() => {
+          setActiveSnapshot(null);
+          setReviewNote("");
+          setReviewError(null);
+        }}
         title={activeSnapshot?.title ?? "Map snapshot"}
         description={activeSnapshot?.source ?? "Map snapshot"}
       >
@@ -535,6 +705,53 @@ export function MapSnapshotsPanel({ projectId, projectName, onToast, onClose }: 
                 </p>
               </div>
             </div>
+            {activeSnapshot.spatialEvidence ? (
+              <div className="space-y-4 border-t border-slate-200 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence state</p>
+                    <p className="mt-1 text-sm text-slate-600">Bound to {activeSnapshot.spatialEvidence.siteAddress}</p>
+                  </div>
+                  <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", spatialStatusClasses[activeSnapshot.spatialEvidence.status])}>
+                    {spatialStatusLabels[activeSnapshot.spatialEvidence.status]}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Observed</p>
+                    <p className="mt-1 text-sm text-slate-800">{activeSnapshot.spatialEvidence.observation}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Limitation</p>
+                    <p className="mt-1 text-sm text-slate-800">{activeSnapshot.spatialEvidence.limitation}</p>
+                  </div>
+                </div>
+                <div className="grid gap-3 text-sm sm:grid-cols-3">
+                  <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Authority</p><p className="mt-1 text-slate-800">{authorityOptions.find((option) => option.value === activeSnapshot.spatialEvidence?.sourceAuthority)?.label ?? activeSnapshot.spatialEvidence.sourceAuthority}</p></div>
+                  <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Legend</p><p className="mt-1 text-slate-800">{activeSnapshot.spatialEvidence.legendStatus.replaceAll("_", " ").toLowerCase()}</p></div>
+                  <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Source checked</p><p className="mt-1 text-slate-800">{formatDate(activeSnapshot.spatialEvidence.sourceCheckedAt, { month: "short", day: "numeric", year: "numeric" })}</p></div>
+                </div>
+                {activeSnapshot.spatialEvidence.reviewNote ? (
+                  <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Review note</p><p className="mt-1 text-sm text-slate-800">{activeSnapshot.spatialEvidence.reviewNote}</p></div>
+                ) : null}
+                {activeSnapshot.spatialEvidence.status !== "SUPERSEDED" ? (
+                  <div className="space-y-3 border-t border-slate-200 pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Review note</label>
+                    <textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} rows={3} placeholder="Required for rejection or conflict; optional when accepting." className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900" />
+                    {reviewError ? <p className="text-sm text-rose-600">{reviewError}</p> : null}
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <button type="button" disabled={isReviewing} onClick={() => void reviewSnapshot("ACCEPT")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"><Check className="h-4 w-4" />Accept</button>
+                      <button type="button" disabled={isReviewing} onClick={() => void reviewSnapshot("MARK_CONFLICT")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-900 disabled:opacity-60"><AlertTriangle className="h-4 w-4" />Conflict</button>
+                      <button type="button" disabled={isReviewing} onClick={() => void reviewSnapshot("REJECT")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300 px-3 py-2 text-sm font-semibold text-rose-800 disabled:opacity-60"><XCircle className="h-4 w-4" />Reject</button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="border-t border-slate-200 pt-4 text-sm text-slate-600">
+                This legacy snapshot has no structured site, source, legend or review provenance and cannot support a final SEE.
+              </div>
+            )}
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Overlays</p>
               {activeSnapshot.overlays?.length ? (
