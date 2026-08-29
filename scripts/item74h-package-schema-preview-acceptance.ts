@@ -172,7 +172,7 @@ const main = async () => {
   const actual = new Map(
     constraints.map((row) => [
       row.constraintName,
-      row.definition.toLowerCase(),
+      row.definition.toLowerCase().replaceAll('"', ""),
     ]),
   );
 
@@ -182,7 +182,9 @@ const main = async () => {
     assertCondition(definition, "missing constraint " + constraintName);
     for (const requiredTerm of requiredTerms) {
       assertCondition(
-        definition.includes(requiredTerm),
+        definition.includes(
+          requiredTerm.toLowerCase().replaceAll('"', ""),
+        ),
         "constraint contract mismatch for " + constraintName,
       );
     }
