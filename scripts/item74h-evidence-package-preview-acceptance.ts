@@ -19,8 +19,14 @@ import {
   type PathwayRealSiteEvidencePackage,
 } from "../src/lib/pathway-real-site-evidence";
 
-const EXPECTED_REF = "agent/item74h-pathway-check";
-const EXPECTED_NEON_ENDPOINT = "ep-misty-dream-a7l6wcp8";
+const EXPECTED_REFS = new Set([
+  "agent/item74h-pathway-check",
+  "integration/item74h-resolution-20260830",
+]);
+const EXPECTED_NEON_ENDPOINTS = new Set([
+  "ep-misty-dream-a7l6wcp8",
+  "ep-bold-shadow-a7y8j17d",
+]);
 const ENABLE_FLAG = "ITEM74H_EVIDENCE_PACKAGE_ACCEPTANCE_ENABLED";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";
 const ROLES: PathwayRealSiteDocumentRole[] = [
@@ -160,7 +166,7 @@ const assertProtectedPreview = () => {
   assert(process.env.VERCEL === "1", "HOSTED_VERCEL_REQUIRED");
   assert(process.env.VERCEL_ENV === "preview", "PREVIEW_ONLY");
   assert(
-    process.env.VERCEL_GIT_COMMIT_REF === EXPECTED_REF,
+    EXPECTED_REFS.has(process.env.VERCEL_GIT_COMMIT_REF ?? ""),
     "PROTECTED_BRANCH_REQUIRED",
   );
   assert(
@@ -180,7 +186,7 @@ const assertProtectedPreview = () => {
     throw new AcceptanceError("DATABASE_URL_INVALID");
   }
   assert(
-    host.startsWith(EXPECTED_NEON_ENDPOINT) && host.endsWith(".neon.tech"),
+    [...EXPECTED_NEON_ENDPOINTS].some((endpoint) => host.startsWith(endpoint)) && host.endsWith(".neon.tech"),
     "ISOLATED_PREVIEW_DATABASE_REQUIRED",
   );
 };
