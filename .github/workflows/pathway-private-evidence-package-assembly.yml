@@ -6,9 +6,11 @@ on:
       - "src/lib/pathway-private-evidence-package-assembly.ts"
       - "src/lib/pathway-private-evidence-package-assembly.test.ts"
       - "scripts/item74h-evidence-package-preview-acceptance.ts"
+      - "scripts/item74h-package-schema-preview-acceptance.ts"
       - "scripts/item74h-preview-migrate.ts"
       - "prisma/schema.prisma"
       - "prisma/migrations/20260828140000_item74h_private_evidence_package_assembly/migration.sql"
+      - "prisma/migrations/20260829113000_item74h_package_assembly_hardening/migration.sql"
       - "docs/operations/item74h-private-evidence-package-assembly.md"
       - ".github/workflows/pathway-private-evidence-package-assembly.yml"
   push:
@@ -18,9 +20,11 @@ on:
       - "src/lib/pathway-private-evidence-package-assembly.ts"
       - "src/lib/pathway-private-evidence-package-assembly.test.ts"
       - "scripts/item74h-evidence-package-preview-acceptance.ts"
+      - "scripts/item74h-package-schema-preview-acceptance.ts"
       - "scripts/item74h-preview-migrate.ts"
       - "prisma/schema.prisma"
       - "prisma/migrations/20260828140000_item74h_private_evidence_package_assembly/migration.sql"
+      - "prisma/migrations/20260829113000_item74h_package_assembly_hardening/migration.sql"
       - "docs/operations/item74h-private-evidence-package-assembly.md"
       - ".github/workflows/pathway-private-evidence-package-assembly.yml"
   workflow_dispatch:
@@ -45,3 +49,4 @@ jobs:
       - run: npm ci
       - run: npx vitest run src/lib/pathway-private-evidence-package-assembly.test.ts
       - run: npx tsx scripts/item74h-evidence-package-preview-acceptance.ts
+      - run: npx tsx scripts/item74h-package-schema-preview-acceptance.ts
