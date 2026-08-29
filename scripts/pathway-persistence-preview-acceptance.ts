@@ -613,6 +613,20 @@ async function runScenario(prisma: PrismaClient, runNumber: number) {
 }
 
 async function main(): Promise<void> {
+  if (process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production') {
+    console.log(
+      JSON.stringify({
+        acceptance: 'item74h-preview-persistence',
+        phase: 'disabled',
+        passed: true,
+        reason: 'preview_only_acceptance',
+        productionCheckoutEnabled: false,
+        productionMutationPerformed: false,
+      }),
+    );
+    return;
+  }
+
   assertProtectedPreview();
   const prisma = new PrismaClient();
   try {
