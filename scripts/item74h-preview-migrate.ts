@@ -7,6 +7,7 @@ const TARGET_BRANCHES = new Set([
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
   "ep-bold-shadow-a7y8j17d",
+  "ep-frosty-star-a7gsaexu",
 ]);
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
