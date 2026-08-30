@@ -25,6 +25,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-bold-shadow-a7y8j17d',
   'ep-frosty-star-a7gsaexu',
   'ep-damp-recipe-a7wm9fuq',
+  'ep-rapid-shape-a72cicyh',
 ]);
 
 function assert(condition: unknown, message: string): asserts condition {
