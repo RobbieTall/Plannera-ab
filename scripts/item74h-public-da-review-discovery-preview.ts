@@ -298,6 +298,7 @@ const main = async () => {
         "clamav1.4",
         "clamav1.4-freshclam",
         "poppler-utils",
+        "tesseract",
       ],
       sudo: true,
     });
@@ -407,10 +408,64 @@ const main = async () => {
               pageRef: "page-" + (pageIndex + 1),
               text: line,
             });
-            if (candidates.length >= 40) break;
+            if (candidates.length >= 60) break;
           }
         }
-        if (candidates.length >= 40) break;
+        if (candidates.length >= 60) break;
+      }
+
+      const ocrPages =
+        evidence[index].role === "CADASTRAL_SURVEY"
+          ? [1, 2]
+          : evidence[index].role === "PROPOSED_SHED_LAYOUT"
+            ? [1, 9]
+            : [];
+      for (const pageNumber of ocrPages) {
+        const imagePrefix =
+          "/vercel/sandbox/ocr-" + index + "-" + pageNumber;
+        await commandSucceeded(scanner, {
+          cmd: "pdftoppm",
+          args: [
+            "-f",
+            String(pageNumber),
+            "-l",
+            String(pageNumber),
+            "-singlefile",
+            "-png",
+            "-r",
+            "200",
+            paths[index],
+            imagePrefix,
+          ],
+        });
+        const ocr = await commandSucceeded(scanner, {
+          cmd: "tesseract",
+          args: [
+            imagePrefix + ".png",
+            "stdout",
+            "-l",
+            "eng",
+            "--psm",
+            "11",
+          ],
+        });
+        for (const rawLine of (await ocr.stdout()).split(/\r?\n/)) {
+          const line = sanitizeLine(rawLine);
+          const pageRef = "page-" + pageNumber;
+          const text = "[OCR] " + line;
+          if (
+            line.length >= 5 &&
+            patterns[evidence[index].role].test(line) &&
+            !candidates.some(
+              (candidate) =>
+                candidate.pageRef === pageRef && candidate.text === text,
+            )
+          ) {
+            candidates.push({ pageRef, text });
+            if (candidates.length >= 60) break;
+          }
+        }
+        if (candidates.length >= 60) break;
       }
 
       const after = await commandSucceeded(scanner, {
