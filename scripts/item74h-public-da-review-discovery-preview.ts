@@ -190,6 +190,11 @@ const main = async () => {
         candidates: Array<{ pageRef: string; text: string }>;
       }>
     | null = null;
+  const retainedReviewPages: Array<{
+    role: "CADASTRAL_SURVEY" | "PROPOSED_SHED_LAYOUT";
+    pageRef: "page-1" | "page-2" | "page-9";
+    objectRef: string;
+  }> = [];
 
   try {
     const tracker = await fetch(ITEM74H_PUBLIC_DA_TRACKER_URL, {
@@ -291,7 +296,7 @@ const main = async () => {
       args: ["clean", "all"],
       sudo: true,
     });
-    stage = "DNF_INSTALL_OCR";
+    stage = "DNF_INSTALL_RENDERER";
     await commandSucceeded(prep, {
       cmd: "dnf",
       args: [
@@ -300,7 +305,6 @@ const main = async () => {
         "clamav1.4",
         "clamav1.4-freshclam",
         "poppler-utils",
-        "tesseract",
       ],
       sudo: true,
     });
@@ -417,15 +421,21 @@ const main = async () => {
         if (candidates.length >= 60) break;
       }
 
-      const ocrPages =
+      const reviewPages =
         evidence[index].role === "CADASTRAL_SURVEY"
-          ? [1, 2]
+          ? ([1, 2] as const)
           : evidence[index].role === "PROPOSED_SHED_LAYOUT"
-            ? [1, 9]
-            : [];
-      for (const pageNumber of ocrPages) {
+            ? ([1, 9] as const)
+            : ([] as const);
+      for (const pageNumber of reviewPages) {
+        stage =
+          "RENDER_PROTECTED_REVIEW_" +
+          evidence[index].role +
+          "_PAGE_" +
+          pageNumber;
         const imagePrefix =
-          "/vercel/sandbox/ocr-" + index + "-" + pageNumber;
+          "/vercel/sandbox/review-" + index + "-" + pageNumber;
+        const imagePath = imagePrefix + ".png";
         await commandSucceeded(scanner, {
           cmd: "pdftoppm",
           args: [
@@ -436,39 +446,72 @@ const main = async () => {
             "-singlefile",
             "-png",
             "-r",
-            "200",
+            "180",
             paths[index],
             imagePrefix,
           ],
         });
-        const ocr = await commandSucceeded(scanner, {
-          cmd: "tesseract",
-          args: [
-            imagePrefix + ".png",
-            "stdout",
-            "-l",
-            "eng",
-            "--psm",
-            "11",
-          ],
-        });
-        for (const rawLine of (await ocr.stdout()).split(/\r?\n/)) {
-          const line = sanitizeLine(rawLine);
-          const pageRef = "page-" + pageNumber;
-          const text = "[OCR] " + line;
-          if (
-            line.length >= 5 &&
-            patterns[evidence[index].role].test(line) &&
-            !candidates.some(
-              (candidate) =>
-                candidate.pageRef === pageRef && candidate.text === text,
-            )
-          ) {
-            candidates.push({ pageRef, text });
-            if (candidates.length >= 60) break;
-          }
+        const imageBytes = new Uint8Array(
+          await scanner.readFileToBuffer({ path: imagePath }),
+        );
+        if (
+          imageBytes.byteLength < 1024 ||
+          imageBytes[0] !== 0x89 ||
+          imageBytes[1] !== 0x50 ||
+          imageBytes[2] !== 0x4e ||
+          imageBytes[3] !== 0x47
+        ) {
+          throw new Error("rendered review page rejected");
         }
-        if (candidates.length >= 60) break;
+
+        const roleSlug =
+          evidence[index].role === "CADASTRAL_SURVEY" ? "survey" : "layout";
+        const objectRef =
+          "item74h-public-review-pages/v1/" +
+          roleSlug +
+          "-page-" +
+          pageNumber +
+          ".png";
+        const imageHash = hash(imageBytes);
+        const blob = await put(objectRef, imageBytes, {
+          access: "private",
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "image/png",
+          token,
+        });
+        if (
+          !blob.url.startsWith("https://") ||
+          !new URL(blob.url).hostname.endsWith(".private.blob.vercel-storage.com")
+        ) {
+          throw new Error("private review page host rejected");
+        }
+        const unauthenticated = await fetch(blob.url, {
+          redirect: "manual",
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (unauthenticated.ok) {
+          throw new Error("private review page allowed unauthenticated read");
+        }
+        const authenticated = await get(objectRef, {
+          access: "private",
+          token,
+          storeId,
+        });
+        if (!authenticated || authenticated.statusCode !== 200) {
+          throw new Error("authenticated private review page read failed");
+        }
+        const persistedBytes = new Uint8Array(
+          await new Response(authenticated.stream).arrayBuffer(),
+        );
+        if (hash(persistedBytes) !== imageHash) {
+          throw new Error("private review page hash mismatch");
+        }
+        retainedReviewPages.push({
+          role: evidence[index].role,
+          pageRef: ("page-" + pageNumber) as "page-1" | "page-2" | "page-9",
+          objectRef,
+        });
       }
 
       const after = await commandSucceeded(scanner, {
@@ -491,6 +534,17 @@ const main = async () => {
   } catch {
     operationFailure = stage;
   } finally {
+    if (operationFailure || retainedReviewPages.length !== 4) {
+      for (const page of retainedReviewPages) {
+        try {
+          await del(page.objectRef, { token });
+        } catch {
+          // The gate remains failed closed; cleanup accounting below still applies.
+        }
+      }
+      retainedReviewPages.length = 0;
+    }
+
     let blobsRemoved = true;
     for (const document of evidence) {
       try {
@@ -541,6 +595,12 @@ const main = async () => {
   if (!cleanupPassed || !findings) {
     throw new DiscoveryFailure("ZERO_RESIDUE_CLEANUP_FAILED");
   }
+  if (
+    retainedReviewPages.length !== 4 ||
+    new Set(retainedReviewPages.map((page) => page.objectRef)).size !== 4
+  ) {
+    throw new DiscoveryFailure("PROTECTED_REVIEW_PAGE_CARDINALITY_REJECTED");
+  }
 
   console.log(
     JSON.stringify({
@@ -549,6 +609,10 @@ const main = async () => {
       environment: "preview",
       freshCleanScan: true,
       findingRoleCount: findings.length,
+      retainedProtectedReviewPageCount: retainedReviewPages.length,
+      retainedProtectedReviewPages: retainedReviewPages.map(
+        ({ role, pageRef }) => ({ role, pageRef }),
+      ),
       operatorDecisionRecorded: false,
       evidencePromotionPerformed: false,
       paidArtefactBindingsCreated: 0,
