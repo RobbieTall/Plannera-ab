@@ -93,7 +93,10 @@ paid advice.
 Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
 - `VERCEL_ENV=preview`.
-- `VERCEL_GIT_COMMIT_REF=integration/item74h-public-da-20260830`.
+- `VERCEL_GIT_COMMIT_REF` is exactly
+  `integration/item74h-public-da-20260830` or
+  `agent/item74h-evidence-refinement-20260830`; wildcard and prefix matching
+  remain prohibited.
 - `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
 - Both paid checkout flags are absent or false.
