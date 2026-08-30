@@ -150,6 +150,26 @@ function expectedBlock(error: unknown, code: string): boolean {
   return error instanceof PathwayPersistenceError && error.code === code;
 }
 
+const SAFE_PREFLIGHT_FAILURES = [
+  ['GOOGLE_MAPS_API_KEY is required', 'GEOCODING_CREDENTIAL_MISSING'],
+  ['Protected geocoding did not return OK', 'GEOCODING_REQUEST_FAILED'],
+  ['Controlled address must resolve to exactly one result', 'ADDRESS_CARDINALITY_FAILED'],
+  ['Controlled address did not resolve to Byron LEP 2014', 'INSTRUMENT_MISMATCH'],
+  ['Controlled address did not resolve to RU2', 'ZONE_MISMATCH'],
+  [
+    'DATABASE_URL does not target the isolated Item 74H Neon endpoint',
+    'DATABASE_SCOPE_MISMATCH',
+  ],
+  ['fetch failed', 'NETWORK_REQUEST_FAILED'],
+] as const;
+
+function classifyPreflightFailure(rawStderr: string): string {
+  for (const [needle, code] of SAFE_PREFLIGHT_FAILURES) {
+    if (rawStderr.includes(needle)) return code;
+  }
+  return 'UNCLASSIFIED_FAILURE';
+}
+
 async function runRedactedPreflight(): Promise<ControlledPreflight> {
   const executable = resolve(process.cwd(), 'node_modules/.bin/tsx');
   const scriptPath = resolve(
@@ -169,7 +189,7 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
-    let stderrBytes = 0;
+    let stderr = '';
     let settled = false;
 
     const rejectOnce = (message: string) => {
@@ -186,9 +206,10 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
         rejectOnce('Controlled preflight output exceeded the redacted size limit');
       }
     });
-    child.stderr.on('data', (chunk: Buffer | string) => {
-      stderrBytes += Buffer.byteLength(String(chunk), 'utf8');
-      if (stderrBytes > MAX_PREFLIGHT_OUTPUT_BYTES) {
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+      if (Buffer.byteLength(stderr, 'utf8') > MAX_PREFLIGHT_OUTPUT_BYTES) {
         child.kill('SIGTERM');
         rejectOnce('Controlled preflight error output exceeded the size limit');
       }
@@ -197,7 +218,9 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
     child.on('close', (code) => {
       if (settled) return;
       if (code !== 0) {
-        rejectOnce('Controlled preflight failed closed');
+        rejectOnce(
+          'Controlled preflight failed closed: ' + classifyPreflightFailure(stderr),
+        );
         return;
       }
       settled = true;
