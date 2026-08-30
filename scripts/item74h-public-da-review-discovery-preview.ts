@@ -476,8 +476,8 @@ const main = async () => {
           "-page-" +
           pageNumber +
           ".png";
-        const imageHash = hash(imageBytes);
-        const blob = await put(objectRef, imageBytes, {
+        const imageHash = hash(imageBuffer);
+        const blob = await put(objectRef, imageBuffer, {
           access: "private",
           addRandomSuffix: false,
           allowOverwrite: true,
