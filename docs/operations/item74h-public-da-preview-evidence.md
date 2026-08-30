@@ -101,6 +101,13 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 - The dedicated private Preview Blob credentials are available.
 - Both paid checkout flags are absent or false.
 
+For PR #360, Vercel created the isolated Neon branch
+`preview/agent/item74h-evidence-refinement-20260830` with endpoint
+`ep-rapid-shape-a72cicyh`. Both identifiers are exact allowlist entries. The
+branch must remain Preview-only, must receive synthetic acceptance writes only,
+and may be deleted after the merged-head acceptance and zero-residue result are
+recorded. It must never be reused as a Production database.
+
 The chain must:
 
 - fetch only the exact official Byron records;
