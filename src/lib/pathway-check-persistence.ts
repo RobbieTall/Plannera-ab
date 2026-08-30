@@ -165,6 +165,26 @@ function fail(code: string, message: string): never {
   throw new PathwayPersistenceError(code, message);
 }
 
+function hasFixtureMarker(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasFixtureMarker);
+  if (!value || typeof value !== 'object') return false;
+
+  const record = value as Record<string, unknown>;
+  if (
+    record.fixture === true ||
+    record.synthetic === true ||
+    record.authoritative === false
+  ) {
+    return true;
+  }
+
+  return Object.values(record).some(hasFixtureMarker);
+}
+
+function hasSyntheticSourceLabel(value: unknown): boolean {
+  return typeof value === 'string' && /(?:synthetic|fixture)/i.test(value);
+}
+
 function assertNonEmpty(value: string, field: string): void {
   if (!value.trim()) fail('INVALID_INPUT', field + ' must not be empty');
 }
@@ -657,12 +677,7 @@ export async function bindPathwayArtefact(
 
   const assessment = await prisma.pathwayAssessment.findUnique({
     where: { id: input.assessmentId },
-    include: {
-      artefactBindings: true,
-      evidenceSnapshots: true,
-      controlSnapshots: true,
-      pathwayDefinition: true,
-    },
+    include: assessmentInclude,
   });
   if (!assessment) fail('ASSESSMENT_NOT_FOUND', 'Assessment was not found');
 
@@ -700,6 +715,25 @@ export async function bindPathwayArtefact(
         controlsCurrent: assessment.controlSnapshots.every(
           (item) => item.isCurrentAtAssessment && !item.staleAt,
         ),
+        fixtureEvidence:
+          hasFixtureMarker(assessment.input) ||
+          hasFixtureMarker(assessment.result) ||
+          hasFixtureMarker(assessment.spatialProvenance.payload) ||
+          hasSyntheticSourceLabel(assessment.spatialProvenance.sourceVersion) ||
+          hasSyntheticSourceLabel(assessment.spatialProvenance.matchMethod) ||
+          hasFixtureMarker(assessment.pathwayDefinition.graph) ||
+          assessment.evidenceSnapshots.some(
+            (item) =>
+              hasFixtureMarker(item.citation) ||
+              hasFixtureMarker(item.snapshot) ||
+              hasSyntheticSourceLabel(item.sourceVersion),
+          ) ||
+          assessment.controlSnapshots.some(
+            (item) =>
+              hasFixtureMarker(item.applicability) ||
+              hasSyntheticSourceLabel(item.sourceReference),
+          ) ||
+          hasFixtureMarker(artefact.payload),
       },
     });
     if (!policy.allowed) {
