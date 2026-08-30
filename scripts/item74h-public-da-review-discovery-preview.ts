@@ -511,8 +511,15 @@ const main = async () => {
         if (hash(persistedBytes) !== imageHash) {
           throw new Error("private review page hash mismatch");
         }
+        const retainedRole = evidence[index].role;
+        if (
+          retainedRole !== "CADASTRAL_SURVEY" &&
+          retainedRole !== "PROPOSED_SHED_LAYOUT"
+        ) {
+          throw new Error("protected review role rejected");
+        }
         retainedReviewPages.push({
-          role: evidence[index].role,
+          role: retainedRole,
           pageRef: ("page-" + pageNumber) as "page-1" | "page-2" | "page-9",
           objectRef,
         });
