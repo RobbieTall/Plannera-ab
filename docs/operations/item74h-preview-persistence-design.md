@@ -1,8 +1,8 @@
 # Item 74H Preview persistence design
 
-Status: ADDITIVE DESIGN ONLY / NOT APPLIED
+Status: SCHEMA APPLIED / SYNTHETIC LIFECYCLE ACCEPTED / REAL-SITE EXECUTION NOT COMPLETE
 
-Last updated: 2026-08-24
+Last updated: 2026-08-30
 
 ## Purpose
 
@@ -12,15 +12,20 @@ This document is not an executable migration and authorizes no database change.
 
 ## Current evidence boundary
 
-The credential-free Item 74H contract is green at commit `08dcc98765211147f8e74e5c0a6f768c23a9dc36`.
+PR #357 merged the reviewed additive Item 74H schema and protected acceptance at
+commit `abb9afc8fcfa99acf6cfa6976efde24538a24cf7`. The ten migrations were
+rehearsed transactionally, applied to Production only after explicit approval,
+and reconciled without changing existing business-row counts. Production
+checkout remained disabled.
 
-- Pathway Check Acceptance run `32709833707`: passed.
-- Commercial Funnel Golden Gate run `32709833673`: passed.
-- Vercel did not begin the build because linked Preview resource provisioning failed.
-- Neon project `red-term-77984898` is at its 10-branch limit.
-- No Item 74H database branch, schema or row exists.
+The hosted synthetic lifecycle proves persistence, replay, scope separation and
+zero-residue cleanup. It must also prove that fixture-marked evidence cannot
+bind either paid stage. It does not prove a real Byron site, a real reviewed
+survey/layout package, or submission-grade DOCX/PDF output.
 
-The archived superseded branch proposed for approval-gated cleanup is `preview/agent/item74-launch-gate` (`br-round-salad-a74ayw79`).
+Neon cleanup left only Production main and the expiring pre-migration recovery
+snapshot. Any new Preview proof must use an isolated branch and must not access
+Production data or enable checkout.
 
 ## Design principles
 
