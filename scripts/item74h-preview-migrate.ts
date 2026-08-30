@@ -3,11 +3,13 @@ import { spawnSync } from "node:child_process";
 const TARGET_BRANCHES = new Set([
   "agent/item74h-pathway-check",
   "integration/item74h-resolution-20260830",
+  "integration/item74h-public-da-20260830",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
   "ep-bold-shadow-a7y8j17d",
   "ep-frosty-star-a7gsaexu",
+  "ep-damp-recipe-a7wm9fuq",
 ]);
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",
