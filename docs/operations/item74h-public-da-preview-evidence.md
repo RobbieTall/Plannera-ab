@@ -119,3 +119,29 @@ The protected chain finishes with
 
 A failed address, zone, source-currentness, persistence, replay, customer
 rendering, paid-boundary or cleanup assertion fails the hosted deployment.
+
+## Verified run - 30 August 2026
+
+Protected Vercel Preview deployment `dpl_42piMP3R37ZdKh4M7PCNVVk7UkLk`
+reached `READY` from commit
+`731352320a3129c054c37e81736b93594d1171aa`.
+
+The exact-head run proved:
+
+- the public address resolved to Byron LEP 2014 zone RU2 through the official
+  NSW zoning service;
+- one `MORE_EVIDENCE_REQUIRED` assessment was created and replay returned the
+  same assessment;
+- reload preserved five evidence snapshots, 17 control snapshots, six gate
+  snapshots and authoritative spatial provenance;
+- the free Pathway Check and missing-evidence checklist rendered from the
+  persisted assessment;
+- an unsafe `PROCEED` attempt wrote no assessment;
+- both the A$49 Planning Controls Pack and A$749 Submission SEE bindings were
+  blocked;
+- customer output retained no raw address, coordinates, parcel identifier or
+  direct-download token; and
+- synthetic cleanup completed with zero residual rows.
+
+The run performed no Production mutation. Production checkout remained
+disabled.
