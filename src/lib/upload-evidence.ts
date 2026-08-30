@@ -120,8 +120,8 @@ const cellText = (value: unknown): string => {
 };
 
 const parseXlsxDefault = async (buffer: Buffer): Promise<SpreadsheetExtraction> => {
-  const readExcelFile = (await import("read-excel-file/universal")).default;
-  const workbook = await readExcelFile(Uint8Array.from(buffer).buffer);
+  const readExcelFile = (await import("read-excel-file/node")).default;
+  const workbook = await readExcelFile(buffer);
   const sheets = workbook.flatMap<EvidenceSegment>((worksheet) => {
     const rows = worksheet.data
       .map((row) => row.map(cellText).join("\t").trim())
