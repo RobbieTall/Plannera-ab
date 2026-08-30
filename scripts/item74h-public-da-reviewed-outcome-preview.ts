@@ -1,3 +1,5 @@
+export {};
+
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
 const EXPECTED_BRANCH = "integration/item74h-public-da-20260830";
