@@ -451,9 +451,13 @@ const main = async () => {
             imagePrefix,
           ],
         });
-        const imageBytes = new Uint8Array(
-          await scanner.readFileToBuffer({ path: imagePath }),
-        );
+        const imageBuffer = await scanner.readFileToBuffer({
+          path: imagePath,
+        });
+        if (!imageBuffer) {
+          throw new Error("rendered review page missing");
+        }
+        const imageBytes = new Uint8Array(imageBuffer);
         if (
           imageBytes.byteLength < 1024 ||
           imageBytes[0] !== 0x89 ||
