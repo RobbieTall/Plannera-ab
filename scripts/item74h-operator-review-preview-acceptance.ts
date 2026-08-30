@@ -27,6 +27,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-bold-shadow-a7y8j17d",
   "ep-frosty-star-a7gsaexu",
   "ep-damp-recipe-a7wm9fuq",
+  "ep-rapid-shape-a72cicyh",
 ]);
 const ENABLE_FLAG = "ITEM74H_OPERATOR_REVIEW_ACCEPTANCE_ENABLED";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";
