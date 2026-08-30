@@ -19,19 +19,21 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-pathway-check',
   'integration/item74h-resolution-20260830',
   'integration/item74h-public-da-20260830',
+  'agent/item74h-evidence-refinement-20260830',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
   'ep-bold-shadow-a7y8j17d',
   'ep-frosty-star-a7gsaexu',
   'ep-damp-recipe-a7wm9fuq',
+  'ep-rapid-shape-a72cicyh',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =
   'https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/';
 const PUBLIC_DA_ADDRESS = '870 Wilsons Creek Road, Wilsons Creek NSW';
 const PUBLIC_DA_REVIEW_VERSION =
-  'item74h-public-da-reviewed-outcome.v1' as const;
+  'item74h-public-da-reviewed-outcome.v2' as const;
 const MAX_PREFLIGHT_OUTPUT_BYTES = 512_000;
 const SPATIAL_SOURCE_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
@@ -411,18 +413,23 @@ async function runControlledPersistence(
     ],
     confirmedFacts: [
       { key: 'SHED_FOOTPRINT_SQM', value: 200, pageRef: 'E2026/59935 page-9' },
-      { key: 'SHED_HEIGHT_APPROX_M', value: 6, pageRef: 'E2026/59935 page-9' },
+      { key: 'SHED_HEIGHT_M', value: 5.996, pageRef: 'E2026/59935 page-9' },
       { key: 'LOT_AREA_HA', value: 39.47, pageRef: 'E2025/131546 page-1' },
       {
         key: 'ROAD_AUTHORITY',
         value: 'BYRON_SHIRE_COUNCIL_SECTION_138',
         pageRef: 'E2025/131541 page-2',
       },
+      {
+        key: 'ROAD_CLASSIFICATION',
+        value: 'OTHER_ROAD',
+        pageRef: 'TfNSW complete schedule and current categorisation dataset checked 2026-08-30',
+        sourceUrl:
+          'https://www.transport.nsw.gov.au/system/files/media/documents/2023/classified-roads-schedule-1.pdf',
+      },
     ],
     missingEvidence: [
       'REGISTERED_CADASTRAL_SURVEY',
-      'EXPLICIT_ROAD_CLASSIFICATION',
-      'EXACT_SHED_HEIGHT_M',
       'ROAD_SETBACK_M',
       'SIDE_SETBACK_M',
       'REAR_SETBACK_M',
@@ -980,7 +987,7 @@ async function runControlledPersistence(
       environment: 'PREVIEW',
       projectId: ids.project,
       siteContextId: ids.site,
-      assessmentVersion: 'item74h-public-da-persisted-preview-v1',
+      assessmentVersion: 'item74h-public-da-persisted-preview-v2',
       idempotencyKey: prefix + 'assessment-idempotency',
       scopeKey,
       inputHash,
@@ -997,7 +1004,7 @@ async function runControlledPersistence(
       result: {
         decision: 'MORE_EVIDENCE_REQUIRED',
         reason:
-          'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint and 39.47 hectare lot are confirmed; registered cadastral authority, exact height, road classification and road, side and rear setbacks remain unresolved.',
+          'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint, 5.996 metre height, 39.47 hectare lot and OTHER_ROAD classification are confirmed; registered cadastral authority and road, side and rear setbacks remain unresolved.',
         paidOutputEligible: false,
       },
       assessedAt: now,
@@ -1025,7 +1032,7 @@ async function runControlledPersistence(
         staleAt: spatialStaleAt,
       },
       definition: {
-        versionKey: prefix + 'byron-ru2-shed-v1',
+        versionKey: prefix + 'byron-ru2-shed-v2',
         lgaCode: 'BYRON',
         zoneCode: 'RU2',
         proposalType: 'SHED_OUTBUILDING',
@@ -1149,7 +1156,9 @@ async function runControlledPersistence(
             confirmedFacts: reviewedPublicDa.confirmedFacts,
             missingEvidence: reviewedPublicDa.missingEvidence,
             decision: reviewedPublicDa.decision,
-            proposalMeasurementsVerified: false,
+            proposalDimensionsVerified: true,
+            roadClassificationVerified: true,
+            siteSetbacksVerified: false,
             freePathwayCheckAvailable: true,
             paidPlanningControlsPackEligible: false,
             paidSubmissionSeeEligible: false,
@@ -1187,11 +1196,11 @@ async function runControlledPersistence(
           sequence: 2,
           question: 'Are all heritage, environmental, hazard and distance constraints resolved?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'Only zoning is confirmed; the required mapped overlays and measured distances are absent.',
+          reason: 'Zoning and OTHER_ROAD classification are confirmed; the required mapped overlays and measured distances remain absent.',
           condition: {
             heritageResolved: false,
             environmentallySensitiveResolved: false,
-            roadClassResolved: false,
+            roadClassResolved: true,
             waterbodyDistanceResolved: false,
             ridgelineResolved: false,
           },
@@ -1208,7 +1217,7 @@ async function runControlledPersistence(
           sequence: 3,
           question: 'Does the proposal satisfy every exempt farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'The 200 square metre footprint and 39.47 hectare lot are confirmed, but exact height, aggregate footprint, road classification and measured setbacks remain unresolved.',
+          reason: 'The 200 square metre footprint, 5.996 metre height, 39.47 hectare lot and OTHER_ROAD classification are confirmed, but aggregate footprint and measured setbacks remain unresolved.',
           condition: { allStandardsConfirmed: false },
           evidenceRefs: ['codes', 'dcp'],
           controlRefs: [
@@ -1225,7 +1234,7 @@ async function runControlledPersistence(
           sequence: 4,
           question: 'Does the proposal satisfy every Rural Housing Code farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'The lot area and 200 square metre footprint are confirmed, but exact height, aggregate footprint, road classification and measured setbacks remain unresolved.',
+          reason: 'The lot area, 200 square metre footprint, 5.996 metre height and OTHER_ROAD classification are confirmed, but aggregate footprint and measured setbacks remain unresolved.',
           condition: { allStandardsConfirmed: false },
           evidenceRefs: ['codes', 'dcp'],
           controlRefs: [
@@ -1241,7 +1250,7 @@ async function runControlledPersistence(
           sequence: 5,
           question: 'If exempt and complying paths fail, is DA merit evidence complete?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'The historic DA approval is confirmed, but reusable DCP siting, cadastral, road-classification and exact setback evidence remains incomplete.',
+          reason: 'The historic DA approval and OTHER_ROAD classification are confirmed, but reusable DCP siting, cadastral and exact setback evidence remains incomplete.',
           condition: { meritEvidenceComplete: false },
           evidenceRefs: ['lep', 'dcp', 'spatial', 'public-da-catalog'],
           controlRefs: [

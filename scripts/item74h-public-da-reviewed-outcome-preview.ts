@@ -2,7 +2,10 @@ export {};
 
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
-const EXPECTED_BRANCH = "integration/item74h-public-da-20260830";
+const EXPECTED_BRANCHES = new Set([
+  "integration/item74h-public-da-20260830",
+  "agent/item74h-evidence-refinement-20260830",
+]);
 
 class ReviewedEvidenceFailure extends Error {
   constructor(readonly code: string) {
@@ -11,7 +14,7 @@ class ReviewedEvidenceFailure extends Error {
 }
 
 const reviewedOutcome = {
-  version: "item74h-public-da-reviewed-outcome.v1",
+  version: "item74h-public-da-reviewed-outcome.v2",
   case: {
     council: "Byron Shire Council",
     daNumber: "10.2025.535.1",
@@ -33,8 +36,8 @@ const reviewedOutcome = {
       pageRef: "page-9",
     },
     {
-      fact: "SHED_HEIGHT_APPROX_M",
-      value: 6,
+      fact: "SHED_HEIGHT_M",
+      value: 5.996,
       recordNumber: "E2026/59935",
       pageRef: "page-9",
     },
@@ -50,22 +53,20 @@ const reviewedOutcome = {
       recordNumber: "E2025/131541",
       pageRef: "page-2",
     },
+    {
+      fact: "ROAD_CLASSIFICATION",
+      value: "OTHER_ROAD",
+      recordNumber: "TFNSW_CLASSIFIED_AND_REGIONAL_ROADS",
+      pageRef: "complete schedule and current categorisation dataset checked 2026-08-30",
+      sourceUrl:
+        "https://www.transport.nsw.gov.au/system/files/media/documents/2023/classified-roads-schedule-1.pdf",
+    },
   ],
   missingEvidence: [
     {
       requirement: "REGISTERED_CADASTRAL_SURVEY",
       reason:
         "The detail survey says its boundaries were compiled from DCDB, disclaims being a Survey under the Surveying Act 2002, and does not identify a registered surveyor.",
-    },
-    {
-      requirement: "EXPLICIT_ROAD_CLASSIFICATION",
-      reason:
-        "The section 138 approval proves Council road authority but does not establish the strict OTHER_ROAD or CLASSIFIED_ROAD classification.",
-    },
-    {
-      requirement: "EXACT_SHED_HEIGHT_M",
-      reason:
-        "The approved elevation supports an approximately 6 metre height, but the reviewed image is not being promoted as an exact measurement.",
     },
     {
       requirement: "ROAD_SETBACK_M",
@@ -110,7 +111,7 @@ const main = () => {
 
   if (
     process.env.VERCEL_ENV !== "preview" ||
-    process.env.VERCEL_GIT_COMMIT_REF !== EXPECTED_BRANCH ||
+    !EXPECTED_BRANCHES.has(process.env.VERCEL_GIT_COMMIT_REF ?? "") ||
     process.env.PLANNING_PACK_CHECKOUT_ENABLED === "true" ||
     process.env.SUBMISSION_SEE_CHECKOUT_ENABLED === "true"
   ) {
@@ -122,7 +123,14 @@ const main = () => {
     !reviewedOutcome.commercialAccess.freePathwayCheckAvailable ||
     reviewedOutcome.commercialAccess.planningControlsPack49Eligible ||
     reviewedOutcome.commercialAccess.submissionSee749Eligible ||
-    reviewedOutcome.missingEvidence.length !== 6 ||
+    reviewedOutcome.missingEvidence.length !== 4 ||
+    !reviewedOutcome.confirmedFacts.some(
+      ({ fact, value }) => fact === "SHED_HEIGHT_M" && value === 5.996,
+    ) ||
+    !reviewedOutcome.confirmedFacts.some(
+      ({ fact, value }) =>
+        fact === "ROAD_CLASSIFICATION" && value === "OTHER_ROAD",
+    ) ||
     reviewedOutcome.evidencePromotionPerformed ||
     reviewedOutcome.persistenceMutationPerformed ||
     reviewedOutcome.productionMutationPerformed ||
