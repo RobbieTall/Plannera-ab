@@ -490,7 +490,7 @@ const main = async () => {
       status: "PASS",
       environment: "preview",
       freshCleanScan: true,
-      candidateFindings: findings,
+      findingRoleCount: findings.length,
       operatorDecisionRecorded: false,
       evidencePromotionPerformed: false,
       paidArtefactBindingsCreated: 0,
@@ -505,6 +505,36 @@ const main = async () => {
       containsRawScannerOutput: false,
     }),
   );
+
+  for (const finding of findings) {
+    const chunkSize = 6;
+    const chunkCount = Math.max(
+      1,
+      Math.ceil(finding.candidates.length / chunkSize),
+    );
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+      console.log(
+        JSON.stringify({
+          gate: "item74h-public-da-review-finding",
+          status: "PASS",
+          role: finding.role,
+          recordNumber: finding.recordNumber,
+          textExtractable: finding.textExtractable,
+          candidateCount: finding.candidateCount,
+          chunkIndex: chunkIndex + 1,
+          chunkCount,
+          candidates: finding.candidates.slice(
+            chunkIndex * chunkSize,
+            (chunkIndex + 1) * chunkSize,
+          ),
+          operatorDecisionRecorded: false,
+          evidencePromotionPerformed: false,
+          paidArtefactBindingsCreated: 0,
+          productionCheckoutEnabled: false,
+        }),
+      );
+    }
+  }
 };
 
 void main().catch((error) => {
