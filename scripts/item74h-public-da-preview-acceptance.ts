@@ -12,7 +12,10 @@ import {
 
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
-const EXPECTED_BRANCH = "integration/item74h-public-da-20260830";
+const EXPECTED_BRANCHES = new Set([
+  "integration/item74h-public-da-20260830",
+  "agent/item74h-evidence-refinement-20260830",
+]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_SCAN_SIZE_BYTES = 100 * 1024 * 1024;
 const MAX_RECURSION_DEPTH = 16;
@@ -141,7 +144,7 @@ const main = async () => {
 
   if (
     process.env.VERCEL_ENV !== "preview" ||
-    process.env.VERCEL_GIT_COMMIT_REF !== EXPECTED_BRANCH ||
+    !EXPECTED_BRANCHES.has(process.env.VERCEL_GIT_COMMIT_REF ?? "") ||
     process.env.PLANNING_PACK_CHECKOUT_ENABLED === "true" ||
     process.env.SUBMISSION_SEE_CHECKOUT_ENABLED === "true"
   ) {
