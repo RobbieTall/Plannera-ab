@@ -34,12 +34,34 @@ The protected review confirms:
 - the exact address, lot and deposited plan;
 - approval of a new farm machinery shed;
 - a 20 metre by 10 metre footprint, or 200 square metres, on stamped-plan page 9;
-- an elevation supporting an approximately 6 metre overall height on page 9;
-- a stated lot area of 39.47 hectares on detail-survey page 1; and
-- Byron Shire Council as road authority for the section 138 works on approval page 2.
+- an exact overall shed height of 5.996 metres on stamped-plan page 9,
+  comprising a 3.925 metre wall height and 2.071 metre roof rise;
+- a stated lot area of 39.47 hectares on detail-survey page 1;
+- Byron Shire Council as road authority for the section 138 works on approval
+  page 2; and
+- Wilsons Creek Road as `OTHER_ROAD` for the deterministic DCP gate, based on
+  the complete TfNSW classified/regional road schedule, the current State and
+  Regional road categorisation dataset, and Council's section 138 evidence.
 
 The public case is separate from the earlier hypothetical 80 square metre,
 3.5 metre high shed example and must never inherit facts from that example.
+
+## Road classification evidence
+
+The TfNSW complete Schedule of Classified Roads and Unclassified Regional Roads
+states that it contains all classified roads and unclassified Regional Roads.
+Wilson Creek Road is absent from that complete schedule. The current NSW Road
+Network Categorisation dataset covers State and Regional roads, and the road is
+not represented there as either category. Byron Shire Council's section 138
+record independently confirms Council road authority for the works.
+
+Together, these current public sources support the deterministic
+`OTHER_ROAD` classification. This is an evidence conclusion, not a guessed
+label. It was checked on 30 August 2026 and must be revalidated when either TfNSW
+source changes:
+
+- https://www.transport.nsw.gov.au/system/files/media/documents/2023/classified-roads-schedule-1.pdf
+- https://experience.arcgis.com/experience/c33e55c80a214cbf8dbb05db22f0fbb4
 
 ## Evidence still required
 
@@ -47,9 +69,7 @@ The reviewed set does not establish:
 
 - a registered cadastral survey: the detail survey says boundaries were compiled
   from DCDB, says it is not a Survey under the Surveying Act 2002, and does not
-  identify a registered surveyor;
-- an explicit strict-contract road classification;
-- an exact promoted shed-height measurement; or
+  identify a registered surveyor; or
 - unambiguous road, side and rear shed setbacks.
 
 Plannera must not infer or invent these values.
