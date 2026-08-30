@@ -639,50 +639,52 @@ export async function runItem74hRealSiteBindingPreviewAcceptance(
       'Reload lost the exact commercial scope',
     );
 
-    const pack = await bindPathwayArtefact(prisma, {
-      assessmentId: first.assessment.id,
-      artefactId: ids.pack,
-      commercialStage: 'PLANNING_CONTROLS_PACK',
-      scopeKey: exactScope.scopeDigest,
-      evidenceDigest: exactScope.siteEvidenceDigest,
-    });
-    const packReplay = await bindPathwayArtefact(prisma, {
-      assessmentId: first.assessment.id,
-      artefactId: ids.pack,
-      commercialStage: 'PLANNING_CONTROLS_PACK',
-      scopeKey: exactScope.scopeDigest,
-      evidenceDigest: exactScope.siteEvidenceDigest,
-    });
-    const see = await bindPathwayArtefact(prisma, {
-      assessmentId: first.assessment.id,
-      artefactId: ids.see,
-      commercialStage: 'SUBMISSION_SEE',
-      scopeKey: exactScope.scopeDigest,
-      evidenceDigest: exactScope.siteEvidenceDigest,
-    });
-    const seeReplay = await bindPathwayArtefact(prisma, {
-      assessmentId: first.assessment.id,
-      artefactId: ids.see,
-      commercialStage: 'SUBMISSION_SEE',
-      scopeKey: exactScope.scopeDigest,
-      evidenceDigest: exactScope.siteEvidenceDigest,
-    });
+    const paidCandidates = [
+      {
+        artefactId: ids.pack,
+        commercialStage: 'PLANNING_CONTROLS_PACK' as const,
+      },
+      {
+        artefactId: ids.see,
+        commercialStage: 'SUBMISSION_SEE' as const,
+      },
+    ];
+    const fixtureBlocks: string[] = [];
 
-    assert(!pack.replayed && packReplay.replayed, 'Pack binding replay failed');
-    assert(pack.binding.id === packReplay.binding.id, 'Pack replay changed binding');
-    assert(!see.replayed && seeReplay.replayed, 'SEE binding replay failed');
-    assert(see.binding.id === seeReplay.binding.id, 'SEE replay changed binding');
+    for (const candidate of paidCandidates) {
+      try {
+        await bindPathwayArtefact(prisma, {
+          assessmentId: first.assessment.id,
+          artefactId: candidate.artefactId,
+          commercialStage: candidate.commercialStage,
+          scopeKey: exactScope.scopeDigest,
+          evidenceDigest: exactScope.siteEvidenceDigest,
+        });
+      } catch (error) {
+        if (
+          error instanceof PathwayPersistenceError &&
+          error.code === 'PAID_OUTPUT_BLOCKED' &&
+          error.message.includes('FIXTURE_EVIDENCE')
+        ) {
+          fixtureBlocks.push(candidate.commercialStage);
+          continue;
+        }
+        throw error;
+      }
+      throw new Error(
+        candidate.commercialStage + ' accepted fixture evidence',
+      );
+    }
+
     assert(
-      (await prisma.pathwayAssessment.count({
-        where: { idempotencyKey: persistenceInput.idempotencyKey },
-      })) === 1,
-      'Paid-scope replay must leave exactly one assessment',
+      fixtureBlocks.length === 2,
+      'Both paid stages must reject fixture evidence',
     );
     assert(
       (await prisma.pathwayArtefactBinding.count({
         where: { assessmentId: first.assessment.id },
-      })) === 2,
-      'Paid-scope replay must leave exactly one binding per paid stage',
+      })) === 0,
+      'Fixture evidence must leave no paid artefact binding',
     );
 
     return {
@@ -690,10 +692,9 @@ export async function runItem74hRealSiteBindingPreviewAcceptance(
       assessmentCreatedOnce: true,
       assessmentReplaySafe: true,
       compositeScopePersistedAndReloaded: true,
-      planningControlsPackCreatedOnce: true,
-      planningControlsPackReplaySafe: true,
-      submissionSeeCreatedOnce: true,
-      submissionSeeReplaySafe: true,
+      planningControlsPackBlockedByFixtureEvidence: true,
+      submissionSeeBlockedByFixtureEvidence: true,
+      paidArtefactBindingsCreated: 0,
       syntheticEvidenceOnly: true,
       productionCheckoutEnabled: false,
       productionMutationPerformed: false,

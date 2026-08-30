@@ -9,6 +9,11 @@ planning decision, or enable checkout.
 
 Production checkout remains disabled.
 
+The hosted synthetic lifecycle is a policy regression only. Synthetic or
+fixture-marked evidence must never create an A$49 Planning Controls Pack or
+A$749 submission SEE binding, regardless of an asserted trust level. Paid
+binding can be proved only by the reviewed real-site package described below.
+
 ## Required evidence
 
 A package is evidence-confirmed only when it contains exactly these roles:

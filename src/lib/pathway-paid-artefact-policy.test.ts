@@ -44,6 +44,7 @@ function input(
       isCurrent: true,
       evidenceCurrent: true,
       controlsCurrent: true,
+      fixtureEvidence: false,
     },
     ...overrides,
   };
@@ -68,6 +69,7 @@ describe("evaluatePaidArtefactBindingPolicy", () => {
           isCurrent: true,
           evidenceCurrent: true,
           controlsCurrent: true,
+          fixtureEvidence: false,
         },
       }),
     );
@@ -124,6 +126,7 @@ describe("evaluatePaidArtefactBindingPolicy", () => {
           isCurrent: true,
           evidenceCurrent: false,
           controlsCurrent: false,
+          fixtureEvidence: false,
         },
       }),
     );
@@ -131,6 +134,24 @@ describe("evaluatePaidArtefactBindingPolicy", () => {
     expect(result.allowed).toBe(false);
     expect(result.blockers).toContain("EVIDENCE_NOT_CURRENT");
     expect(result.blockers).toContain("CONTROLS_NOT_CURRENT");
+  });
+
+  it("blocks fixture evidence even when trust and exact scope otherwise pass", () => {
+    const result = evaluatePaidArtefactBindingPolicy(
+      input({
+        assessment: {
+          decision: "PROCEED",
+          trustLevel: "OPERATOR_APPROVED",
+          isCurrent: true,
+          evidenceCurrent: true,
+          controlsCurrent: true,
+          fixtureEvidence: true,
+        },
+      }),
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.blockers).toContain("FIXTURE_EVIDENCE");
   });
 
   it("blocks replay when the commercial stage is no longer eligible", () => {
