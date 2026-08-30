@@ -285,11 +285,13 @@ const main = async () => {
       networkPolicy: { allow: ["cdn.amazonlinux.com", "*.clamav.net"] },
       tags: { purpose: "item74h-public-review", publicEvidence: "true" },
     });
+    stage = "DNF_CLEAN";
     await commandSucceeded(prep, {
       cmd: "dnf",
       args: ["clean", "all"],
       sudo: true,
     });
+    stage = "DNF_INSTALL_OCR";
     await commandSucceeded(prep, {
       cmd: "dnf",
       args: [
@@ -302,6 +304,7 @@ const main = async () => {
       ],
       sudo: true,
     });
+    stage = "STOP_BACKGROUND_UPDATER";
     await prep.runCommand({
       cmd: "pkill",
       args: ["-f", "freshclam"],
