@@ -37,7 +37,7 @@ const SPATIAL_SOURCE_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
 
 type ControlledPreflight = {
-  acceptance: 'item74h-public-da-persisted-address-preflight';
+  acceptance: 'item74h-controlled-address-preflight';
   phase: 'read_only_preflight';
   passed: true;
   result: 'MORE_EVIDENCE_REQUIRED';
@@ -161,6 +161,7 @@ const SAFE_PREFLIGHT_FAILURES = [
     'DATABASE_SCOPE_MISMATCH',
   ],
   ['fetch failed', 'NETWORK_REQUEST_FAILED'],
+  ['ERR_MODULE_NOT_FOUND', 'RUNNER_MISSING'],
 ] as const;
 
 function classifyPreflightFailure(rawStderr: string): string {
@@ -174,7 +175,7 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
   const executable = resolve(process.cwd(), 'node_modules/.bin/tsx');
   const scriptPath = resolve(
     process.cwd(),
-    'scripts/item74h-public-da-persisted-address-preflight.ts',
+    'scripts/item74h-controlled-address-preflight.ts',
   );
 
   const output = await new Promise<string>((resolveOutput, rejectOutput) => {
@@ -233,7 +234,7 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
   for (const line of lines) {
     try {
       const candidate = JSON.parse(line);
-      if (candidate?.acceptance === 'item74h-public-da-persisted-address-preflight') {
+      if (candidate?.acceptance === 'item74h-controlled-address-preflight') {
         parsed = candidate;
         break;
       }
