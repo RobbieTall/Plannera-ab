@@ -1,0 +1,33 @@
+name: TfNSW Road Categorisation Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-tfnsw-road-categorisation.ts"
+      - "src/lib/pathway-tfnsw-road-categorisation.test.ts"
+      - "docs/operations/item74h-tfnsw-road-categorisation.md"
+      - ".github/workflows/pathway-tfnsw-road-categorisation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install tsx src/lib/pathway-tfnsw-road-categorisation.test.ts
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"

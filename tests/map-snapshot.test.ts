@@ -67,7 +67,22 @@ class MockPrisma {
 
   artefact = {
     create: async ({ data }: any) => {
-      const artefact = { id: `art-${this.artefacts.length + 1}`, ...data };
+      const id = `art-${this.artefacts.length + 1}`;
+      const spatialCreate = data.spatialEvidence?.create;
+      const artefact = {
+        id,
+        ...data,
+        spatialEvidence: spatialCreate ? {
+          id: `spatial-${this.artefacts.length + 1}`,
+          artefactId: id,
+          projectId: data.projectId,
+          status: "PENDING_REVIEW",
+          version: 1,
+          reviewEvents: [],
+          ...spatialCreate,
+          project: undefined,
+        } : null,
+      };
       this.artefacts.push(artefact);
       return artefact;
     },
@@ -81,6 +96,18 @@ const mockSaveFile = async (file: File) => ({
   mimeType: file.type,
   size: file.size,
 });
+
+const addSpatialEvidenceFields = (formData: FormData) => {
+  formData.set("sourceAuthority", "NSW_GOVERNMENT");
+  formData.set("sourceUrl", "https://example.com/viewer");
+  formData.append("overlays", "flood");
+  formData.set("legendStatus", "CAPTURED");
+  formData.set("observation", "The mapped flood layer intersects the southern portion of the site.");
+  formData.set("limitation", "The viewer does not establish surveyed boundaries or design flood levels.");
+  formData.set("observationConfirmed", "true");
+  formData.set("capturedAt", "2026-08-03");
+  formData.set("sourceCheckedAt", "2026-08-03");
+};
 
 
 const citedEvidenceSummary = {
@@ -152,8 +179,7 @@ test("creates a map_snapshot artefact with overlays and notes", async () => {
   formData.set("projectId", "proj-1");
   formData.set("title", "Flood overlays");
   formData.set("source", "NSW Spatial Viewer");
-  formData.set("sourceUrl", "https://example.com/viewer");
-  formData.append("overlays", "flood");
+  addSpatialEvidenceFields(formData);
   formData.append("overlays", "bushfire");
   formData.set("notes", "Captured after latest council update");
   formData.set("file", new File(["image-bytes"], "snapshot.png", { type: "image/png" }));
@@ -170,6 +196,10 @@ test("creates a map_snapshot artefact with overlays and notes", async () => {
   assert.deepEqual(artefact.overlays, ["flood", "bushfire"]);
   assert.equal(artefact.imageUrl, "/mock/snapshot.png");
   assert.ok(artefact.capturedAt instanceof Date);
+  assert.equal((artefact as any).spatialEvidence.status, "PENDING_REVIEW");
+  assert.equal((artefact as any).spatialEvidence.siteAddress, "123 Test St, Byron Bay NSW");
+  assert.equal((artefact as any).spatialEvidence.contentHash.length, 64);
+  assert.deepEqual((artefact as any).spatialEvidence.layers, ["flood", "bushfire"]);
 });
 
 test("rejects creation when project access is missing", async () => {
@@ -178,6 +208,7 @@ test("rejects creation when project access is missing", async () => {
   formData.set("projectId", "proj-1");
   formData.set("title", "Flood overlays");
   formData.set("source", "NSW Spatial Viewer");
+  addSpatialEvidenceFields(formData);
   formData.set("file", new File(["image-bytes"], "snapshot.png", { type: "image/png" }));
 
   await assert.rejects(
@@ -201,6 +232,7 @@ test("validates that an image file is required", async () => {
   formData.set("projectId", "proj-1");
   formData.set("title", "Flood overlays");
   formData.set("source", "NSW Spatial Viewer");
+  addSpatialEvidenceFields(formData);
 
   await assert.rejects(
     () =>
@@ -214,6 +246,22 @@ test("validates that an image file is required", async () => {
       assert.ok(error instanceof ArtefactValidationError);
       return true;
     },
+  );
+});
+
+test("rejects map snapshots that omit a confirmed observation", async () => {
+  const prisma = new MockPrisma({ "proj-1": ["user-1"] });
+  const formData = new FormData();
+  formData.set("projectId", "proj-1");
+  formData.set("title", "Flood overlays");
+  formData.set("source", "NSW Spatial Viewer");
+  addSpatialEvidenceFields(formData);
+  formData.delete("observationConfirmed");
+  formData.set("file", new File(["image-bytes"], "snapshot.png", { type: "image/png" }));
+
+  await assert.rejects(
+    () => createMapSnapshotArtefact({ formData, projectId: "proj-1", userId: "user-1", deps: { prisma: prisma as any, saveFile: mockSaveFile } }),
+    (error) => error instanceof ArtefactValidationError && error.message.includes("Confirm that the observation"),
   );
 });
 

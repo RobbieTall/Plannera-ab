@@ -1,0 +1,55 @@
+name: Pathway Private Evidence Upload Policy
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-private-evidence-upload.ts"
+      - "src/lib/pathway-private-evidence-upload.test.ts"
+      - "src/lib/pathway-private-evidence-intake.ts"
+      - "src/lib/pathway-private-evidence-intake.test.ts"
+      - "src/lib/pathway-private-evidence-review.ts"
+      - "src/lib/pathway-private-evidence-review.test.ts"
+      - "src/lib/pathway-private-evidence-blob-acceptance.ts"
+      - "src/lib/pathway-private-evidence-blob-acceptance.test.ts"
+      - "scripts/item74h-private-blob-preview-acceptance.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "docs/operations/item74h-private-evidence-upload.md"
+      - "docs/operations/item74h-private-evidence-review.md"
+      - ".github/workflows/pathway-private-evidence-upload.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Authenticated private upload, quarantine and review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED: "false"
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify private evidence policy, quarantine and review
+        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts
+
+      - name: Confirm activation and Production checkout remain disabled
+        run: |
+          test "$ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED" = "false"
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"

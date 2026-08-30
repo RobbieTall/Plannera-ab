@@ -1,0 +1,168 @@
+# Item 74H public Byron DA evidence catalog
+
+Status: OFFICIAL CATALOG CONFIRMED / DOCUMENT CONTENT NOT YET VERIFIED
+
+Last updated: 2026-08-26
+
+## Purpose
+
+Use a determined, publicly listed Byron farm-shed development application as
+the controlled evidence candidate for Item 74H without using customer data or
+inventing proposal facts.
+
+The selected candidate is Byron Shire Council development application
+`10.2025.340.1`. Council's public tracker records:
+
+- construction of three farm buildings (sheds);
+- a determined approval dated 24 September 2025;
+- one public property and lot/DP identity;
+- approved plans;
+- a notice of determination;
+- floor and elevation plans;
+- site plans;
+- a planning report; and
+- two supporting fire-safety records.
+
+Authoritative source:
+https://datracker.byron.nsw.gov.au/masterviewui-external/application/applicationdetails/010.2025.00000340.001/
+
+## Durable privacy boundary
+
+The repository contract retains only:
+
+- the public application number;
+- the token-free official tracker page;
+- official document record numbers, roles, content types and sizes;
+- hashed document labels;
+- an address fingerprint;
+- hashed lot and proposal-description references;
+- source observation and stale dates; and
+- a deterministic catalog digest.
+
+It rejects raw addresses, raw lot references, document titles that may repeat an
+address, and direct document-download URLs or temporary query tokens.
+
+## Evidence meaning
+
+`CATALOG_CONFIRMED` means the official Council application page and required
+document inventory are current and internally complete. It does not mean the
+document content or proposal measurements have been verified.
+
+The A$49 Planning Controls Pack and A$749 submission SEE remain ineligible until:
+
+- the protected address preflight confirms the site and current Byron RU2 zone;
+- approved plan and survey content is safely ingested and hashed;
+- footprint, height and boundary setbacks are extracted with page/sheet
+  references and reviewed;
+- authoritative road classification is bound;
+- landholding, existing farm-building aggregate, mapped constraints,
+  waterbody/ridgeline, heritage and environmental-sensitivity facts are
+  evidence-verified;
+- the exact evidence upload set is bound; and
+- operator review approves the same evidence and control scope.
+
+## Operating boundary
+
+The two controlled-address variables are temporary, Secret-type, Preview-only
+and branch-scoped to `agent/item74h-pathway-check`. Production checkout remains
+disabled. The variables must be removed after the controlled flight and all
+temporary Preview rows must reconcile to zero.
+
+No PDF is downloaded by this catalog contract. Official files remain referenced
+through Council record numbers until a separately approved safe ingestion path
+is available.
+
+
+## Protected Preview acceptance: 2026-08-26
+
+Repository commit: `fb51b8c058079867db356dd9da0cc900f1eb6bbf`
+
+Controlled Preview deployment: `dpl_FKJCCRz87XF8dVJxUNQPPYabtvuz`
+
+The public DA candidate passed the existing read-only preflight:
+
+- one uniquely resolved Byron site;
+- Byron Local Environmental Plan 2014;
+- RU2 Rural Landscape;
+- shed/outbuilding proposal scope;
+- current repository LEP and DCP evidence;
+- a deterministic site-evidence digest; and
+- `MORE_EVIDENCE_REQUIRED` retained as the only safe decision.
+
+The controlled persistence flight then passed with:
+
+- 4 evidence snapshots;
+- 17 control snapshots;
+- 6 deterministic gate snapshots;
+- create-once and replay-safe assessment persistence;
+- reload preserving evidence, controls, gates and spatial provenance;
+- unsafe `PROCEED` rejected without a write;
+- replay-safe free Pathway Check binding;
+- A$49 Planning Controls Pack blocked;
+- A$749 submission SEE blocked;
+- raw address, coordinates and parcel identifiers not retained;
+- cleanup residual rows equal to zero; and
+- Production checkout and Production mutation both false.
+
+The temporary controlled-address variables were deleted immediately after the
+flight. A clean-state deployment must confirm both controlled runners are
+disabled with reason `approval_gated` before the next evidence step.
+
+
+## Durable controlled-assessment binding
+
+The protected persistence harness binds the confirmed official catalog as a
+fifth evidence snapshot on the same controlled Byron RU2 assessment. The
+assessment-wide evidence digest includes the catalog digest, and replay/reload
+must preserve both that digest and the token-free Council tracker URL.
+
+This binding proves only that the official document inventory belongs to the
+controlled evidence scope. It does not treat the PDFs as ingested, does not
+verify dimensions or setbacks, and does not change the deterministic
+`MORE_EVIDENCE_REQUIRED` decision. Both paid outputs remain blocked until the
+separate proposal-evidence and operator-review requirements are satisfied.
+
+
+The database stores this curated, metadata-only catalog under the existing
+`OPERATOR_NOTE` evidence kind, identified by the unique
+`public-da-catalog` evidence key and
+`pathway-public-da-evidence.v1` source version. It is not represented as an
+uploaded PDF, LEP, DCP or spatial layer.
+
+
+## Protected Preview durable-binding acceptance: 2026-08-27
+
+Repository commit: `c4c7cacf815ae55bad3ebbce460551f80171bb04`
+
+Controlled Preview deployment: `dpl_DUAsaQgJT4KcuBL5svwfTVLSptYu`
+
+All 20 exact-head GitHub workflows passed. The hosted controlled flight
+confirmed:
+
+- one official Byron RU2 site and current LEP/DCP evidence;
+- `MORE_EVIDENCE_REQUIRED` retained;
+- 5 evidence snapshots, including the curated public DA catalog;
+- `CATALOG_CONFIRMED` and the catalog digest persisted and reloaded;
+- the token-free Council tracker URL preserved;
+- no direct-download token retained;
+- 17 control snapshots and 6 deterministic gate snapshots;
+- create-once and replay-safe assessment persistence;
+- unsafe `PROCEED` rejected without a write;
+- replay-safe free Pathway Check binding;
+- A$49 Planning Controls Pack blocked;
+- A$749 submission SEE blocked;
+- raw address, coordinates and parcel identifiers not retained;
+- cleanup residual rows equal to zero; and
+- Production checkout and Production mutation both false.
+
+Two earlier controlled attempts failed closed before acceptance. The first
+identified that the catalog requires a full SHA-256 fingerprint rather than
+the redacted logging prefix. The second identified the approved database
+evidence-kind constraint. Both transactions rolled back. The final contract
+hashes the redacted preflight identifier and uses the existing
+`OPERATOR_NOTE` metadata category without changing or weakening either
+validator.
+
+The two temporary branch-scoped Preview Secret variables were deleted after
+the accepted flight. A clean-state deployment must keep both controlled
+runners disabled with reason `approval_gated`.

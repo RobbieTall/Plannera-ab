@@ -9,6 +9,8 @@ import type { QuickSiteCheckLepResponse, QuickSiteCheckLepSuccess } from "@/type
 import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { WorkspaceSessionSignals } from "@/types/workspace";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
+import type { PathwayCustomerResult } from "@/lib/pathway-customer-result";
+import { PathwayEvidenceChecklistPanel } from "@/components/projects/pathway-evidence-checklist-panel";
 
 type QuickSiteCheckModalProps = {
   open: boolean;
@@ -150,6 +152,8 @@ export function QuickSiteCheckModal({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPermissibility, setShowPermissibility] = useState(false);
+  const [pathwayResult, setPathwayResult] = useState<PathwayCustomerResult | null>(null);
+  const [pathwayStatus, setPathwayStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const { requireAuth } = useAuthGuard();
 
@@ -213,6 +217,35 @@ export function QuickSiteCheckModal({
     runCheck();
   }, [open, runCheck]);
 
+  useEffect(() => {
+    if (!open || !projectId) return;
+    let cancelled = false;
+    setPathwayStatus("loading");
+
+    fetch(`/api/projects/${projectId}/pathway-check`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load pathway result");
+        return (await response.json()) as PathwayCustomerResult;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        setPathwayResult(payload);
+        setPathwayStatus("idle");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPathwayResult(null);
+        setPathwayStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, projectId]);
+
   const handleInsertToChat = () => {
     if (!result || !onInsertToChat) return;
     const message = buildQuickSiteCheckChatMessage(result);
@@ -267,8 +300,8 @@ export function QuickSiteCheckModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Quick Site Check (LEP only)"
-      description="LEP-only summary of zoning and land use controls."
+      title="Pathway Check"
+      description="Evidence-aware pathway with an LEP summary. Missing evidence stays explicit and paid outputs stay locked."
       size="lg"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -308,6 +341,109 @@ export function QuickSiteCheckModal({
 
       {!result && status === "idle" && !error ? (
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-300">Run Quick Site Check to view zoning and LEP clauses.</p>
+      ) : null}
+
+      {pathwayStatus === "loading" ? (
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-300">
+          Loading the versioned evidence pathway...
+        </p>
+      ) : null}
+
+      {pathwayResult?.status === "available" ? (
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+                Item 74H evidence pathway
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-amber-950 dark:text-amber-50">
+                {pathwayResult.decisionLabel}
+              </h3>
+            </div>
+            <span className="rounded-full border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:text-amber-100">
+              {pathwayResult.current ? "Current" : "Review required"}
+            </span>
+          </div>
+          <p className="mt-2 leading-6 text-amber-900 dark:text-amber-100">
+            {pathwayResult.message}
+          </p>
+          {pathwayResult.proposal ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  Your shed estimates
+                </p>
+                <span className="text-xs font-semibold text-amber-800 dark:text-amber-100">
+                  USER ATTESTED - MORE EVIDENCE REQUIRED
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-700 sm:grid-cols-4 dark:text-slate-200">
+                {[
+                  ["Land", `${pathwayResult.proposal.landAreaHectares} ha`],
+                  ["Shed", `${pathwayResult.proposal.proposedBuildingFootprintSquareMetres} m2`],
+                  ["Existing farm buildings", `${pathwayResult.proposal.existingFarmBuildingFootprintSquareMetres} m2`],
+                  ["Height", `${pathwayResult.proposal.proposedBuildingHeightMetres} m`],
+                  ["Road setback", `${pathwayResult.proposal.roadSetbackMetres} m`],
+                  ["Side setback", `${pathwayResult.proposal.sideSetbackMetres} m`],
+                  ["Other boundary", `${pathwayResult.proposal.otherBoundarySetbackMetres} m`],
+                  ["Road class", "Unresolved"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+                    <dd className="font-semibold text-slate-900 dark:text-slate-100">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-xs text-amber-900 dark:text-amber-100">
+                These figures guide the free check. They are not surveyed facts and cannot unlock a paid product.
+              </p>
+            </div>
+          ) : null}
+
+          <PathwayEvidenceChecklistPanel items={pathwayResult.evidenceChecklist} />
+          <ol className="mt-4 space-y-3">
+            {pathwayResult.gates.map((gate) => (
+              <li key={`${gate.order}-${gate.question}`} className="rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">
+                    Gate {String(gate.order).padStart(2, "0")}: {gate.question}
+                  </p>
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-100">
+                    {gate.outcome.replaceAll("_", " ")}
+                  </span>
+                </div>
+                <p className="mt-1 text-slate-700 dark:text-slate-200">{gate.reasoning}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <p className="rounded-xl bg-white/70 p-3 text-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+              A$49 Planning Controls Pack:{" "}
+              <strong>{pathwayResult.commercial.planningControlsPackEligible ? "Evidence eligible" : "More evidence required"}</strong>
+            </p>
+            <p className="rounded-xl bg-white/70 p-3 text-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+              A$749 submission SEE:{" "}
+              <strong>{pathwayResult.commercial.submissionSeeEligible ? "Operator-approved scope eligible" : "More evidence required"}</strong>
+            </p>
+          </div>
+        </section>
+      ) : null}
+
+      {pathwayResult?.status === "not_available" && result ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
+          <p className="font-semibold text-slate-900 dark:text-slate-100">
+            Evidence pathway not complete yet
+          </p>
+          <p className="mt-1">
+            {pathwayResult.message} This LEP summary does not unlock the A$49 pack or A$749 submission SEE.
+          </p>
+        </div>
+      ) : null}
+
+      {pathwayStatus === "error" && result ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
+          The LEP summary is available, but the versioned LEP, DCP and spatial pathway could not be loaded. Paid outputs remain locked.
+        </div>
       ) : null}
 
       {result ? (

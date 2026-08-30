@@ -1,0 +1,36 @@
+name: Pathway Free Decision Composition
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-free-decision.ts"
+      - "src/lib/pathway-free-decision.test.ts"
+      - "src/lib/pathway-check-acceptance.ts"
+      - "src/lib/pathway-proposal-attestation.ts"
+      - "src/lib/pathway-tfnsw-road-evidence-bridge.ts"
+      - "docs/operations/item74h-pathway-free-decision.md"
+      - ".github/workflows/pathway-free-decision.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install tsx --test src/lib/pathway-free-decision.test.ts
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"

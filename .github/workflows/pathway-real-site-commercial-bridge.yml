@@ -1,0 +1,48 @@
+name: Pathway Real-Site Commercial Bridge
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-real-site-commercial-bridge.ts"
+      - "src/lib/pathway-real-site-commercial-bridge.test.ts"
+      - "src/lib/pathway-real-site-evidence.ts"
+      - "src/lib/pathway-proposal-attestation.ts"
+      - "src/lib/pathway-commercial-binding.ts"
+      - "scripts/item74h-real-site-binding-preview.ts"
+      - "src/lib/pathway-site-evidence.ts"
+      - "docs/operations/item74h-real-site-commercial-bridge.md"
+      - ".github/workflows/pathway-real-site-commercial-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    name: Exact real-site commercial scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify real-site commercial bridge
+        run: npx vitest run src/lib/pathway-real-site-commercial-bridge.test.ts
+
+      - name: Confirm Production remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"

@@ -1,0 +1,38 @@
+name: Pathway Check Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-check-acceptance.ts"
+      - "src/lib/pathway-check-acceptance.test.ts"
+      - "docs/project-memory/item74h-pathway-check.md"
+      - "docs/operations/item74h-pathway-check.md"
+      - ".github/workflows/pathway-check-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pathway-check-acceptance:
+    name: Pathway Check Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run credential-free pathway contract
+        run: npx tsx --test src/lib/pathway-check-acceptance.test.ts

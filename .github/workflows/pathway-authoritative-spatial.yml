@@ -1,0 +1,39 @@
+name: Authoritative Spatial Evidence Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-authoritative-spatial.ts"
+      - "src/lib/pathway-authoritative-spatial.test.ts"
+      - "scripts/item74h-authoritative-spatial-preview.ts"
+      - "docs/operations/item74h-authoritative-spatial.md"
+      - ".github/workflows/pathway-authoritative-spatial.yml"
+  push:
+    branches:
+      - "agent/item74h-pathway-check"
+    paths:
+      - "src/lib/pathway-authoritative-spatial.ts"
+      - "src/lib/pathway-authoritative-spatial.test.ts"
+      - "scripts/item74h-authoritative-spatial-preview.ts"
+      - "docs/operations/item74h-authoritative-spatial.md"
+      - ".github/workflows/pathway-authoritative-spatial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx tsx --test src/lib/pathway-authoritative-spatial.test.ts

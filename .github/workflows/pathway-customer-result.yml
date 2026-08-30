@@ -1,0 +1,41 @@
+name: Pathway Customer Result Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-customer-result.ts"
+      - "src/lib/pathway-customer-result.test.ts"
+      - "src/lib/pathway-evidence-checklist.ts"
+      - "src/lib/pathway-evidence-checklist.test.ts"
+      - "src/app/api/projects/[projectId]/pathway-check/route.ts"
+      - "src/components/projects/pathway-evidence-checklist-panel.tsx"
+      - "src/components/projects/pathway-evidence-checklist-panel.test.tsx"
+      - "src/components/projects/quick-site-check-modal.tsx"
+      - "scripts/pathway-persistence-preview-acceptance.ts"
+      - "docs/operations/item74h-customer-pathway-check.md"
+      - ".github/workflows/pathway-customer-result.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-result:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install vitest run src/lib/pathway-customer-result.test.ts src/lib/pathway-evidence-checklist.test.ts src/components/projects/pathway-evidence-checklist-panel.test.tsx
+      - name: Confirm Production checkout remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"

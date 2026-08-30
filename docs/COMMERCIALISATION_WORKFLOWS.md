@@ -16,7 +16,7 @@ Submission-oriented SEE — A$749 before credits, with one eligible same-scope A
 
 1. Planning Controls Pack and Just-in-Time LGA Preparation
 Roadmap status
-The exact-scope A$49 Stripe implementation and protected sandbox lifecycle are complete; Production activation remains a separate operator decision. Whole-LGA Byron/Kempsey certification remains open.
+The exact-scope A$49 Stripe implementation and protected sandbox lifecycle are complete; Production activation remains a separate operator decision. The Byron/Kempsey whole-LGA source matrix is accepted, while representative address-and-proposal commercial journeys remain open.
 Purpose
 Sell proposal-specific local planning intelligence while allowing council coverage to expand from demonstrated demand rather than speculative statewide ingestion.
 User-facing framing
@@ -145,7 +145,7 @@ Separate LEP-based interim response from DCP-enhanced response in the UI
 
 2. Submission-Oriented SEE
 Roadmap status
-Commercial product contract approved; evidence intake, checkout/credit ledger, DOCX/PDF compilation and production activation are not yet implemented.
+Commercial product contract, exact-scope Preview binding, credit foundation, private synthetic Blob/Sandbox lifecycle, malware-scan boundary, immutable operator review and exact three-document package assembly are implemented in protected Preview. Real-document execution, complete DOCX/PDF submission acceptance and Production activation remain unfinished.
 
 Price and credit
 The SEE list price is A$749 before credits. One settled, unrefunded and unconsumed A$49 Planning Controls Pack for the same requester, owned project, current-site QSC and normalized proposal may be consumed once, leaving A$700 payable. The credit is non-transferable, not cash-redeemable and cannot be reused across another site, project, QSC or materially changed proposal. Checkout must derive and itemise price, credit, balance and applicable GST on the server.
@@ -330,10 +330,10 @@ Planning Feasibility and Delivery Plan
 Open items before launch
 Complete truthful consultant referral submission/delivery and returned-report intake
 Define and operationally verify the LGA preparation service target and failed-preparation resolution
-Implement uploaded-document OCR/indexing, spatial provenance and evidence-conflict handling
-Implement the A$749 SEE entitlement and single-use exact-scope A$49 credit ledger
+Execute real uploaded documents through the accepted private malware-scanning and immutable operator-review chain, then complete OCR/indexing, spatial provenance and evidence-conflict handling; synthetic acceptance proves the architecture but does not establish a real clean or verified document
+Complete protected A$749 entitlement and single-use exact-scope A$49 credit execution, then obtain separate approval before applying any required Production persistence
 Build and visually verify professional DOCX/PDF SEE output against an approved example template
 Write consultant credential disclosure for directory and RFQ pages
-Certify complete Byron and Kempsey source/zone/development coverage through representative golden journeys
+Extend the accepted Byron/Kempsey whole-LGA source matrix into representative address-and-proposal golden journeys
 Complete whole-funnel non-production payment, referral, upload, regeneration and rendered-document acceptance
 Obtain separate explicit operator approval before any Production pack or SEE checkout activation

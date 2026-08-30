@@ -1,0 +1,49 @@
+name: Pathway Site Evidence Manifest
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-site-evidence.ts"
+      - "src/lib/pathway-site-evidence.test.ts"
+      - ".github/workflows/pathway-site-evidence.yml"
+      - "docs/operations/item74h-site-evidence-manifest.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathway-site-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-manifest:
+    name: Evidence manifest contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: "false"
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify fail-closed site evidence eligibility
+        run: npx tsx --test src/lib/pathway-site-evidence.test.ts
+
+      - name: Confirm Production remains disabled
+        run: |
+          test "$PLANNING_PACK_CHECKOUT_ENABLED" = "false"
+          test "$SUBMISSION_SEE_CHECKOUT_ENABLED" = "false"
+          test "$ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE" = "false"

@@ -1,0 +1,37 @@
+name: Authoritative Planning Layers Contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/pathway-authoritative-planning-layers.ts"
+      - "src/lib/pathway-authoritative-planning-layers.test.ts"
+      - "docs/operations/item74h-authoritative-planning-layers.md"
+      - ".github/workflows/pathway-authoritative-planning-layers.yml"
+  push:
+    branches:
+      - "agent/item74h-pathway-check"
+    paths:
+      - "src/lib/pathway-authoritative-planning-layers.ts"
+      - "src/lib/pathway-authoritative-planning-layers.test.ts"
+      - "docs/operations/item74h-authoritative-planning-layers.md"
+      - ".github/workflows/pathway-authoritative-planning-layers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx tsx --test src/lib/pathway-authoritative-planning-layers.test.ts
