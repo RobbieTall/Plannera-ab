@@ -1,6 +1,6 @@
 # Item 74H public Byron DA Preview evidence
 
-Status: APPROVED FOR PROTECTED PREVIEW / QUARANTINE GATE IMPLEMENTED / CONTENT REVIEW NOT YET COMPLETE
+Status: APPROVED FOR PROTECTED PREVIEW / CLEAN REVIEW COMPLETE / MORE_EVIDENCE_REQUIRED
 
 Last updated: 2026-08-30
 
@@ -13,52 +13,84 @@ unreviewed document contents.
 ## Approved public case
 
 The protected example is Byron Shire Council development application
-\`10.2025.535.1\`. The official tracker records an approved proposal that
-includes a new farm shed at 870 Wilsons Creek Road, Wilsons Creek.
-
-The quarantine gate retrieves only these official tracker records:
+`10.2025.535.1` for 870 Wilsons Creek Road, Wilsons Creek, Lot 11 DP 1225487.
+The official tracker records an approved proposal that includes a new farm shed.
 
 | Evidence candidate | Council record |
 | --- | --- |
-| Council road evidence candidate | \`E2025/131541\` |
-| Cadastral survey candidate | \`E2025/131546\` |
-| Proposed shed layout candidate | \`E2026/59935\` |
-| Approval cross-check | \`E2026/60560\` |
+| Council road evidence candidate | `E2025/131541` |
+| Detail survey candidate | `E2025/131546` |
+| Stamped proposed shed plans | `E2026/59935` |
+| Approval cross-check | `E2026/60560` |
 
-A filename or tracker description is not evidence that a document satisfies a
-role. Each role remains unconfirmed until a CLEAN document is reviewed at exact
-page or sheet references under the existing operator-review contract.
+A filename or tracker description is not proof that a document satisfies a
+strict evidence role. The CLEAN pages were reviewed at exact page references
+before the deterministic outcome below was recorded.
+
+## Reviewed facts
+
+The protected review confirms:
+
+- the exact address, lot and deposited plan;
+- approval of a new farm machinery shed;
+- a 20 metre by 10 metre footprint, or 200 square metres, on stamped-plan page 9;
+- an elevation supporting an approximately 6 metre overall height on page 9;
+- a stated lot area of 39.47 hectares on detail-survey page 1; and
+- Byron Shire Council as road authority for the section 138 works on approval page 2.
+
+The public case is separate from the earlier hypothetical 80 square metre,
+3.5 metre high shed example and must never inherit facts from that example.
+
+## Evidence still required
+
+The reviewed set does not establish:
+
+- a registered cadastral survey: the detail survey says boundaries were compiled
+  from DCDB, says it is not a Survey under the Surveying Act 2002, and does not
+  identify a registered surveyor;
+- an explicit strict-contract road classification;
+- an exact promoted shed-height measurement; or
+- unambiguous road, side and rear shed setbacks.
+
+Plannera must not infer or invent these values.
+
+## Deterministic commercial outcome
+
+The required decision is `MORE_EVIDENCE_REQUIRED`.
+
+- The free Pathway Check may show the confirmed facts and the exact missing
+  evidence request.
+- The A$49 Planning Controls Pack is not eligible.
+- The A$749 submission SEE is not eligible.
+- No evidence is promoted and no paid artefact binding is created by this gate.
+
+This result is commercially useful: Plannera can use public planning documents
+quickly while preventing a plausible-looking summary from becoming unsupported
+paid advice.
 
 ## Protected execution
 
-Run \`npm run accept:item74h-public-da-preview\` only when all of these are true:
+Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
-- \`VERCEL_ENV=preview\`.
-- \`VERCEL_GIT_COMMIT_REF=integration/item74h-public-da-20260830\`.
-- \`ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true\`.
+- `VERCEL_ENV=preview`.
+- `VERCEL_GIT_COMMIT_REF=integration/item74h-public-da-20260830`.
+- `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
 - Both paid checkout flags are absent or false.
 
-The gate must:
+The chain must:
 
-- Fetch the exact approved case page over HTTPS with redirects disabled.
-- Accept only the exact expected council records and official Byron document API.
-- Never log or persist download capability values.
-- Enforce bounded PDF responses and PDF magic bytes.
-- Store each document under a fresh opaque private Blob reference.
-- Prove unauthenticated reads are denied and authenticated bytes retain their hash.
-- Refresh ClamAV definitions in a preparation sandbox.
-- Scan the exact set in a snapshot-derived, deny-all scanner sandbox.
-- Verify every hash again after scanning.
-- Report only roles, public record numbers, page counts and redacted booleans.
-- Delete all Blob objects, sandboxes and snapshots and prove zero residue.
+- fetch only the exact official Byron records;
+- quarantine and scan bounded PDFs without logging download capabilities;
+- retain only the four approved private review PNGs;
+- delete transient Blob objects, sandboxes and snapshots with zero residue;
+- assert the reviewed `MORE_EVIDENCE_REQUIRED` outcome;
+- keep both paid products blocked; and
+- perform no Production or persistence mutation.
 
-## Fail-closed boundary
-
-A CLEAN quarantine result does not promote evidence and does not unlock the
-free, A$49 or A$749 commercial stages. The next step is an operator-reviewed,
-page-specific assessment of authority, road classification, survey provenance,
-shed measurements and survey-to-layout basis. If a document does not prove its
-candidate role, the pathway must return \`MORE_EVIDENCE_REQUIRED\`.
+Two superseded orphaned Vercel Sandbox snapshots were deleted during the
+2026-08-30 cleanup. The four CLEAN private review PNGs are intentionally retained
+for protected operator evidence review; source PDFs and transient execution
+resources are not retained.
 
 Production checkout remains disabled.
