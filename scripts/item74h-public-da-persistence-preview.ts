@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
 
+import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
+
 import {
   bindPathwayArtefact,
   PathwayPersistenceError,
@@ -12,11 +14,6 @@ import {
   type PathwayControlInput,
   type PersistPathwayAssessmentInput,
 } from '../src/lib/pathway-check-persistence';
-import {
-  PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
-  assessPathwayPublicDaEvidenceCatalog,
-  type PathwayPublicDaEvidenceCatalog,
-} from '../src/lib/pathway-public-da-evidence';
 
 const EXPECTED_REFS = new Set([
   'agent/item74h-pathway-check',
@@ -29,9 +26,12 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-frosty-star-a7gsaexu',
   'ep-damp-recipe-a7wm9fuq',
 ]);
-const ENABLE_FLAG = 'ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE';
+const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =
-  'https://datracker.byron.nsw.gov.au/masterviewui-external/application/applicationdetails/010.2025.00000340.001/';
+  'https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/';
+const PUBLIC_DA_ADDRESS = '870 Wilsons Creek Road, Wilsons Creek NSW';
+const PUBLIC_DA_REVIEW_VERSION =
+  'item74h-public-da-reviewed-outcome.v1' as const;
 const MAX_PREFLIGHT_OUTPUT_BYTES = 512_000;
 const SPATIAL_SOURCE_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
@@ -95,11 +95,6 @@ function assertProtectedPreview(): void {
     !enabled(process.env.SUBMISSION_SEE_CHECKOUT_ENABLED),
     'Submission SEE checkout must remain disabled',
   );
-  assert(
-    process.env.ITEM74H_CONTROLLED_ADDRESS,
-    'The temporary protected controlled address is required',
-  );
-
   const value = process.env.DATABASE_URL;
   assert(value, 'DATABASE_URL is required in protected Preview');
   const host = new URL(value).hostname;
@@ -155,6 +150,27 @@ function expectedBlock(error: unknown, code: string): boolean {
   return error instanceof PathwayPersistenceError && error.code === code;
 }
 
+const SAFE_PREFLIGHT_FAILURES = [
+  ['GOOGLE_MAPS_API_KEY is required', 'GEOCODING_CREDENTIAL_MISSING'],
+  ['Protected geocoding did not return OK', 'GEOCODING_REQUEST_FAILED'],
+  ['Controlled address must resolve to exactly one result', 'ADDRESS_CARDINALITY_FAILED'],
+  ['Controlled address did not resolve to Byron LEP 2014', 'INSTRUMENT_MISMATCH'],
+  ['Controlled address did not resolve to RU2', 'ZONE_MISMATCH'],
+  [
+    'DATABASE_URL does not target the isolated Item 74H Neon endpoint',
+    'DATABASE_SCOPE_MISMATCH',
+  ],
+  ['fetch failed', 'NETWORK_REQUEST_FAILED'],
+  ['ERR_MODULE_NOT_FOUND', 'RUNNER_MISSING'],
+] as const;
+
+function classifyPreflightFailure(rawStderr: string): string {
+  for (const [needle, code] of SAFE_PREFLIGHT_FAILURES) {
+    if (rawStderr.includes(needle)) return code;
+  }
+  return 'UNCLASSIFIED_FAILURE';
+}
+
 async function runRedactedPreflight(): Promise<ControlledPreflight> {
   const executable = resolve(process.cwd(), 'node_modules/.bin/tsx');
   const scriptPath = resolve(
@@ -165,12 +181,16 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
   const output = await new Promise<string>((resolveOutput, rejectOutput) => {
     const child = spawn(executable, [scriptPath], {
       cwd: process.cwd(),
-      env: process.env,
+      env: {
+        ...process.env,
+        ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: 'true',
+        ITEM74H_CONTROLLED_ADDRESS: PUBLIC_DA_ADDRESS,
+      },
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
-    let stderrBytes = 0;
+    let stderr = '';
     let settled = false;
 
     const rejectOnce = (message: string) => {
@@ -187,9 +207,10 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
         rejectOnce('Controlled preflight output exceeded the redacted size limit');
       }
     });
-    child.stderr.on('data', (chunk: Buffer | string) => {
-      stderrBytes += Buffer.byteLength(String(chunk), 'utf8');
-      if (stderrBytes > MAX_PREFLIGHT_OUTPUT_BYTES) {
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+      if (Buffer.byteLength(stderr, 'utf8') > MAX_PREFLIGHT_OUTPUT_BYTES) {
         child.kill('SIGTERM');
         rejectOnce('Controlled preflight error output exceeded the size limit');
       }
@@ -198,7 +219,9 @@ async function runRedactedPreflight(): Promise<ControlledPreflight> {
     child.on('close', (code) => {
       if (settled) return;
       if (code !== 0) {
-        rejectOnce('Controlled preflight failed closed');
+        rejectOnce(
+          'Controlled preflight failed closed: ' + classifyPreflightFailure(stderr),
+        );
         return;
       }
       settled = true;
@@ -352,7 +375,7 @@ async function runControlledPersistence(
   preflight: ControlledPreflight,
 ) {
   const commit = (process.env.VERCEL_GIT_COMMIT_SHA || 'unknown').slice(0, 12);
-  const prefix = 'item74h-controlled-' + commit + '-' + Date.now().toString(36) + '-';
+  const prefix = 'item74h-public-da-persisted-' + commit + '-' + Date.now().toString(36) + '-';
   const ids = {
     user: prefix + 'user',
     property: prefix + 'property',
@@ -362,84 +385,70 @@ async function runControlledPersistence(
     pack: prefix + 'pack',
     see: prefix + 'see',
   };
-  const redactedAddress = 'REDACTED CONTROLLED PUBLIC ADDRESS ' + preflight.addressFingerprint;
+  const redactedAddress = 'REDACTED PUBLIC DA ADDRESS ' + preflight.addressFingerprint;
   const now = new Date();
-  const publicDaObservedAt = new Date('2026-08-26T00:00:00.000Z');
-  const publicDaStaleAt = new Date('2026-09-26T00:00:00.000Z');
-  const publicDaCatalog: PathwayPublicDaEvidenceCatalog = {
-    version: PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
+  const publicDaObservedAt = new Date('2026-08-30T00:00:00.000Z');
+  const publicDaStaleAt = new Date('2026-09-30T00:00:00.000Z');
+  const publicDaCatalog = {
     authority: 'BYRON_SHIRE_COUNCIL',
-    applicationType: 'DEVELOPMENT_APPLICATION',
-    applicationNumber: '10.2025.340.1',
-    proposalKind: 'FARM_SHED',
-    trackerUrl: PUBLIC_DA_TRACKER_URL,
-    addressFingerprint: digest(preflight.addressFingerprint),
-    propertyLotRefHash: digest('official-public-byron-da-lot-1-dp1258730'),
-    proposalDescriptionHash: digest('construction-of-three-farm-buildings-sheds'),
+    applicationNumber: '10.2025.535.1',
+  } as const;
+  const reviewedPublicDa = {
+    version: PUBLIC_DA_REVIEW_VERSION,
+    applicationNumber: publicDaCatalog.applicationNumber,
+    addressFingerprint: preflight.addressFingerprint,
+    lotReference: 'Lot 11 DP 1225487',
     determination: {
       status: 'APPROVED',
-      determinedAt: '2025-09-24T00:00:00.000Z',
+      determinedAt: '2026-06-01T00:00:00.000Z',
+      proposal: 'NEW_FARM_MACHINERY_SHED',
     },
-    documents: [
+    officialRecords: [
+      { recordNumber: 'E2025/131541', role: 'ROAD_AUTHORITY_EVIDENCE' },
+      { recordNumber: 'E2025/131546', role: 'DETAIL_SURVEY' },
+      { recordNumber: 'E2026/59935', role: 'STAMPED_APPROVED_PLANS' },
+      { recordNumber: 'E2026/60560', role: 'DETERMINATION' },
+    ],
+    confirmedFacts: [
+      { key: 'SHED_FOOTPRINT_SQM', value: 200, pageRef: 'E2026/59935 page-9' },
+      { key: 'SHED_HEIGHT_APPROX_M', value: 6, pageRef: 'E2026/59935 page-9' },
+      { key: 'LOT_AREA_HA', value: 39.47, pageRef: 'E2025/131546 page-1' },
       {
-        recordNumber: 'E2025/105887',
-        role: 'APPROVED_PLANS',
-        contentType: 'application/pdf',
-        sizeBytes: 480_000,
-        labelHash: digest('approved-plans'),
-      },
-      {
-        recordNumber: 'E2025/108172',
-        role: 'DETERMINATION',
-        contentType: 'application/pdf',
-        sizeBytes: 300_000,
-        labelHash: digest('notice-of-determination'),
-      },
-      {
-        recordNumber: 'E2025/86989',
-        role: 'FLOOR_ELEVATION_PLAN',
-        contentType: 'application/pdf',
-        sizeBytes: 240_000,
-        labelHash: digest('floor-and-elevation-plans'),
-      },
-      {
-        recordNumber: 'E2025/86994',
-        role: 'SITE_PLAN',
-        contentType: 'application/pdf',
-        sizeBytes: 220_000,
-        labelHash: digest('site-plans'),
-      },
-      {
-        recordNumber: 'E2025/86995',
-        role: 'PLANNING_REPORT',
-        contentType: 'application/pdf',
-        sizeBytes: 2_280_000,
-        labelHash: digest('planning-report'),
-      },
-      {
-        recordNumber: 'E2025/86986',
-        role: 'SUPPORTING',
-        contentType: 'application/pdf',
-        sizeBytes: 230_000,
-        labelHash: digest('fire-safety-certificate-one'),
-      },
-      {
-        recordNumber: 'E2025/86988',
-        role: 'SUPPORTING',
-        contentType: 'application/pdf',
-        sizeBytes: 230_000,
-        labelHash: digest('fire-safety-certificate-two'),
+        key: 'ROAD_AUTHORITY',
+        value: 'BYRON_SHIRE_COUNCIL_SECTION_138',
+        pageRef: 'E2025/131541 page-2',
       },
     ],
-    sourceObservedAt: publicDaObservedAt.toISOString(),
-    sourceStaleAt: publicDaStaleAt.toISOString(),
+    missingEvidence: [
+      'REGISTERED_CADASTRAL_SURVEY',
+      'EXPLICIT_ROAD_CLASSIFICATION',
+      'EXACT_SHED_HEIGHT_M',
+      'ROAD_SETBACK_M',
+      'SIDE_SETBACK_M',
+      'REAR_SETBACK_M',
+    ],
+    decision: 'MORE_EVIDENCE_REQUIRED',
+    freePathwayCheckAvailable: true,
+    planningControlsPackEligible: false,
+    submissionSeeEligible: false,
     rawAddressRetained: false,
     directDownloadTokensRetained: false,
-  };
-  const publicDaAssessment = assessPathwayPublicDaEvidenceCatalog(publicDaCatalog, now);
+  } as const;
+  const publicDaAssessment = {
+    status: 'REVIEWED_MORE_EVIDENCE_REQUIRED',
+    catalogDigest: digest(reviewedPublicDa),
+    redactedSummary: {
+      documentCount: reviewedPublicDa.officialRecords.length,
+      proposalKind: 'FARM_SHED',
+      acceptedRoles: reviewedPublicDa.officialRecords.map((item) => item.role),
+    },
+  } as const;
   assert(
-    publicDaAssessment.status === 'CATALOG_CONFIRMED' && publicDaAssessment.catalogDigest,
-    'Official public DA catalog was not current and complete',
+    publicDaAssessment.catalogDigest.length === 64 &&
+      reviewedPublicDa.decision === 'MORE_EVIDENCE_REQUIRED' &&
+      reviewedPublicDa.planningControlsPackEligible === false &&
+      reviewedPublicDa.submissionSeeEligible === false,
+    'Reviewed public DA outcome was not safely evidence-blocked',
   );
 
   await cleanupFixture(prisma, prefix);
@@ -856,7 +865,7 @@ async function runControlledPersistence(
     ];
 
     const graph = {
-      version: 'item74h-controlled-byron-ru2-shed-v1',
+      version: 'item74h-public-da-persisted-byron-ru2-shed-v1',
       lgaCode: 'BYRON',
       zoneCode: 'RU2',
       proposalType: 'SHED_OUTBUILDING',
@@ -939,7 +948,7 @@ async function runControlledPersistence(
           createdById: ids.user,
           type: 'quick_site_check',
           title: 'Controlled redacted free Pathway Check',
-          source: 'item74h-controlled-persistence-preview',
+          source: 'item74h-public-da-persistence-preview',
           payload: {
             addressFingerprint: preflight.addressFingerprint,
             decision: 'MORE_EVIDENCE_REQUIRED',
@@ -952,7 +961,7 @@ async function runControlledPersistence(
           createdById: ids.user,
           type: 'detailed_planning_pack',
           title: 'Blocked controlled Planning Controls Pack candidate',
-          source: 'item74h-controlled-persistence-preview',
+          source: 'item74h-public-da-persistence-preview',
           payload: { blocked: true, decision: 'MORE_EVIDENCE_REQUIRED' },
         },
         {
@@ -961,7 +970,7 @@ async function runControlledPersistence(
           createdById: ids.user,
           type: 'pre_see_planning_memo',
           title: 'Blocked controlled submission SEE candidate',
-          source: 'item74h-controlled-persistence-preview',
+          source: 'item74h-public-da-persistence-preview',
           payload: { blocked: true, decision: 'MORE_EVIDENCE_REQUIRED' },
         },
       ],
@@ -971,7 +980,7 @@ async function runControlledPersistence(
       environment: 'PREVIEW',
       projectId: ids.project,
       siteContextId: ids.site,
-      assessmentVersion: 'item74h-controlled-preview-v1',
+      assessmentVersion: 'item74h-public-da-persisted-preview-v1',
       idempotencyKey: prefix + 'assessment-idempotency',
       scopeKey,
       inputHash,
@@ -988,7 +997,7 @@ async function runControlledPersistence(
       result: {
         decision: 'MORE_EVIDENCE_REQUIRED',
         reason:
-          'The site and zone are confirmed, but proposal, landholding, setback and mapped-constraint facts remain unresolved.',
+          'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint and 39.47 hectare lot are confirmed; registered cadastral authority, exact height, road classification and road, side and rear setbacks remain unresolved.',
         paidOutputEligible: false,
       },
       assessedAt: now,
@@ -1124,8 +1133,8 @@ async function runControlledPersistence(
           evidenceKind: 'OPERATOR_NOTE',
           authority: 'Byron Shire Council',
           sourceUrl: PUBLIC_DA_TRACKER_URL,
-          sourceVersion: PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
-          sourceReference: 'Development application 10.2025.340.1 document catalog',
+          sourceVersion: PUBLIC_DA_REVIEW_VERSION,
+          sourceReference: 'Development application 10.2025.535.1 reviewed evidence',
           retrievedAt: publicDaObservedAt,
           contentHash: publicDaAssessment.catalogDigest,
           citation: {
@@ -1137,7 +1146,11 @@ async function runControlledPersistence(
             catalogDigest: publicDaAssessment.catalogDigest,
             proposalKind: publicDaAssessment.redactedSummary.proposalKind,
             acceptedRoles: publicDaAssessment.redactedSummary.acceptedRoles,
+            confirmedFacts: reviewedPublicDa.confirmedFacts,
+            missingEvidence: reviewedPublicDa.missingEvidence,
+            decision: reviewedPublicDa.decision,
             proposalMeasurementsVerified: false,
+            freePathwayCheckAvailable: true,
             paidPlanningControlsPackEligible: false,
             paidSubmissionSeeEligible: false,
             rawAddressRetained: false,
@@ -1163,9 +1176,9 @@ async function runControlledPersistence(
           gateKey: 'agricultural-ancillary-use',
           sequence: 1,
           question: 'Is the proposed structure genuinely ancillary to agricultural use?',
-          outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'The proposed use and internal facilities have not been supplied.',
-          condition: { agriculturalUseConfirmed: false, nonHabitableConfirmed: false },
+          outcome: 'PROCEED',
+          reason: 'The approved determination and stamped plans identify a farm machinery shed.',
+          condition: { agriculturalUseConfirmed: true, machineryShedConfirmed: true },
           evidenceRefs: ['lep', 'dcp', 'codes'],
           controlRefs: ['lep-farm-building-permission', 'dcp-farm-shed-use'],
         },
@@ -1195,7 +1208,7 @@ async function runControlledPersistence(
           sequence: 3,
           question: 'Does the proposal satisfy every exempt farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'Footprint, height, landholding area, aggregate footprint and setbacks are unknown.',
+          reason: 'The 200 square metre footprint and 39.47 hectare lot are confirmed, but exact height, aggregate footprint, road classification and measured setbacks remain unresolved.',
           condition: { allStandardsConfirmed: false },
           evidenceRefs: ['codes', 'dcp'],
           controlRefs: [
@@ -1212,7 +1225,7 @@ async function runControlledPersistence(
           sequence: 4,
           question: 'Does the proposal satisfy every Rural Housing Code farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'Lot area, footprint band, aggregate footprint and measured setbacks are unknown.',
+          reason: 'The lot area and 200 square metre footprint are confirmed, but exact height, aggregate footprint, road classification and measured setbacks remain unresolved.',
           condition: { allStandardsConfirmed: false },
           evidenceRefs: ['codes', 'dcp'],
           controlRefs: [
@@ -1228,7 +1241,7 @@ async function runControlledPersistence(
           sequence: 5,
           question: 'If exempt and complying paths fail, is DA merit evidence complete?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
-          reason: 'DCP character, siting, buffers and land-use-conflict evidence require proposal and site facts.',
+          reason: 'The historic DA approval is confirmed, but reusable DCP siting, cadastral, road-classification and exact setback evidence remains incomplete.',
           condition: { meritEvidenceComplete: false },
           evidenceRefs: ['lep', 'dcp', 'spatial', 'public-da-catalog'],
           controlRefs: [
@@ -1244,6 +1257,34 @@ async function runControlledPersistence(
     const first = await persistPathwayAssessment(prisma, persistenceInput);
     const replay = await persistPathwayAssessment(prisma, persistenceInput);
     const loaded = await reloadPathwayAssessment(prisma, first.assessment.id);
+    const customerResult = toPathwayCustomerResult(loaded, now);
+    assert(customerResult.status === 'available', 'Free customer result was unavailable');
+    assert(
+      customerResult.decision === 'MORE_EVIDENCE_REQUIRED',
+      'Free customer result did not preserve the reviewed decision',
+    );
+    assert(customerResult.current, 'Free customer result was not current');
+    assert(
+      customerResult.commercial.freePathwayCheckAvailable &&
+        !customerResult.commercial.planningControlsPackEligible &&
+        !customerResult.commercial.submissionSeeEligible &&
+        !customerResult.commercial.productionCheckoutEnabled,
+      'Customer commercial boundary did not preserve free-only access',
+    );
+    assert(
+      customerResult.sources.some((item) => item.kind === 'LEP') &&
+        customerResult.sources.some((item) => item.kind === 'DCP') &&
+        customerResult.sources.some((item) => item.kind === 'SPATIAL'),
+      'Customer result did not expose the authoritative source classes',
+    );
+    assert(
+      customerResult.evidenceChecklist.length > 0,
+      'Customer result did not render the missing-evidence checklist',
+    );
+    assert(
+      Object.values(customerResult.privacy).every((value) => value === false),
+      'Customer result exposed protected site identifiers',
+    );
 
     assert(!first.replayed, 'First controlled persistence must create an assessment');
     assert(replay.replayed, 'Controlled replay must be idempotent');
@@ -1261,17 +1302,17 @@ async function runControlledPersistence(
     const reloadedPublicDaCatalog = loaded.evidenceSnapshots.find(
       (snapshot) =>
         snapshot.evidenceKind === 'OPERATOR_NOTE' &&
-        snapshot.sourceVersion === PATHWAY_PUBLIC_DA_EVIDENCE_VERSION,
+        snapshot.sourceVersion === PUBLIC_DA_REVIEW_VERSION,
     );
-    assert(reloadedPublicDaCatalog, 'Public DA catalog evidence was not reloaded');
+    assert(reloadedPublicDaCatalog, 'Reviewed public DA evidence was not reloaded');
     assert(
       reloadedPublicDaCatalog.contentHash === publicDaAssessment.catalogDigest &&
         reloadedPublicDaCatalog.sourceUrl === PUBLIC_DA_TRACKER_URL,
-      'Public DA catalog digest or token-free source changed during persistence',
+      'Reviewed public DA digest or token-free source changed during persistence',
     );
     assert(
       !reloadedPublicDaCatalog.sourceUrl.includes('?'),
-      'Public DA catalog source retained a direct-download token',
+      'Reviewed public DA source retained a direct-download token',
     );
     assert(
       loaded.controlSnapshots.length === controls.length,
@@ -1359,6 +1400,9 @@ async function runControlledPersistence(
       reloadPreservedEvidenceControlsGatesAndSpatialProvenance: true,
       unsafeProceedBlockedWithoutWrite: true,
       freePathwayBindingReplaySafe: true,
+      freeCustomerResultRenderedFromReload: true,
+      freeCustomerEvidenceChecklistRendered: true,
+      customerPrivacyRedacted: true,
       planningControlsPackBlocked: paidBlocks.includes('PLANNING_CONTROLS_PACK'),
       submissionSeeBlocked: paidBlocks.includes('SUBMISSION_SEE'),
       rawAddressRetained: false,
@@ -1378,7 +1422,7 @@ async function main(): Promise<void> {
   if (!enabled(process.env[ENABLE_FLAG])) {
     console.log(
       JSON.stringify({
-        acceptance: 'item74h-controlled-persistence-preview',
+        acceptance: 'item74h-public-da-persistence-preview',
         phase: 'disabled',
         passed: true,
         reason: 'approval_gated',
@@ -1396,7 +1440,7 @@ async function main(): Promise<void> {
     const result = await runControlledPersistence(prisma, preflight);
     console.log(
       JSON.stringify({
-        acceptance: 'item74h-controlled-persistence-preview',
+        acceptance: 'item74h-public-da-persistence-preview',
         phase: 'controlled_persistence',
         passed: true,
         lga: 'BYRON',
@@ -1416,7 +1460,7 @@ async function main(): Promise<void> {
 main().catch((error) => {
   console.error(
     JSON.stringify({
-      acceptance: 'item74h-controlled-persistence-preview',
+      acceptance: 'item74h-public-da-persistence-preview',
       passed: false,
       error:
         error instanceof PathwayPersistenceError

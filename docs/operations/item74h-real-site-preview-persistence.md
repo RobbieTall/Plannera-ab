@@ -25,7 +25,7 @@ bridge result can:
 The scenario is restricted by the parent harness to:
 
 - Vercel Preview;
-- exact branch `agent/item74h-pathway-check` or the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`;
+- exact branch `agent/item74h-pathway-check`, the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`, or the protected public-evidence branch `integration/item74h-public-da-20260830`;
 - no wildcard or prefix branch matching;
 - each allowed branch remains bound to an exact isolated Neon endpoint allowlist; no general Neon-domain acceptance;
 - the isolated Item 74H Neon endpoint;
@@ -36,7 +36,7 @@ Every project, property, site, evidence item and artefact is explicitly marked
 synthetic and non-authoritative. No real address, coordinate, parcel identifier,
 survey, plan, payment or Production record is used.
 
-Passing this acceptance proves the durable engineering path only. It does not
+This synthetic scenario remains separate from the public-document quarantine runner on the protected public-evidence branch. Passing this acceptance proves the durable engineering path only. It does not
 make the actual Byron site evidence-confirmed, does not replace operator review,
 and does not activate checkout.
 

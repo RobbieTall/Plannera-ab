@@ -7,7 +7,7 @@
     "migrate:deploy": "echo 'migrate disabled on vercel'",
     "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "node ./scripts/prisma-generate.js && npm run migrate:item74h-preview && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && npm run accept:item74h-private-blob-preview && npm run accept:item74h-clamav-preview && next build",
+    "vercel-build": "node ./scripts/prisma-generate.js && npm run migrate:item74h-preview && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && npm run accept:item74h-private-blob-preview && npm run accept:item74h-clamav-preview && npm run accept:item74h-public-da-preview && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:node && npm run test:vitest",
@@ -43,7 +43,8 @@
     "accept:item74h-controlled-persistence-preview": "tsx scripts/item74h-controlled-persistence-preview.ts",
     "migrate:item74h-preview": "tsx scripts/item74h-preview-migrate.ts",
     "accept:item74h-private-blob-preview": "tsx scripts/item74h-private-blob-preview-acceptance.ts",
-    "accept:item74h-clamav-preview": "tsx scripts/item74h-clamav-preview-acceptance.ts"
+    "accept:item74h-clamav-preview": "tsx scripts/item74h-clamav-preview-acceptance.ts",
+    "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts && tsx scripts/item74h-public-da-persistence-preview.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -64,9 +65,9 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-markdown": "^10.1.0",
-    "read-excel-file": "9.3.10",
     "stripe": "^18.5.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "read-excel-file": "9.3.9"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -74,7 +75,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.3",
-    "@types/react": "^18",
+    "@types/react": "^18.3.1",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
