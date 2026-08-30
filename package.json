@@ -44,7 +44,7 @@
     "migrate:item74h-preview": "tsx scripts/item74h-preview-migrate.ts",
     "accept:item74h-private-blob-preview": "tsx scripts/item74h-private-blob-preview-acceptance.ts",
     "accept:item74h-clamav-preview": "tsx scripts/item74h-clamav-preview-acceptance.ts",
-    "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts"
+    "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts && tsx scripts/item74h-public-da-persistence-preview.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

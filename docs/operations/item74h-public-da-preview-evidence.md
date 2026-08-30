@@ -94,3 +94,28 @@ for protected operator evidence review; source PDFs and transient execution
 resources are not retained.
 
 Production checkout remains disabled.
+
+
+## Durable Preview acceptance
+
+The protected chain finishes with
+`scripts/item74h-public-da-persistence-preview.ts`. It:
+
+- resolves the exact public address through protected geocoding;
+- requires one official NSW Byron LEP 2014 RU2 zoning polygon;
+- reads the current Byron LEP, DCP and Codes SEPP evidence from the isolated
+  Preview database;
+- persists one versioned `MORE_EVIDENCE_REQUIRED` assessment with spatial,
+  instrument, control, gate and reviewed-public-document snapshots;
+- replays the same idempotency key and requires the same assessment;
+- reloads the assessment through the customer-result renderer;
+- requires the free Pathway Check and its missing-evidence checklist;
+- requires both the A$49 and A$749 artefact bindings to fail closed;
+- verifies that protected address, coordinates, parcel identifiers and evidence
+  digests are absent from the customer response; and
+- deletes all acceptance users, properties, projects, sites, artefacts,
+  bindings, assessments, definitions and spatial rows, then proves zero
+  residual rows.
+
+A failed address, zone, source-currentness, persistence, replay, customer
+rendering, paid-boundary or cleanup assertion fails the hosted deployment.
