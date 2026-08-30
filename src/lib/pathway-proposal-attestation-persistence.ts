@@ -17,6 +17,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
   "ep-bold-shadow-a7y8j17d",
   "ep-frosty-star-a7gsaexu",
+  "ep-weathered-field-a7by4jyu",
 ]);
 const RECORD_VERSION = "pathway-proposal-attestation.v1";
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
