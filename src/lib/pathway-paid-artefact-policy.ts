@@ -12,6 +12,7 @@ export type PathwayPaidArtefactPolicyBlocker =
   | "EVIDENCE_DIGEST_MISMATCH"
   | "ASSESSMENT_OUTCOME_MISMATCH"
   | "INSUFFICIENT_STAGE_TRUST"
+  | "FIXTURE_EVIDENCE"
   | "ASSESSMENT_NOT_CURRENT"
   | "EVIDENCE_NOT_CURRENT"
   | "CONTROLS_NOT_CURRENT"
@@ -31,6 +32,7 @@ export interface PathwayPaidArtefactPolicyInput {
     isCurrent: boolean;
     evidenceCurrent: boolean;
     controlsCurrent: boolean;
+    fixtureEvidence: boolean;
   };
 }
 
@@ -103,6 +105,9 @@ export function evaluatePaidArtefactBindingPolicy(
     requiredTrust
   ) {
     blockers.push("INSUFFICIENT_STAGE_TRUST");
+  }
+  if (input.assessment.fixtureEvidence) {
+    blockers.push("FIXTURE_EVIDENCE");
   }
   if (!input.assessment.isCurrent) {
     blockers.push("ASSESSMENT_NOT_CURRENT");
