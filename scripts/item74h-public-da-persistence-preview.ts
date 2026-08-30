@@ -26,6 +26,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-bold-shadow-a7y8j17d',
   'ep-frosty-star-a7gsaexu',
   'ep-damp-recipe-a7wm9fuq',
+  'ep-rapid-shape-a72cicyh',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =
