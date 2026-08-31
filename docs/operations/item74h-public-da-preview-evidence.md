@@ -19,13 +19,18 @@ The official tracker records an approved proposal that includes a new farm shed.
 | Evidence candidate | Council record |
 | --- | --- |
 | Council road evidence candidate | `E2025/131541` |
+| Site plan and biodiversity mapping candidate | `E2025/131544` |
+| Town planning report candidate | `E2025/131545` |
 | Detail survey candidate | `E2025/131546` |
 | Stamped proposed shed plans | `E2026/59935` |
 | Approval cross-check | `E2026/60560` |
 
 A filename or tracker description is not proof that a document satisfies a
 strict evidence role. The CLEAN pages were reviewed at exact page references
-before the deterministic outcome below was recorded.
+before the deterministic outcome below was recorded. Records `E2025/131544` and
+`E2025/131545` are newly approved discovery candidates only; until freshly
+quarantined, scanned and reviewed, they add no confirmed fact and remove no
+commercial blocker.
 
 ## Reviewed facts
 
@@ -101,8 +106,9 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 - `VERCEL_ENV=preview`.
 - `VERCEL_GIT_COMMIT_REF` is exactly
   `integration/item74h-public-da-20260830`,
-  `agent/item74h-evidence-refinement-20260830`, or
-  `agent/item74h-layout-evidence-20260831`; wildcard and prefix matching
+  `agent/item74h-evidence-refinement-20260830`,
+  `agent/item74h-layout-evidence-20260831`, or
+  `agent/item74h-setback-evidence-20260831`; wildcard and prefix matching
   remain prohibited.
 - `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
@@ -116,7 +122,8 @@ branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
 allowlist entries. Each branch must remain Preview-only, receive synthetic
 acceptance writes only, and may be deleted after its merged-head acceptance and
 zero-residue result are recorded. Neither may be reused as a Production
-database.
+database. The PR #361 branch and its branch-scoped Vercel acceptance flag were
+deleted after merged-head verification; Production was not changed.
 
 The chain must:
 
@@ -146,6 +153,19 @@ as a road, side or rear setback.
 This refinement must leave the missing-evidence count at four, preserve
 `MORE_EVIDENCE_REQUIRED`, and keep both paid products ineligible. It may not
 promote the indicative dimension into a legal setback.
+
+## Setback evidence discovery - 31 August 2026
+
+The next protected slice adds exact Council records `E2025/131544` and
+`E2025/131545` to the bounded six-document quarantine. It may emit page-scoped
+candidate text for operator selection only after a fresh clean scan. It must not
+retain new review images, confirm a setback, alter the reviewed outcome, persist
+an assessment, bind a paid artefact, or enable checkout.
+
+The existing 40 MB total limit, exact official-host and filename checks, private
+Blob authentication, deny-all review sandbox, hash checks and zero-residue
+cleanup remain mandatory. Candidate discovery is successful even if neither
+document supplies authoritative road, side or rear setback evidence.
 
 ## Durable Preview acceptance
 
@@ -225,3 +245,55 @@ The exact-head run proved:
 
 The run performed no Production mutation. Production checkout remained
 disabled.
+
+
+## Scanner snapshot lifecycle hardening - 31 August 2026
+
+The scanner preparation sandbox is deliberately non-persistent. After ClamAV and
+Poppler are installed and malware definitions are refreshed, the acceptance
+calls the supported `sandbox.snapshot()` operation explicitly and records the
+returned snapshot ID before creating the deny-all scanner.
+
+This removes the automatic-stop race exposed by the first protected
+six-document discovery run:
+
+- a failure before explicit snapshot creation cannot create an automatic orphan;
+- snapshot creation terminates the preparation session and returns the cleanup
+  handle directly;
+- every later success or failure deletes that exact snapshot; and
+- the existing zero-residue gate still fails closed if Blob, Sandbox or snapshot
+  cleanup cannot be proved.
+
+The orphaned Preview snapshots from the failed automatic-stop attempt and the
+initial explicit-return property mismatch were deleted. No Production resource,
+checkout setting, retained review page or customer document was changed.
+
+
+## Six-document protected discovery acceptance - 31 August 2026
+
+Exact-head Preview commit `c7e51315fc5a4f68d326857a4706b1fa165208ad`
+completed successfully on Vercel. The protected run proved:
+
+- all six exact Byron Council documents scanned CLEAN with hashes stable before
+  and after scanning;
+- the scanner ran deny-all after definitions were refreshed;
+- the explicit scanner snapshot, both sandboxes and all transient Blob objects
+  were removed with zero residual resources;
+- four previously approved private review pages remained the only retained
+  review images;
+- no evidence was automatically promoted and no paid artefact binding was
+  created;
+- both the A$49 Planning Controls Pack and A$749 Submission SEE remained
+  blocked; and
+- Production mutation was false and Production checkout remained disabled.
+
+The additional site plan exposed only the address in extractable text. The town
+planning report states that the proposed farm shed is east of the dwelling and
+that the proposed dwelling is over 300 metres from Wilsons Creek Road and over
+20 metres from the nearest adjoining property. Those are useful planning
+context, but they are not shed-to-boundary measurements and must not be reused
+as road, side or rear shed setbacks.
+
+The reviewed outcome therefore correctly remains `MORE_EVIDENCE_REQUIRED`
+with `REGISTERED_CADASTRAL_SURVEY`, `ROAD_SETBACK_M`, `SIDE_SETBACK_M` and
+`REAR_SETBACK_M` unresolved.

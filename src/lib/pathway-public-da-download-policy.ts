@@ -1,7 +1,7 @@
 import { parse } from "node-html-parser";
 
 export const ITEM74H_PUBLIC_DA_CASE_VERSION =
-  "item74h-public-da-case.v1" as const;
+  "item74h-public-da-case.v2" as const;
 export const ITEM74H_PUBLIC_DA_TRACKER_URL =
   "https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/" as const;
 export const ITEM74H_PUBLIC_DA_NUMBER = "10.2025.535.1" as const;
@@ -9,6 +9,8 @@ export const ITEM74H_PUBLIC_DA_NUMBER = "10.2025.535.1" as const;
 export type Item74hPublicDaDocumentRole =
   | "ROAD_CLASSIFICATION"
   | "CADASTRAL_SURVEY"
+  | "SETBACK_SITE_PLAN"
+  | "SETBACK_PLANNING_REPORT"
   | "PROPOSED_SHED_LAYOUT"
   | "DETERMINATION";
 
@@ -25,6 +27,18 @@ export const ITEM74H_PUBLIC_DA_EXPECTED_DOCUMENTS: readonly ExpectedDocument[] =
     recordNumber: "E2025/131541",
     descriptionFragment: "S138 Approval",
     maxBytes: 2 * 1024 * 1024,
+  },
+  {
+    role: "SETBACK_SITE_PLAN",
+    recordNumber: "E2025/131544",
+    descriptionFragment: "Site Plan and Biodiversity Mapping",
+    maxBytes: 2 * 1024 * 1024,
+  },
+  {
+    role: "SETBACK_PLANNING_REPORT",
+    recordNumber: "E2025/131545",
+    descriptionFragment: "Town Planning Report",
+    maxBytes: 12 * 1024 * 1024,
   },
   {
     role: "CADASTRAL_SURVEY",

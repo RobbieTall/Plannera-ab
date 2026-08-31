@@ -6,6 +6,7 @@ const TARGET_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
+  "agent/item74h-setback-evidence-20260831",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -14,6 +15,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-damp-recipe-a7wm9fuq",
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
+  "ep-old-flower-a7swrkp3",
 ]);
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 

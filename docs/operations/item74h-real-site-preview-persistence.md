@@ -25,7 +25,7 @@ bridge result can:
 The scenario is restricted by the parent harness to:
 
 - Vercel Preview;
-- exact branch `agent/item74h-pathway-check`, the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`, the protected public-evidence branch `integration/item74h-public-da-20260830`, the exact evidence-refinement branch `agent/item74h-evidence-refinement-20260830`, or the exact layout-evidence branch `agent/item74h-layout-evidence-20260831`;
+- exact branch `agent/item74h-pathway-check`, the disposable clean-integration resolution branch `integration/item74h-resolution-20260830`, the protected public-evidence branch `integration/item74h-public-da-20260830`, the exact evidence-refinement branch `agent/item74h-evidence-refinement-20260830`, the exact layout-evidence branch `agent/item74h-layout-evidence-20260831`, or the exact setback-evidence branch `agent/item74h-setback-evidence-20260831`;
 - no wildcard or prefix branch matching;
 - each allowed branch remains bound to an exact isolated Neon endpoint allowlist; no general Neon-domain acceptance;
 - the isolated Item 74H Neon endpoint;

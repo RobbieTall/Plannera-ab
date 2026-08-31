@@ -6,6 +6,7 @@ const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
+  "agent/item74h-setback-evidence-20260831",
 ]);
 
 class ReviewedEvidenceFailure extends Error {

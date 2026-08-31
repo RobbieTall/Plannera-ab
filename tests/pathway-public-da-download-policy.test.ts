@@ -36,7 +36,7 @@ const approvedHtml = (
 test("accepts only the exact approved Byron case and expected document set", () => {
   const result = parseApprovedItem74hPublicDaCatalog(approvedHtml(validHref));
   assert.equal(result.approved, true);
-  assert.equal(result.documents.length, 4);
+  assert.equal(result.documents.length, 6);
   assert.deepEqual(
     result.documents.map((document) => document.recordNumber),
     ITEM74H_PUBLIC_DA_EXPECTED_DOCUMENTS.map(

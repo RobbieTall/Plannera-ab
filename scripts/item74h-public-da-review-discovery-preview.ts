@@ -15,6 +15,7 @@ const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
+  "agent/item74h-setback-evidence-20260831",
 ]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -33,6 +34,10 @@ const patterns: Record<Item74hPublicDaDocumentRole, RegExp> = {
     /\b(?:s\s*138|section\s+138|road|access|driveway|classified|classification|local|regional|state)\b/i,
   CADASTRAL_SURVEY:
     /\b(?:survey|surveyor|registered|lot\s*11|dp\s*1225487|boundary|area|datum|contour|wilsons creek)\b/i,
+  SETBACK_SITE_PLAN:
+    /\b(?:site\s*plan|shed|setback|boundary|road|front|side|rear|distance|dimension|metres?|m)\b/i,
+  SETBACK_PLANNING_REPORT:
+    /\b(?:setback|boundary|road|front|side|rear|dcp|control|compliance|variation|farm\s*shed)\b/i,
   PROPOSED_SHED_LAYOUT:
     /\b(?:farm\s+shed|shed|floor\s+area|m2|sqm|height|setback|boundary|elevation|rl|ffl)\b/i,
   DETERMINATION:
