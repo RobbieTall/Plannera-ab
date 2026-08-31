@@ -23,7 +23,7 @@ const EXPECTED_REFS = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
-  "agent/item74h-customer-evidence-taxonomy-20260901",
+  "agent/item74h-registered-plan-proof-20260901",
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -85,7 +85,7 @@ const asRecord = (
 ): PathwayPrivateEvidenceOperatorReviewPersistedRecord => {
   assert(row.environment === "PREVIEW", "ROW_ENVIRONMENT");
   assert(
-    ["ROAD_CLASSIFICATION", "CADASTRAL_SURVEY", "PROPOSED_SHED_LAYOUT"].includes(
+    ["ROAD_CLASSIFICATION", "REGISTERED_CADASTRAL_PLAN", "REGISTERED_CADASTRAL_PLAN", "PROPOSED_SHED_LAYOUT"].includes(
       row.role,
     ),
     "ROW_ROLE",
@@ -273,7 +273,7 @@ const runAcceptance = async () => {
       },
       evidenceRef,
       contentHash,
-      role: "CADASTRAL_SURVEY" as const,
+      role: "REGISTERED_CADASTRAL_PLAN" as const,
       idempotencyKey: prefix + ":pending",
       transition: {
         status: "PENDING" as const,
@@ -346,7 +346,7 @@ const runAcceptance = async () => {
         "PREVIEW",
         evidenceRef,
         contentHash,
-        "CADASTRAL_SURVEY",
+        "REGISTERED_CADASTRAL_PLAN",
         latest.recordHash,
         "READY_FOR_EVIDENCE_PACKAGE",
         PROMOTION_VERSION,
@@ -358,7 +358,7 @@ const runAcceptance = async () => {
     const promotionDeps = {
       loadEvidence: async () => ({
         evidenceRef,
-        role: "CADASTRAL_SURVEY" as const,
+        role: "REGISTERED_CADASTRAL_PLAN" as const,
         contentHash,
         storageAccess: "private" as const,
         quarantineStatus: "QUARANTINED" as const,

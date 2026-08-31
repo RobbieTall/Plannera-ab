@@ -1,16 +1,18 @@
 import { createHash } from "node:crypto";
 
 export const PATHWAY_REAL_SITE_EVIDENCE_VERSION =
-  "byron-ru2-shed-real-site-evidence.v1" as const;
+  "byron-ru2-shed-real-site-evidence.v2" as const;
 
 export type PathwayRealSiteDocumentRole =
   | "ROAD_CLASSIFICATION"
+  | "REGISTERED_CADASTRAL_PLAN"
   | "CADASTRAL_SURVEY"
   | "PROPOSED_SHED_LAYOUT";
 
 export type PathwayRealSiteAuthority =
   | "TRANSPORT_FOR_NSW"
   | "BYRON_SHIRE_COUNCIL"
+  | "NSW_LAND_REGISTRY_SERVICES"
   | "REGISTERED_SURVEYOR"
   | "APPLICANT";
 
@@ -51,6 +53,17 @@ export type PathwayRealSiteMeasurement = {
   method: "PLAN_DIMENSION" | "SURVEY_MEASUREMENT" | "DOCUMENT_STATED";
 };
 
+export type PathwayRealSiteParcelAreaReconciliation = {
+  registeredPlanAreaSqm: number;
+  detailSurveyAreaSqm: number;
+  resolvedAreaSqm: number;
+  resolutionMethod: "REGISTERED_PLAN_CONTROLS";
+  registeredPlanSourceRole: "REGISTERED_CADASTRAL_PLAN";
+  detailSurveySourceRole: "CADASTRAL_SURVEY";
+  registeredPlanPageReference: string;
+  detailSurveyPageReference: string;
+};
+
 export type PathwayRealSiteEvidencePackage = {
   version: typeof PATHWAY_REAL_SITE_EVIDENCE_VERSION;
   projectRef: string;
@@ -63,6 +76,7 @@ export type PathwayRealSiteEvidencePackage = {
       | "POSITIVE_TFNSW_STATE_OR_REGIONAL_MATCH"
       | "EXPLICIT_BYRON_COUNCIL_CONFIRMATION";
   };
+  parcelAreaReconciliation: PathwayRealSiteParcelAreaReconciliation;
   measurements: PathwayRealSiteMeasurement[];
 };
 
@@ -70,6 +84,7 @@ export type ConfirmedPathwayRealSiteEvidence = {
   version: typeof PATHWAY_REAL_SITE_EVIDENCE_VERSION;
   siteEvidenceDigest: string;
   roadCategory: "CLASSIFIED_ROAD" | "OTHER_ROAD";
+  landAreaSqm: number;
   shedFootprintSqm: number;
   shedHeightM: number;
   roadSetbackM: number;
@@ -88,6 +103,9 @@ export type PathwayRealSiteEvidenceAssessment = {
     acceptedMeasurementKeys: PathwayRealSiteMeasurementKey[];
     manuallyReviewedRoles: PathwayRealSiteDocumentRole[];
     roadCategory: "CLASSIFIED_ROAD" | "OTHER_ROAD" | null;
+    registeredPlanVerified: boolean;
+    parcelAreaReconciled: boolean;
+    legalSetbacksVerified: boolean;
     containsRawSiteIdentifiers: false;
     packEligibilityUnlocked: false;
     submissionSeeEligibilityUnlocked: false;
@@ -100,6 +118,7 @@ const PACKAGE_KEYS = new Set([
   "projectRef",
   "documents",
   "roadClassification",
+  "parcelAreaReconciliation",
   "measurements",
 ]);
 const DOCUMENT_KEYS = new Set([
@@ -129,6 +148,16 @@ const ROAD_KEYS = new Set([
   "sourceReferenceHash",
   "matchMethod",
 ]);
+const PARCEL_RECONCILIATION_KEYS = new Set([
+  "registeredPlanAreaSqm",
+  "detailSurveyAreaSqm",
+  "resolvedAreaSqm",
+  "resolutionMethod",
+  "registeredPlanSourceRole",
+  "detailSurveySourceRole",
+  "registeredPlanPageReference",
+  "detailSurveyPageReference",
+]);
 const MEASUREMENT_KEYS = new Set([
   "key",
   "value",
@@ -140,6 +169,7 @@ const MEASUREMENT_KEYS = new Set([
 
 const REQUIRED_ROLES: PathwayRealSiteDocumentRole[] = [
   "ROAD_CLASSIFICATION",
+  "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
 ];
@@ -222,6 +252,12 @@ export const assessPathwayRealSiteEvidence = (
   if (!Array.isArray(input.measurements)) {
     reasons.push("Proposal measurements are required.");
   }
+  pushUnknownKeyReasons(
+    reasons,
+    "Parcel-area reconciliation",
+    input.parcelAreaReconciliation,
+    PARCEL_RECONCILIATION_KEYS,
+  );
 
   const documents = Array.isArray(input.documents) ? input.documents : [];
   const measurements = Array.isArray(input.measurements) ? input.measurements : [];
@@ -234,7 +270,7 @@ export const assessPathwayRealSiteEvidence = (
     }
   }
   if (documents.length !== REQUIRED_ROLES.length) {
-    reasons.push("The evidence package must contain only the three required document roles.");
+    reasons.push("The evidence package must contain only the four required document roles.");
   }
 
   const documentsByRole = new Map(
@@ -313,8 +349,16 @@ export const assessPathwayRealSiteEvidence = (
   });
 
   const roadDocument = documentsByRole.get("ROAD_CLASSIFICATION");
+  const registeredPlanDocument = documentsByRole.get("REGISTERED_CADASTRAL_PLAN");
   const surveyDocument = documentsByRole.get("CADASTRAL_SURVEY");
   const layoutDocument = documentsByRole.get("PROPOSED_SHED_LAYOUT");
+
+  if (
+    registeredPlanDocument &&
+    registeredPlanDocument.authority !== "NSW_LAND_REGISTRY_SERVICES"
+  ) {
+    reasons.push("The registered cadastral plan must be attributed to NSW Land Registry Services.");
+  }
 
   if (
     surveyDocument &&
@@ -336,11 +380,34 @@ export const assessPathwayRealSiteEvidence = (
   ) {
     reasons.push("The proposed shed layout must bind to the current cadastral survey hash.");
   }
-  if (surveyDocument?.basisContentHash !== null) {
-    reasons.push("The cadastral survey cannot declare another document as its boundary basis.");
+  if (
+    surveyDocument &&
+    registeredPlanDocument &&
+    surveyDocument.basisContentHash !== registeredPlanDocument.contentHash
+  ) {
+    reasons.push("The cadastral survey must reconcile to the registered cadastral plan hash.");
+  }
+  if (registeredPlanDocument?.basisContentHash !== null) {
+    reasons.push("The registered cadastral plan cannot declare another document as its boundary basis.");
   }
   if (roadDocument?.basisContentHash !== null) {
     reasons.push("The road-classification document cannot declare a boundary basis.");
+  }
+
+  const reconciliation = input.parcelAreaReconciliation;
+  const positiveArea = (value: number) => Number.isFinite(value) && value > 0;
+  const parcelAreaReconciled =
+    positiveArea(reconciliation?.registeredPlanAreaSqm) &&
+    positiveArea(reconciliation?.detailSurveyAreaSqm) &&
+    positiveArea(reconciliation?.resolvedAreaSqm) &&
+    reconciliation?.resolvedAreaSqm === reconciliation?.registeredPlanAreaSqm &&
+    reconciliation?.resolutionMethod === "REGISTERED_PLAN_CONTROLS" &&
+    reconciliation?.registeredPlanSourceRole === "REGISTERED_CADASTRAL_PLAN" &&
+    reconciliation?.detailSurveySourceRole === "CADASTRAL_SURVEY" &&
+    PAGE_REF.test(reconciliation?.registeredPlanPageReference ?? "") &&
+    PAGE_REF.test(reconciliation?.detailSurveyPageReference ?? "");
+  if (!parcelAreaReconciled) {
+    reasons.push("Parcel area must be explicitly reconciled to the registered cadastral plan.");
   }
 
   pushUnknownKeyReasons(
@@ -412,8 +479,24 @@ export const assessPathwayRealSiteEvidence = (
     if (!PAGE_REF.test(measurement.pageReference)) {
       reasons.push(measurement.key + " requires a non-identifying page or sheet reference.");
     }
+    if (
+      ["ROAD_SETBACK_M", "SIDE_SETBACK_M", "REAR_SETBACK_M"].includes(
+        measurement.key,
+      ) &&
+      measurement.method !== "SURVEY_MEASUREMENT"
+    ) {
+      reasons.push(measurement.key + " must be promoted from a survey measurement.");
+    }
   });
 
+  const legalSetbacksVerified = ["ROAD_SETBACK_M", "SIDE_SETBACK_M", "REAR_SETBACK_M"].every(
+    (key) =>
+      measurements.find((measurement) => measurement.key === key)?.method ===
+      "SURVEY_MEASUREMENT",
+  );
+  const registeredPlanVerified =
+    registeredPlanDocument?.authority === "NSW_LAND_REGISTRY_SERVICES" &&
+    registeredPlanDocument.verification.status === "EVIDENCE_VERIFIED";
   const acceptedRoles = REQUIRED_ROLES.filter((role) =>
     hasExactlyOnce(roles, role),
   );
@@ -440,6 +523,9 @@ export const assessPathwayRealSiteEvidence = (
       road.category === "CLASSIFIED_ROAD" || road.category === "OTHER_ROAD"
         ? road.category
         : null,
+    registeredPlanVerified,
+    parcelAreaReconciled,
+    legalSetbacksVerified,
     containsRawSiteIdentifiers: false,
     packEligibilityUnlocked: false,
     submissionSeeEligibilityUnlocked: false,
@@ -473,6 +559,7 @@ export const assessPathwayRealSiteEvidence = (
     projectRef: input.projectRef,
     documents: normalizedDocuments,
     roadClassification: input.roadClassification,
+    parcelAreaReconciliation: input.parcelAreaReconciliation,
     measurements: normalizedMeasurements,
   });
 
@@ -483,6 +570,7 @@ export const assessPathwayRealSiteEvidence = (
       version: PATHWAY_REAL_SITE_EVIDENCE_VERSION,
       siteEvidenceDigest,
       roadCategory: road.category,
+      landAreaSqm: input.parcelAreaReconciliation.resolvedAreaSqm,
       shedFootprintSqm: measurementValue(measurements, "SHED_FOOTPRINT_SQM")!,
       shedHeightM: measurementValue(measurements, "SHED_HEIGHT_M")!,
       roadSetbackM: measurementValue(measurements, "ROAD_SETBACK_M")!,

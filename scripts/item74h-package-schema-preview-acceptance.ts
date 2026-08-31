@@ -7,7 +7,7 @@ const TARGET_BRANCHES = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
-  "agent/item74h-customer-evidence-taxonomy-20260901",
+  "agent/item74h-registered-plan-proof-20260901",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -28,7 +28,7 @@ const EXPECTED_CONSTRAINTS = new Map<string, readonly string[]>([
   ],
   [
     "PathwayPrivateEvidencePackageAssembly_version_check",
-    ['"assemblyversion"', "'item74h-private-evidence-package-assembly.v1'"],
+    ['"assemblyversion"', "'item74h-private-evidence-package-assembly.v2'"],
   ],
   [
     "PathwayPrivateEvidencePackageAssembly_status_check",
@@ -36,7 +36,7 @@ const EXPECTED_CONSTRAINTS = new Map<string, readonly string[]>([
   ],
   [
     "PathwayPrivateEvidencePackageAssembly_document_count_check",
-    ['"documentcount"', "3"],
+    ['"documentcount"', "4"],
   ],
   [
     "PathwayPrivateEvidencePackageAssembly_package_ref_check",
@@ -61,6 +61,7 @@ const EXPECTED_CONSTRAINTS = new Map<string, readonly string[]>([
     [
       '"role"',
       "'road_classification'",
+      "'registered_cadastral_plan'",
       "'cadastral_survey'",
       "'proposed_shed_layout'",
     ],

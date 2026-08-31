@@ -51,6 +51,7 @@ function buildRealSiteEvidencePackage(
   now: Date,
   projectRef: string,
 ): PathwayRealSiteEvidencePackage {
+  const registeredPlanHash = sha256(projectRef + ':registered-plan');
   const surveyHash = sha256(projectRef + ':survey');
   const issuedAt = isoOffset(now, -7 * 24 * 60 * 60 * 1000);
   const retrievedAt = isoOffset(now, -24 * 60 * 60 * 1000);
@@ -82,6 +83,26 @@ function buildRealSiteEvidencePackage(
         },
       },
       {
+        role: 'REGISTERED_CADASTRAL_PLAN',
+        uploadRef: projectRef + '_registered_plan',
+        contentHash: registeredPlanHash,
+        evidenceStatus: 'READY',
+        indexingStatus: 'READY',
+        authority: 'NSW_LAND_REGISTRY_SERVICES',
+        sourceVersion: 'synthetic-current-registered-plan',
+        sourceReferenceHash: sha256(projectRef + ':registered-plan-source'),
+        issuedAt,
+        retrievedAt,
+        staleAt,
+        basisContentHash: null,
+        verification: {
+          status: 'EVIDENCE_VERIFIED',
+          reviewerRef: projectRef + '_reviewer',
+          reviewedAt,
+          reviewNotesHash: sha256(projectRef + ':registered-plan-review'),
+        },
+      },
+      {
         role: 'CADASTRAL_SURVEY',
         uploadRef: projectRef + '_survey',
         contentHash: surveyHash,
@@ -93,7 +114,7 @@ function buildRealSiteEvidencePackage(
         issuedAt,
         retrievedAt,
         staleAt,
-        basisContentHash: null,
+        basisContentHash: registeredPlanHash,
         verification: {
           status: 'EVIDENCE_VERIFIED',
           reviewerRef: projectRef + '_reviewer',
@@ -127,6 +148,16 @@ function buildRealSiteEvidencePackage(
       sourceRole: 'ROAD_CLASSIFICATION',
       sourceReferenceHash: sha256(ROAD_URL),
       matchMethod: 'POSITIVE_TFNSW_STATE_OR_REGIONAL_MATCH',
+    },
+    parcelAreaReconciliation: {
+      registeredPlanAreaSqm: 40_000,
+      detailSurveyAreaSqm: 39_470,
+      resolvedAreaSqm: 40_000,
+      resolutionMethod: 'REGISTERED_PLAN_CONTROLS',
+      registeredPlanSourceRole: 'REGISTERED_CADASTRAL_PLAN',
+      detailSurveySourceRole: 'CADASTRAL_SURVEY',
+      registeredPlanPageReference: 'sheet-DP1',
+      detailSurveyPageReference: 'sheet-S1',
     },
     measurements: [
       {
@@ -692,6 +723,9 @@ export async function runItem74hRealSiteBindingPreviewAcceptance(
       assessmentCreatedOnce: true,
       assessmentReplaySafe: true,
       compositeScopePersistedAndReloaded: true,
+      registeredPlanChainConfirmed: true,
+      parcelAreaReconciled: true,
+      legalSetbacksVerified: true,
       planningControlsPackBlockedByFixtureEvidence: true,
       submissionSeeBlockedByFixtureEvidence: true,
       paidArtefactBindingsCreated: 0,

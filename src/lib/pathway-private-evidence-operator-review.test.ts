@@ -30,7 +30,7 @@ const input = (
   },
   evidenceRef: EVIDENCE_REF,
   contentHash: CONTENT_HASH,
-  role: "CADASTRAL_SURVEY",
+  role: "REGISTERED_CADASTRAL_PLAN",
   idempotencyKey,
   transition:
     status === "PENDING"

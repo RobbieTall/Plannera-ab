@@ -23,7 +23,7 @@ const validInput = (): PathwayPrivateEvidenceUploadInput => ({
     signedAccessTtlSeconds: 300,
   },
   document: {
-    role: "CADASTRAL_SURVEY",
+    role: "REGISTERED_CADASTRAL_PLAN",
     contentHash: "a".repeat(64),
     mimeType: "application/pdf",
     fileSizeBytes: 2 * 1024 * 1024,

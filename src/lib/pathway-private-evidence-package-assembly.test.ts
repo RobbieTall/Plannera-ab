@@ -24,6 +24,7 @@ const hash = (value: string) =>
 const evaluatedAt = "2026-08-28T04:00:00.000Z";
 const roles: PathwayRealSiteDocumentRole[] = [
   "ROAD_CLASSIFICATION",
+  "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
 ];
@@ -37,9 +38,11 @@ const documentFor = (role: PathwayRealSiteDocumentRole) => ({
   authority:
     role === "ROAD_CLASSIFICATION"
       ? ("BYRON_SHIRE_COUNCIL" as const)
-      : role === "CADASTRAL_SURVEY"
-        ? ("REGISTERED_SURVEYOR" as const)
-        : ("APPLICANT" as const),
+      : role === "REGISTERED_CADASTRAL_PLAN"
+        ? ("NSW_LAND_REGISTRY_SERVICES" as const)
+        : role === "CADASTRAL_SURVEY"
+          ? ("REGISTERED_SURVEYOR" as const)
+          : ("APPLICANT" as const),
   sourceVersion: "current-2026-08-28",
   sourceReferenceHash: hash("source:" + role),
   issuedAt: "2026-08-20T00:00:00.000Z",
@@ -48,7 +51,9 @@ const documentFor = (role: PathwayRealSiteDocumentRole) => ({
   basisContentHash:
     role === "PROPOSED_SHED_LAYOUT"
       ? hash("content:CADASTRAL_SURVEY")
-      : null,
+      : role === "CADASTRAL_SURVEY"
+        ? hash("content:REGISTERED_CADASTRAL_PLAN")
+        : null,
   verification: {
     status: "EVIDENCE_VERIFIED" as const,
     reviewerRef: "x",
@@ -68,6 +73,16 @@ const packageDraft = (): PathwayRealSiteEvidencePackage => {
       sourceRole: "ROAD_CLASSIFICATION",
       sourceReferenceHash: documents[0].sourceReferenceHash,
       matchMethod: "EXPLICIT_BYRON_COUNCIL_CONFIRMATION",
+    },
+    parcelAreaReconciliation: {
+      registeredPlanAreaSqm: 40_000,
+      detailSurveyAreaSqm: 39_470,
+      resolvedAreaSqm: 40_000,
+      resolutionMethod: "REGISTERED_PLAN_CONTROLS",
+      registeredPlanSourceRole: "REGISTERED_CADASTRAL_PLAN",
+      detailSurveySourceRole: "CADASTRAL_SURVEY",
+      registeredPlanPageReference: "sheet-DP1",
+      detailSurveyPageReference: "sheet-S1",
     },
     measurements: [
       ["SHED_FOOTPRINT_SQM", 80, "sqm"],
@@ -177,7 +192,7 @@ const input = () => ({
 });
 
 describe("private evidence package assembly", () => {
-  it("replaces untrusted verification, persists exactly three roles, and replays", async () => {
+  it("replaces untrusted verification, persists exactly four roles, and replays", async () => {
     const {dependencies, stored} = makeDependencies();
     const created = await assemblePathwayPrivateEvidencePackage(
       input(),
@@ -193,7 +208,7 @@ describe("private evidence package assembly", () => {
       status: "READY_FOR_REAL_SITE_ASSESSMENT",
       blockers: [],
       redactedSummary: {
-        acceptedDocumentCount: 3,
+        acceptedDocumentCount: 4,
         realSiteEvidenceConfirmed: true,
         planningControlsPackEligible: false,
         submissionSeeEligible: false,

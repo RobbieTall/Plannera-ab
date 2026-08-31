@@ -26,7 +26,7 @@ const request = (): PathwayPrivateEvidenceReviewRequest => ({
 const dependencies = (): PathwayPrivateEvidenceReviewDependencies => ({
   loadEvidence: vi.fn(async () => ({
     evidenceRef: EVIDENCE_REF,
-    role: "CADASTRAL_SURVEY",
+    role: "REGISTERED_CADASTRAL_PLAN",
     contentHash: CONTENT_HASH,
     storageAccess: "private",
     quarantineStatus: "QUARANTINED",
@@ -80,7 +80,7 @@ describe("Item 74H private evidence review promotion", () => {
       deletionRequired: false,
       evidencePackageCandidate: true,
       redactedSummary: {
-        role: "CADASTRAL_SURVEY",
+        role: "REGISTERED_CADASTRAL_PLAN",
         privateStorageConfirmed: true,
         scanRecordMatched: true,
         securityScanClean: true,

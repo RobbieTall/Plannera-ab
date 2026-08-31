@@ -26,6 +26,7 @@ export type PathwayRealSiteCommercialBlocker =
   | "REAL_SITE_EVIDENCE_REQUIRED"
   | "REAL_SITE_ROAD_SOURCE_MISMATCH"
   | "REAL_SITE_MANIFEST_SCOPE_MISMATCH"
+  | "REAL_SITE_PARCEL_AREA_MISMATCH"
   | "REAL_SITE_UPLOAD_SET_MISMATCH"
   | "PROPOSAL_ATTESTATION_REVIEW_REQUIRED"
   | "PROPOSAL_ATTESTATION_SCOPE_MISMATCH";
@@ -61,6 +62,7 @@ export type PathwayRealSiteCommercialBridgeEvaluation = {
     manuallyReviewedDocumentCount: number;
     proposalReviewAccepted: boolean;
     proposalAttestationMatched: boolean;
+    parcelAreaMatched: boolean;
     containsRawSiteIdentifiers: false;
   };
 };
@@ -190,6 +192,7 @@ const manifestCommercialFactsMatch = (
     ReturnType<typeof assessPathwayRealSiteEvidence>["confirmedEvidence"]
   >,
 ) =>
+  manifestValue(manifest, "LANDHOLDING_AREA_SQM") === confirmed.landAreaSqm &&
   manifestValue(manifest, "PROPOSAL_FOOTPRINT_SQM") ===
     confirmed.shedFootprintSqm &&
   manifestValue(manifest, "PROPOSAL_HEIGHT_M") === confirmed.shedHeightM &&
@@ -233,6 +236,7 @@ const proposalAttestationMatchesScope = (
     "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE" &&
   manifestValue(manifest, "AGRICULTURAL_ANCILLARY_USE") === true &&
   manifestValue(manifest, "NON_HABITABLE_DESIGN") === true &&
+  attestation.landAreaHectares * 10_000 === confirmed.landAreaSqm &&
   attestation.landAreaHectares * 10_000 ===
     manifestValue(manifest, "LANDHOLDING_AREA_SQM") &&
   attestation.existingFarmBuildingFootprintSquareMetres ===
@@ -296,6 +300,16 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     blockers.push("REAL_SITE_MANIFEST_SCOPE_MISMATCH");
   }
 
+  const parcelAreaMatches =
+    confirmed !== null &&
+    manifestValue(input.manifest, "LANDHOLDING_AREA_SQM") ===
+      confirmed.landAreaSqm &&
+    input.proposalAttestation.landAreaHectares * 10_000 ===
+      confirmed.landAreaSqm;
+  if (confirmed && !parcelAreaMatches) {
+    blockers.push("REAL_SITE_PARCEL_AREA_MISMATCH");
+  }
+
   const proposalReviewIsAccepted = proposalReviewAccepted(
     input.proposalAttestation,
     input.proposalReview,
@@ -334,6 +348,7 @@ export const evaluatePathwayRealSiteCommercialBridge = (
     confirmed !== null &&
     roadSourceMatches &&
     factsMatch &&
+    parcelAreaMatches &&
     proposalReviewIsAccepted &&
     proposalScopeMatches;
   const submissionSeeEligible =
@@ -392,6 +407,7 @@ export const evaluatePathwayRealSiteCommercialBridge = (
         realSite.redactedSummary.manuallyReviewedRoles.length,
       proposalReviewAccepted: proposalReviewIsAccepted,
       proposalAttestationMatched: proposalScopeMatches,
+      parcelAreaMatched: parcelAreaMatches,
       containsRawSiteIdentifiers: false,
     },
   };
