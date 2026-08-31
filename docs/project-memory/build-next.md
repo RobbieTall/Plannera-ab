@@ -1397,3 +1397,15 @@ Success signal: a clean text-PDF council can be registered, prepared and made se
 - PRs #337/#338 remain held for their separately approved forward-only Production schema migration.
 - The next merge candidate is the fail-closed Item 74 spatial/SEE/credit/Pathway Check stack, beginning with PR #344 and retaining the Preview-only Item 74H activation boundary.
 
+
+
+## 2026-09-01 Item 74H registered-plan reconciliation checkpoint
+
+- PR #365 merged to `main` as `442a421540ec88aeb4ff48e02d80361d65a340d1`.
+- Paid Item 74H scope now requires exactly four separately scanned, reviewed and promoted private evidence roles: current road classification, registered cadastral plan, detail survey, and proposed shed layout.
+- The legal hash chain is registered plan -> detail survey -> proposed layout. The registered plan controls resolved parcel area; any difference from the detail survey remains explicit rather than being hidden or averaged.
+- Road, side and rear setback values must be promoted from survey measurements. Applicant estimates, Council DA drawings and synthetic fixtures cannot unlock the A$49 Planning Controls Pack or A$749 submission SEE.
+- Protected Preview acceptance passed exact four-role schema constraints, immutable operator review and promotion, replay-safe package assembly, persisted commercial-scope reload, fixture-evidence rejection, and zero residual review/promotion/assembly/item rows. All GitHub checks passed and Vercel Preview deployment `dpl_HUMLJQ1MT8zLWXBeKCywMnwwkuQG` reached Ready.
+- Production deployment `dpl_H8pchMJGhTU4owpU2fGeuGJnQtjS` reached Ready. It skipped the Preview-only migration and writers, passed `smoke:launch` with 18 green / 0 amber / 0 red, passed `smoke:whole-lga` with 60 green / 0 red, retained `productionCheckoutEnabled: false`, and performed no Item 74H Production mutation.
+- The temporary Neon Preview branch, branch-only Vercel acceptance variables and merged GitHub branch were deleted after acceptance.
+- Current commercial boundary: implemented and Preview-proven, not real-document accepted and not Production-activated. The next evidence step is for the customer/operator to obtain the real registered cadastral plan from NSW Land Registry Services, then privately reconcile the real plan, survey, legal setbacks and proposal layout before inspecting the actual A$49 and A$749 DOCX/PDF outputs.
