@@ -2,7 +2,7 @@
 
 Status: PROTECTED SYNTHETIC PERSISTENCE ACCEPTED / REAL ADDRESS FLIGHT NOT EXECUTED
 
-Last updated: 2026-08-24
+Last updated: 2026-09-01
 
 ## Accepted implementation boundary
 
@@ -86,11 +86,14 @@ A read-only Preview query found no existing Byron RU2 demo SiteContext with an a
 - Production checkout activation: none
 - Stripe or payment execution: none
 - Customer data used: none
-- Merge: not performed
+- Implementation merge: completed through PR #365
+- Production Item 74H schema activation: not performed
 
 ## Production build boundary
 
-The Item 74H persistence acceptance runner is deliberately Preview-only. During a hosted Vercel Production build it reports a passing `disabled` phase and performs no database operation. In Preview it still requires the exact protected Item 74H branch, the approved isolated Neon endpoint, and both checkout flags disabled; any other attempted execution fails closed.
+The Item 74H persistence acceptance runner is deliberately Preview-only and branch-scoped. During a hosted Vercel Production build it reports a passing `disabled` phase and performs no database operation. An ordinary, non-allow-listed Preview branch also reports a passing `disabled` phase with reason `unprotected_preview_branch` and performs no database operation.
 
-This skip prevents Preview synthetic acceptance from blocking a legitimate Production compile while preserving the separate read-only launch and whole-LGA gates. It does not activate Item 74H, apply Production migrations, or certify a real customer pathway.
+On an allow-listed protected Item 74H branch, the runner still requires the exact protected ref, an approved isolated Neon endpoint, and both checkout flags disabled before any synthetic write. A protected run that misses any requirement fails closed, and its cleanup must still prove zero residual rows.
+
+These skips prevent a branch-scoped synthetic acceptance from blocking legitimate Production or unrelated Preview compiles while preserving the separate read-only launch and whole-LGA gates. They do not activate Item 74H, apply Production migrations, weaken protected acceptance, or certify a real customer pathway.
 
