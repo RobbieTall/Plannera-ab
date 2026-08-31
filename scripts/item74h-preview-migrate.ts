@@ -7,7 +7,7 @@ const TARGET_BRANCHES = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
-  "agent/item74h-cadastral-provenance-20260901",
+  "agent/item74h-customer-evidence-taxonomy-20260901",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -17,7 +17,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
   "ep-old-flower-a7swrkp3",
-  "ep-autumn-grass-a7py7j7i",
+  "ep-silent-haze-a7mfgowo",
 ]);
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",

@@ -51,7 +51,7 @@ const unresolved = (): PathwayEvidenceChecklistInput &
 describe("Item 74H customer evidence checklist", () => {
   it("turns persisted blockers into a deterministic actionable checklist", () => {
     expect(PATHWAY_EVIDENCE_CHECKLIST_VERSION).toBe(
-      "item74h-evidence-checklist.v1",
+      "item74h-evidence-checklist.v2",
     );
 
     const result = buildPathwayEvidenceChecklist(unresolved());
@@ -86,6 +86,62 @@ describe("Item 74H customer evidence checklist", () => {
         "Evidence that answers this persisted gate for the same site and proposal, reviewed against the cited planning source.",
       blockingGateOrders: [1],
     });
+  });
+
+  it("creates explicit registered-plan, area and legal-setback actions", () => {
+    const input = unresolved();
+    input.proposal = null;
+    input.sources = input.sources.map((source) => ({
+      ...source,
+      current: true,
+    }));
+    input.controls = input.controls.map((control) => ({
+      ...control,
+      current: true,
+    }));
+    input.gates = [
+      {
+        order: 1,
+        question:
+          "Does a registered plan confirm the legal parcel area and resolve the conflicting area records?",
+        outcome: "MORE_EVIDENCE_REQUIRED",
+        reasoning:
+          "The current NSW cadastral dataset records 38.8312589 hectares while the Council-hosted detail survey records 39.47 hectares.",
+      },
+      {
+        order: 3,
+        question:
+          "Are all heritage, environmental, hazard and distance constraints resolved?",
+        outcome: "MORE_EVIDENCE_REQUIRED",
+        reasoning:
+          "An indicative dimension is confirmed; legally classified road, side and rear setbacks remain unresolved.",
+      },
+    ];
+
+    const result = buildPathwayEvidenceChecklist(input);
+
+    expect(result.map((item) => item.id)).toEqual([
+      "registered-cadastral-plan",
+      "lot-area-reconciliation",
+      "legal-road-side-rear-setbacks",
+      "gate-1",
+      "gate-3",
+    ]);
+    expect(result[0]).toMatchObject({
+      kind: "REGISTERED_CADASTRAL_PLAN",
+      blockingGateOrders: [1],
+    });
+    expect(result[1]).toMatchObject({
+      kind: "LOT_AREA_RECONCILIATION",
+      blockingGateOrders: [1],
+    });
+    expect(result[1].why).toContain("38.8312589 hectares");
+    expect(result[1].why).toContain("39.47 hectares");
+    expect(result[2]).toMatchObject({
+      kind: "LEGAL_SETBACKS",
+      blockingGateOrders: [3],
+    });
+    expect(result[2].provide).toContain("road, side and rear setbacks");
   });
 
   it("returns no missing-evidence requests for a current proceed decision", () => {

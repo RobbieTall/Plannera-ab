@@ -27,7 +27,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-evidence-refinement-20260830',
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
-  'agent/item74h-cadastral-provenance-20260901',
+  'agent/item74h-customer-evidence-taxonomy-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
@@ -37,7 +37,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
-  'ep-autumn-grass-a7py7j7i',
+  'ep-silent-haze-a7mfgowo',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =
@@ -1398,16 +1398,34 @@ async function runControlledPersistence(
       customerResult.evidenceChecklist.length > 0,
       'Customer result did not render the missing-evidence checklist',
     );
+    const registeredPlanRequest = customerResult.evidenceChecklist.find(
+      (request) => request.id === 'registered-cadastral-plan',
+    );
     const areaReconciliationRequest = customerResult.evidenceChecklist.find(
       (request) =>
+        request.id === 'lot-area-reconciliation' &&
         request.blockingGateOrders.includes(1) &&
-        request.title.includes('registered plan') &&
         request.why.includes('38.8312589 hectares') &&
         request.why.includes('39.47 hectares'),
+    );
+    const legalSetbackRequest = customerResult.evidenceChecklist.find(
+      (request) =>
+        request.id === 'legal-road-side-rear-setbacks' &&
+        [3, 4, 5, 6].every((gate) =>
+          request.blockingGateOrders.includes(gate),
+        ),
+    );
+    assert(
+      registeredPlanRequest,
+      'Customer result did not surface the registered-plan blocker',
     );
     assert(
       areaReconciliationRequest,
       'Customer result did not surface the parcel-area reconciliation blocker',
+    );
+    assert(
+      legalSetbackRequest,
+      'Customer result did not surface all legally classified setback blockers',
     );
     assert(
       Object.values(customerResult.privacy).every((value) => value === false),
