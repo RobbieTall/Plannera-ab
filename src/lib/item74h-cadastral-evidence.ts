@@ -182,7 +182,8 @@ export const parseItem74hCadastralEvidence = (
     );
   }
 
-  const planAreaHectares = planArea / 10_000;
+  // Source precision is 0.001 m2, which maps to seven decimal places in hectares.
+  const planAreaHectares = Number((planArea / 10_000).toFixed(7));
   const areaDifferenceHectares =
     ITEM74H_DETAIL_SURVEY_AREA_HA - planAreaHectares;
 
