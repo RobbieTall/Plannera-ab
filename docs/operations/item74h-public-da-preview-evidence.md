@@ -267,3 +267,33 @@ six-document discovery run:
 The orphaned Preview snapshots from the failed automatic-stop attempt and the
 initial explicit-return property mismatch were deleted. No Production resource,
 checkout setting, retained review page or customer document was changed.
+
+
+## Six-document protected discovery acceptance - 31 August 2026
+
+Exact-head Preview commit `c7e51315fc5a4f68d326857a4706b1fa165208ad`
+completed successfully on Vercel. The protected run proved:
+
+- all six exact Byron Council documents scanned CLEAN with hashes stable before
+  and after scanning;
+- the scanner ran deny-all after definitions were refreshed;
+- the explicit scanner snapshot, both sandboxes and all transient Blob objects
+  were removed with zero residual resources;
+- four previously approved private review pages remained the only retained
+  review images;
+- no evidence was automatically promoted and no paid artefact binding was
+  created;
+- both the A$49 Planning Controls Pack and A$749 Submission SEE remained
+  blocked; and
+- Production mutation was false and Production checkout remained disabled.
+
+The additional site plan exposed only the address in extractable text. The town
+planning report states that the proposed farm shed is east of the dwelling and
+that the proposed dwelling is over 300 metres from Wilsons Creek Road and over
+20 metres from the nearest adjoining property. Those are useful planning
+context, but they are not shed-to-boundary measurements and must not be reused
+as road, side or rear shed setbacks.
+
+The reviewed outcome therefore correctly remains `MORE_EVIDENCE_REQUIRED`
+with `REGISTERED_CADASTRAL_SURVEY`, `ROAD_SETBACK_M`, `SIDE_SETBACK_M` and
+`REAR_SETBACK_M` unresolved.
