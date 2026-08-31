@@ -9,6 +9,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-evidence-refinement-20260830',
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
+  'agent/item74h-cadastral-provenance-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',

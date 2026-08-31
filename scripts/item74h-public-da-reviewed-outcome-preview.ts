@@ -1,4 +1,7 @@
-export {};
+import {
+  fetchItem74hCadastralEvidence,
+  Item74hCadastralEvidenceError,
+} from "../src/lib/item74h-cadastral-evidence";
 
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
@@ -7,6 +10,7 @@ const EXPECTED_BRANCHES = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
+  "agent/item74h-cadastral-provenance-20260901",
 ]);
 
 class ReviewedEvidenceFailure extends Error {
@@ -16,7 +20,7 @@ class ReviewedEvidenceFailure extends Error {
 }
 
 const reviewedOutcome = {
-  version: "item74h-public-da-reviewed-outcome.v3",
+  version: "item74h-public-da-reviewed-outcome.v4",
   case: {
     council: "Byron Shire Council",
     daNumber: "10.2025.535.1",
@@ -50,6 +54,16 @@ const reviewedOutcome = {
       pageRef: "page-1",
     },
     {
+      fact: "OFFICIAL_CADASTRAL_PLAN_AREA_HA",
+      value: 38.8312589,
+      recordNumber: "NSW_CADASTRE_WFS",
+      pageRef: "current Lot_M feature checked 2026-09-01",
+      sourceUrl:
+        "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Cadastre_WFS/MapServer/0",
+      qualifier:
+        "Current NSW Digital Cadastral Database plan area; it does not replace the registered plan image or prove shed setbacks.",
+    },
+    {
       fact: "ROAD_AUTHORITY",
       value: "Byron Shire Council for the section 138 works",
       recordNumber: "E2025/131541",
@@ -77,6 +91,11 @@ const reviewedOutcome = {
       requirement: "REGISTERED_CADASTRAL_SURVEY",
       reason:
         "The detail survey says its boundaries were compiled from DCDB, disclaims being a Survey under the Surveying Act 2002, and does not identify a registered surveyor; stamped-plan page 1 also labels the site boundary as approximate.",
+    },
+    {
+      requirement: "LOT_AREA_RECONCILIATION",
+      reason:
+        "The Council-hosted detail survey states 39.47 hectares while the current official NSW cadastral feature records 38.8312589 hectares; the registered plan must resolve the difference before a paid output treats a land-area value as submission-grade.",
     },
     {
       requirement: "ROAD_SETBACK_M",
@@ -107,7 +126,7 @@ const reviewedOutcome = {
   productionCheckoutEnabled: false,
 } as const;
 
-const main = () => {
+const main = async () => {
   if (!ENABLED) {
     console.log(
       JSON.stringify({
@@ -128,18 +147,32 @@ const main = () => {
     throw new ReviewedEvidenceFailure("PREVIEW_SAFETY_BOUNDARY_REJECTED");
   }
 
+  const cadastralEvidence = await fetchItem74hCadastralEvidence();
+  if (
+    Math.abs(cadastralEvidence.planAreaHectares - 38.8312589) > 0.0000001 ||
+    cadastralEvidence.areaDifferenceHectares <= 0.63 ||
+    cadastralEvidence.areaDifferencePercent <= 1.6
+  ) {
+    throw new ReviewedEvidenceFailure("CADASTRAL_AREA_RECONCILIATION_REJECTED");
+  }
+
   if (
     reviewedOutcome.decision !== "MORE_EVIDENCE_REQUIRED" ||
     !reviewedOutcome.commercialAccess.freePathwayCheckAvailable ||
     reviewedOutcome.commercialAccess.planningControlsPack49Eligible ||
     reviewedOutcome.commercialAccess.submissionSee749Eligible ||
-    reviewedOutcome.missingEvidence.length !== 4 ||
+    reviewedOutcome.missingEvidence.length !== 5 ||
     !reviewedOutcome.confirmedFacts.some(
       ({ fact, value }) => fact === "SHED_HEIGHT_M" && value === 5.996,
     ) ||
     !reviewedOutcome.confirmedFacts.some(
       ({ fact, value }) =>
         fact === "ROAD_CLASSIFICATION" && value === "OTHER_ROAD",
+    ) ||
+    !reviewedOutcome.confirmedFacts.some(
+      ({ fact, value }) =>
+        fact === "OFFICIAL_CADASTRAL_PLAN_AREA_HA" &&
+        value === cadastralEvidence.planAreaHectares,
     ) ||
     !reviewedOutcome.confirmedFacts.some(
       ({ fact, value, recordNumber, pageRef }) =>
@@ -168,6 +201,12 @@ const main = () => {
       missingEvidence: reviewedOutcome.missingEvidence.map(
         ({ requirement }) => requirement,
       ),
+      authoritativeCadastralParcelConfirmed: true,
+      cadastralPlanAreaHectares: cadastralEvidence.planAreaHectares,
+      detailSurveyAreaHectares: cadastralEvidence.detailSurveyAreaHectares,
+      lotAreaReconciliationRequired: true,
+      rawParcelGeometryRetained: false,
+      rawParcelIdentifierRetained: false,
       ...reviewedOutcome.commercialAccess,
       operatorDecisionRecorded: reviewedOutcome.operatorDecisionRecorded,
       evidencePromotionPerformed: reviewedOutcome.evidencePromotionPerformed,
@@ -182,15 +221,14 @@ const main = () => {
   );
 };
 
-try {
-  main();
-} catch (error) {
+void main().catch((error) => {
   console.error(
     JSON.stringify({
       gate: "item74h-public-da-reviewed-outcome",
       status: "FAIL_CLOSED",
       errorCode:
-        error instanceof ReviewedEvidenceFailure
+        error instanceof ReviewedEvidenceFailure ||
+        error instanceof Item74hCadastralEvidenceError
           ? error.code
           : "UNCLASSIFIED",
       productionMutationPerformed: false,
@@ -199,7 +237,9 @@ try {
       containsDownloadCapability: false,
       containsContentHash: false,
       containsFullDocument: false,
+      containsRawParcelGeometry: false,
+      containsRawParcelIdentifier: false,
     }),
   );
   process.exitCode = 1;
-}
+});

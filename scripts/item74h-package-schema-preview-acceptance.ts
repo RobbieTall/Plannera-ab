@@ -7,6 +7,7 @@ const TARGET_BRANCHES = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
+  "agent/item74h-cadastral-provenance-20260901",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
