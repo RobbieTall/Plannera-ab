@@ -10,6 +10,9 @@ type PathwayEvidenceChecklistPanelProps = {
 };
 
 const kindLabel: Record<PathwayEvidenceRequestKind, string> = {
+  REGISTERED_CADASTRAL_PLAN: "Registered plan",
+  LOT_AREA_RECONCILIATION: "Area reconciliation",
+  LEGAL_SETBACKS: "Legal setbacks",
   AUTHORITATIVE_ROAD_CLASSIFICATION: "Road evidence",
   REVIEWED_SITE_MEASUREMENTS: "Survey and layout",
   CURRENT_SOURCE: "Current source",
@@ -19,7 +22,7 @@ const kindLabel: Record<PathwayEvidenceRequestKind, string> = {
 
 const gateLabel = (orders: number[]) =>
   orders
-    .map((order) => `Gate ${String(order).padStart(2, "0")}`)
+    .map((order) => "Gate " + String(order).padStart(2, "0"))
     .join(", ");
 
 export function PathwayEvidenceChecklistPanel({
