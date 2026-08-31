@@ -59,7 +59,7 @@ const reviewedOutcome = {
       recordNumber: "NSW_CADASTRE_WFS",
       pageRef: "current Lot_M feature checked 2026-09-01",
       sourceUrl:
-        "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Cadastre_WFS/MapServer/0",
+        "https://portal.spatial.nsw.gov.au/server/rest/services/Cadastre_History/FeatureServer/3",
       qualifier:
         "Current NSW Digital Cadastral Database plan area; it does not replace the registered plan image or prove shed setbacks.",
     },

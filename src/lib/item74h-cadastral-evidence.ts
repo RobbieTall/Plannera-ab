@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const ITEM74H_CADASTRAL_SOURCE_URL =
-  "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Cadastre_WFS/MapServer/0";
+  "https://portal.spatial.nsw.gov.au/server/rest/services/Cadastre_History/FeatureServer/3";
 export const ITEM74H_CADASTRAL_DATASET =
   "NSW Digital Cadastral Database - Lot_M";
 export const ITEM74H_CADASTRAL_AUTHORITY = "NSW Spatial Services";
