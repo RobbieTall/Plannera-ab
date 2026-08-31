@@ -14,6 +14,7 @@ const ENABLED =
 const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
+  "agent/item74h-layout-evidence-20260831",
 ]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;

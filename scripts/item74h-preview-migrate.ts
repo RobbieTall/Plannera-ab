@@ -5,6 +5,7 @@ const TARGET_BRANCHES = new Set([
   "integration/item74h-resolution-20260830",
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
+  "agent/item74h-layout-evidence-20260831",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",

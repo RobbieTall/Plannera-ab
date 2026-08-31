@@ -2,7 +2,7 @@
 
 Status: APPROVED FOR PROTECTED PREVIEW / CLEAN REVIEW COMPLETE / MORE_EVIDENCE_REQUIRED
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Purpose
 
@@ -41,7 +41,10 @@ The protected review confirms:
   page 2; and
 - Wilsons Creek Road as `OTHER_ROAD` for the deterministic DCP gate, based on
   the complete TfNSW classified/regional road schedule, the current State and
-  Regional road categorisation dataset, and Council's section 138 evidence.
+  Regional road categorisation dataset, and Council's section 138 evidence; and
+- an indicative 11.693 metre shed-to-fence distance on stamped-plan page 1.
+  The same page labels the site boundary as approximate and does not identify
+  that dimension as the road, side or rear setback.
 
 The public case is separate from the earlier hypothetical 80 square metre,
 3.5 metre high shed example and must never inherit facts from that example.
@@ -68,9 +71,12 @@ source changes:
 The reviewed set does not establish:
 
 - a registered cadastral survey: the detail survey says boundaries were compiled
-  from DCDB, says it is not a Survey under the Surveying Act 2002, and does not
-  identify a registered surveyor; or
-- unambiguous road, side and rear shed setbacks.
+  from DCDB, says it is not a Survey under the Surveying Act 2002, does not
+  identify a registered surveyor, and stamped-plan page 1 labels the site
+  boundary as approximate; or
+- unambiguous road, side and rear shed setbacks. The reviewed 11.693 metre
+  shed-to-fence dimension cannot be assigned to any of those three legal
+  setback categories from the page itself.
 
 Plannera must not infer or invent these values.
 
@@ -94,8 +100,9 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
 - `VERCEL_ENV=preview`.
 - `VERCEL_GIT_COMMIT_REF` is exactly
-  `integration/item74h-public-da-20260830` or
-  `agent/item74h-evidence-refinement-20260830`; wildcard and prefix matching
+  `integration/item74h-public-da-20260830`,
+  `agent/item74h-evidence-refinement-20260830`, or
+  `agent/item74h-layout-evidence-20260831`; wildcard and prefix matching
   remain prohibited.
 - `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
@@ -125,6 +132,17 @@ resources are not retained.
 
 Production checkout remains disabled.
 
+## Layout evidence refinement - 31 August 2026
+
+Protected review of stamped-plan page 1 records
+`INDICATIVE_SHED_TO_FENCE_DISTANCE_M=11.693` with Council record
+`E2026/59935` and page reference `page-1`. The qualifier is structural:
+the depicted site boundary is approximate and the dimension is not classified
+as a road, side or rear setback.
+
+This refinement must leave the missing-evidence count at four, preserve
+`MORE_EVIDENCE_REQUIRED`, and keep both paid products ineligible. It may not
+promote the indicative dimension into a legal setback.
 
 ## Durable Preview acceptance
 

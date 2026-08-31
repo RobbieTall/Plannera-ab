@@ -5,6 +5,7 @@ const ENABLED =
 const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
+  "agent/item74h-layout-evidence-20260831",
 ]);
 
 class ReviewedEvidenceFailure extends Error {
@@ -14,7 +15,7 @@ class ReviewedEvidenceFailure extends Error {
 }
 
 const reviewedOutcome = {
-  version: "item74h-public-da-reviewed-outcome.v2",
+  version: "item74h-public-da-reviewed-outcome.v3",
   case: {
     council: "Byron Shire Council",
     daNumber: "10.2025.535.1",
@@ -61,27 +62,35 @@ const reviewedOutcome = {
       sourceUrl:
         "https://www.transport.nsw.gov.au/system/files/media/documents/2023/classified-roads-schedule-1.pdf",
     },
+    {
+      fact: "INDICATIVE_SHED_TO_FENCE_DISTANCE_M",
+      value: 11.693,
+      recordNumber: "E2026/59935",
+      pageRef: "page-1",
+      qualifier:
+        "Indicative only: the plan marks the site boundary as approximate and does not classify this dimension as a road, side or rear setback.",
+    },
   ],
   missingEvidence: [
     {
       requirement: "REGISTERED_CADASTRAL_SURVEY",
       reason:
-        "The detail survey says its boundaries were compiled from DCDB, disclaims being a Survey under the Surveying Act 2002, and does not identify a registered surveyor.",
+        "The detail survey says its boundaries were compiled from DCDB, disclaims being a Survey under the Surveying Act 2002, and does not identify a registered surveyor; stamped-plan page 1 also labels the site boundary as approximate.",
     },
     {
       requirement: "ROAD_SETBACK_M",
       reason:
-        "No unambiguous shed-to-road measurement was found on the reviewed pages.",
+        "Stamped-plan page 1 shows an indicative 11.693 metre shed-to-fence dimension, but the approximate boundary is not identified as the road boundary.",
     },
     {
       requirement: "SIDE_SETBACK_M",
       reason:
-        "No unambiguous shed-to-side-boundary measurement was found on the reviewed pages.",
+        "Stamped-plan page 1 shows an indicative 11.693 metre shed-to-fence dimension, but the approximate boundary is not identified as a side boundary.",
     },
     {
       requirement: "REAR_SETBACK_M",
       reason:
-        "No unambiguous shed-to-rear-boundary measurement was found on the reviewed pages.",
+        "Stamped-plan page 1 shows an indicative 11.693 metre shed-to-fence dimension, but the approximate boundary is not identified as a rear boundary.",
     },
   ],
   decision: "MORE_EVIDENCE_REQUIRED",
@@ -130,6 +139,13 @@ const main = () => {
     !reviewedOutcome.confirmedFacts.some(
       ({ fact, value }) =>
         fact === "ROAD_CLASSIFICATION" && value === "OTHER_ROAD",
+    ) ||
+    !reviewedOutcome.confirmedFacts.some(
+      ({ fact, value, recordNumber, pageRef }) =>
+        fact === "INDICATIVE_SHED_TO_FENCE_DISTANCE_M" &&
+        value === 11.693 &&
+        recordNumber === "E2026/59935" &&
+        pageRef === "page-1",
     ) ||
     reviewedOutcome.evidencePromotionPerformed ||
     reviewedOutcome.persistenceMutationPerformed ||
