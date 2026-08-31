@@ -18,6 +18,7 @@ const EXPECTED_BRANCHES = new Set([
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
   "agent/item74h-registered-plan-proof-20260901",
+  "agent/item74h-development-plans-discovery-20260901",
 ]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_SCAN_SIZE_BYTES = 100 * 1024 * 1024;
@@ -204,10 +205,16 @@ const main = async () => {
     const catalog = parseApprovedItem74hPublicDaCatalog(
       await trackerResponse.text(),
     );
+    const approvedDocuments = catalog.documents.filter(
+      (document) => document.discoveryOnly !== true,
+    );
+    if (approvedDocuments.length !== 6) {
+      throw new Error("approved document cardinality mismatch");
+    }
 
     let totalBytes = 0;
-    for (let index = 0; index < catalog.documents.length; index += 1) {
-      const document = catalog.documents[index];
+    for (let index = 0; index < approvedDocuments.length; index += 1) {
+      const document = approvedDocuments[index];
       stage = "FETCH_DOCUMENT_" + (index + 1);
       const response = await fetch(document.downloadUrl, {
         redirect: "manual",
@@ -282,7 +289,7 @@ const main = async () => {
       });
     }
 
-    if (quarantined.length !== catalog.documents.length) {
+    if (quarantined.length !== approvedDocuments.length) {
       throw new Error("document cardinality mismatch");
     }
 

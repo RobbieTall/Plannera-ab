@@ -1,7 +1,7 @@
 import { parse } from "node-html-parser";
 
 export const ITEM74H_PUBLIC_DA_CASE_VERSION =
-  "item74h-public-da-case.v2" as const;
+  "item74h-public-da-case.v3" as const;
 export const ITEM74H_PUBLIC_DA_TRACKER_URL =
   "https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/" as const;
 export const ITEM74H_PUBLIC_DA_NUMBER = "10.2025.535.1" as const;
@@ -11,6 +11,7 @@ export type Item74hPublicDaDocumentRole =
   | "CADASTRAL_SURVEY"
   | "SETBACK_SITE_PLAN"
   | "SETBACK_PLANNING_REPORT"
+  | "SETBACK_DEVELOPMENT_PLANS"
   | "PROPOSED_SHED_LAYOUT"
   | "DETERMINATION";
 
@@ -19,6 +20,7 @@ type ExpectedDocument = {
   recordNumber: string;
   descriptionFragment: string;
   maxBytes: number;
+  discoveryOnly?: true;
 };
 
 export const ITEM74H_PUBLIC_DA_EXPECTED_DOCUMENTS: readonly ExpectedDocument[] = [
@@ -27,6 +29,13 @@ export const ITEM74H_PUBLIC_DA_EXPECTED_DOCUMENTS: readonly ExpectedDocument[] =
     recordNumber: "E2025/131541",
     descriptionFragment: "S138 Approval",
     maxBytes: 2 * 1024 * 1024,
+  },
+  {
+    role: "SETBACK_DEVELOPMENT_PLANS",
+    recordNumber: "E2025/131532",
+    descriptionFragment: "Development Plans",
+    maxBytes: 22 * 1024 * 1024,
+    discoveryOnly: true,
   },
   {
     role: "SETBACK_SITE_PLAN",

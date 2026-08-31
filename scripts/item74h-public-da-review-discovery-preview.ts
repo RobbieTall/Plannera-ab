@@ -11,12 +11,15 @@ import {
 
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
+const DEVELOPMENT_PLANS_DISCOVERY_BRANCH =
+  "agent/item74h-development-plans-discovery-20260901";
 const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
   "agent/item74h-registered-plan-proof-20260901",
+  DEVELOPMENT_PLANS_DISCOVERY_BRANCH,
 ]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -39,6 +42,8 @@ const patterns: Record<Item74hPublicDaDocumentRole, RegExp> = {
     /\b(?:site\s*plan|shed|setback|boundary|road|front|side|rear|distance|dimension|metres?|m)\b/i,
   SETBACK_PLANNING_REPORT:
     /\b(?:setback|boundary|road|front|side|rear|dcp|control|compliance|variation|farm\s*shed)\b/i,
+  SETBACK_DEVELOPMENT_PLANS:
+    /\b(?:development\s*plans?|site\s*plan|farm\s*shed|shed|setback|boundary|road|front|side|rear|distance|dimension|metres?|m)\b/i,
   PROPOSED_SHED_LAYOUT:
     /\b(?:farm\s+shed|shed|floor\s+area|m2|sqm|height|setback|boundary|elevation|rl|ffl)\b/i,
   DETERMINATION:
@@ -174,6 +179,10 @@ const main = async () => {
     throw new DiscoveryFailure("PREVIEW_SAFETY_BOUNDARY_REJECTED");
   }
 
+  const developmentPlansDiscovery =
+    process.env.VERCEL_GIT_COMMIT_REF === DEVELOPMENT_PLANS_DISCOVERY_BRANCH;
+  const expectedRetainedReviewPageCount = developmentPlansDiscovery ? 0 : 4;
+
   const token = process.env.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN;
   const storeId = process.env.ITEM74H_PRIVATE_BLOB_STORE_ID;
   if (!token || !storeId) {
@@ -222,10 +231,19 @@ const main = async () => {
       throw new Error("tracker response rejected");
     }
     const catalog = parseApprovedItem74hPublicDaCatalog(await tracker.text());
+    const selectedDocuments = catalog.documents.filter((document) =>
+      developmentPlansDiscovery
+        ? document.discoveryOnly === true
+        : document.discoveryOnly !== true,
+    );
+    const expectedDocumentCount = developmentPlansDiscovery ? 1 : 6;
+    if (selectedDocuments.length !== expectedDocumentCount) {
+      throw new Error("discovery document cardinality mismatch");
+    }
 
     let totalBytes = 0;
-    for (let index = 0; index < catalog.documents.length; index += 1) {
-      const document = catalog.documents[index];
+    for (let index = 0; index < selectedDocuments.length; index += 1) {
+      const document = selectedDocuments[index];
       stage = "FETCH_DOCUMENT_" + (index + 1);
       const response = await fetch(document.downloadUrl, {
         redirect: "manual",
@@ -555,7 +573,10 @@ const main = async () => {
   } catch {
     operationFailure = stage;
   } finally {
-    if (operationFailure || retainedReviewPages.length !== 4) {
+    if (
+      operationFailure ||
+      retainedReviewPages.length !== expectedRetainedReviewPageCount
+    ) {
       for (const page of retainedReviewPages) {
         try {
           await del(page.objectRef, { token });
@@ -617,8 +638,9 @@ const main = async () => {
     throw new DiscoveryFailure("ZERO_RESIDUE_CLEANUP_FAILED");
   }
   if (
-    retainedReviewPages.length !== 4 ||
-    new Set(retainedReviewPages.map((page) => page.objectRef)).size !== 4
+    retainedReviewPages.length !== expectedRetainedReviewPageCount ||
+    new Set(retainedReviewPages.map((page) => page.objectRef)).size !==
+      expectedRetainedReviewPageCount
   ) {
     throw new DiscoveryFailure("PROTECTED_REVIEW_PAGE_CARDINALITY_REJECTED");
   }
@@ -629,6 +651,7 @@ const main = async () => {
       status: "PASS",
       environment: "preview",
       freshCleanScan: true,
+      developmentPlansDiscoveryOnly: developmentPlansDiscovery,
       findingRoleCount: findings.length,
       retainedProtectedReviewPageCount: retainedReviewPages.length,
       retainedProtectedReviewPages: retainedReviewPages.map(
