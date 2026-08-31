@@ -534,10 +534,10 @@ const runAcceptance = async () => {
 
     const before = await counts(prisma, prefix);
     assert(
-      before.reviews === 3 &&
-        before.promotions === 3 &&
+      before.reviews === 4 &&
+        before.promotions === 4 &&
         before.assemblies === 1 &&
-        before.items === 3,
+        before.items === 4,
       "EXACT_PERSISTED_SHAPE",
     );
 
