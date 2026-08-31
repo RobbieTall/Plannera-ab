@@ -181,7 +181,7 @@ const main = async () => {
 
   const developmentPlansDiscovery =
     process.env.VERCEL_GIT_COMMIT_REF === DEVELOPMENT_PLANS_DISCOVERY_BRANCH;
-  const expectedRetainedReviewPageCount = developmentPlansDiscovery ? 0 : 4;
+  const expectedRetainedReviewPageCount = developmentPlansDiscovery ? 1 : 4;
 
   const token = process.env.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN;
   const storeId = process.env.ITEM74H_PRIVATE_BLOB_STORE_ID;
@@ -210,7 +210,10 @@ const main = async () => {
       }>
     | null = null;
   const retainedReviewPages: Array<{
-    role: "CADASTRAL_SURVEY" | "PROPOSED_SHED_LAYOUT";
+    role:
+      | "CADASTRAL_SURVEY"
+      | "PROPOSED_SHED_LAYOUT"
+      | "SETBACK_DEVELOPMENT_PLANS";
     pageRef: "page-1" | "page-2" | "page-9";
     objectRef: string;
   }> = [];
@@ -454,7 +457,9 @@ const main = async () => {
           ? ([1, 2] as const)
           : evidence[index].role === "PROPOSED_SHED_LAYOUT"
             ? ([1, 9] as const)
-            : ([] as const);
+            : evidence[index].role === "SETBACK_DEVELOPMENT_PLANS"
+              ? ([2] as const)
+              : ([] as const);
       for (const pageNumber of reviewPages) {
         stage =
           "RENDER_PROTECTED_REVIEW_" +
@@ -497,7 +502,11 @@ const main = async () => {
         }
 
         const roleSlug =
-          evidence[index].role === "CADASTRAL_SURVEY" ? "survey" : "layout";
+          evidence[index].role === "CADASTRAL_SURVEY"
+            ? "survey"
+            : evidence[index].role === "PROPOSED_SHED_LAYOUT"
+              ? "layout"
+              : "development-plans";
         const objectRef =
           "item74h-public-review-pages/v1/" +
           roleSlug +
@@ -542,7 +551,8 @@ const main = async () => {
         const retainedRole = evidence[index].role;
         if (
           retainedRole !== "CADASTRAL_SURVEY" &&
-          retainedRole !== "PROPOSED_SHED_LAYOUT"
+          retainedRole !== "PROPOSED_SHED_LAYOUT" &&
+          retainedRole !== "SETBACK_DEVELOPMENT_PLANS"
         ) {
           throw new Error("protected review role rejected");
         }
