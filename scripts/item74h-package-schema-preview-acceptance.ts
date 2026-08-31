@@ -13,6 +13,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-frosty-star-a7gsaexu",
   "ep-damp-recipe-a7wm9fuq",
   "ep-rapid-shape-a72cicyh",
+  "ep-late-sun-a7r48wn4",
 ]);
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 

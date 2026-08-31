@@ -110,10 +110,13 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
 For PR #360, Vercel created the isolated Neon branch
 `preview/agent/item74h-evidence-refinement-20260830` with endpoint
-`ep-rapid-shape-a72cicyh`. Both identifiers are exact allowlist entries. The
-branch must remain Preview-only, must receive synthetic acceptance writes only,
-and may be deleted after the merged-head acceptance and zero-residue result are
-recorded. It must never be reused as a Production database.
+`ep-rapid-shape-a72cicyh`. For PR #361, Vercel created the isolated Neon
+branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
+`ep-late-sun-a7r48wn4`. These branch and endpoint identifiers are exact
+allowlist entries. Each branch must remain Preview-only, receive synthetic
+acceptance writes only, and may be deleted after its merged-head acceptance and
+zero-residue result are recorded. Neither may be reused as a Production
+database.
 
 The chain must:
 
