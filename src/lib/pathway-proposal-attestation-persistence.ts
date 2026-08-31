@@ -14,6 +14,7 @@ const TARGET_BRANCHES = new Set([
   "integration/item74h-resolution-20260830",
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
+  "agent/item74h-layout-evidence-20260831",
 ]);
 const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -21,6 +22,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-frosty-star-a7gsaexu",
   "ep-damp-recipe-a7wm9fuq",
   "ep-rapid-shape-a72cicyh",
+  "ep-late-sun-a7r48wn4",
 ]);
 const RECORD_VERSION = "pathway-proposal-attestation.v1";
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);

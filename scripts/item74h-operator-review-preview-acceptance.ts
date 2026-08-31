@@ -21,6 +21,7 @@ const EXPECTED_REFS = new Set([
   "integration/item74h-resolution-20260830",
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
+  "agent/item74h-layout-evidence-20260831",
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -28,6 +29,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-frosty-star-a7gsaexu",
   "ep-damp-recipe-a7wm9fuq",
   "ep-rapid-shape-a72cicyh",
+  "ep-late-sun-a7r48wn4",
 ]);
 const ENABLE_FLAG = "ITEM74H_OPERATOR_REVIEW_ACCEPTANCE_ENABLED";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";

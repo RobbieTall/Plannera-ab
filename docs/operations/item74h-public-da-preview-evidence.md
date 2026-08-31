@@ -2,7 +2,7 @@
 
 Status: APPROVED FOR PROTECTED PREVIEW / CLEAN REVIEW COMPLETE / MORE_EVIDENCE_REQUIRED
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Purpose
 
@@ -41,7 +41,10 @@ The protected review confirms:
   page 2; and
 - Wilsons Creek Road as `OTHER_ROAD` for the deterministic DCP gate, based on
   the complete TfNSW classified/regional road schedule, the current State and
-  Regional road categorisation dataset, and Council's section 138 evidence.
+  Regional road categorisation dataset, and Council's section 138 evidence; and
+- an indicative 11.693 metre shed-to-fence distance on stamped-plan page 1.
+  The same page labels the site boundary as approximate and does not identify
+  that dimension as the road, side or rear setback.
 
 The public case is separate from the earlier hypothetical 80 square metre,
 3.5 metre high shed example and must never inherit facts from that example.
@@ -68,9 +71,12 @@ source changes:
 The reviewed set does not establish:
 
 - a registered cadastral survey: the detail survey says boundaries were compiled
-  from DCDB, says it is not a Survey under the Surveying Act 2002, and does not
-  identify a registered surveyor; or
-- unambiguous road, side and rear shed setbacks.
+  from DCDB, says it is not a Survey under the Surveying Act 2002, does not
+  identify a registered surveyor, and stamped-plan page 1 labels the site
+  boundary as approximate; or
+- unambiguous road, side and rear shed setbacks. The reviewed 11.693 metre
+  shed-to-fence dimension cannot be assigned to any of those three legal
+  setback categories from the page itself.
 
 Plannera must not infer or invent these values.
 
@@ -94,8 +100,9 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
 - `VERCEL_ENV=preview`.
 - `VERCEL_GIT_COMMIT_REF` is exactly
-  `integration/item74h-public-da-20260830` or
-  `agent/item74h-evidence-refinement-20260830`; wildcard and prefix matching
+  `integration/item74h-public-da-20260830`,
+  `agent/item74h-evidence-refinement-20260830`, or
+  `agent/item74h-layout-evidence-20260831`; wildcard and prefix matching
   remain prohibited.
 - `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
@@ -103,10 +110,13 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 
 For PR #360, Vercel created the isolated Neon branch
 `preview/agent/item74h-evidence-refinement-20260830` with endpoint
-`ep-rapid-shape-a72cicyh`. Both identifiers are exact allowlist entries. The
-branch must remain Preview-only, must receive synthetic acceptance writes only,
-and may be deleted after the merged-head acceptance and zero-residue result are
-recorded. It must never be reused as a Production database.
+`ep-rapid-shape-a72cicyh`. For PR #361, Vercel created the isolated Neon
+branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
+`ep-late-sun-a7r48wn4`. These branch and endpoint identifiers are exact
+allowlist entries. Each branch must remain Preview-only, receive synthetic
+acceptance writes only, and may be deleted after its merged-head acceptance and
+zero-residue result are recorded. Neither may be reused as a Production
+database.
 
 The chain must:
 
@@ -125,6 +135,17 @@ resources are not retained.
 
 Production checkout remains disabled.
 
+## Layout evidence refinement - 31 August 2026
+
+Protected review of stamped-plan page 1 records
+`INDICATIVE_SHED_TO_FENCE_DISTANCE_M=11.693` with Council record
+`E2026/59935` and page reference `page-1`. The qualifier is structural:
+the depicted site boundary is approximate and the dimension is not classified
+as a road, side or rear setback.
+
+This refinement must leave the missing-evidence count at four, preserve
+`MORE_EVIDENCE_REQUIRED`, and keep both paid products ineligible. It may not
+promote the indicative dimension into a legal setback.
 
 ## Durable Preview acceptance
 
@@ -172,6 +193,35 @@ The exact-head run proved:
 - customer output retained no raw address, coordinates, parcel identifier or
   direct-download token; and
 - synthetic cleanup completed with zero residual rows.
+
+The run performed no Production mutation. Production checkout remained
+disabled.
+
+## Verified layout evidence run - 31 August 2026
+
+Protected Vercel Preview deployment
+`dpl_AqVY7BEFMByDm7EzvpyMnbQCzVQw` reached `READY` from commit
+`77b92276130b2bbc131dfc9e19c7b6ec3cd14728`.
+
+The exact-head run proved:
+
+- the Byron and Kempsey launch and whole-LGA gates passed before evidence work;
+- all four official Council documents were freshly quarantined and scanned
+  `CLEAN`, with exact hashes preserved and zero transient resource residue;
+- the protected review retained only the four approved review pages;
+- reviewed outcome `item74h-public-da-reviewed-outcome.v3` recorded seven
+  confirmed facts, including the qualified 11.693 metre shed-to-fence distance;
+- the decision remained `MORE_EVIDENCE_REQUIRED` with exactly
+  `REGISTERED_CADASTRAL_SURVEY`, `ROAD_SETBACK_M`, `SIDE_SETBACK_M` and
+  `REAR_SETBACK_M` unresolved;
+- one site-confirmed Byron RU2 assessment was created and replay returned the
+  same assessment with five evidence, 17 control and six gate snapshots;
+- authoritative spatial provenance and the free Pathway Check survived reload;
+- unsafe `PROCEED` wrote no assessment, both paid products remained blocked,
+  and no paid artefact binding was created;
+- customer output retained no raw address, coordinates, parcel identifier or
+  direct-download capability; and
+- synthetic cleanup finished with zero residual rows.
 
 The run performed no Production mutation. Production checkout remained
 disabled.
