@@ -8,12 +8,15 @@ import {
 
 const HASH = {
   road: "1".repeat(64),
+  registeredPlan: "a".repeat(64),
   survey: "2".repeat(64),
   layout: "3".repeat(64),
   sourceRoad: "4".repeat(64),
+  sourceRegisteredPlan: "b".repeat(64),
   sourceSurvey: "5".repeat(64),
   sourceLayout: "6".repeat(64),
   reviewRoad: "7".repeat(64),
+  reviewRegisteredPlan: "c".repeat(64),
   reviewSurvey: "8".repeat(64),
   reviewLayout: "9".repeat(64),
 };
@@ -45,6 +48,26 @@ const validPackage = (): PathwayRealSiteEvidencePackage => ({
       },
     },
     {
+      role: "REGISTERED_CADASTRAL_PLAN",
+      uploadRef: "upload_registered_plan_74h",
+      contentHash: HASH.registeredPlan,
+      evidenceStatus: "READY",
+      indexingStatus: "READY",
+      authority: "NSW_LAND_REGISTRY_SERVICES",
+      sourceVersion: "Current registered cadastral plan",
+      sourceReferenceHash: HASH.sourceRegisteredPlan,
+      issuedAt: "2026-07-01T00:00:00.000Z",
+      retrievedAt: "2026-08-24T00:00:00.000Z",
+      staleAt: "2027-02-24T00:00:00.000Z",
+      basisContentHash: null,
+      verification: {
+        status: "EVIDENCE_VERIFIED",
+        reviewerRef: "reviewer_opaque_01",
+        reviewedAt: "2026-08-24T01:02:00.000Z",
+        reviewNotesHash: HASH.reviewRegisteredPlan,
+      },
+    },
+    {
       role: "CADASTRAL_SURVEY",
       uploadRef: "upload_survey_74h",
       contentHash: HASH.survey,
@@ -56,7 +79,7 @@ const validPackage = (): PathwayRealSiteEvidencePackage => ({
       issuedAt: "2026-07-15T00:00:00.000Z",
       retrievedAt: "2026-08-24T00:00:00.000Z",
       staleAt: "2027-02-24T00:00:00.000Z",
-      basisContentHash: null,
+      basisContentHash: HASH.registeredPlan,
       verification: {
         status: "EVIDENCE_VERIFIED",
         reviewerRef: "reviewer_opaque_01",
@@ -90,6 +113,16 @@ const validPackage = (): PathwayRealSiteEvidencePackage => ({
     sourceRole: "ROAD_CLASSIFICATION",
     sourceReferenceHash: HASH.sourceRoad,
     matchMethod: "POSITIVE_TFNSW_STATE_OR_REGIONAL_MATCH",
+  },
+  parcelAreaReconciliation: {
+    registeredPlanAreaSqm: 40_000,
+    detailSurveyAreaSqm: 39_470,
+    resolvedAreaSqm: 40_000,
+    resolutionMethod: "REGISTERED_PLAN_CONTROLS",
+    registeredPlanSourceRole: "REGISTERED_CADASTRAL_PLAN",
+    detailSurveySourceRole: "CADASTRAL_SURVEY",
+    registeredPlanPageReference: "sheet-DP1",
+    detailSurveyPageReference: "sheet-S1",
   },
   measurements: [
     {
@@ -142,6 +175,7 @@ describe("Item 74H real-site evidence intake", () => {
     expect(result.status).toBe("EVIDENCE_CONFIRMED");
     expect(result.confirmedEvidence).toMatchObject({
       roadCategory: "CLASSIFIED_ROAD",
+      landAreaSqm: 40_000,
       shedFootprintSqm: 120,
       shedHeightM: 4.8,
       roadSetbackM: 62,
@@ -150,8 +184,11 @@ describe("Item 74H real-site evidence intake", () => {
     });
     expect(result.confirmedEvidence?.siteEvidenceDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.redactedSummary).toMatchObject({
-      acceptedDocumentCount: 3,
+      acceptedDocumentCount: 4,
       manuallyReviewedRoles: ["CADASTRAL_SURVEY", "PROPOSED_SHED_LAYOUT"],
+      registeredPlanVerified: true,
+      parcelAreaReconciled: true,
+      legalSetbacksVerified: true,
       containsRawSiteIdentifiers: false,
       packEligibilityUnlocked: false,
       submissionSeeEligibilityUnlocked: false,
@@ -199,8 +236,8 @@ describe("Item 74H real-site evidence intake", () => {
 
   it("keeps image-only evidence blocked until manual verification is complete", () => {
     const input = validPackage();
-    input.documents[1] = {
-      ...input.documents[1],
+    input.documents[2] = {
+      ...input.documents[2],
       evidenceStatus: "NEEDS_REVIEW",
     };
 
@@ -218,8 +255,8 @@ describe("Item 74H real-site evidence intake", () => {
       ...input.documents[0],
       staleAt: "2026-08-25T11:00:00.000Z",
     };
-    input.documents[2] = {
-      ...input.documents[2],
+    input.documents[3] = {
+      ...input.documents[3],
       basisContentHash: "a".repeat(64),
     };
 

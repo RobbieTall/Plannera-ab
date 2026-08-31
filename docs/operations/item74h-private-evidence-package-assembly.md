@@ -75,3 +75,8 @@ It does not mean the submission SEE is eligible. That later transition still req
 No real document was used in this flight. The current Byron case remains MORE_EVIDENCE_REQUIRED until its actual authoritative road evidence, registered survey, and proposed shed layout complete the same chain.
 
 Production checkout remains disabled. Pull request 347 remains draft and unmerged.
+
+
+## Registered-plan evidence chain
+
+Item 74H now treats `REGISTERED_CADASTRAL_PLAN` as a separate required private role. It must be reviewed and promoted independently from the detail survey. The detail survey binds to the registered-plan content hash, and the proposed layout binds to the detail-survey hash. See `docs/operations/item74h-registered-plan-reconciliation.md`.

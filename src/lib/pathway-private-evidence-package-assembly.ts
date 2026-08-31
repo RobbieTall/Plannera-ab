@@ -9,7 +9,7 @@ import {
 import type { PathwayPrivateEvidenceOperatorReviewPersistedRecord } from "./pathway-private-evidence-operator-review";
 
 export const PATHWAY_PRIVATE_EVIDENCE_PACKAGE_ASSEMBLY_VERSION =
-  "item74h-private-evidence-package-assembly.v1" as const;
+  "item74h-private-evidence-package-assembly.v2" as const;
 
 export type PathwayPrivateEvidencePackageAssemblyBlocker =
   | "PREVIEW_ONLY"
@@ -69,7 +69,7 @@ export type PathwayPrivateEvidencePackageAssemblyPersistedRecord = {
   packageRef: string;
   assemblyVersion: typeof PATHWAY_PRIVATE_EVIDENCE_PACKAGE_ASSEMBLY_VERSION;
   status: "READY_FOR_REAL_SITE_ASSESSMENT";
-  documentCount: 3;
+  documentCount: 4;
   reviewSetDigest: string;
   siteEvidenceDigest: string;
   idempotencyKey: string;
@@ -137,6 +137,7 @@ const AUTH_KEYS = new Set([
 ]);
 const REQUIRED_ROLES: PathwayRealSiteDocumentRole[] = [
   "ROAD_CLASSIFICATION",
+  "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
 ];
@@ -405,7 +406,7 @@ export const assemblePathwayPrivateEvidencePackage = async (
     packageRef: input.packageRef,
     assemblyVersion: PATHWAY_PRIVATE_EVIDENCE_PACKAGE_ASSEMBLY_VERSION,
     status: "READY_FOR_REAL_SITE_ASSESSMENT" as const,
-    documentCount: 3 as const,
+    documentCount: 4 as const,
     reviewSetDigest: digest(
       normalizedItems.map((item) => item.reviewRecordHash),
     ),

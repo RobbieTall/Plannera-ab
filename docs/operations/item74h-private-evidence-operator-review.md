@@ -79,3 +79,7 @@ Every result keeps both paid products and Production checkout false.
 This acceptance proves the durable review transition for one synthetic document. A real Byron pathway remains `MORE_EVIDENCE_REQUIRED` until all required roles are privately supplied, scanned, reviewed, promoted and bound to the same confirmed site and proposal measurements.
 
 No real document was used or certified by this acceptance.
+
+## Registered-plan evidence chain
+
+Item 74H now treats `REGISTERED_CADASTRAL_PLAN` as a separate required private role. It must be reviewed and promoted independently from the detail survey. The detail survey binds to the registered-plan content hash, and the proposed layout binds to the detail-survey hash. See `docs/operations/item74h-registered-plan-reconciliation.md`.

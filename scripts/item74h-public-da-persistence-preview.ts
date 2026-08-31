@@ -27,7 +27,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-evidence-refinement-20260830',
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
-  'agent/item74h-customer-evidence-taxonomy-20260901',
+  'agent/item74h-registered-plan-proof-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
@@ -37,7 +37,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
-  'ep-silent-haze-a7mfgowo',
+  'ep-twilight-tooth-a75ar21y',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =

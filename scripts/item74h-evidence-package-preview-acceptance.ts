@@ -26,7 +26,7 @@ const EXPECTED_REFS = new Set([
   "agent/item74h-evidence-refinement-20260830",
   "agent/item74h-layout-evidence-20260831",
   "agent/item74h-setback-evidence-20260831",
-  "agent/item74h-customer-evidence-taxonomy-20260901",
+  "agent/item74h-registered-plan-proof-20260901",
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-misty-dream-a7l6wcp8",
@@ -36,12 +36,13 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
   "ep-old-flower-a7swrkp3",
-  "ep-silent-haze-a7mfgowo",
+  "ep-twilight-tooth-a75ar21y",
 ]);
 const ENABLE_FLAG = "ITEM74H_EVIDENCE_PACKAGE_ACCEPTANCE_ENABLED";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";
 const ROLES: PathwayRealSiteDocumentRole[] = [
   "ROAD_CLASSIFICATION",
+  "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
 ];
@@ -217,16 +218,22 @@ const makeDraft = (
     authority:
       role === "ROAD_CLASSIFICATION"
         ? ("BYRON_SHIRE_COUNCIL" as const)
-        : role === "CADASTRAL_SURVEY"
-          ? ("REGISTERED_SURVEYOR" as const)
-          : ("APPLICANT" as const),
+        : role === "REGISTERED_CADASTRAL_PLAN"
+          ? ("NSW_LAND_REGISTRY_SERVICES" as const)
+          : role === "CADASTRAL_SURVEY"
+            ? ("REGISTERED_SURVEYOR" as const)
+            : ("APPLICANT" as const),
     sourceVersion: "synthetic-current",
     sourceReferenceHash: digest("source:" + role + ":" + packageRef),
     issuedAt: new Date(now - 72 * 60 * 60_000).toISOString(),
     retrievedAt: new Date(now - 60 * 60_000).toISOString(),
     staleAt: new Date(now + 24 * 60 * 60_000).toISOString(),
     basisContentHash:
-      role === "PROPOSED_SHED_LAYOUT" ? hashes.CADASTRAL_SURVEY : null,
+      role === "PROPOSED_SHED_LAYOUT"
+        ? hashes.CADASTRAL_SURVEY
+        : role === "CADASTRAL_SURVEY"
+          ? hashes.REGISTERED_CADASTRAL_PLAN
+          : null,
     verification: {
       status: "EVIDENCE_VERIFIED" as const,
       reviewerRef: "x",
@@ -243,6 +250,16 @@ const makeDraft = (
       sourceRole: "ROAD_CLASSIFICATION",
       sourceReferenceHash: documents[0].sourceReferenceHash,
       matchMethod: "EXPLICIT_BYRON_COUNCIL_CONFIRMATION",
+    },
+    parcelAreaReconciliation: {
+      registeredPlanAreaSqm: 40_000,
+      detailSurveyAreaSqm: 39_470,
+      resolvedAreaSqm: 40_000,
+      resolutionMethod: "REGISTERED_PLAN_CONTROLS",
+      registeredPlanSourceRole: "REGISTERED_CADASTRAL_PLAN",
+      detailSurveySourceRole: "CADASTRAL_SURVEY",
+      registeredPlanPageReference: "sheet-DP1",
+      detailSurveyPageReference: "sheet-S1",
     },
     measurements: [
       ["SHED_FOOTPRINT_SQM", 80, "sqm"],
@@ -261,7 +278,10 @@ const makeDraft = (
       unit: unit as "m" | "sqm",
       sourceRole: "PROPOSED_SHED_LAYOUT" as const,
       pageReference: "sheet-" + (index + 1),
-      method: "PLAN_DIMENSION" as const,
+      method:
+        index >= 2
+          ? ("SURVEY_MEASUREMENT" as const)
+          : ("PLAN_DIMENSION" as const),
     })),
   };
 };
@@ -318,14 +338,14 @@ const dependencies = (
     const row = assemblies[0];
     assert(row.environment === "PREVIEW", "ASSEMBLY_ENVIRONMENT");
     assert(row.status === "READY_FOR_REAL_SITE_ASSESSMENT", "ASSEMBLY_STATUS");
-    assert(row.documentCount === 3, "ASSEMBLY_DOCUMENT_COUNT");
+    assert(row.documentCount === 4, "ASSEMBLY_DOCUMENT_COUNT");
     return {
       recordSource: "SERVER_EVIDENCE_PACKAGE_ASSEMBLY" as const,
       environment: "PREVIEW" as const,
       packageRef: row.packageRef,
       assemblyVersion: PATHWAY_PRIVATE_EVIDENCE_PACKAGE_ASSEMBLY_VERSION,
       status: "READY_FOR_REAL_SITE_ASSESSMENT" as const,
-      documentCount: 3 as const,
+      documentCount: 4 as const,
       reviewSetDigest: row.reviewSetDigest,
       siteEvidenceDigest: row.siteEvidenceDigest,
       idempotencyKey: row.idempotencyKey,
@@ -346,22 +366,24 @@ const dependencies = (
     loadPackageDraft: async (packageRef) =>
       packageRef === draft.projectRef ? draft : null,
     loadPromotions: async ({evidenceRefs}) => {
-      assert(evidenceRefs.length === 3, "PROMOTION_LOOKUP_SHAPE");
+      assert(evidenceRefs.length === 4, "PROMOTION_LOOKUP_SHAPE");
       const rows = await prisma.$queryRawUnsafe<PromotionRow[]>(
-        'SELECT * FROM "PathwayPrivateEvidencePromotion" WHERE "evidenceRef" IN ($1, $2, $3) ORDER BY "role"',
+        'SELECT * FROM "PathwayPrivateEvidencePromotion" WHERE "evidenceRef" IN ($1, $2, $3, $4) ORDER BY "role"',
         evidenceRefs[0],
         evidenceRefs[1],
         evidenceRefs[2],
+        evidenceRefs[3],
       );
       return rows.map(asPromotion);
     },
     loadVerifiedReviews: async (reviewRecordHashes) => {
-      assert(reviewRecordHashes.length === 3, "REVIEW_LOOKUP_SHAPE");
+      assert(reviewRecordHashes.length === 4, "REVIEW_LOOKUP_SHAPE");
       const rows = await prisma.$queryRawUnsafe<ReviewRow[]>(
-        'SELECT * FROM "PathwayPrivateEvidenceOperatorReview" WHERE "recordHash" IN ($1, $2, $3) ORDER BY "role"',
+        'SELECT * FROM "PathwayPrivateEvidenceOperatorReview" WHERE "recordHash" IN ($1, $2, $3, $4) ORDER BY "role"',
         reviewRecordHashes[0],
         reviewRecordHashes[1],
         reviewRecordHashes[2],
+        reviewRecordHashes[3],
       );
       return rows.map(asReview);
     },
@@ -497,7 +519,7 @@ const runAcceptance = async () => {
     assert(
       created.operation === "CREATED" &&
         created.status === "READY_FOR_REAL_SITE_ASSESSMENT" &&
-        created.redactedSummary.acceptedDocumentCount === 3 &&
+        created.redactedSummary.acceptedDocumentCount === 4 &&
         created.redactedSummary.realSiteEvidenceConfirmed &&
         !created.redactedSummary.planningControlsPackEligible &&
         !created.redactedSummary.submissionSeeEligible &&
@@ -512,10 +534,10 @@ const runAcceptance = async () => {
 
     const before = await counts(prisma, prefix);
     assert(
-      before.reviews === 3 &&
-        before.promotions === 3 &&
+      before.reviews === 4 &&
+        before.promotions === 4 &&
         before.assemblies === 1 &&
-        before.items === 3,
+        before.items === 4,
       "EXACT_PERSISTED_SHAPE",
     );
 
@@ -539,7 +561,7 @@ const runAcceptance = async () => {
       callerVerificationOverridden: true,
       assemblyCreated: true,
       assemblyReplayReused: true,
-      persistedDocumentCount: 3,
+      persistedDocumentCount: 4,
       realSiteEvidenceConfirmed: true,
       planningControlsPackEligible: false,
       submissionSeeEligible: false,

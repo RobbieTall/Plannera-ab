@@ -176,6 +176,7 @@ const RECORD_KEYS = new Set([
 
 const ALLOWED_ROLES: PathwayPrivateEvidenceRole[] = [
   "ROAD_CLASSIFICATION",
+  "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
 ];

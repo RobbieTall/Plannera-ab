@@ -62,6 +62,26 @@ const evidencePackage = (): PathwayRealSiteEvidencePackage => {
         },
       },
       {
+        role: "REGISTERED_CADASTRAL_PLAN",
+        uploadRef: "upload_registered_plan_74h",
+        contentHash: hash("9"),
+        evidenceStatus: "READY",
+        indexingStatus: "READY",
+        authority: "NSW_LAND_REGISTRY_SERVICES",
+        sourceVersion: "Current registered cadastral plan",
+        sourceReferenceHash: hash("a"),
+        issuedAt: "2026-07-01T00:00:00.000Z",
+        retrievedAt: "2026-08-24T00:00:00.000Z",
+        staleAt: "2027-02-24T00:00:00.000Z",
+        basisContentHash: null,
+        verification: {
+          status: "EVIDENCE_VERIFIED",
+          reviewerRef: "reviewer_opaque_01",
+          reviewedAt: "2026-08-24T01:02:00.000Z",
+          reviewNotesHash: hash("b"),
+        },
+      },
+      {
         role: "CADASTRAL_SURVEY",
         uploadRef: "upload_survey_74h",
         contentHash: hash("2"),
@@ -73,7 +93,7 @@ const evidencePackage = (): PathwayRealSiteEvidencePackage => {
         issuedAt: "2026-07-15T00:00:00.000Z",
         retrievedAt: "2026-08-24T00:00:00.000Z",
         staleAt: "2027-02-24T00:00:00.000Z",
-        basisContentHash: null,
+        basisContentHash: hash("9"),
         verification: {
           status: "EVIDENCE_VERIFIED",
           reviewerRef: "reviewer_opaque_01",
@@ -107,6 +127,16 @@ const evidencePackage = (): PathwayRealSiteEvidencePackage => {
       sourceRole: "ROAD_CLASSIFICATION",
       sourceReferenceHash: roadReferenceHash,
       matchMethod: "POSITIVE_TFNSW_STATE_OR_REGIONAL_MATCH",
+    },
+    parcelAreaReconciliation: {
+      registeredPlanAreaSqm: 40_000,
+      detailSurveyAreaSqm: 39_470,
+      resolvedAreaSqm: 40_000,
+      resolutionMethod: "REGISTERED_PLAN_CONTROLS",
+      registeredPlanSourceRole: "REGISTERED_CADASTRAL_PLAN",
+      detailSurveySourceRole: "CADASTRAL_SURVEY",
+      registeredPlanPageReference: "sheet-DP1",
+      detailSurveyPageReference: "sheet-S1",
     },
     measurements: [
       {

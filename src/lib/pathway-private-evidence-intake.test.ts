@@ -25,7 +25,7 @@ const validInput = (): PathwayPrivateEvidenceIntakeInput => ({
     signedAccessTtlSeconds: 300,
   },
   document: {
-    role: "CADASTRAL_SURVEY",
+    role: "REGISTERED_CADASTRAL_PLAN",
     mimeType: "application/pdf",
     bytes: new Uint8Array([1, 2, 3, 4]),
   },
@@ -57,7 +57,7 @@ describe("Item 74H private evidence intake", () => {
         "EVIDENCE_REVIEW_REQUIRED",
       ]),
       redactedSummary: {
-        role: "CADASTRAL_SURVEY",
+        role: "REGISTERED_CADASTRAL_PLAN",
         authenticatedProjectScopeConfirmed: true,
         privateStorageConfirmed: true,
         contentIntegrityConfirmed: true,
