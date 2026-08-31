@@ -35,7 +35,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
-  'ep-autumn-grass-a7py7j7i',
+  'ep-silent-haze-a7mfgowo',
 ]);
 const ENABLE_FLAG = 'ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE';
 const PUBLIC_DA_TRACKER_URL =

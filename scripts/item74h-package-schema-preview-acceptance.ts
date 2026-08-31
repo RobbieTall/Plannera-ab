@@ -17,7 +17,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
   "ep-old-flower-a7swrkp3",
-  "ep-autumn-grass-a7py7j7i",
+  "ep-silent-haze-a7mfgowo",
 ]);
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 
