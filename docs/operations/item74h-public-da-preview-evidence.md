@@ -19,13 +19,18 @@ The official tracker records an approved proposal that includes a new farm shed.
 | Evidence candidate | Council record |
 | --- | --- |
 | Council road evidence candidate | `E2025/131541` |
+| Site plan and biodiversity mapping candidate | `E2025/131544` |
+| Town planning report candidate | `E2025/131545` |
 | Detail survey candidate | `E2025/131546` |
 | Stamped proposed shed plans | `E2026/59935` |
 | Approval cross-check | `E2026/60560` |
 
 A filename or tracker description is not proof that a document satisfies a
 strict evidence role. The CLEAN pages were reviewed at exact page references
-before the deterministic outcome below was recorded.
+before the deterministic outcome below was recorded. Records `E2025/131544` and
+`E2025/131545` are newly approved discovery candidates only; until freshly
+quarantined, scanned and reviewed, they add no confirmed fact and remove no
+commercial blocker.
 
 ## Reviewed facts
 
@@ -101,8 +106,9 @@ Run `npm run accept:item74h-public-da-preview` only when all of these are true:
 - `VERCEL_ENV=preview`.
 - `VERCEL_GIT_COMMIT_REF` is exactly
   `integration/item74h-public-da-20260830`,
-  `agent/item74h-evidence-refinement-20260830`, or
-  `agent/item74h-layout-evidence-20260831`; wildcard and prefix matching
+  `agent/item74h-evidence-refinement-20260830`,
+  `agent/item74h-layout-evidence-20260831`, or
+  `agent/item74h-setback-evidence-20260831`; wildcard and prefix matching
   remain prohibited.
 - `ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED=true`.
 - The dedicated private Preview Blob credentials are available.
@@ -116,7 +122,8 @@ branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
 allowlist entries. Each branch must remain Preview-only, receive synthetic
 acceptance writes only, and may be deleted after its merged-head acceptance and
 zero-residue result are recorded. Neither may be reused as a Production
-database.
+database. The PR #361 branch and its branch-scoped Vercel acceptance flag were
+deleted after merged-head verification; Production was not changed.
 
 The chain must:
 
@@ -146,6 +153,19 @@ as a road, side or rear setback.
 This refinement must leave the missing-evidence count at four, preserve
 `MORE_EVIDENCE_REQUIRED`, and keep both paid products ineligible. It may not
 promote the indicative dimension into a legal setback.
+
+## Setback evidence discovery - 31 August 2026
+
+The next protected slice adds exact Council records `E2025/131544` and
+`E2025/131545` to the bounded six-document quarantine. It may emit page-scoped
+candidate text for operator selection only after a fresh clean scan. It must not
+retain new review images, confirm a setback, alter the reviewed outcome, persist
+an assessment, bind a paid artefact, or enable checkout.
+
+The existing 40 MB total limit, exact official-host and filename checks, private
+Blob authentication, deny-all review sandbox, hash checks and zero-residue
+cleanup remain mandatory. Candidate discovery is successful even if neither
+document supplies authoritative road, side or rear setback evidence.
 
 ## Durable Preview acceptance
 
