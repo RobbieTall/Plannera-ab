@@ -118,9 +118,7 @@ For PR #360, Vercel created the isolated Neon branch
 `preview/agent/item74h-evidence-refinement-20260830` with endpoint
 `ep-rapid-shape-a72cicyh`. For PR #361, Vercel created the isolated Neon
 branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
-`ep-late-sun-a7r48wn4`. For PR #362, Vercel created the isolated Neon branch
-`preview/agent/item74h-setback-evidence-20260831` with endpoint
-`ep-old-flower-a7swrkp3`. These branch and endpoint identifiers are exact
+`ep-late-sun-a7r48wn4`. These branch and endpoint identifiers are exact
 allowlist entries. Each branch must remain Preview-only, receive synthetic
 acceptance writes only, and may be deleted after its merged-head acceptance and
 zero-residue result are recorded. Neither may be reused as a Production
@@ -247,3 +245,25 @@ The exact-head run proved:
 
 The run performed no Production mutation. Production checkout remained
 disabled.
+
+
+## Scanner snapshot lifecycle hardening - 31 August 2026
+
+The scanner preparation sandbox is deliberately non-persistent. After ClamAV and
+Poppler are installed and malware definitions are refreshed, the acceptance
+calls the supported `sandbox.snapshot()` operation explicitly and records the
+returned snapshot ID before creating the deny-all scanner.
+
+This removes the automatic-stop race exposed by the first protected
+six-document discovery run:
+
+- a failure before explicit snapshot creation cannot create an automatic orphan;
+- snapshot creation terminates the preparation session and returns the cleanup
+  handle directly;
+- every later success or failure deletes that exact snapshot; and
+- the existing zero-residue gate still fails closed if Blob, Sandbox or snapshot
+  cleanup cannot be proved.
+
+The single orphaned Preview snapshot from the failed automatic-stop attempt was
+deleted. No Production resource, checkout setting, retained review page or
+customer document was changed.

@@ -290,7 +290,7 @@ const main = async () => {
       name: sandboxPrefix + "-prep",
       runtime: "node24",
       timeout: 600_000,
-      persistent: true,
+      persistent: false,
       networkPolicy: {
         allow: ["cdn.amazonlinux.com", "*.clamav.net"],
       },
@@ -325,9 +325,9 @@ const main = async () => {
       sudo: true,
     });
     stage = "CREATE_SCANNER_SNAPSHOT";
-    const stopped = await preparationSandbox.stop();
+    const scannerSnapshot = await preparationSandbox.snapshot();
     preparationStopped = true;
-    snapshotId = stopped.snapshot?.id ?? null;
+    snapshotId = scannerSnapshot.id;
     if (!snapshotId) throw new Error("scanner snapshot unavailable");
 
     stage = "CREATE_DENY_ALL_SCANNER";
