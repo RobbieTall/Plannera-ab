@@ -327,7 +327,7 @@ const main = async () => {
     stage = "CREATE_SCANNER_SNAPSHOT";
     const scannerSnapshot = await preparationSandbox.snapshot();
     preparationStopped = true;
-    snapshotId = scannerSnapshot.id;
+    snapshotId = scannerSnapshot.snapshotId;
     if (!snapshotId) throw new Error("scanner snapshot unavailable");
 
     stage = "CREATE_DENY_ALL_SCANNER";

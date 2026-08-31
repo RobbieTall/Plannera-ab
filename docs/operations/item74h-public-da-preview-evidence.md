@@ -264,6 +264,6 @@ six-document discovery run:
 - the existing zero-residue gate still fails closed if Blob, Sandbox or snapshot
   cleanup cannot be proved.
 
-The single orphaned Preview snapshot from the failed automatic-stop attempt was
-deleted. No Production resource, checkout setting, retained review page or
-customer document was changed.
+The orphaned Preview snapshots from the failed automatic-stop attempt and the
+initial explicit-return property mismatch were deleted. No Production resource,
+checkout setting, retained review page or customer document was changed.
