@@ -118,7 +118,9 @@ For PR #360, Vercel created the isolated Neon branch
 `preview/agent/item74h-evidence-refinement-20260830` with endpoint
 `ep-rapid-shape-a72cicyh`. For PR #361, Vercel created the isolated Neon
 branch `preview/agent/item74h-layout-evidence-20260831` with endpoint
-`ep-late-sun-a7r48wn4`. These branch and endpoint identifiers are exact
+`ep-late-sun-a7r48wn4`. For PR #362, Vercel created the isolated Neon branch
+`preview/agent/item74h-setback-evidence-20260831` with endpoint
+`ep-old-flower-a7swrkp3`. These branch and endpoint identifiers are exact
 allowlist entries. Each branch must remain Preview-only, receive synthetic
 acceptance writes only, and may be deleted after its merged-head acceptance and
 zero-residue result are recorded. Neither may be reused as a Production
