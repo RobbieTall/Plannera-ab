@@ -196,3 +196,32 @@ The exact-head run proved:
 
 The run performed no Production mutation. Production checkout remained
 disabled.
+
+## Verified layout evidence run - 31 August 2026
+
+Protected Vercel Preview deployment
+`dpl_AqVY7BEFMByDm7EzvpyMnbQCzVQw` reached `READY` from commit
+`77b92276130b2bbc131dfc9e19c7b6ec3cd14728`.
+
+The exact-head run proved:
+
+- the Byron and Kempsey launch and whole-LGA gates passed before evidence work;
+- all four official Council documents were freshly quarantined and scanned
+  `CLEAN`, with exact hashes preserved and zero transient resource residue;
+- the protected review retained only the four approved review pages;
+- reviewed outcome `item74h-public-da-reviewed-outcome.v3` recorded seven
+  confirmed facts, including the qualified 11.693 metre shed-to-fence distance;
+- the decision remained `MORE_EVIDENCE_REQUIRED` with exactly
+  `REGISTERED_CADASTRAL_SURVEY`, `ROAD_SETBACK_M`, `SIDE_SETBACK_M` and
+  `REAR_SETBACK_M` unresolved;
+- one site-confirmed Byron RU2 assessment was created and replay returned the
+  same assessment with five evidence, 17 control and six gate snapshots;
+- authoritative spatial provenance and the free Pathway Check survived reload;
+- unsafe `PROCEED` wrote no assessment, both paid products remained blocked,
+  and no paid artefact binding was created;
+- customer output retained no raw address, coordinates, parcel identifier or
+  direct-download capability; and
+- synthetic cleanup finished with zero residual rows.
+
+The run performed no Production mutation. Production checkout remained
+disabled.
