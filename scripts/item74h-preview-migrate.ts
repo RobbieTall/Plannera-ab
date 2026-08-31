@@ -17,6 +17,7 @@ const TARGET_NEON_ENDPOINT_PREFIXES = new Set([
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
   "ep-old-flower-a7swrkp3",
+  "ep-autumn-grass-a7py7j7i",
 ]);
 const ITEM74H_SQL_FILES = [
   "prisma/migrations/20260824101000_item74h_pathway_persistence/migration.sql",

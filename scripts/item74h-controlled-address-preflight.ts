@@ -19,6 +19,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
+  'ep-autumn-grass-a7py7j7i',
 ]);
 const NSW_ZONING_LAYER_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';

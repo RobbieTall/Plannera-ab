@@ -36,6 +36,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   "ep-rapid-shape-a72cicyh",
   "ep-late-sun-a7r48wn4",
   "ep-old-flower-a7swrkp3",
+  "ep-autumn-grass-a7py7j7i",
 ]);
 const ENABLE_FLAG = "ITEM74H_EVIDENCE_PACKAGE_ACCEPTANCE_ENABLED";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";
