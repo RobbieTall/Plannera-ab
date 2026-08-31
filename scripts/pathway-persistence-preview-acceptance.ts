@@ -651,6 +651,24 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (
+    process.env.VERCEL === '1' &&
+    process.env.VERCEL_ENV === 'preview' &&
+    !EXPECTED_REFS.has(process.env.VERCEL_GIT_COMMIT_REF || '')
+  ) {
+    console.log(
+      JSON.stringify({
+        acceptance: 'item74h-preview-persistence',
+        phase: 'disabled',
+        passed: true,
+        reason: 'unprotected_preview_branch',
+        productionCheckoutEnabled: false,
+        productionMutationPerformed: false,
+      }),
+    );
+    return;
+  }
+
   assertProtectedPreview();
   const prisma = new PrismaClient();
   try {

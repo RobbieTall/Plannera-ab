@@ -1237,3 +1237,18 @@ The registry covers site context/survey, statutory planning, built form/design, 
 Topic assignment establishes scope only; it does not prove the evidence resolves the topic. Section readiness must separately reconcile current accepted sources, conflicts, expiry, statutory gaps and required professional inputs. No strong source in one topic may raise confidence in an unrelated section or in the document as a whole.
 
 Reference: docs/project-memory/build-next.md Item 74A; DR-048; DR-051; DR-052
+
+
+## DR-054 — Registered Cadastral Plan Controls Legal Parcel Scope
+
+Status: Active
+
+Decision: a paid Item 74H scope must treat the registered cadastral plan as a separate, mandatory private evidence role and as the controlling legal source for parcel area. The detail survey must bind to the registered-plan content hash, and the proposed layout must bind to the detail-survey content hash. A survey area that differs from the registered plan is retained as an explicit reconciliation fact; it is not averaged, silently substituted or resolved from applicant estimates.
+
+Road, side and rear setbacks may support paid scope only when promoted from survey measurements through that exact evidence chain. Current road classification, registered plan, detail survey and proposed layout must each be scanned, independently operator-reviewed, immutably promoted and assembled exactly once. The reviewed proposal attestation and evidence manifest must match the registered-plan area. Synthetic or fixture evidence may prove the machinery but cannot bind an A$49 Planning Controls Pack or A$749 submission SEE.
+
+The free Pathway Check may truthfully explain missing registered-plan, reconciliation or setback evidence. It must not invent a value or imply paid readiness. Production checkout remains independently disabled, and Preview acceptance does not authorize a Production schema migration or real-document write.
+
+Evidence: PR #365; protected Vercel Preview `dpl_HUMLJQ1MT8zLWXBeKCywMnwwkuQG`; Production deployment `dpl_H8pchMJGhTU4owpU2fGeuGJnQtjS`; `docs/operations/item74h-registered-plan-reconciliation.md`.
+
+Consequence: Item 74H remains active until a real registered plan and real legal measurements pass the protected evidence flow and the rendered A$49/A$749 outputs are inspected. No developer may weaken the four-role chain to make a commercial gate green.
