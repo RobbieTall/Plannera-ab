@@ -21,6 +21,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-evidence-refinement-20260830',
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
+  'agent/item74h-cadastral-provenance-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
@@ -30,6 +31,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
+  'ep-autumn-grass-a7py7j7i',
 ]);
 
 function assert(condition: unknown, message: string): asserts condition {

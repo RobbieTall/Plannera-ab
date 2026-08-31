@@ -7,6 +7,11 @@ import { PrismaClient } from '@prisma/client';
 import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
 
 import {
+  fetchItem74hCadastralEvidence,
+  ITEM74H_CADASTRAL_SOURCE_URL,
+} from '../src/lib/item74h-cadastral-evidence';
+
+import {
   bindPathwayArtefact,
   PathwayPersistenceError,
   persistPathwayAssessment,
@@ -22,6 +27,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-evidence-refinement-20260830',
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
+  'agent/item74h-cadastral-provenance-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
@@ -31,13 +37,14 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-rapid-shape-a72cicyh',
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
+  'ep-autumn-grass-a7py7j7i',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const PUBLIC_DA_TRACKER_URL =
   'https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/';
 const PUBLIC_DA_ADDRESS = '870 Wilsons Creek Road, Wilsons Creek NSW';
 const PUBLIC_DA_REVIEW_VERSION =
-  'item74h-public-da-reviewed-outcome.v3' as const;
+  'item74h-public-da-reviewed-outcome.v4' as const;
 const MAX_PREFLIGHT_OUTPUT_BYTES = 512_000;
 const SPATIAL_SOURCE_URL =
   'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2';
@@ -393,8 +400,10 @@ async function runControlledPersistence(
   };
   const redactedAddress = 'REDACTED PUBLIC DA ADDRESS ' + preflight.addressFingerprint;
   const now = new Date();
-  const publicDaObservedAt = new Date('2026-08-30T00:00:00.000Z');
-  const publicDaStaleAt = new Date('2026-09-30T00:00:00.000Z');
+  const cadastralEvidence = await fetchItem74hCadastralEvidence(fetch, now);
+  const cadastralStaleAt = addDays(now, 30);
+  const publicDaObservedAt = new Date('2026-09-01T00:00:00.000Z');
+  const publicDaStaleAt = new Date('2026-10-01T00:00:00.000Z');
   const publicDaCatalog = {
     authority: 'BYRON_SHIRE_COUNCIL',
     applicationNumber: '10.2025.535.1',
@@ -411,14 +420,29 @@ async function runControlledPersistence(
     },
     officialRecords: [
       { recordNumber: 'E2025/131541', role: 'ROAD_AUTHORITY_EVIDENCE' },
+      { recordNumber: 'E2025/131544', role: 'SETBACK_SITE_PLAN' },
+      { recordNumber: 'E2025/131545', role: 'SETBACK_PLANNING_REPORT' },
       { recordNumber: 'E2025/131546', role: 'DETAIL_SURVEY' },
       { recordNumber: 'E2026/59935', role: 'STAMPED_APPROVED_PLANS' },
       { recordNumber: 'E2026/60560', role: 'DETERMINATION' },
     ],
     confirmedFacts: [
+      {
+        key: 'PROPOSAL_USE',
+        value: 'new farm machinery shed',
+        pageRef: 'E2026/60560 determination',
+      },
       { key: 'SHED_FOOTPRINT_SQM', value: 200, pageRef: 'E2026/59935 page-9' },
       { key: 'SHED_HEIGHT_M', value: 5.996, pageRef: 'E2026/59935 page-9' },
       { key: 'LOT_AREA_HA', value: 39.47, pageRef: 'E2025/131546 page-1' },
+      {
+        key: 'OFFICIAL_CADASTRAL_PLAN_AREA_HA',
+        value: cadastralEvidence.planAreaHectares,
+        pageRef: 'NSW Cadastre WFS current Lot_M feature checked 2026-09-01',
+        sourceUrl: ITEM74H_CADASTRAL_SOURCE_URL,
+        qualifier:
+          'Authoritative current DCDB plan area; registered plan image still required for submission-grade boundary dimensions.',
+      },
       {
         key: 'ROAD_AUTHORITY',
         value: 'BYRON_SHIRE_COUNCIL_SECTION_138',
@@ -441,6 +465,7 @@ async function runControlledPersistence(
     ],
     missingEvidence: [
       'REGISTERED_CADASTRAL_SURVEY',
+      'LOT_AREA_RECONCILIATION',
       'ROAD_SETBACK_M',
       'SIDE_SETBACK_M',
       'REAR_SETBACK_M',
@@ -466,11 +491,18 @@ async function runControlledPersistence(
       reviewedPublicDa.decision === 'MORE_EVIDENCE_REQUIRED' &&
       reviewedPublicDa.planningControlsPackEligible === false &&
       reviewedPublicDa.submissionSeeEligible === false &&
-      reviewedPublicDa.missingEvidence.length === 4 &&
+      reviewedPublicDa.missingEvidence.length === 5 &&
       reviewedPublicDa.confirmedFacts.some(
         ({ key, value }) =>
           key === 'INDICATIVE_SHED_TO_FENCE_DISTANCE_M' && value === 11.693,
-      ),
+      ) &&
+      reviewedPublicDa.confirmedFacts.some(
+        ({ key, value }) =>
+          key === 'OFFICIAL_CADASTRAL_PLAN_AREA_HA' &&
+          value === cadastralEvidence.planAreaHectares,
+      ) &&
+      cadastralEvidence.areaDifferenceHectares > 0.63 &&
+      cadastralEvidence.areaDifferencePercent > 1.6,
     'Reviewed public DA outcome was not safely evidence-blocked',
   );
 
@@ -614,6 +646,8 @@ async function runControlledPersistence(
       lep: lepHash,
       dcp: dcpHash,
       codes: codesHash,
+      cadastralParcelRecord: cadastralEvidence.parcelRecordHash,
+      cadastralGeometry: cadastralEvidence.geometryHash,
       publicDaCatalog: publicDaAssessment.catalogDigest,
     });
 
@@ -888,13 +922,14 @@ async function runControlledPersistence(
     ];
 
     const graph = {
-      version: 'item74h-public-da-persisted-byron-ru2-shed-v1',
+      version: 'item74h-public-da-persisted-byron-ru2-shed-v2',
       lgaCode: 'BYRON',
       zoneCode: 'RU2',
       proposalType: 'SHED_OUTBUILDING',
       decisions: ['STOP', 'PROCEED', 'MERIT_ASSESSMENT', 'MORE_EVIDENCE_REQUIRED'],
       gates: [
         'site-confirmed',
+        'parcel-area-reconciled',
         'agricultural-ancillary-use',
         'mapped-site-constraints',
         'exempt-pathway',
@@ -902,9 +937,9 @@ async function runControlledPersistence(
         'da-merit-pathway',
       ],
       unresolvedFacts: [
-        'proposal use',
         'proposal dimensions',
-        'landholding area and title',
+        'registered plan and reconciled land area',
+        'landholding title',
         'existing farm-building aggregate footprint',
         'road class and measured setbacks',
         'waterbody and ridgeline distances',
@@ -1003,7 +1038,7 @@ async function runControlledPersistence(
       environment: 'PREVIEW',
       projectId: ids.project,
       siteContextId: ids.site,
-      assessmentVersion: 'item74h-public-da-persisted-preview-v3',
+      assessmentVersion: 'item74h-public-da-persisted-preview-v4',
       idempotencyKey: prefix + 'assessment-idempotency',
       scopeKey,
       inputHash,
@@ -1020,7 +1055,7 @@ async function runControlledPersistence(
       result: {
         decision: 'MORE_EVIDENCE_REQUIRED',
         reason:
-          'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint, 5.996 metre height, 39.47 hectare lot, OTHER_ROAD classification and an indicative 11.693 metre shed-to-fence dimension are confirmed; the boundary is approximate and not classified as road, side or rear, so registered cadastral authority and all three legal setbacks remain unresolved.',
+          'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint, 5.996 metre height, OTHER_ROAD classification and an indicative 11.693 metre shed-to-fence dimension are confirmed. The Council detail survey states 39.47 hectares while the current official NSW cadastral feature records 38.8312589 hectares; the boundary is approximate and not classified as road, side or rear, so the registered plan, lot-area reconciliation and all three legal setbacks remain unresolved.',
         paidOutputEligible: false,
       },
       assessedAt: now,
@@ -1048,7 +1083,7 @@ async function runControlledPersistence(
         staleAt: spatialStaleAt,
       },
       definition: {
-        versionKey: prefix + 'byron-ru2-shed-v3',
+        versionKey: prefix + 'byron-ru2-shed-v4',
         lgaCode: 'BYRON',
         zoneCode: 'RU2',
         proposalType: 'SHED_OUTBUILDING',
@@ -1080,6 +1115,46 @@ async function runControlledPersistence(
           },
           isCurrentAtAssessment: true,
           staleAt: spatialStaleAt,
+        },
+        {
+          evidenceKey: 'cadastre',
+          evidenceKind: 'SPATIAL',
+          authority: cadastralEvidence.authority,
+          sourceUrl: cadastralEvidence.sourceUrl,
+          sourceVersion: cadastralEvidence.sourceVersion,
+          sourceReference: 'Current NSW Digital Cadastral Database Lot_M feature',
+          effectiveFrom: new Date(cadastralEvidence.effectiveFrom),
+          retrievedAt: now,
+          contentHash: digest({
+            parcelRecordHash: cadastralEvidence.parcelRecordHash,
+            geometryHash: cadastralEvidence.geometryHash,
+          }),
+          citation: {
+            authority: cadastralEvidence.authority,
+            dataset: cadastralEvidence.dataset,
+            checkedAt: now.toISOString(),
+          },
+          snapshot: {
+            parcelRecordHash: cadastralEvidence.parcelRecordHash,
+            geometryHash: cadastralEvidence.geometryHash,
+            lotReferenceHash: cadastralEvidence.lotReferenceHash,
+            planAreaSquareMetres: cadastralEvidence.planAreaSquareMetres,
+            planAreaHectares: cadastralEvidence.planAreaHectares,
+            detailSurveyAreaHectares:
+              cadastralEvidence.detailSurveyAreaHectares,
+            areaDifferenceHectares:
+              cadastralEvidence.areaDifferenceHectares,
+            areaDifferencePercent: cadastralEvidence.areaDifferencePercent,
+            titleStatusCode: cadastralEvidence.titleStatusCode,
+            classSubtype: cadastralEvidence.classSubtype,
+            lastUpdatedAt: cadastralEvidence.lastUpdatedAt,
+            registeredPlanImageReviewed: false,
+            lotAreaReconciliationRequired: true,
+            rawParcelGeometryRetained: false,
+            rawParcelIdentifierRetained: false,
+          },
+          isCurrentAtAssessment: true,
+          staleAt: cadastralStaleAt,
         },
         {
           evidenceKey: 'lep',
@@ -1199,8 +1274,24 @@ async function runControlledPersistence(
           controlRefs: [],
         },
         {
-          gateKey: 'agricultural-ancillary-use',
+          gateKey: 'parcel-area-reconciled',
           sequence: 1,
+          question: 'Does a registered plan confirm the legal parcel area and resolve the conflicting area records?',
+          outcome: 'MORE_EVIDENCE_REQUIRED',
+          reason: 'The current NSW cadastral dataset records 38.8312589 hectares while the Council-hosted detail survey records 39.47 hectares. Obtain the registered plan and reconcile the difference before relying on either area for a paid planning output.',
+          condition: {
+            registeredPlanReviewed: false,
+            officialCadastralAreaHectares: cadastralEvidence.planAreaHectares,
+            councilSurveyAreaHectares: 39.47,
+            areaReconciled: false,
+            rawParcelGeometryRetained: false,
+          },
+          evidenceRefs: ['cadastre', 'public-da-catalog'],
+          controlRefs: [],
+        },
+        {
+          gateKey: 'agricultural-ancillary-use',
+          sequence: 2,
           question: 'Is the proposed structure genuinely ancillary to agricultural use?',
           outcome: 'PROCEED',
           reason: 'The approved determination and stamped plans identify a farm machinery shed.',
@@ -1210,7 +1301,7 @@ async function runControlledPersistence(
         },
         {
           gateKey: 'mapped-site-constraints',
-          sequence: 2,
+          sequence: 3,
           question: 'Are all heritage, environmental, hazard and distance constraints resolved?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
           reason: 'Zoning, OTHER_ROAD classification and an indicative 11.693 metre shed-to-fence dimension are confirmed; required mapped overlays and legally classified road, side and rear setbacks remain unresolved.',
@@ -1231,7 +1322,7 @@ async function runControlledPersistence(
         },
         {
           gateKey: 'exempt-pathway',
-          sequence: 3,
+          sequence: 4,
           question: 'Does the proposal satisfy every exempt farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
           reason: 'The 200 square metre footprint, 5.996 metre height, 39.47 hectare lot, OTHER_ROAD classification and indicative 11.693 metre shed-to-fence dimension are confirmed, but aggregate footprint and legally classified setbacks remain unresolved.',
@@ -1248,7 +1339,7 @@ async function runControlledPersistence(
         },
         {
           gateKey: 'complying-pathway',
-          sequence: 4,
+          sequence: 5,
           question: 'Does the proposal satisfy every Rural Housing Code farm-building standard?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
           reason: 'The lot area, 200 square metre footprint, 5.996 metre height, OTHER_ROAD classification and indicative 11.693 metre shed-to-fence dimension are confirmed, but aggregate footprint and legally classified setbacks remain unresolved.',
@@ -1264,7 +1355,7 @@ async function runControlledPersistence(
         },
         {
           gateKey: 'da-merit-pathway',
-          sequence: 5,
+          sequence: 6,
           question: 'If exempt and complying paths fail, is DA merit evidence complete?',
           outcome: 'MORE_EVIDENCE_REQUIRED',
           reason: 'The historic DA approval, OTHER_ROAD classification and indicative 11.693 metre shed-to-fence dimension are confirmed, but reusable DCP siting, registered cadastral and legally classified setback evidence remains incomplete.',
@@ -1307,6 +1398,17 @@ async function runControlledPersistence(
       customerResult.evidenceChecklist.length > 0,
       'Customer result did not render the missing-evidence checklist',
     );
+    const areaReconciliationRequest = customerResult.evidenceChecklist.find(
+      (request) =>
+        request.blockingGateOrders.includes(1) &&
+        request.title.includes('registered plan') &&
+        request.why.includes('38.8312589 hectares') &&
+        request.why.includes('39.47 hectares'),
+    );
+    assert(
+      areaReconciliationRequest,
+      'Customer result did not surface the parcel-area reconciliation blocker',
+    );
     assert(
       Object.values(customerResult.privacy).every((value) => value === false),
       'Customer result exposed protected site identifiers',
@@ -1324,7 +1426,30 @@ async function runControlledPersistence(
       })) === 1,
       'Controlled replay left more than one assessment',
     );
-    assert(loaded.evidenceSnapshots.length === 5, 'Controlled evidence reload was incomplete');
+    assert(loaded.evidenceSnapshots.length === 6, 'Controlled evidence reload was incomplete');
+    const reloadedCadastre = loaded.evidenceSnapshots.find(
+      (snapshot) =>
+        snapshot.evidenceKind === 'SPATIAL' &&
+        snapshot.sourceUrl === ITEM74H_CADASTRAL_SOURCE_URL,
+    );
+    assert(reloadedCadastre, 'Authoritative cadastral evidence was not reloaded');
+    assert(
+      reloadedCadastre.sourceUrl === ITEM74H_CADASTRAL_SOURCE_URL &&
+        !reloadedCadastre.sourceUrl.includes('?'),
+      'Cadastral evidence retained a query or changed authority',
+    );
+    const reloadedCadastralSnapshot =
+      reloadedCadastre.snapshot as Record<string, unknown>;
+    assert(
+      reloadedCadastralSnapshot.parcelRecordHash ===
+        cadastralEvidence.parcelRecordHash &&
+        reloadedCadastralSnapshot.geometryHash ===
+          cadastralEvidence.geometryHash &&
+        reloadedCadastralSnapshot.rawParcelGeometryRetained === false &&
+        reloadedCadastralSnapshot.rawParcelIdentifierRetained === false,
+      'Cadastral evidence did not survive reload in redacted form',
+    );
+
     const reloadedPublicDaCatalog = loaded.evidenceSnapshots.find(
       (snapshot) =>
         snapshot.evidenceKind === 'OPERATOR_NOTE' &&
@@ -1344,7 +1469,7 @@ async function runControlledPersistence(
       loaded.controlSnapshots.length === controls.length,
       'Controlled control reload was incomplete',
     );
-    assert(loaded.gateSnapshots.length === 6, 'Controlled gate reload was incomplete');
+    assert(loaded.gateSnapshots.length === 7, 'Controlled gate reload was incomplete');
     assert(
       loaded.spatialProvenance.contentHash === prefix + preflight.spatialFeatureHash,
       'Controlled spatial provenance reload was incomplete',
@@ -1418,6 +1543,9 @@ async function runControlledPersistence(
       evidenceSnapshots: loaded.evidenceSnapshots.length,
       publicDaCatalogStatus: publicDaAssessment.status,
       publicDaCatalogDigestBound: true,
+      authoritativeCadastralParcelBound: true,
+      lotAreaReconciliationRequired: true,
+      cadastralGeometryRetainedAsHashOnly: true,
       directDownloadTokensRetained: false,
       controlSnapshots: loaded.controlSnapshots.length,
       gateSnapshots: loaded.gateSnapshots.length,
