@@ -278,7 +278,10 @@ const makeDraft = (
       unit: unit as "m" | "sqm",
       sourceRole: "PROPOSED_SHED_LAYOUT" as const,
       pageReference: "sheet-" + (index + 1),
-      method: "PLAN_DIMENSION" as const,
+      method:
+        index >= 2
+          ? ("SURVEY_MEASUREMENT" as const)
+          : ("PLAN_DIMENSION" as const),
     })),
   };
 };
@@ -363,7 +366,7 @@ const dependencies = (
     loadPackageDraft: async (packageRef) =>
       packageRef === draft.projectRef ? draft : null,
     loadPromotions: async ({evidenceRefs}) => {
-      assert(evidenceRefs.length === 3, "PROMOTION_LOOKUP_SHAPE");
+      assert(evidenceRefs.length === 4, "PROMOTION_LOOKUP_SHAPE");
       const rows = await prisma.$queryRawUnsafe<PromotionRow[]>(
         'SELECT * FROM "PathwayPrivateEvidencePromotion" WHERE "evidenceRef" IN ($1, $2, $3, $4) ORDER BY "role"',
         evidenceRefs[0],
@@ -374,7 +377,7 @@ const dependencies = (
       return rows.map(asPromotion);
     },
     loadVerifiedReviews: async (reviewRecordHashes) => {
-      assert(reviewRecordHashes.length === 3, "REVIEW_LOOKUP_SHAPE");
+      assert(reviewRecordHashes.length === 4, "REVIEW_LOOKUP_SHAPE");
       const rows = await prisma.$queryRawUnsafe<ReviewRow[]>(
         'SELECT * FROM "PathwayPrivateEvidenceOperatorReview" WHERE "recordHash" IN ($1, $2, $3, $4) ORDER BY "role"',
         reviewRecordHashes[0],

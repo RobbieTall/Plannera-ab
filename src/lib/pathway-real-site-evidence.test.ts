@@ -236,8 +236,8 @@ describe("Item 74H real-site evidence intake", () => {
 
   it("keeps image-only evidence blocked until manual verification is complete", () => {
     const input = validPackage();
-    input.documents[1] = {
-      ...input.documents[1],
+    input.documents[2] = {
+      ...input.documents[2],
       evidenceStatus: "NEEDS_REVIEW",
     };
 

@@ -101,7 +101,10 @@ const packageDraft = (): PathwayRealSiteEvidencePackage => {
       unit: unit as "m" | "sqm",
       sourceRole: "PROPOSED_SHED_LAYOUT" as const,
       pageReference: "sheet-" + (index + 1),
-      method: "PLAN_DIMENSION" as const,
+      method:
+        index >= 2
+          ? ("SURVEY_MEASUREMENT" as const)
+          : ("PLAN_DIMENSION" as const),
     })),
   };
 };
