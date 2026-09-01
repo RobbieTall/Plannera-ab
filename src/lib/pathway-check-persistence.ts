@@ -5,6 +5,14 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import type { PathwayCommercialBindingEvaluation } from './pathway-commercial-binding';
 import { evaluatePaidArtefactBindingPolicy } from './pathway-paid-artefact-policy';
 import {
+  attachPersistedPathwayProgressiveCommercialBinding,
+  evaluatePathwayProgressiveBindingPersistence,
+  evaluateWorkingPathwayArtefactPolicy,
+  progressiveBindingReplayMatches,
+  readPersistedPathwayProgressiveCommercialBinding,
+  type PathwayProgressiveCommercialBinding,
+} from './pathway-progressive-commercial-binding';
+import {
   attachPersistedPathwayCommercialBinding,
   commercialBindingReplayMatches,
   evaluatePathwayCommercialBindingPersistence,
@@ -27,6 +35,8 @@ export type PathwayTrustLevel =
   | 'SUBMISSION_READY';
 export type PathwayCommercialStage =
   | 'FREE_PATHWAY_CHECK'
+  | 'PLANNING_CONTROLS_PACK_WORKING'
+  | 'SUBMISSION_SEE_WORKING'
   | 'PLANNING_CONTROLS_PACK'
   | 'SUBMISSION_SEE';
 
@@ -136,6 +146,7 @@ export type PersistPathwayAssessmentInput = {
   inputHash: string;
   evidenceDigest: string;
   commercialBinding?: PathwayCommercialBindingEvaluation;
+  progressiveBinding?: PathwayProgressiveCommercialBinding;
   decision: PathwayDecision;
   trustLevel: PathwayTrustLevel;
   input: JsonValue;
@@ -221,6 +232,10 @@ function canonicalReplayMatches(
       existing.result,
       input.commercialBinding || null,
     ) &&
+    progressiveBindingReplayMatches(
+      existing.result,
+      input.progressiveBinding || null,
+    ) &&
     existing.decision === input.decision &&
     existing.trustLevel === input.trustLevel &&
     existing.assessmentVersion === input.assessmentVersion &&
@@ -263,6 +278,27 @@ export function validatePathwayPersistenceInput(
       'INVALID_COMMERCIAL_BINDING',
       'Commercial binding is invalid: ' +
         commercialBindingPersistence.blockers.join(', '),
+    );
+  }
+  if (input.commercialBinding && input.progressiveBinding) {
+    fail(
+      'CONFLICTING_COMMERCIAL_BINDINGS',
+      'Final and progressive commercial bindings cannot be persisted together',
+    );
+  }
+  const progressiveBindingPersistence =
+    evaluatePathwayProgressiveBindingPersistence({
+      result: input.result,
+      binding: input.progressiveBinding || null,
+      scopeKey: input.scopeKey,
+      evidenceDigest: input.evidenceDigest,
+      decision: input.decision,
+    });
+  if (!progressiveBindingPersistence.allowed) {
+    fail(
+      'INVALID_PROGRESSIVE_BINDING',
+      'Progressive binding is invalid: ' +
+        progressiveBindingPersistence.blockers.join(', '),
     );
   }
 
@@ -541,9 +577,12 @@ export async function persistPathwayAssessment(
             decision: input.decision,
             trustLevel: input.trustLevel,
             input: input.input,
-            result: attachPersistedPathwayCommercialBinding(
-              input.result,
-              input.commercialBinding || null,
+            result: attachPersistedPathwayProgressiveCommercialBinding(
+              attachPersistedPathwayCommercialBinding(
+                input.result,
+                input.commercialBinding || null,
+              ),
+              input.progressiveBinding || null,
             ) as Prisma.InputJsonValue,
             assessedAt: input.assessedAt,
             staleAt: input.staleAt,
@@ -663,6 +702,9 @@ export async function bindPathwayArtefact(
     where: { artefactId: input.artefactId },
   });
   const paid = input.commercialStage !== 'FREE_PATHWAY_CHECK';
+  const working =
+    input.commercialStage === 'PLANNING_CONTROLS_PACK_WORKING' ||
+    input.commercialStage === 'SUBMISSION_SEE_WORKING';
   if (existing) {
     if (
       existing.assessmentId !== input.assessmentId ||
@@ -694,9 +736,62 @@ export async function bindPathwayArtefact(
     fail('ARTEFACT_EVIDENCE_MISMATCH', 'Artefact scope and evidence must match exactly');
   }
 
-  if (paid) {
-    const policy = evaluatePaidArtefactBindingPolicy({
+  if (working) {
+    const now = new Date();
+    const currentAt = (staleAt: Date | null) =>
+      !staleAt || staleAt.getTime() > now.getTime();
+    const policy = evaluateWorkingPathwayArtefactPolicy({
       commercialStage: input.commercialStage,
+      scopeKey: input.scopeKey,
+      evidenceDigest: input.evidenceDigest,
+      progressiveBinding:
+        readPersistedPathwayProgressiveCommercialBinding(assessment.result),
+      artefactPayload: artefact.payload,
+      assessment: {
+        trustLevel: assessment.trustLevel,
+        isCurrent:
+          assessment.isCurrent &&
+          currentAt(assessment.staleAt) &&
+          assessment.pathwayDefinition.status === 'ACTIVE',
+        evidenceCurrent: assessment.evidenceSnapshots.every(
+          (item) => item.isCurrentAtAssessment && currentAt(item.staleAt),
+        ),
+        controlsCurrent: assessment.controlSnapshots.every(
+          (item) => item.isCurrentAtAssessment && currentAt(item.staleAt),
+        ),
+        fixtureEvidence:
+          hasFixtureMarker(assessment.input) ||
+          hasFixtureMarker(assessment.result) ||
+          hasFixtureMarker(assessment.spatialProvenance.payload) ||
+          hasSyntheticSourceLabel(assessment.spatialProvenance.sourceVersion) ||
+          hasSyntheticSourceLabel(assessment.spatialProvenance.matchMethod) ||
+          hasFixtureMarker(assessment.pathwayDefinition.graph) ||
+          assessment.evidenceSnapshots.some(
+            (item) =>
+              hasFixtureMarker(item.citation) ||
+              hasFixtureMarker(item.snapshot) ||
+              hasSyntheticSourceLabel(item.sourceVersion),
+          ) ||
+          assessment.controlSnapshots.some(
+            (item) =>
+              hasFixtureMarker(item.applicability) ||
+              hasSyntheticSourceLabel(item.sourceReference),
+          ) ||
+          hasFixtureMarker(artefact.payload),
+      },
+    });
+    if (!policy.allowed) {
+      fail(
+        'WORKING_OUTPUT_BLOCKED',
+        'Working output is blocked: ' + policy.blockers.join(', '),
+      );
+    }
+  } else if (paid) {
+    const policy = evaluatePaidArtefactBindingPolicy({
+      commercialStage:
+        input.commercialStage === 'PLANNING_CONTROLS_PACK'
+          ? 'PLANNING_CONTROLS_PACK'
+          : 'SUBMISSION_SEE',
       scopeKey: input.scopeKey,
       evidenceDigest: input.evidenceDigest,
       commercialBinding: readPersistedPathwayCommercialBinding(
