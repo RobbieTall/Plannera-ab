@@ -138,3 +138,24 @@ Product presentation follows the persisted readiness value:
 - A working SEE must say that it is not submission ready in the readiness state and affected content, not only in footer text.
 - The A$49 card must explain the one-time same-scope A$49 SEE credit. The A$749 card must explain the A$700 balance when that credit is valid.
 - A readiness card must never activate checkout by itself. Both the persisted checkout boundary and environment checkout configuration must be enabled separately. They remain disabled for this proof and in Production.
+
+
+## Protected customer-presentation acceptance (2026-09-01)
+
+The actual Pathway Check modal has a branch-locked visual acceptance route at
+`/internal/item74h-commercial-acceptance`. It is not a customer fixture and
+must never be treated as planning evidence.
+
+The route renders only when all of these are true:
+
+- Vercel reports a Preview deployment.
+- The Git ref is exactly `agent/item74h-visual-customer-proof-20260901`.
+- A$49 Planning Controls Pack checkout is not enabled.
+- A$749 submission SEE checkout is not enabled.
+
+Every other environment returns 404. The route uses synthetic/public-review
+facts only, makes no database or Blob request, contains no address or
+coordinates, and renders the real Pathway Check modal. Acceptance must visually
+confirm the separate MERIT and MORE_EVIDENCE states, the named evidence
+schedule, WORKING A$49/A$749 presentation, the same-scope credit explanation,
+and disabled checkout. Production checkout remains disabled.
