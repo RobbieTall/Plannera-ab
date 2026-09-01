@@ -346,7 +346,7 @@ describe("createExpertReviewRequestArtefact", () => {
     expect(result.content.lepEvidenceSummary).toEqual(citedSummary);
     expect(result.content.assumptions).toEqual(expect.arrayContaining([
       "Proposed works from Detailed Planning Pack: Alterations and additions to tourist accommodation.",
-      "Detailed Planning Pack is marked commercial-ready.",
+      "Detailed Planning Pack is marked commercial-ready; the working SEE still requires final output and operator acceptance.",
     ]));
     expect(result.content.consultantNeedsVersion).toBe("consultant-needs.v1");
     expect(result.content.consultantNeeds).toEqual(expect.arrayContaining([
@@ -474,7 +474,7 @@ describe("createExpertReviewRequestArtefact", () => {
 
     expect(result.content.includedArtefacts.map((artefact) => artefact.type)).toEqual(["quick_site_check", "detailed_planning_pack"]);
     expect(result.content.sourceSeeMemo).toBeNull();
-    expect(result.content.missingInputs).toContain("Matching SEE generated from the current Detailed Planning Pack");
+    expect(result.content.missingInputs).toContain("Matching working SEE generated from the current Detailed Planning Pack");
   });
 
   it("does not promote forged LEP controls or altered SEE snapshots into review evidence", async () => {
@@ -527,7 +527,7 @@ describe("createExpertReviewRequestArtefact", () => {
       "Height of building: Not found in retrieved LEP data",
     );
     expect(result.content.missingInputs).toContain(
-      "Matching SEE generated from the current Detailed Planning Pack",
+      "Matching working SEE generated from the current Detailed Planning Pack",
     );
   });
 
