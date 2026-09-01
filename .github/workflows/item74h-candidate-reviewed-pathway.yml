@@ -1,0 +1,41 @@
+name: Item 74H candidate reviewed pathway
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/item74h-candidate-reviewed-pathway.yml"
+      - "docs/operations/item74h-candidate-reviewed-pathway.md"
+      - "src/lib/item74h-candidate-reviewed-pathway.ts"
+      - "src/lib/item74h-candidate-reviewed-pathway.test.ts"
+      - "src/lib/pathway-progressive-commercial-binding.ts"
+      - "src/lib/pathway-commercial-presentation.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-candidate-reviewed-pathway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-reviewed-pathway:
+    name: Candidate reviewed pathway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify reviewed candidate and commercial bridge
+        run: >-
+          npx vitest run
+          src/lib/item74h-candidate-reviewed-pathway.test.ts
+          src/lib/pathway-progressive-commercial-binding.test.ts
+          src/lib/pathway-commercial-presentation.test.ts
