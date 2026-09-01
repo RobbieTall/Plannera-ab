@@ -89,6 +89,12 @@ describe("Item 74H candidate reviewed pathway", () => {
             legalSetOutConfirmed: false,
           },
         },
+        excavationAndFill: {
+          section: "B14.2",
+          generalMaximumDepthMetres: 1,
+          effectiveDate: "2019-09-11",
+          submittedSeeClaimConfirmed: true,
+        },
       },
     });
     expect(proof.manifest.proposal.submittedSeeControlClaims).toMatchObject({
@@ -104,6 +110,12 @@ describe("Item 74H candidate reviewed pathway", () => {
           field: "maximumBuildingHeightMetres",
           seeValue: 9,
           authoritativeValue: 9,
+        },
+        {
+          field: "maximumExcavationAndFillDepthMetres",
+          seeValue: 1,
+          authoritativeValue: 1,
+          authoritativeClause: "Byron DCP 2014 B14.2",
         },
       ],
       rejectedClaims: [

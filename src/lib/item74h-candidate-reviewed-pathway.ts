@@ -13,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v7" as const;
+  "item74h-candidate-reviewed-pathway.v8" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -48,6 +48,7 @@ const CONFIRMED_CONTROL_KEYS = [
   "BYRON_DCP_D1_2_1_BUILDING_HEIGHT_PLANE",
   "BYRON_DCP_D1_2_2_LOCAL_ROAD_FRONT_SETBACK_4_5_M",
   "BYRON_DCP_D1_2_2_SIDE_REAR_SETBACK_0_9_M",
+  "BYRON_DCP_B14_2_GENERAL_EXCAVATION_FILL_1_M",
   "DA_PATHWAY_APPROVED_10_2026_223_1",
   "APPROVED_PLAN_SHED_AREA_24_SQM",
   "APPROVED_PLAN_SOUTHERN_BOUNDARY_DIMENSION_1_625_M",
@@ -140,6 +141,16 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
               legalSetOutConfirmed: false,
             },
           },
+          excavationAndFill: {
+            chapter: "B14 Excavation and Fill",
+            sourceUrl:
+              "https://www.byron.nsw.gov.au/files/assets/public/hptrim/land-use-and-planning-planning-development-control-plans-key-records-2014-development-control-plan/byron-shire-dcp-2014-chapter-b14-excavation-and-fill-adopted-15-august-2019-effective-11-september-2019-24.2018.65.1.pdf",
+            adoptedDate: "2019-08-15",
+            effectiveDate: "2019-09-11",
+            section: "B14.2",
+            generalMaximumDepthMetres: 1,
+            submittedSeeClaimConfirmed: true,
+          },
         },
       },
     },
@@ -230,6 +241,13 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
           authoritativeClause: "Byron LEP 2014 clause 4.3",
           currencyDate: "2026-08-21",
         },
+        {
+          field: "maximumExcavationAndFillDepthMetres",
+          seeValue: 1,
+          authoritativeValue: 1,
+          authoritativeClause: "Byron DCP 2014 B14.2",
+          effectiveDate: "2019-09-11",
+        },
       ],
       rejectedClaims: [
         {
@@ -253,7 +271,6 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       limitations: [
         "The SEE control table is secondary proponent-authored evidence, not the authoritative instrument.",
         "The SEE clause labels are incomplete or misaligned and must not be used as final DCP citations.",
-        "The 1 m excavation and fill claim still requires the applicable current DCP Part B control to be bound before final reliance.",
       ],
     },
   },
@@ -278,7 +295,7 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       role: "SUBMITTED_SEE",
       review: "CONTROL_PAGES_5_7_8_OPERATOR_REVIEWED_AS_SECONDARY",
       evidence:
-        "9 m height confirmed against current LEP mapping; 0.5:1 FSR rejected against authoritative 0.4:1 mapping; 1 m fill remains secondary; conflicting 1224 sqm site area rejected",
+        "9 m height and 1 m general excavation/fill limit confirmed against current controls; 0.5:1 FSR rejected against authoritative 0.4:1 mapping; conflicting 1224 sqm site area rejected",
     },
     {
       record: "E2026/47509",
@@ -399,6 +416,7 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
       "Current Byron LEP 2014 maximum floor-space ratio: 0.4:1",
       "Current DCP D1.2.2 side/rear minimum setback: 0.9 m",
       "Current DCP D1.2.2 local-road primary-front minimum setback: 4.5 m",
+      "Current DCP B14.2 general excavation/fill maximum depth: 1 m",
       "Approved plan area: 24 sqm",
       "Approved-plan southern boundary dimension: 1.625 m",
       "Approved-plan maximum drawn height: 3.83 m",

@@ -61,7 +61,7 @@ Confirmed from the current Council-hosted DCP 2014 Chapter D1, adopted 27 Januar
 - D1.2.2 requires a minimum 900 mm side/rear setback.
 - The approved plan depicts 1.625 m to the southern boundary, which is greater than the 900 mm base minimum, but that depicted dimension is not represented as a certified legal set-out.
 - The submitted SEE's DCP clause labels are incomplete or misaligned and are not accepted as final citations.
-- Its 1 m excavation/fill claim remains secondary until the applicable current Part B control is bound.
+- Chapter B14.2, adopted 15 August 2019 and effective 11 September 2019, limits general excavation and fill to 1 m; the submitted SEE's 1 m claim is confirmed.
 
 The authoritative source URL, control value, clause, amendment and currency/effective date are stored with the evidence. Final generation must replay currency rather than silently treating this snapshot as timeless.
 
@@ -78,7 +78,7 @@ The free Pathway Check returns useful confirmed results and MORE_EVIDENCE_REQUIR
 - Gate 01 ancillary storage-shed description: PROCEED for this reviewed case, with STOP and MORE_EVIDENCE branches if the use changes.
 - Gate 02 DA pathway: PROCEED because the official case was determined approved and all 24 numbered conditions are grouped into delivery phases. Similar sheds may receive different conditions.
 - Gate 03 exact proposal zone: PROCEED as R2. Boundary-touch-only C2 is excluded from parcel membership; positive future C2 overlap routes to MERIT or MORE_EVIDENCE.
-- Gate 04 numeric envelope: MORE_EVIDENCE because the current 9 m height, 0.4:1 FSR, 900 mm side/rear setback and 4.5 m local-road front setback are confirmed, but the depicted 1.625 m boundary dimension is not a certified legal set-out. Any variation requiring justification routes to MERIT.
+- Gate 04 numeric envelope: MORE_EVIDENCE because the current 9 m height, 0.4:1 FSR, 900 mm side/rear setback, 4.5 m local-road front setback and 1 m general excavation/fill limit are confirmed, but the depicted 1.625 m boundary dimension is not a certified legal set-out. Any variation requiring justification routes to MERIT.
 - Gate 05 commercial progress: PROCEED for working products only; a final or submission-ready claim must STOP.
 
 MORE_EVIDENCE_REQUIRED is not a refusal to help the customer progress.
