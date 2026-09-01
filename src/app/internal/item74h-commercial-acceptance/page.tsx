@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 
 import { Item74hCommercialPreviewHarness } from "@/components/projects/item74h-commercial-preview-harness";
 import {
+  buildItem74hCandidateReviewedPathwayProof,
+  type CandidateGateDecision,
+} from "@/lib/item74h-candidate-reviewed-pathway";
+import {
   ITEM74H_VISUAL_ACCEPTANCE_BRANCH,
   item74hVisualAcceptanceAllowed,
 } from "@/lib/item74h-visual-acceptance";
@@ -9,48 +13,39 @@ import {
   toPathwayCustomerResult,
   type PathwayCustomerResultInput,
 } from "@/lib/pathway-customer-result";
-import {
-  attachPersistedPathwayProgressiveCommercialBinding,
-  createPathwayProgressiveCommercialBinding,
-} from "@/lib/pathway-progressive-commercial-binding";
+import { attachPersistedPathwayProgressiveCommercialBinding } from "@/lib/pathway-progressive-commercial-binding";
 import type { QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 
 export const dynamic = "force-dynamic";
 
-const asOf = new Date("2026-09-01T06:45:00.000Z");
+const asOf = new Date("2026-09-01T09:50:00.000Z");
 const currentUntil = new Date("2026-10-01T00:00:00.000Z");
 
-function buildPathwayResult() {
-  const binding = createPathwayProgressiveCommercialBinding({
-    scopeKey: "protected-public-review-byron-shed",
-    siteEvidenceDigest: "b".repeat(64),
-    pathwayDecision: "MERIT_ASSESSMENT",
-    evidenceStatus: "MORE_EVIDENCE_REQUIRED",
-    confirmedControlKeys: [
-      "byron-lep-ru2-zone",
-      "byron-dcp-rural-outbuilding-controls",
-      "nsw-authoritative-spatial-projection",
-    ],
-    outstandingEvidence: [
-      "AUTHORITATIVE_ROAD_CLASSIFICATION",
-      "LEGAL_ROAD_SETBACK_M",
-      "LEGAL_SIDE_SETBACK_M",
-      "REGISTERED_CADASTRAL_SURVEY",
-    ],
-  });
+function toCustomerGateOutcome(
+  outcome: CandidateGateDecision,
+): "STOP" | "PROCEED" | "MERIT_ASSESSMENT" | "MORE_EVIDENCE_REQUIRED" {
+  if (outcome === "MERIT") return "MERIT_ASSESSMENT";
+  if (outcome === "MORE_EVIDENCE") return "MORE_EVIDENCE_REQUIRED";
+  return outcome;
+}
 
+function buildPathwayResult() {
+  const proof = buildItem74hCandidateReviewedPathwayProof();
   const input: PathwayCustomerResultInput = {
     decision: "MORE_EVIDENCE_REQUIRED",
     trustLevel: "SITE_CONFIRMED",
     isCurrent: true,
-    assessedAt: new Date("2026-09-01T06:30:00.000Z"),
-    staleAt: null,
+    assessedAt: asOf,
+    staleAt: currentUntil,
     result: attachPersistedPathwayProgressiveCommercialBinding(
-      { summary: "Protected visual acceptance only" },
-      binding,
+      {
+        summary:
+          "Council-reviewed Byron storage-shed pathway with current authoritative controls",
+      },
+      proof.binding,
     ),
     pathwayDefinition: {
-      versionKey: "byron-ru2-shed-protected-review-v1",
+      versionKey: proof.version,
       status: "ACTIVE",
     },
     spatialProvenance: {
@@ -58,21 +53,23 @@ function buildPathwayResult() {
       datasetName: "EPI Primary Planning Layers - Land Zoning",
       sourceUrl:
         "https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer/2",
-      sourceVersion: "retrieved-2026-09-01",
+      sourceVersion:
+        "Byron LEP 2014 PCO 2014-297, currency 2026-08-21, cadid 180752773",
       retrievedAt: new Date("2026-09-01T06:00:00.000Z"),
-      effectiveAt: new Date("2026-09-01T00:00:00.000Z"),
+      effectiveAt: new Date("2026-08-21T00:00:00.000Z"),
       trustLevel: "EVIDENCE_VERIFIED",
       staleAt: currentUntil,
     },
     evidenceSnapshots: [
       {
         evidenceKind: "LEP",
-        authority: "NSW legislation",
+        authority: "NSW legislation and EPI Primary Planning Layers",
         sourceUrl:
-          "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-0297",
-        sourceVersion: "Byron LEP 2014 - retrieved 2026-09-01",
+          "https://legislation.nsw.gov.au/view/whole/html/inforce/current/epi-2014-0297",
+        sourceVersion:
+          "Byron LEP 2014 PCO 2014-297; height and FSR mapping currency 2026-08-21",
         retrievedAt: new Date("2026-09-01T06:00:00.000Z"),
-        effectiveFrom: new Date("2026-09-01T00:00:00.000Z"),
+        effectiveFrom: new Date("2026-08-21T00:00:00.000Z"),
         staleAt: currentUntil,
         isCurrentAtAssessment: true,
       },
@@ -80,75 +77,95 @@ function buildPathwayResult() {
         evidenceKind: "DCP",
         authority: "Byron Shire Council",
         sourceUrl:
-          "https://www.byron.nsw.gov.au/Development-Business/Planning-Controls/Development-Control-Plans",
-        sourceVersion: "Byron DCP 2014 - reviewed 2026-09-01",
-        retrievedAt: new Date("2026-09-01T06:00:00.000Z"),
-        effectiveFrom: new Date("2026-09-01T00:00:00.000Z"),
+          "https://www.datocms-assets.com/94948/1772682408-file-lzwnir3ttw-tjpcr1vky-a.pdf",
+        sourceVersion:
+          "DCP 2014 Chapter D1, adopted 2026-01-27, effective 2026-02-23",
+        retrievedAt: new Date("2026-09-01T08:00:00.000Z"),
+        effectiveFrom: new Date("2026-02-23T00:00:00.000Z"),
+        staleAt: currentUntil,
+        isCurrentAtAssessment: true,
+      },
+      {
+        evidenceKind: "DCP",
+        authority: "Byron Shire Council",
+        sourceUrl:
+          "https://www.byron.nsw.gov.au/files/assets/public/hptrim/land-use-and-planning-planning-development-control-plans-key-records-2014-development-control-plan/byron-shire-dcp-2014-chapter-b14-excavation-and-fill-adopted-15-august-2019-effective-11-september-2019-24.2018.65.1.pdf",
+        sourceVersion:
+          "DCP 2014 Chapter B14, adopted 2019-08-15, effective 2019-09-11",
+        retrievedAt: new Date("2026-09-01T09:30:00.000Z"),
+        effectiveFrom: new Date("2019-09-11T00:00:00.000Z"),
         staleAt: currentUntil,
         isCurrentAtAssessment: true,
       },
     ],
     controlSnapshots: [
       {
-        label: "Rural outbuilding controls",
-        operator: "TEXT",
-        numericValue: null,
+        label: "Maximum building height",
+        operator: "LTE",
+        numericValue: 9,
         lowerBound: null,
         upperBound: null,
-        textValue:
-          "Merit assessment required; exact site dimensions remain qualified.",
-        unit: null,
-        sourceReference: "Byron DCP 2014 rural development controls",
+        textValue: null,
+        unit: "m",
+        sourceReference: "Byron LEP 2014 clause 4.3, Map Layer 5",
+        isCurrentAtAssessment: true,
+        staleAt: currentUntil,
+      },
+      {
+        label: "Maximum floor-space ratio",
+        operator: "LTE",
+        numericValue: 0.4,
+        lowerBound: null,
+        upperBound: null,
+        textValue: null,
+        unit: ":1",
+        sourceReference: "Byron LEP 2014 clause 4.4, Map Layer 1",
+        isCurrentAtAssessment: true,
+        staleAt: currentUntil,
+      },
+      {
+        label: "Minimum side and rear setback",
+        operator: "GTE",
+        numericValue: 0.9,
+        lowerBound: null,
+        upperBound: null,
+        textValue: null,
+        unit: "m",
+        sourceReference: "Byron DCP 2014 D1.2.2",
+        isCurrentAtAssessment: true,
+        staleAt: currentUntil,
+      },
+      {
+        label: "Minimum local-road primary-front setback",
+        operator: "GTE",
+        numericValue: 4.5,
+        lowerBound: null,
+        upperBound: null,
+        textValue: null,
+        unit: "m",
+        sourceReference: "Byron DCP 2014 D1.2.2",
+        isCurrentAtAssessment: true,
+        staleAt: currentUntil,
+      },
+      {
+        label: "General excavation and fill maximum depth",
+        operator: "LTE",
+        numericValue: 1,
+        lowerBound: null,
+        upperBound: null,
+        textValue: null,
+        unit: "m",
+        sourceReference: "Byron DCP 2014 B14.2",
         isCurrentAtAssessment: true,
         staleAt: currentUntil,
       },
     ],
-    proposalAttestation: {
-      trust: "USER_ATTESTED",
-      decision: "MORE_EVIDENCE_REQUIRED",
-      paidArtefactsEligible: false,
-      input: {
-        proposalPurpose: "NON_HABITABLE_RURAL_MACHINERY_AND_GOODS_STORAGE",
-        landAreaHectares: 3.2,
-        proposedBuildingFootprintSquareMetres: 96,
-        existingFarmBuildingFootprintSquareMetres: 0,
-        proposedBuildingHeightMetres: 4.2,
-        roadSetbackMetres: 72,
-        sideSetbackMetres: 24,
-        otherBoundarySetbackMetres: 35,
-        roadCategory: "UNRESOLVED",
-      },
-    },
-    gateSnapshots: [
-      {
-        sequence: 0,
-        question: "Is the address and RU2 zone confirmed?",
-        outcome: "PROCEED",
-        reason:
-          "The protected review has current authoritative address, zoning and spatial provenance.",
-      },
-      {
-        sequence: 1,
-        question: "Is the shed ancillary to the documented rural use?",
-        outcome: "PROCEED",
-        reason:
-          "The stated non-habitable machinery and goods storage purpose is consistent with the working rural scope.",
-      },
-      {
-        sequence: 2,
-        question: "Can the approval pathway be confirmed automatically?",
-        outcome: "MERIT_ASSESSMENT",
-        reason:
-          "The proposal requires a documented merit pathway rather than an automatic proceed result.",
-      },
-      {
-        sequence: 3,
-        question: "Are the legal setbacks and road class evidence verified?",
-        outcome: "MORE_EVIDENCE_REQUIRED",
-        reason:
-          "A registered survey and authoritative road classification must confirm the exact submission claims.",
-      },
-    ],
+    gateSnapshots: proof.gates.map((gate) => ({
+      sequence: Number(gate.gate),
+      question: gate.question,
+      outcome: toCustomerGateOutcome(gate.outcome),
+      reason: gate.reason,
+    })),
   };
 
   return toPathwayCustomerResult(input, asOf);
@@ -156,19 +173,20 @@ function buildPathwayResult() {
 
 const lepResult: QuickSiteCheckLepSuccess = {
   ok: true,
-  projectId: "protected-item74h-visual-acceptance",
+  projectId: "protected-item74h-reviewed-byron-shed",
   lga: "Byron Shire",
   lepName: "Byron Local Environmental Plan 2014",
-  zone: "RU2",
+  zone: "R2",
   objectives: [
-    "To maintain the rural landscape character of the land.",
+    "To provide for the housing needs of the community within a low density residential environment.",
+    "To enable other land uses that provide facilities or services to meet the day to day needs of residents.",
   ],
   controls: {
     heightOfBuilding: null,
     fsr: null,
     minLotSize: null,
     zoneObjectives: [
-      "Retain the evidence-backed rural pathway while unresolved site facts remain qualified.",
+      "The approved 24 sqm storage shed remains ancillary to the reviewed residential case.",
     ],
     setback: null,
     parking: null,
@@ -177,16 +195,23 @@ const lepResult: QuickSiteCheckLepSuccess = {
   permissibility: null,
   dataSource: "db_clauses",
   landUse: {
-    withoutConsent: [],
-    withConsent: ["Farm buildings"],
-    prohibited: [],
+    withoutConsent: [
+      "Environmental protection works",
+      "Home-based child care",
+      "Home occupations",
+    ],
+    withConsent: ["Dwelling houses"],
+    prohibited: ["Farm buildings"],
   },
   part4: [],
   part5: [],
   part6: [],
-  part4Reason: "Proposal-specific numeric claims remain evidence qualified.",
-  part5Reason: "No additional clause is asserted by this visual fixture.",
-  part6Reason: "No additional clause is asserted by this visual fixture.",
+  part4Reason:
+    "Current mapped controls are shown in the evidence-aware pathway above.",
+  part5Reason:
+    "No additional Part 5 clause is asserted by this protected acceptance.",
+  part6Reason:
+    "No additional Part 6 clause is asserted by this protected acceptance.",
 };
 
 export default function Item74hCommercialAcceptancePage() {
@@ -209,11 +234,20 @@ export default function Item74hCommercialAcceptancePage() {
           Protected Preview acceptance
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-          Item 74H customer presentation proof
+          Item 74H reviewed Byron shed proof
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
-          Synthetic/public-review facts only. No address, customer document,
-          database write, checkout activation or submission-ready claim is present.
+          Public Council case DA 10.2026.223.1 at 33 Lorikeet Lane:
+          R2 parcel, 24 sqm approved storage shed, 3.83 m approved-plan height
+          and 1.625 m depicted southern boundary dimension. No customer-private
+          document, database write, checkout activation or submission-ready
+          claim is present.
+        </p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          Current authoritative controls: 9 m maximum building height, 0.4:1
+          maximum floor-space ratio, 900 mm minimum side/rear setback, 4.5 m
+          minimum local-road primary-front setback, and 1 m general
+          excavation/fill maximum depth.
         </p>
       </div>
       <Item74hCommercialPreviewHarness
