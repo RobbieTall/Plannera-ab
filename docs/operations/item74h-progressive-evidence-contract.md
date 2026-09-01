@@ -124,3 +124,17 @@ The accepted product contract is represented by an explicit progressive binding,
 - Production checkout remains disabled.
 
 The customer result exposes `BLOCKED`, `WORKING` or `FINAL` readiness separately from final eligibility. This lets the interface say “start now and strengthen the same project later” without describing provisional work as final.
+
+
+## Customer-facing working-product contract
+
+The Pathway Check must render pathway viability separately from evidence readiness. For the accepted public Byron example it must say `MERIT_ASSESSMENT` and `MORE_EVIDENCE_REQUIRED`; it must not collapse both facts into a single blocked message.
+
+Product presentation follows the persisted readiness value:
+
+- `BLOCKED`: a hard pathway or evidence boundary prevents a useful product; do not offer progress.
+- `WORKING`: show the exact A$49 or A$749 product, explain that useful work can start now, list the unresolved evidence, and tell the customer that later evidence strengthens or regenerates the same purchased project.
+- `FINAL`: the current exact scope satisfies the final product policy, subject to the required operator quality assurance.
+- A working SEE must say that it is not submission ready in the readiness state and affected content, not only in footer text.
+- The A$49 card must explain the one-time same-scope A$49 SEE credit. The A$749 card must explain the A$700 balance when that credit is valid.
+- A readiness card must never activate checkout by itself. Both the persisted checkout boundary and environment checkout configuration must be enabled separately. They remain disabled for this proof and in Production.
