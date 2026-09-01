@@ -12,7 +12,7 @@ import {
 } from "./item74h-candidate-reviewed-pathway";
 
 describe("Item 74H candidate reviewed pathway", () => {
-  it("binds the official Byron case and reviewed evidence without PII", () => {
+  it("binds the official Byron case and corrected R2 evidence without PII", () => {
     const proof = buildItem74hCandidateReviewedPathwayProof();
 
     expect(proof.manifest.site).toMatchObject({
@@ -21,7 +21,10 @@ describe("Item 74H candidate reviewed pathway", () => {
       depositedPlan: "DP1265934",
       planning: {
         lepPco: "2014-297",
-        parcelZones: ["C2", "R2"],
+        parcelInteriorZones: ["R2"],
+        boundaryAdjacentZones: ["C2"],
+        zoneRelationship: "C2_BOUNDARY_TOUCH_NO_INTERIOR_OVERLAP",
+        zoneCurrencyDate: "2026-08-21",
       },
     });
     expect(proof.manifest.proposal).toMatchObject({
@@ -30,7 +33,8 @@ describe("Item 74H candidate reviewed pathway", () => {
       councilDeterminationDate: "2026-07-14",
       approvedPlanAreaSquareMetres: 24,
       approvedPlanSouthernBoundaryDimensionMetres: 1.625,
-      proposalZone: null,
+      proposalZone: "R2",
+      proposalZoneConfirmed: true,
       heightMetres: null,
     });
     expect(proof.manifest.sourceDocuments.map((document) => document.record)).toEqual([
@@ -59,7 +63,7 @@ describe("Item 74H candidate reviewed pathway", () => {
     );
     expect(proof.customerDecision).toBe("MORE_EVIDENCE_REQUIRED");
     expect(proof.gates.find((gate) => gate.gate === "03")?.outcome).toBe(
-      "MORE_EVIDENCE",
+      "PROCEED",
     );
     expect(proof.gates.find((gate) => gate.gate === "04")?.outcome).toBe(
       "MORE_EVIDENCE",
@@ -69,6 +73,8 @@ describe("Item 74H candidate reviewed pathway", () => {
   it("allows exact-scope working A$49 and A$749 products with checkout off", () => {
     const proof = buildItem74hCandidateReviewedPathwayProof();
 
+    expect(proof.binding.pathwayDecision).toBe("PROCEED");
+    expect(proof.binding.evidenceStatus).toBe("MORE_EVIDENCE_REQUIRED");
     expect(proof.workingProducts.planningControlsPack.policy).toEqual({
       allowed: true,
       blockers: [],
@@ -98,7 +104,7 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(proof.upgradeMessage).toContain("A$749");
   });
 
-  it("persists and replays the exact evidence scope", () => {
+  it("persists and replays the exact corrected evidence scope", () => {
     const first = buildItem74hCandidateReviewedPathwayProof();
     const replay = buildItem74hCandidateReviewedPathwayProof();
     const persisted = attachPersistedPathwayProgressiveCommercialBinding(
@@ -111,7 +117,7 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(progressiveBindingReplayMatches(persisted, replay.binding)).toBe(true);
   });
 
-  it("rejects false final readiness while material evidence remains unresolved", () => {
+  it("keeps final readiness blocked without reopening the resolved zone gate", () => {
     const proof = buildItem74hCandidateReviewedPathwayProof();
     const falselyFinal = {
       ...proof,
@@ -126,11 +132,13 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(verifyItem74hCandidateReviewedPathwayProof(falselyFinal)).toBe(false);
     expect(proof.binding.outstandingEvidence).toEqual(
       expect.arrayContaining([
-        "PROPOSAL_FOOTPRINT_ZONE_OVERLAY",
         "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
         "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
         "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
       ]),
+    );
+    expect(proof.binding.outstandingEvidence).not.toContain(
+      "PROPOSAL_FOOTPRINT_ZONE_OVERLAY",
     );
   });
 });
