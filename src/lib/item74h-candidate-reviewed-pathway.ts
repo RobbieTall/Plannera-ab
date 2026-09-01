@@ -13,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v4" as const;
+  "item74h-candidate-reviewed-pathway.v5" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -155,6 +155,29 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
         },
       ],
     },
+    applicantSeeControlClaims: {
+      sourceRecord: "E2026/47507",
+      evidenceClass: "SECONDARY_REQUIRES_AUTHORITATIVE_REVALIDATION",
+      claims: {
+        maximumBuildingHeightMetres: 9,
+        maximumFloorSpaceRatio: 0.5,
+        maximumExcavationAndFillDepthMetres: 1,
+        buildingHeightPlaneCompliant: true,
+      },
+      rejectedClaims: [
+        {
+          field: "siteAreaSquareMetres",
+          seeValue: 1224,
+          authoritativeCadastreValue: 2331.671,
+          approvedPlanValue: 2333,
+          reason: "Applicant SEE value conflicts with authoritative cadastre and the approved plan",
+        },
+      ],
+      limitations: [
+        "The SEE control table is secondary applicant-authored evidence, not the authoritative instrument.",
+        "The SEE clause labels are incomplete or misaligned and must not be used as final DCP citations.",
+      ],
+    },
   },
   zoneBoundaryEvidence: ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
   sourceDocuments: [
@@ -171,6 +194,13 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       review: "PAGE_1_OPERATOR_REVIEWED",
       evidence:
         "Exact lot, address, proposed footprint, area and depicted boundary dimension",
+    },
+    {
+      record: "E2026/47507",
+      role: "APPLICANT_SEE",
+      review: "CONTROL_PAGES_5_7_8_OPERATOR_REVIEWED_AS_SECONDARY",
+      evidence:
+        "Cross-checkable 9 m height, 0.5:1 FSR, 1 m fill and building-height-plane claims; conflicting 1224 sqm site area rejected",
     },
     {
       record: "E2026/47509",
@@ -203,6 +233,8 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     "C2 touches the cadastral boundary but has no detected parcel-interior overlap; boundary touch must not be treated as split zoning.",
     "The 3.83 m maximum height and 2.67 m portal-frame height are approved-plan dimensions, not an independent as-built survey.",
     "The 1.625 m figure is an approved-plan dimension, not a certified legal boundary setback.",
+    "The applicant SEE states 1224 sqm site area, conflicting with 2331.671 sqm authoritative cadastre and 2333 sqm on the approved plan; the SEE area is rejected.",
+    "Applicant SEE control claims remain secondary until replayed against the authoritative current LEP and DCP text.",
   ],
 } as const;
 

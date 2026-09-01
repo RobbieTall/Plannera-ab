@@ -53,9 +53,27 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(proof.manifest.sourceDocuments.map((document) => document.record)).toEqual([
       "E2026/47502",
       "E2026/47506",
+      "E2026/47507",
       "E2026/47509",
       "E2026/80895",
     ]);
+    expect(proof.manifest.proposal.applicantSeeControlClaims).toMatchObject({
+      evidenceClass: "SECONDARY_REQUIRES_AUTHORITATIVE_REVALIDATION",
+      claims: {
+        maximumBuildingHeightMetres: 9,
+        maximumFloorSpaceRatio: 0.5,
+        maximumExcavationAndFillDepthMetres: 1,
+        buildingHeightPlaneCompliant: true,
+      },
+      rejectedClaims: [
+        {
+          field: "siteAreaSquareMetres",
+          seeValue: 1224,
+          authoritativeCadastreValue: 2331.671,
+          approvedPlanValue: 2333,
+        },
+      ],
+    });
     const serialized = JSON.stringify(ITEM74H_CANDIDATE_REVIEWED_EVIDENCE);
     expect(serialized).not.toContain("@");
     expect(serialized.toLowerCase()).not.toContain("applicant");

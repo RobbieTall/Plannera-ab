@@ -43,6 +43,17 @@ The corrected rule requires positive parcel-interior area overlap. For this parc
 - Gate 03 is PROCEED for the approved inside-parcel shed.
 - A future geometry response that shows positive C2 interior overlap must re-open the gate and route to MERIT or MORE_EVIDENCE as appropriate.
 
+## Current-control revalidation status
+
+The public applicant SEE was operator-reviewed as secondary evidence only. It claims a 9 m maximum building height, 0.5:1 maximum floor-space ratio, 1 m excavation/fill limit and compliance with the building height plane. The stamped plan independently confirms a 3.83 m drawn height and retaining fill up to 1 m, and the consent binds the approved plans.
+
+The SEE is not accepted as an authoritative control source:
+
+- It states a 1224 sqm site area, conflicting with 2331.671 sqm authoritative cadastre and 2333 sqm on the approved plan. The SEE area is rejected.
+- Its DCP clause table is incomplete or misaligned, so its clause labels must not be used as final citations.
+- The current Council D1 chapter is adopted 27 January 2026 and effective 23 February 2026, but the protected Council server blocked automated retrieval of the exact PDF text.
+- Final LEP/DCP control citations remain outstanding until the authoritative current text is replayed. No older chapter or applicant-authored table may silently substitute for it.
+
 ## Evidence not yet confirmed
 
 - The retained detail survey expressly says it is not a Survey under the Surveying Act 2002. The 1.625 m approved-plan dimension is not represented as a certified legal boundary setback.
@@ -66,7 +77,7 @@ MORE_EVIDENCE_REQUIRED is not a refusal to help the customer progress.
 The existing progressive commercial binding is reused.
 
 - A$49 Planning Controls Pack: available as a working exact-scope pack. It includes confirmed instrument, R2 proposal zone, parcel, approval-pathway, area, approved-plan height/elevations, depicted boundary dimension, reviewed condition groups and provenance evidence. It visibly excludes legal setback certification and final current-control revalidation.
-- A$749 Submission SEE: available as a working SEE and consultant-pack scaffold. Every unresolved claim stays qualified. It is not submission ready.
+- A$749 Submission SEE: available as a working SEE and consultant-pack scaffold. Every unresolved claim stays qualified. The applicant SEE's conflicting site-area value is rejected rather than propagated. It is not submission ready.
 - Evidence added later strengthens and regenerates the same purchased project.
 - A valid same-scope A$49 purchase remains creditable against the A$749 SEE.
 - Both checkout surfaces remain disabled in Production.
