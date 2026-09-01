@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 
+import {
+  ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
+  item74hCandidateZoneDecision,
+  verifyItem74hCandidateZoneBoundaryEvidence,
+} from "./item74h-candidate-zone-boundary-evidence";
 import { buildPathwayCommercialPresentation } from "./pathway-commercial-presentation";
 import {
   createPathwayProgressiveCommercialBinding,
@@ -8,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v1" as const;
+  "item74h-candidate-reviewed-pathway.v2" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -34,7 +39,8 @@ export type CandidateDecisionGate = {
 
 const CONFIRMED_CONTROL_KEYS = [
   "BYRON_LEP_2014_PCO_2014_297",
-  "PARCEL_ZONE_SET_C2_R2",
+  "PARCEL_INTERIOR_ZONE_R2",
+  "C2_BOUNDARY_TOUCH_EXCLUDED_FROM_ZONE_MEMBERSHIP",
   "BYRON_DCP_2014_CURRENT_SOURCE",
   "DA_PATHWAY_APPROVED_10_2026_223_1",
   "APPROVED_PLAN_SHED_AREA_24_SQM",
@@ -42,7 +48,6 @@ const CONFIRMED_CONTROL_KEYS = [
 ] as const;
 
 const OUTSTANDING_EVIDENCE = [
-  "PROPOSAL_FOOTPRINT_ZONE_OVERLAY",
   "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
   "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
   "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
@@ -68,7 +73,10 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     planning: {
       lep: "Byron Local Environmental Plan 2014",
       lepPco: "2014-297",
-      parcelZones: ["C2", "R2"],
+      parcelInteriorZones: ["R2"],
+      boundaryAdjacentZones: ["C2"],
+      zoneRelationship: "C2_BOUNDARY_TOUCH_NO_INTERIOR_OVERLAP",
+      zoneCurrencyDate: "2026-08-21",
       dcp: "Byron Development Control Plan 2014",
     },
   },
@@ -79,9 +87,11 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     councilDeterminationDate: "2026-07-14",
     approvedPlanAreaSquareMetres: 24,
     approvedPlanSouthernBoundaryDimensionMetres: 1.625,
-    proposalZone: null,
+    proposalZone: "R2",
+    proposalZoneConfirmed: true,
     heightMetres: null,
   },
+  zoneBoundaryEvidence: ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
   sourceDocuments: [
     {
       record: "E2026/47502",
@@ -116,7 +126,7 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       "https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2026.00000223.001/",
     privateReviewPageCount: 3,
     sourcePdfRetained: false,
-    sourceHashExposed: false,
+    privateSourceHashExposed: false,
     scannerOutputExposed: false,
     transientResidueCount: 0,
   },
@@ -124,7 +134,7 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
   outstandingEvidence: OUTSTANDING_EVIDENCE,
   limitations: [
     "The retained detail survey expressly says it is not a Survey under the Surveying Act 2002.",
-    "The approved plan does not display the authoritative C2/R2 zoning boundary.",
+    "C2 touches the cadastral boundary but has no detected parcel-interior overlap; boundary touch must not be treated as split zoning.",
     "The retained stamped page does not prove the shed height or elevations.",
     "The 1.625 m figure is an approved-plan dimension, not a certified legal boundary setback.",
   ],
@@ -188,18 +198,19 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
   },
   {
     gate: "03",
-    question: "Is the proposed footprint located within the parcel's authoritative zone geometry?",
+    question: "Is the proposed footprint within authoritative zone geometry?",
     evidence: [
-      "Authoritative parcel zone set is C2 and R2",
-      "Approved footprint is depicted but not georeferenced to the zone split",
+      "Current NSW zoning classifies the parcel interior as R2",
+      "C2 touches only the cadastral boundary and has no detected interior overlap",
+      "The approved shed is depicted 1.625 m inside the parcel",
     ],
-    outcome: "MORE_EVIDENCE",
-    reason: "The exact proposal zone cannot be inferred safely from a split-zoned parcel.",
+    outcome: "PROCEED",
+    reason: "An inside-parcel footprint is R2; boundary-touch-only C2 is not parcel zone membership.",
     branches: [
-      { condition: "Footprint is proved wholly within the applicable permissive zone", decision: "PROCEED" },
-      { condition: "Footprint intersects C2 or a control needs written justification", decision: "MERIT" },
-      { condition: "Footprint-to-zone overlay is absent", decision: "MORE_EVIDENCE" },
-      { condition: "The confirmed zone prohibits the proposal with no available pathway", decision: "STOP" },
+      { condition: "Positive interior-area overlap proves a permissive zone", decision: "PROCEED" },
+      { condition: "Positive C2 area overlap requires written justification", decision: "MERIT" },
+      { condition: "Current geometry or inside-parcel evidence is absent", decision: "MORE_EVIDENCE" },
+      { condition: "A confirmed zone prohibits the proposal with no available pathway", decision: "STOP" },
     ],
   },
   {
@@ -212,7 +223,7 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
       "Height is absent from the retained reviewed page",
     ],
     outcome: "MORE_EVIDENCE",
-    reason: "Area and a depicted dimension are usable in working outputs, but legal setback and height claims remain qualified.",
+    reason: "Area and zone are confirmed for working outputs, but legal setback and height claims remain qualified.",
     branches: [
       { condition: "Height, legal boundaries and current controls are verified", decision: "PROCEED" },
       { condition: "A numeric variation requires justification", decision: "MERIT" },
@@ -237,7 +248,7 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
       { condition: "Later evidence has not yet been reviewed", decision: "MORE_EVIDENCE" },
     ],
   },
-] as const;
+];
 
 function workingPayload(
   product: "PLANNING_CONTROLS_PACK" | "SUBMISSION_SEE",
@@ -257,10 +268,17 @@ function workingPayload(
 }
 
 export function buildItem74hCandidateReviewedPathwayProof() {
+  const zoneDecision = item74hCandidateZoneDecision(
+    ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
+  );
+  if (zoneDecision.decision !== "PROCEED" || zoneDecision.zone !== "R2") {
+    throw new Error("Candidate zone evidence must be confirmed before binding");
+  }
+
   const binding = createPathwayProgressiveCommercialBinding({
     scopeKey: ITEM74H_CANDIDATE_SCOPE_KEY,
     siteEvidenceDigest: ITEM74H_CANDIDATE_REVIEWED_EVIDENCE_DIGEST,
-    pathwayDecision: "MERIT_ASSESSMENT",
+    pathwayDecision: "PROCEED",
     evidenceStatus: "MORE_EVIDENCE_REQUIRED",
     confirmedControlKeys: [...CONFIRMED_CONTROL_KEYS],
     outstandingEvidence: [...OUTSTANDING_EVIDENCE],
@@ -324,7 +342,7 @@ export function buildItem74hCandidateReviewedPathwayProof() {
     finalSubmissionEligible: false,
     productionCheckoutEnabled: false,
     upgradeMessage:
-      "Start with the working product now. Add the zone overlay, legal set-out, stamped elevations and reviewed consent conditions later to strengthen and regenerate the same purchased project; the A$49 same-scope credit remains available against the A$749 SEE.",
+      "Start with the working product now. Add legal set-out, stamped elevations and reviewed consent conditions later to strengthen and regenerate the same purchased project; the A$49 same-scope credit remains available against the A$749 SEE.",
   };
 }
 
@@ -353,15 +371,20 @@ export function verifyItem74hCandidateReviewedPathwayProof(
     proof.version === ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION &&
     proof.manifest === ITEM74H_CANDIDATE_REVIEWED_EVIDENCE &&
     proof.evidenceDigest === expectedDigest &&
+    verifyItem74hCandidateZoneBoundaryEvidence(
+      proof.manifest.zoneBoundaryEvidence,
+    ) &&
+    proof.manifest.proposal.proposalZone === "R2" &&
+    proof.manifest.proposal.proposalZoneConfirmed === true &&
     proof.binding.scopeKey === ITEM74H_CANDIDATE_SCOPE_KEY &&
     proof.binding.siteEvidenceDigest === expectedDigest &&
     proof.binding.evidenceStatus === "MORE_EVIDENCE_REQUIRED" &&
-    proof.binding.pathwayDecision === "MERIT_ASSESSMENT" &&
+    proof.binding.pathwayDecision === "PROCEED" &&
     verifyPathwayProgressiveCommercialBinding(proof.binding) &&
     OUTSTANDING_EVIDENCE.every((item) => outstanding.has(item)) &&
+    !outstanding.has("PROPOSAL_FOOTPRINT_ZONE_OVERLAY") &&
     requiredDecisions.every((decision) => graphDecisions.has(decision)) &&
-    proof.gates.find((gate) => gate.gate === "03")?.outcome ===
-      "MORE_EVIDENCE" &&
+    proof.gates.find((gate) => gate.gate === "03")?.outcome === "PROCEED" &&
     proof.gates.find((gate) => gate.gate === "04")?.outcome ===
       "MORE_EVIDENCE" &&
     proof.customerDecision === "MORE_EVIDENCE_REQUIRED" &&
