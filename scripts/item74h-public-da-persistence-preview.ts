@@ -40,6 +40,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
   'ep-twilight-tooth-a75ar21y',
+  'ep-calm-unit-a7ido72m',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const DEVELOPMENT_PLANS_DISCOVERY_BRANCH =
