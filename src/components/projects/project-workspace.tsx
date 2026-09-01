@@ -4988,6 +4988,9 @@ export function ProjectWorkspace({
         onInsertToChat={appendToolMessage}
         onArtefactSaved={handleQuickSiteCheckArtefactSaved}
         onToast={showToast}
+        planningPackCheckoutEnabled={planningPackPurchase.enabled}
+        planningPackCheckoutBusy={isStartingCheckout}
+        onStartPlanningPackCheckout={() => void launchPlanningPackCheckout()}
       />
 
       <MapsToolsModal

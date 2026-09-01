@@ -8,6 +8,10 @@ on:
       - "src/lib/pathway-check-persistence.ts"
       - "src/lib/pathway-customer-result.ts"
       - "src/lib/pathway-customer-result.test.ts"
+      - "src/lib/pathway-commercial-presentation.ts"
+      - "src/lib/pathway-commercial-presentation.test.ts"
+      - "src/components/projects/quick-site-check-modal.tsx"
+      - "src/components/projects/project-workspace.tsx"
       - "scripts/item74h-public-da-persistence-preview.ts"
       - ".github/workflows/pathway-progressive-commercial-binding.yml"
   workflow_dispatch:
@@ -42,4 +46,4 @@ jobs:
         run: ./node_modules/.bin/prisma generate
 
       - name: Prove progressive binding and customer readiness
-        run: ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/pathway-progressive-commercial-binding.test.ts src/lib/pathway-customer-result.test.ts
+        run: ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/pathway-progressive-commercial-binding.test.ts src/lib/pathway-customer-result.test.ts src/lib/pathway-commercial-presentation.test.ts

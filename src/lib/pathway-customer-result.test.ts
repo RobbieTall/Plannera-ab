@@ -219,6 +219,9 @@ describe("Item 74H customer pathway result", () => {
       decision: "MORE_EVIDENCE_REQUIRED",
       pathwayDecision: "MERIT_ASSESSMENT",
       evidenceStatus: "MORE_EVIDENCE_REQUIRED",
+      decisionLabel: "Merit assessment",
+      message:
+        "The proposal needs a documented merit assessment rather than an automatic proceed result.",
       commercial: {
         planningControlsPackEligible: false,
         submissionSeeEligible: false,

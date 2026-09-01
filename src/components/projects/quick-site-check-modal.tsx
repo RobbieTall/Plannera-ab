@@ -10,6 +10,7 @@ import type { QuickSiteCheckArtefactRequest, QuickSiteCheckReport } from "@/type
 import type { WorkspaceSessionSignals } from "@/types/workspace";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import type { PathwayCustomerResult } from "@/lib/pathway-customer-result";
+import { buildPathwayCommercialPresentation } from "@/lib/pathway-commercial-presentation";
 import { PathwayEvidenceChecklistPanel } from "@/components/projects/pathway-evidence-checklist-panel";
 
 type QuickSiteCheckModalProps = {
@@ -19,6 +20,9 @@ type QuickSiteCheckModalProps = {
   onInsertToChat?: (message: string, signals?: WorkspaceSessionSignals) => void;
   onArtefactSaved?: (title: string, summary: string, report: QuickSiteCheckReport) => void;
   onToast?: (message: string, variant?: "success" | "error") => void;
+  planningPackCheckoutEnabled?: boolean;
+  planningPackCheckoutBusy?: boolean;
+  onStartPlanningPackCheckout?: () => void;
 };
 
 export const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
@@ -145,6 +149,9 @@ export function QuickSiteCheckModal({
   onInsertToChat,
   onArtefactSaved,
   onToast,
+  planningPackCheckoutEnabled = false,
+  planningPackCheckoutBusy = false,
+  onStartPlanningPackCheckout,
 }: QuickSiteCheckModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +166,18 @@ export function QuickSiteCheckModal({
 
   const hasResult = Boolean(result);
   const evidenceSummary = useMemo(() => (result ? summariseQuickSiteCheckEvidence(result) : null), [result]);
+  const commercialPresentation = useMemo(
+    () =>
+      pathwayResult?.status === "available"
+        ? buildPathwayCommercialPresentation(pathwayResult.commercial)
+        : null,
+    [pathwayResult],
+  );
+  const planningPackCheckoutAllowed = Boolean(
+    commercialPresentation?.planningControlsPack.checkoutEnabled &&
+      planningPackCheckoutEnabled &&
+      onStartPlanningPackCheckout,
+  );
   const evidenceTone = evidenceSummary?.label === "Cited"
     ? {
         panel: "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/30",
@@ -301,7 +320,7 @@ export function QuickSiteCheckModal({
       open={open}
       onClose={onClose}
       title="Pathway Check"
-      description="Evidence-aware pathway with an LEP summary. Missing evidence stays explicit and paid outputs stay locked."
+      description="Evidence-aware pathway with an LEP summary. Missing evidence stays explicit while useful working products can progress without being called submission ready."
       size="lg"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -360,9 +379,17 @@ export function QuickSiteCheckModal({
                 {pathwayResult.decisionLabel}
               </h3>
             </div>
-            <span className="rounded-full border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:text-amber-100">
-              {pathwayResult.current ? "Current" : "Review required"}
-            </span>
+            <div className="flex flex-wrap justify-end gap-2">
+              <span className="rounded-full border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:text-amber-100">
+                Pathway: {pathwayResult.pathwayDecision.replaceAll("_", " ")}
+              </span>
+              <span className="rounded-full border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:text-amber-100">
+                Evidence: {pathwayResult.evidenceStatus.replaceAll("_", " ")}
+              </span>
+              <span className="rounded-full border border-amber-300 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:text-amber-100">
+                {pathwayResult.current ? "Current" : "Review required"}
+              </span>
+            </div>
           </div>
           <p className="mt-2 leading-6 text-amber-900 dark:text-amber-100">
             {pathwayResult.message}
@@ -395,7 +422,7 @@ export function QuickSiteCheckModal({
                 ))}
               </dl>
               <p className="mt-3 text-xs text-amber-900 dark:text-amber-100">
-                These figures guide the free check. They are not surveyed facts and cannot unlock a paid product.
+                These figures guide the current working scope. They remain unconfirmed until the requested survey or report evidence is added; useful work may continue now, but no affected claim is submission ready.
               </p>
             </div>
           ) : null}
@@ -416,16 +443,71 @@ export function QuickSiteCheckModal({
               </li>
             ))}
           </ol>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <p className="rounded-xl bg-white/70 p-3 text-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-              A$49 Planning Controls Pack:{" "}
-              <strong>{pathwayResult.commercial.planningControlsPackEligible ? "Evidence eligible" : "More evidence required"}</strong>
-            </p>
-            <p className="rounded-xl bg-white/70 p-3 text-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-              A$749 submission SEE:{" "}
-              <strong>{pathwayResult.commercial.submissionSeeEligible ? "Operator-approved scope eligible" : "More evidence required"}</strong>
-            </p>
-          </div>
+          {commercialPresentation ? (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <article className="rounded-2xl border border-amber-200 bg-white/80 p-4 text-slate-700 dark:border-amber-900/60 dark:bg-slate-950/40 dark:text-slate-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {commercialPresentation.planningControlsPack.priceLabel}
+                    </p>
+                    <h4 className="font-semibold text-slate-950 dark:text-white">
+                      {commercialPresentation.planningControlsPack.name}
+                    </h4>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900/50 dark:text-amber-100">
+                    {commercialPresentation.planningControlsPack.statusLabel}
+                  </span>
+                </div>
+                <p className="mt-3 leading-6">
+                  {commercialPresentation.planningControlsPack.description}
+                </p>
+                <p className="mt-3 text-xs font-medium text-amber-900 dark:text-amber-100">
+                  {commercialPresentation.planningControlsPack.qualification}
+                </p>
+                {commercialPresentation.planningControlsPack.canProgress ? (
+                  <button
+                    type="button"
+                    onClick={onStartPlanningPackCheckout}
+                    disabled={!planningPackCheckoutAllowed || planningPackCheckoutBusy}
+                    className="mt-4 w-full rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-white dark:text-slate-950 dark:disabled:bg-slate-700 dark:disabled:text-slate-300"
+                  >
+                    {planningPackCheckoutBusy
+                      ? "Opening secure checkout..."
+                      : planningPackCheckoutAllowed
+                        ? "Continue to secure A$49 checkout"
+                        : "Secure checkout not active yet"}
+                  </button>
+                ) : null}
+              </article>
+              <article className="rounded-2xl border border-amber-200 bg-white/80 p-4 text-slate-700 dark:border-amber-900/60 dark:bg-slate-950/40 dark:text-slate-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {commercialPresentation.submissionSee.priceLabel}
+                    </p>
+                    <h4 className="font-semibold text-slate-950 dark:text-white">
+                      {commercialPresentation.submissionSee.name}
+                    </h4>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900/50 dark:text-amber-100">
+                    {commercialPresentation.submissionSee.statusLabel}
+                  </span>
+                </div>
+                <p className="mt-3 leading-6">
+                  {commercialPresentation.submissionSee.description}
+                </p>
+                <p className="mt-3 text-xs font-medium text-amber-900 dark:text-amber-100">
+                  {commercialPresentation.submissionSee.qualification}
+                </p>
+                {commercialPresentation.submissionSee.canProgress ? (
+                  <p className="mt-4 rounded-full border border-slate-200 px-4 py-2 text-center text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-300">
+                    Secure A$749 checkout not active yet
+                  </p>
+                ) : null}
+              </article>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
