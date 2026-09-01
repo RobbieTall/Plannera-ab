@@ -38,7 +38,18 @@ describe("Item 74H candidate reviewed pathway", () => {
       heightMetres: 3.83,
       portalFrameHeightMetres: 2.67,
       approvedPlanWidthMetres: 4,
+      consent: {
+        operatorReviewed: true,
+        numberedConditionCount: 24,
+        operatesFrom: "2026-07-17",
+        lapsesOn: "2031-07-17",
+      },
     });
+    expect(
+      proof.manifest.proposal.consent.groups.flatMap(
+        (group) => group.conditionNumbers,
+      ),
+    ).toEqual(Array.from({ length: 24 }, (_, index) => index + 1));
     expect(proof.manifest.sourceDocuments.map((document) => document.record)).toEqual([
       "E2026/47502",
       "E2026/47506",
@@ -135,7 +146,6 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(proof.binding.outstandingEvidence).toEqual(
       expect.arrayContaining([
         "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-        "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
         "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
       ]),
     );
@@ -144,6 +154,9 @@ describe("Item 74H candidate reviewed pathway", () => {
     );
     expect(proof.binding.outstandingEvidence).not.toContain(
       "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
+    );
+    expect(proof.binding.outstandingEvidence).not.toContain(
+      "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
     );
   });
 });

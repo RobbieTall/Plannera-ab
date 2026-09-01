@@ -23,6 +23,12 @@ This is a protected Preview acceptance slice. Production checkout remains disabl
 - The approved shed is depicted 1.625 m inside the boundary, more than ten times the maximum resolved cell dimension. The proposal zone is therefore confirmed as R2 for this reviewed plan.
 - The protected acceptance scanned four exact Council PDFs, retained only three private review pages, exposed no private source hashes or scanner output, and left zero transient residue.
 - The same public Council E2026/47502 two-page stamped-plan record was reopened transiently from the tracker on 1 September 2026. Page 2 was rendered for operator review and neither the source PDF nor rendered page is committed or retained.
+- The public E2026/80895 determination was operator-reviewed across all nine pages. It contains 24 numbered consent conditions, operates from 17 July 2026 and lapses on 17 July 2031.
+- Conditions 1-5 bind the approved plans, adjoining-building protection, limited vegetation removal, compensatory planting and BAL-29 bushfire construction.
+- Conditions 6-9 are pre-Construction Certificate requirements for waste management, vegetation clearing, geotechnical certification and erosion/sediment controls.
+- Conditions 10-18 govern construction hours, noise, signage, waste, water pollution, sediment, unexpected heritage finds, external finishes and lawful waste disposal.
+- Conditions 19-22 are pre-Occupation Certificate requirements for completed works, compensatory planting, stormwater and bushfire compliance.
+- Conditions 23-24 apply at all times to waste management and neighbourhood amenity.
 
 The public cadastral and zoning response hashes are stored with their layer identity so the spatial conclusion is replayable. Private document hashes remain unexposed.
 
@@ -40,7 +46,6 @@ The corrected rule requires positive parcel-interior area overlap. For this parc
 ## Evidence not yet confirmed
 
 - The retained detail survey expressly says it is not a Survey under the Surveying Act 2002. The 1.625 m approved-plan dimension is not represented as a certified legal boundary setback.
-- The determination conditions have passed protected machine acceptance but have not been operator-reviewed and bound into the pathway.
 - Current LEP and DCP controls must be revalidated again at final generation time.
 
 ## Deterministic gate result
@@ -49,7 +54,7 @@ The free Pathway Check returns useful confirmed results and MORE_EVIDENCE_REQUIR
 
 - Gate 00 site identity: PROCEED.
 - Gate 01 ancillary storage-shed description: PROCEED for this reviewed case, with STOP and MORE_EVIDENCE branches if the use changes.
-- Gate 02 DA pathway: PROCEED because the official case was determined approved.
+- Gate 02 DA pathway: PROCEED because the official case was determined approved and all 24 numbered conditions are grouped into delivery phases. Similar sheds may receive different conditions.
 - Gate 03 exact proposal zone: PROCEED as R2. Boundary-touch-only C2 is excluded from parcel membership; positive future C2 overlap routes to MERIT or MORE_EVIDENCE.
 - Gate 04 numeric envelope: MORE_EVIDENCE because approved-plan height is now confirmed but legal set-out and final current-control compliance remain outstanding. Any variation requiring justification routes to MERIT.
 - Gate 05 commercial progress: PROCEED for working products only; a final or submission-ready claim must STOP.
@@ -60,7 +65,7 @@ MORE_EVIDENCE_REQUIRED is not a refusal to help the customer progress.
 
 The existing progressive commercial binding is reused.
 
-- A$49 Planning Controls Pack: available as a working exact-scope pack. It includes confirmed instrument, R2 proposal zone, parcel, approval-pathway, area, approved-plan height/elevations, depicted boundary dimension and provenance evidence. It visibly excludes legal setback certification, unreviewed determination conditions and final current-control revalidation.
+- A$49 Planning Controls Pack: available as a working exact-scope pack. It includes confirmed instrument, R2 proposal zone, parcel, approval-pathway, area, approved-plan height/elevations, depicted boundary dimension, reviewed condition groups and provenance evidence. It visibly excludes legal setback certification and final current-control revalidation.
 - A$749 Submission SEE: available as a working SEE and consultant-pack scaffold. Every unresolved claim stays qualified. It is not submission ready.
 - Evidence added later strengthens and regenerates the same purchased project.
 - A valid same-scope A$49 purchase remains creditable against the A$749 SEE.
@@ -68,6 +73,6 @@ The existing progressive commercial binding is reused.
 
 ## Next protected acceptance
 
-The next protected acceptance should operator-review the determination conditions, bind each material condition to the pathway and commercial outputs, and replay final current-control validation. Any future retained page must still pass the deny-network scan and zero-residue controls.
+The next protected acceptance should replay current LEP/DCP controls against the confirmed R2 proposal and reviewed consent conditions, then prove how legal set-out uncertainty is presented without blocking purchase or overstating submission readiness. Any future retained page must still pass the deny-network scan and zero-residue controls.
 
 Final submission readiness remains false until every material gap is closed and replayed through the same evidence digest and scope binding.

@@ -13,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v3" as const;
+  "item74h-candidate-reviewed-pathway.v4" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -49,11 +49,14 @@ const CONFIRMED_CONTROL_KEYS = [
   "APPROVED_PLAN_MAX_DRAWN_HEIGHT_3_83_M",
   "APPROVED_PLAN_PORTAL_FRAME_HEIGHT_2_67_M",
   "APPROVED_PLAN_WIDTH_4_M",
+  "DETERMINATION_CONDITIONS_1_TO_24_OPERATOR_REVIEWED",
+  "BUSHFIRE_BAL_29_AS3959_2018",
+  "CONSTRUCTION_CERTIFICATE_PREREQUISITES_BOUND",
+  "OCCUPATION_CERTIFICATE_PREREQUISITES_BOUND",
 ] as const;
 
 const OUTSTANDING_EVIDENCE = [
   "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-  "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
   "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
 ] as const;
 
@@ -97,6 +100,61 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     approvedPlanWidthMetres: 4,
     heightEvidenceBasis:
       "Council-stamped DA02 Section A maximum drawn height; not an as-built survey",
+    consent: {
+      operatorReviewed: true,
+      numberedConditionCount: 24,
+      operatesFrom: "2026-07-17",
+      lapsesOn: "2031-07-17",
+      groups: [
+        {
+          phase: "PARAMETERS_OF_CONSENT",
+          conditionNumbers: [1, 2, 3, 4, 5],
+          requirements: [
+            "DA-01 and DA-02 govern unless a consent condition prevails",
+            "Protect adjoining buildings if excavation extends below neighbouring footings",
+            "Limit native vegetation removal and provide one compensatory native planting",
+            "Construct to BAL-29 under AS 3959-2018 and relevant Planning for Bush Fire Protection 2019 requirements",
+          ],
+        },
+        {
+          phase: "BEFORE_CONSTRUCTION_CERTIFICATE",
+          conditionNumbers: [6, 7, 8, 9],
+          requirements: [
+            "Approve a waste management plan",
+            "Do not clear vegetation before a Construction Certificate",
+            "Provide a geotechnical engineer certificate for retaining walls, cut, fill, stability and drainage",
+            "Approve sediment and erosion controls",
+          ],
+        },
+        {
+          phase: "DURING_CONSTRUCTION",
+          conditionNumbers: [10, 11, 12, 13, 14, 15, 16, 17, 18],
+          requirements: [
+            "Observe approved work hours and construction-noise limits",
+            "Maintain site signage, contained waste and sediment controls",
+            "Prevent polluted discharge and stop work for unexpected relics or Aboriginal objects",
+            "Use muted bushland external finishes and documented lawful waste disposal",
+          ],
+        },
+        {
+          phase: "BEFORE_OCCUPATION_CERTIFICATE",
+          conditionNumbers: [19, 20, 21, 22],
+          requirements: [
+            "Complete all approved works and related approvals",
+            "Complete compensatory planting and approved stormwater drainage",
+            "Demonstrate compliance with bushfire conditions",
+          ],
+        },
+        {
+          phase: "AT_ALL_TIMES",
+          conditionNumbers: [23, 24],
+          requirements: [
+            "Comply with DCP 2014 Part B8.1.2 waste minimisation and management",
+            "Protect neighbourhood amenity and permit only clean water discharge",
+          ],
+        },
+      ],
+    },
   },
   zoneBoundaryEvidence: ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
   sourceDocuments: [
@@ -124,8 +182,9 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     {
       record: "E2026/80895",
       role: "DETERMINATION",
-      review: "MACHINE_ACCEPTED_NOT_OPERATOR_REVIEWED",
-      evidence: "Official approval record; conditions still require operator review",
+      review: "PAGES_1_TO_9_OPERATOR_REVIEWED",
+      evidence:
+        "Official approval, operative and lapse dates, 24 numbered conditions, prescribed conditions and certificate-stage obligations",
     },
   ],
   provenance: {
@@ -194,9 +253,11 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
     evidence: [
       "Council approval stamp dated 14 July 2026",
       "Determined and approved DA 10.2026.223.1",
+      "Operator-reviewed determination with 24 numbered conditions",
+      "Construction and occupation certificate prerequisites grouped by delivery phase",
     ],
     outcome: "PROCEED",
-    reason: "This case proves a development-application pathway; it does not prove every similar shed will be approved.",
+    reason: "This case proves a conditioned development-application pathway; it does not prove every similar shed will be approved or carry the same conditions.",
     branches: [
       { condition: "Approved DA evidence remains in scope", decision: "PROCEED" },
       { condition: "A different exempt or complying pathway is asserted", decision: "MORE_EVIDENCE" },
@@ -247,6 +308,7 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
       "Existing progressive commercial binding",
       "A$49 same-scope credit contract",
       "Working SEE regeneration contract",
+      "Operator-reviewed consent-condition delivery groups",
     ],
     outcome: "PROCEED",
     reason: "Both products can progress as working outputs while every unresolved item remains visible and final submission stays ineligible.",
@@ -351,7 +413,7 @@ export function buildItem74hCandidateReviewedPathwayProof() {
     finalSubmissionEligible: false,
     productionCheckoutEnabled: false,
     upgradeMessage:
-      "Start with the working product now. Add legal set-out, reviewed consent conditions and final current-control validation later to strengthen and regenerate the same purchased project; the A$49 same-scope credit remains available against the A$749 SEE.",
+      "Start with the working product now. The reviewed consent conditions already structure the delivery checklist; add legal set-out and final current-control validation later to strengthen and regenerate the same purchased project, with the A$49 same-scope credit available against the A$749 SEE.",
   };
 }
 
