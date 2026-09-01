@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   assessSubmissionSee,
   type SubmissionSeeCandidate,
+  type SubmissionSeeIssueCode,
   type SubmissionSeeOutput,
 } from "./submission-see-acceptance";
 
@@ -11,6 +12,52 @@ export type SubmissionSeeRenderedOutputs = {
   pdf: Buffer;
   outputs: [SubmissionSeeOutput, SubmissionSeeOutput];
 };
+
+export type WorkingSeeOutstandingEvidence = {
+  id: string;
+  topic: string;
+  status: "MORE_EVIDENCE_REQUIRED";
+  recommendedEvidence: string;
+  effect: string;
+};
+
+export type WorkingSeeRenderContext = {
+  documentReadiness: {
+    state: "WORKING_SEE";
+    evidenceStatus: "CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
+    submissionReady: false;
+    customerMessage: string;
+  };
+  outstandingEvidence: WorkingSeeOutstandingEvidence[];
+  sourceDetailedPlanningPackArtefactId: string;
+  predecessorDetailedPlanningPackArtefactId: string | null;
+};
+
+type RenderPresentation = {
+  documentTitle: string;
+  pdfTitleLines: string[];
+  footerLabel: string;
+  filePrefix: string;
+  workingContext: WorkingSeeRenderContext | null;
+};
+
+const FINAL_PRESENTATION: RenderPresentation = {
+  documentTitle: "Statement of Environmental Effects",
+  pdfTitleLines: ["STATEMENT OF", "ENVIRONMENTAL EFFECTS"],
+  footerLabel: "Statement of Environmental Effects",
+  filePrefix: "statement-of-environmental-effects",
+  workingContext: null,
+};
+
+const workingPresentation = (
+  context: WorkingSeeRenderContext,
+): RenderPresentation => ({
+  documentTitle: "Working Statement of Environmental Effects",
+  pdfTitleLines: ["WORKING", "STATEMENT OF", "ENVIRONMENTAL EFFECTS"],
+  footerLabel: "WORKING SEE - NOT SUBMISSION READY",
+  filePrefix: "working-statement-of-environmental-effects",
+  workingContext: context,
+});
 
 type ZipEntry = {
   name: string;
@@ -154,7 +201,10 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
-const wordToc = (candidate: SubmissionSeeCandidate) =>
+const wordToc = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+) =>
   [
     wordParagraph("Contents", "Heading1", {
       pageBreakBefore: true,
@@ -166,17 +216,28 @@ const wordToc = (candidate: SubmissionSeeCandidate) =>
         "TocEntry",
       ),
     ),
+    ...(presentation.workingContext
+      ? [
+          wordParagraph("Document Status", "TocEntry"),
+          ...(presentation.workingContext.outstandingEvidence.length > 0
+            ? [wordParagraph("Outstanding Evidence", "TocEntry")]
+            : []),
+        ]
+      : []),
     wordParagraph("Source Register", "TocEntry"),
     ...(candidate.limitations.length > 0
       ? [wordParagraph("Limitations", "TocEntry")]
       : []),
   ].join("");
 
-const renderDocx = (candidate: SubmissionSeeCandidate) => {
+const renderDocx = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+) => {
   const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
   const generated = new Date(candidate.generatedAt).toISOString();
   const body: string[] = [
-    wordParagraph("Statement of Environmental Effects", "Title"),
+    wordParagraph(presentation.documentTitle, "Title"),
     wordParagraph(candidate.site.label, "Subtitle"),
     wordParagraph(
       `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
@@ -188,8 +249,52 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
       `Operator checklist: ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
       "Metadata",
     ),
-    wordToc(candidate),
+    ...(presentation.workingContext
+      ? [
+          wordParagraph("WORKING SEE - NOT SUBMISSION READY", "Subtitle"),
+          wordParagraph(
+            `Evidence status: ${presentation.workingContext.documentReadiness.evidenceStatus}`,
+            "Metadata",
+          ),
+        ]
+      : []),
+    wordToc(candidate, presentation),
   ];
+
+  const working = presentation.workingContext;
+  if (working) {
+    body.push(
+      wordParagraph("Document Status", "Heading1", {
+        keepNext: true,
+      }),
+      wordParagraph(working.documentReadiness.customerMessage, "Normal"),
+      wordParagraph(
+        `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
+        "Metadata",
+      ),
+      ...(working.predecessorDetailedPlanningPackArtefactId
+        ? [
+            wordParagraph(
+              `Strengthens DPP: ${working.predecessorDetailedPlanningPackArtefactId}`,
+              "Metadata",
+            ),
+          ]
+        : []),
+    );
+    if (working.outstandingEvidence.length > 0) {
+      body.push(
+        wordParagraph("Outstanding Evidence", "Heading1", { keepNext: true }),
+      );
+      for (const item of working.outstandingEvidence) {
+        body.push(
+          wordParagraph(
+            `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
+            "Normal",
+          ),
+        );
+      }
+    }
+  }
 
   candidate.sections.forEach((section, index) => {
     body.push(
@@ -264,7 +369,7 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
 
   const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="16"/></w:rPr><w:t>Plannera | Statement of Environmental Effects | </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+  <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="16"/></w:rPr><w:t>Plannera | ${xmlEscape(presentation.footerLabel)} | </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
 </w:ftr>`;
 
   const entries: ZipEntry[] = [
@@ -304,7 +409,7 @@ const renderDocx = (candidate: SubmissionSeeCandidate) => {
       name: "docProps/core.xml",
       data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>Statement of Environmental Effects</dc:title>
+  <dc:title>${xmlEscape(presentation.documentTitle)}</dc:title>
   <dc:creator>Plannera</dc:creator>
   <cp:lastModifiedBy>Plannera</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">${generated}</dcterms:created>
@@ -379,7 +484,10 @@ type PdfTextOptions = {
   indent?: number;
 };
 
-const layoutPdf = (candidate: SubmissionSeeCandidate) => {
+const layoutPdf = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+) => {
   const pages: PdfLine[][] = [[]];
   let pageIndex = 0;
   let y = 790;
@@ -439,18 +547,16 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
     y -= layout.after;
   };
 
-  addText("STATEMENT OF", {
-    font: "bold",
-    size: 15,
-    color: [0.04, 0.35, 0.38],
-    before: 95,
-    after: 0,
-  });
-  addText("ENVIRONMENTAL EFFECTS", {
-    font: "bold",
-    size: 27,
-    color: [0.04, 0.35, 0.38],
-    after: 28,
+  presentation.pdfTitleLines.forEach((line, index) => {
+    const isLast = index === presentation.pdfTitleLines.length - 1;
+    const isWorking = presentation.workingContext !== null;
+    addText(line, {
+      font: "bold",
+      size: isLast ? (isWorking ? 23 : 27) : 15,
+      color: [0.04, 0.35, 0.38],
+      before: index === 0 ? 95 : 0,
+      after: isLast ? 28 : 0,
+    });
   });
   addText(candidate.site.label, {
     font: "bold",
@@ -472,7 +578,57 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
     { size: 9.5 },
   );
 
+  if (presentation.workingContext) {
+    addText("WORKING SEE - NOT SUBMISSION READY", {
+      font: "bold",
+      size: 10,
+      color: [0.68, 0.28, 0.08],
+      before: 10,
+      after: 0,
+    });
+  }
+
   newPage();
+  const working = presentation.workingContext;
+  if (working) {
+    addText("Document Status", {
+      font: "bold",
+      size: 17,
+      color: [0.04, 0.35, 0.38],
+      after: 10,
+    });
+    addText(working.documentReadiness.customerMessage, { size: 10.5 });
+    addText(
+      `Evidence status: ${working.documentReadiness.evidenceStatus}`,
+      { size: 9.5, after: 4 },
+    );
+    addText(
+      `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
+      { size: 9.5, after: 4 },
+    );
+    if (working.predecessorDetailedPlanningPackArtefactId) {
+      addText(
+        `Strengthens DPP: ${working.predecessorDetailedPlanningPackArtefactId}`,
+        { size: 9.5, after: 10 },
+      );
+    }
+    if (working.outstandingEvidence.length > 0) {
+      addText("Outstanding Evidence", {
+        font: "bold",
+        size: 15,
+        color: [0.04, 0.35, 0.38],
+        before: 8,
+        after: 8,
+      });
+      for (const item of working.outstandingEvidence) {
+        addText(
+          `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
+          { size: 9.5, indent: 10, after: 6 },
+        );
+      }
+    }
+  }
+
   const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
   const sectionHeadingOptions: PdfTextOptions = {
     font: "bold",
@@ -544,7 +700,7 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
 
   pages.forEach((page, index) => {
     page.push({
-      text: `Plannera | Statement of Environmental Effects | ${index + 1} of ${pages.length}`,
+      text: `Plannera | ${presentation.footerLabel} | ${index + 1} of ${pages.length}`,
       font: "regular",
       size: 8,
       x: 54,
@@ -556,8 +712,11 @@ const layoutPdf = (candidate: SubmissionSeeCandidate) => {
   return pages;
 };
 
-const renderPdf = (candidate: SubmissionSeeCandidate) => {
-  const pages = layoutPdf(candidate);
+const renderPdf = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+) => {
+  const pages = layoutPdf(candidate, presentation);
   const objects: Buffer[] = [];
   const setObject = (id: number, content: string | Buffer) => {
     objects[id] = Buffer.isBuffer(content) ? content : Buffer.from(content, "latin1");
@@ -665,11 +824,14 @@ const placeholderOutputs = (
   },
 ];
 
-const assertReadyForFinalRendering = (candidate: SubmissionSeeCandidate) => {
-  const preflight = assessSubmissionSee({
+const acceptanceCodes = (candidate: SubmissionSeeCandidate) =>
+  assessSubmissionSee({
     ...candidate,
     outputs: placeholderOutputs(candidate),
   });
+
+const assertReadyForFinalRendering = (candidate: SubmissionSeeCandidate) => {
+  const preflight = acceptanceCodes(candidate);
   if (!preflight.ready) {
     const codes = [...new Set(preflight.issues.map((issue) => issue.code))].join(
       ", ",
@@ -680,22 +842,128 @@ const assertReadyForFinalRendering = (candidate: SubmissionSeeCandidate) => {
   }
 };
 
-export function renderSubmissionSeeOutputs(
-  candidate: SubmissionSeeCandidate,
-): SubmissionSeeRenderedOutputs {
-  assertReadyForFinalRendering(candidate);
+const WORKING_ALLOWED_ISSUES = new Set<SubmissionSeeIssueCode>([
+  "unready_dpp",
+  "unready_upload_evidence",
+  "declared_non_final",
+  "operator_review_incomplete",
+]);
 
-  const docx = renderDocx(candidate);
-  const pdf = renderPdf(candidate);
+const assertReadyForWorkingRendering = (
+  candidate: SubmissionSeeCandidate,
+  context: WorkingSeeRenderContext,
+) => {
+  const readiness = context.documentReadiness;
+  if (
+    readiness.state !== "WORKING_SEE" ||
+    readiness.submissionReady !== false ||
+    clean(readiness.customerMessage).length < 40 ||
+    !candidate.limitations.includes(readiness.customerMessage) ||
+    !candidate.limitations.some((limitation) =>
+      /not (?:a )?(?:final|legal|submission)|not submission-ready/i.test(
+        limitation,
+      ),
+    )
+  ) {
+    throw new Error(
+      "Working SEE requires persisted non-final readiness and a visible customer qualification.",
+    );
+  }
+  if (
+    context.sourceDetailedPlanningPackArtefactId !==
+      candidate.sourceDetailedPlanningPack.artefactId ||
+    (context.predecessorDetailedPlanningPackArtefactId !== null &&
+      context.predecessorDetailedPlanningPackArtefactId ===
+        context.sourceDetailedPlanningPackArtefactId)
+  ) {
+    throw new Error("Working SEE DPP lineage does not match the candidate.");
+  }
+  if (
+    context.outstandingEvidence.some(
+      (item) =>
+        !clean(item.id) ||
+        !clean(item.topic) ||
+        item.status !== "MORE_EVIDENCE_REQUIRED" ||
+        !clean(item.recommendedEvidence) ||
+        !clean(item.effect),
+    )
+  ) {
+    throw new Error("Working SEE outstanding evidence schedule is incomplete.");
+  }
+
+  const preflight = acceptanceCodes(candidate);
+  if (preflight.ready) {
+    throw new Error(
+      "Submission-ready candidates must use the final Submission SEE renderer.",
+    );
+  }
+  const hardIssues = preflight.issues.filter(
+    (issue) => !WORKING_ALLOWED_ISSUES.has(issue.code),
+  );
+  if (hardIssues.length > 0) {
+    const codes = [...new Set(hardIssues.map((issue) => issue.code))].join(", ");
+    throw new Error(
+      `Working SEE contains hard acceptance blockers: ${codes || "unknown"}`,
+    );
+  }
+
+  const hasEvidenceBlocker = preflight.issues.some(
+    (issue) =>
+      issue.code === "unready_dpp" ||
+      issue.code === "unready_upload_evidence",
+  );
+  if (
+    hasEvidenceBlocker &&
+    readiness.evidenceStatus !== "MORE_EVIDENCE_REQUIRED"
+  ) {
+    throw new Error(
+      "Working SEE evidence blockers must remain MORE_EVIDENCE_REQUIRED.",
+    );
+  }
+  if (readiness.evidenceStatus === "MORE_EVIDENCE_REQUIRED") {
+    if (context.outstandingEvidence.length === 0) {
+      throw new Error(
+        "Working SEE requires an outstanding evidence schedule.",
+      );
+    }
+    const scheduledTopics = new Set(
+      context.outstandingEvidence.map((item) => clean(item.topic)),
+    );
+    const missingTopics = candidate.sourceDetailedPlanningPack.unresolvedTopics
+      .map(clean)
+      .filter((topic) => topic && !scheduledTopics.has(topic));
+    if (missingTopics.length > 0) {
+      throw new Error(
+        `Working SEE evidence schedule omits DPP topics: ${missingTopics.join(
+          ", ",
+        )}`,
+      );
+    }
+  } else if (
+    candidate.sourceDetailedPlanningPack.commercialReady !== true ||
+    candidate.sourceDetailedPlanningPack.unresolvedTopics.length > 0 ||
+    context.outstandingEvidence.length > 0
+  ) {
+    throw new Error(
+      "Confirmed working SEE evidence must have a ready DPP and no outstanding evidence.",
+    );
+  }
+};
+
+const buildOutputs = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+  docx: Buffer,
+  pdf: Buffer,
+): [SubmissionSeeOutput, SubmissionSeeOutput] => {
   const filePart = safeFilePart(candidate.site.confirmedSiteId);
   const generatedAt = new Date(candidate.generatedAt).toISOString();
-
-  const outputs: [SubmissionSeeOutput, SubmissionSeeOutput] = [
+  return [
     {
       format: "DOCX",
       mimeType:
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      fileName: `statement-of-environmental-effects-${filePart}.docx`,
+      fileName: `${presentation.filePrefix}-${filePart}.docx`,
       contentHash: hashBuffer(docx),
       byteLength: docx.length,
       generatedAt,
@@ -703,12 +971,38 @@ export function renderSubmissionSeeOutputs(
     {
       format: "PDF",
       mimeType: "application/pdf",
-      fileName: `statement-of-environmental-effects-${filePart}.pdf`,
+      fileName: `${presentation.filePrefix}-${filePart}.pdf`,
       contentHash: hashBuffer(pdf),
       byteLength: pdf.length,
       generatedAt,
     },
   ];
+};
 
-  return { docx, pdf, outputs };
+export function renderSubmissionSeeOutputs(
+  candidate: SubmissionSeeCandidate,
+): SubmissionSeeRenderedOutputs {
+  assertReadyForFinalRendering(candidate);
+  const docx = renderDocx(candidate, FINAL_PRESENTATION);
+  const pdf = renderPdf(candidate, FINAL_PRESENTATION);
+  return {
+    docx,
+    pdf,
+    outputs: buildOutputs(candidate, FINAL_PRESENTATION, docx, pdf),
+  };
+}
+
+export function renderWorkingSeeOutputs(
+  candidate: SubmissionSeeCandidate,
+  context: WorkingSeeRenderContext,
+): SubmissionSeeRenderedOutputs {
+  assertReadyForWorkingRendering(candidate, context);
+  const presentation = workingPresentation(context);
+  const docx = renderDocx(candidate, presentation);
+  const pdf = renderPdf(candidate, presentation);
+  return {
+    docx,
+    pdf,
+    outputs: buildOutputs(candidate, presentation, docx, pdf),
+  };
 }

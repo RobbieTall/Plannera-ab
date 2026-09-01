@@ -1262,3 +1262,14 @@ Consequence: Item 74H remains active until a real registered plan and real legal
 - Unsupported exact claims remain prohibited. `SUBMISSION_READY`, polished paid outputs, and final commercial acceptance remain subject to the existing strict acceptance gate and operator review.
 - Consultant handoff includes the qualified working SEE and its evidence gaps. The commercial funnel audit reports `working_needs_evidence` rather than incorrectly reporting that no SEE exists.
 - Production checkout remains disabled. This change does not alter Production data, schema, payments, Blob resources, or environment variables.
+
+
+## Decision: working outputs are a separate qualified render state (2026-09-01)
+
+Decision: evidence gaps may qualify a working A$749 SEE and consultant pack, but they must not prevent the customer from beginning or strengthening the same purchased project. The working renderer is separate from the final renderer and may tolerate only named evidence/readiness blockers. It cannot tolerate identity, authoritative spatial provenance, DPP/QSC lineage, product, price, source, citation, section, output-integrity or Production-commercial-mode faults.
+
+Every working DOCX/PDF must visibly state `WORKING SEE - NOT SUBMISSION READY`, carry the outstanding evidence schedule, record the current DPP and predecessor lineage, and remain `submissionReady: false`. When evidence arrives, regeneration retains the same project, confirmed site and QSC chain and produces changed outputs. Confirmed evidence still does not bypass final operator review.
+
+Evidence: `src/lib/submission-see-renderer.ts`; `scripts/item74h-working-see-preview-acceptance.ts`; `.github/workflows/item74h-working-see-preview.yml`; `docs/operations/item74h-working-see-output.md`.
+
+Consequence: Plannera can confidently tell a customer to start now and improve the work later, while unsupported exact claims and submission-ready status remain locked. Production checkout remains disabled and this decision authorizes no Production data, schema, payment, Blob or environment mutation.

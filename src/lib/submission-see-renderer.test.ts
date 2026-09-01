@@ -7,7 +7,11 @@ import {
   assessSubmissionSee,
   type SubmissionSeeCandidate,
 } from "./submission-see-acceptance";
-import { renderSubmissionSeeOutputs } from "./submission-see-renderer";
+import {
+  renderSubmissionSeeOutputs,
+  renderWorkingSeeOutputs,
+  type WorkingSeeRenderContext,
+} from "./submission-see-renderer";
 
 const hash = (character: string) => character.repeat(64);
 
@@ -109,6 +113,31 @@ const makeCandidate = (): SubmissionSeeCandidate => ({
     checklistVersion: "submission-see.v1",
     unresolvedIssues: [],
   },
+});
+
+const makeWorkingContext = (
+  sourceDetailedPlanningPackArtefactId = "dpp-render",
+): WorkingSeeRenderContext => ({
+  documentReadiness: {
+    state: "WORKING_SEE",
+    evidenceStatus: "MORE_EVIDENCE_REQUIRED",
+    submissionReady: false,
+    customerMessage:
+      "Start your SEE now. Strengthen it as new evidence arrives. This working SEE identifies unconfirmed matters and is not submission-ready.",
+  },
+  outstandingEvidence: [
+    {
+      id: "survey-gap",
+      topic: "Legal side boundary setback remains unconfirmed",
+      status: "MORE_EVIDENCE_REQUIRED",
+      recommendedEvidence:
+        "Provide a current detail survey reconciled to the registered plan.",
+      effect:
+        "The setback assessment remains qualified and cannot be represented as submission-ready.",
+    },
+  ],
+  sourceDetailedPlanningPackArtefactId,
+  predecessorDetailedPlanningPackArtefactId: null,
 });
 
 const storedZipEntries = (archive: Buffer) => {
@@ -217,6 +246,85 @@ describe("submission SEE rendering", () => {
     expect(first.docx.equals(second.docx)).toBe(true);
     expect(first.pdf.equals(second.pdf)).toBe(true);
     expect(first.outputs).toEqual(second.outputs);
+  });
+
+  it("renders a visibly qualified working DOCX/PDF without weakening final acceptance", () => {
+    const candidate = makeCandidate();
+    const context = makeWorkingContext();
+    candidate.sourceDetailedPlanningPack.commercialReady = false;
+    candidate.sourceDetailedPlanningPack.unresolvedTopics = [
+      context.outstandingEvidence[0]!.topic,
+    ];
+    candidate.limitations = [
+      context.documentReadiness.customerMessage,
+      "This is a working SEE and is not submission-ready.",
+    ];
+    candidate.operatorReview = {
+      status: "not_reviewed",
+      reviewedAt: null,
+      checklistVersion: null,
+      unresolvedIssues: ["Final evidence and operator review remain outstanding."],
+    };
+
+    expect(() => renderSubmissionSeeOutputs(candidate)).toThrow(/unready_dpp/);
+    const rendered = renderWorkingSeeOutputs(candidate, context);
+    expect(rendered.outputs[0].fileName).toBe(
+      "working-statement-of-environmental-effects-site-render.docx",
+    );
+    expect(rendered.outputs[1].fileName).toBe(
+      "working-statement-of-environmental-effects-site-render.pdf",
+    );
+
+    const entries = storedZipEntries(rendered.docx);
+    expect(entries.get("word/document.xml")!.toString("utf8")).toContain(
+      "WORKING SEE - NOT SUBMISSION READY",
+    );
+    expect(entries.get("word/footer1.xml")!.toString("utf8")).toContain(
+      "WORKING SEE - NOT SUBMISSION READY",
+    );
+    expect(rendered.pdf.toString("latin1")).toContain(
+      "WORKING SEE - NOT SUBMISSION READY",
+    );
+
+    const acceptance = assessSubmissionSee({
+      ...candidate,
+      outputs: rendered.outputs,
+    });
+    expect(acceptance.ready).toBe(false);
+    expect(new Set(acceptance.issues.map((issue) => issue.code))).toEqual(
+      new Set([
+        "unready_dpp",
+        "declared_non_final",
+        "operator_review_incomplete",
+      ]),
+    );
+  });
+
+  it("refuses hard identity and commercial-mode faults in working output", () => {
+    const candidate = makeCandidate();
+    const context = makeWorkingContext();
+    candidate.sourceDetailedPlanningPack.commercialReady = false;
+    candidate.sourceDetailedPlanningPack.unresolvedTopics = [
+      context.outstandingEvidence[0]!.topic,
+    ];
+    candidate.limitations = [
+      context.documentReadiness.customerMessage,
+      "This working SEE is not submission-ready.",
+    ];
+    candidate.operatorReview.status = "not_reviewed";
+    candidate.operatorReview.reviewedAt = null;
+    candidate.operatorReview.checklistVersion = null;
+
+    candidate.sourceDetailedPlanningPack.projectId = "wrong-project";
+    expect(() => renderWorkingSeeOutputs(candidate, context)).toThrow(
+      /broken_dpp_chain/,
+    );
+
+    candidate.sourceDetailedPlanningPack.projectId = candidate.projectId;
+    candidate.commercialMode = "production";
+    expect(() => renderWorkingSeeOutputs(candidate, context)).toThrow(
+      /unsafe_commercial_mode/,
+    );
   });
 
   it("refuses Production mode, incomplete sections and unapproved review", () => {
