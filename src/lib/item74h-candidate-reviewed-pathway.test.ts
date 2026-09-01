@@ -35,7 +35,9 @@ describe("Item 74H candidate reviewed pathway", () => {
       approvedPlanSouthernBoundaryDimensionMetres: 1.625,
       proposalZone: "R2",
       proposalZoneConfirmed: true,
-      heightMetres: null,
+      heightMetres: 3.83,
+      portalFrameHeightMetres: 2.67,
+      approvedPlanWidthMetres: 4,
     });
     expect(proof.manifest.sourceDocuments.map((document) => document.record)).toEqual([
       "E2026/47502",
@@ -117,7 +119,7 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(progressiveBindingReplayMatches(persisted, replay.binding)).toBe(true);
   });
 
-  it("keeps final readiness blocked without reopening the resolved zone gate", () => {
+  it("keeps final readiness blocked without reopening resolved zone or height evidence", () => {
     const proof = buildItem74hCandidateReviewedPathwayProof();
     const falselyFinal = {
       ...proof,
@@ -133,12 +135,15 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(proof.binding.outstandingEvidence).toEqual(
       expect.arrayContaining([
         "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-        "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
         "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
+        "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
       ]),
     );
     expect(proof.binding.outstandingEvidence).not.toContain(
       "PROPOSAL_FOOTPRINT_ZONE_OVERLAY",
+    );
+    expect(proof.binding.outstandingEvidence).not.toContain(
+      "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
     );
   });
 });

@@ -13,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v2" as const;
+  "item74h-candidate-reviewed-pathway.v3" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -45,11 +45,14 @@ const CONFIRMED_CONTROL_KEYS = [
   "DA_PATHWAY_APPROVED_10_2026_223_1",
   "APPROVED_PLAN_SHED_AREA_24_SQM",
   "APPROVED_PLAN_SOUTHERN_BOUNDARY_DIMENSION_1_625_M",
+  "APPROVED_PLAN_PAGE_2_ELEVATIONS_REVIEWED",
+  "APPROVED_PLAN_MAX_DRAWN_HEIGHT_3_83_M",
+  "APPROVED_PLAN_PORTAL_FRAME_HEIGHT_2_67_M",
+  "APPROVED_PLAN_WIDTH_4_M",
 ] as const;
 
 const OUTSTANDING_EVIDENCE = [
   "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-  "STAMPED_PLAN_PAGE_2_HEIGHT_AND_ELEVATIONS",
   "DETERMINATION_CONDITIONS_OPERATOR_REVIEW",
   "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
 ] as const;
@@ -89,16 +92,20 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
     approvedPlanSouthernBoundaryDimensionMetres: 1.625,
     proposalZone: "R2",
     proposalZoneConfirmed: true,
-    heightMetres: null,
+    heightMetres: 3.83,
+    portalFrameHeightMetres: 2.67,
+    approvedPlanWidthMetres: 4,
+    heightEvidenceBasis:
+      "Council-stamped DA02 Section A maximum drawn height; not an as-built survey",
   },
   zoneBoundaryEvidence: ITEM74H_CANDIDATE_ZONE_BOUNDARY_EVIDENCE,
   sourceDocuments: [
     {
       record: "E2026/47502",
       role: "STAMPED_PLANS",
-      review: "PAGE_1_OPERATOR_REVIEWED",
+      review: "PAGES_1_AND_2_OPERATOR_REVIEWED",
       evidence:
-        "Council approval stamp, case linkage, 24 sqm shed footprint and 1.625 m southern boundary dimension",
+        "Council approval stamp, case linkage, 24 sqm footprint, 1.625 m southern boundary dimension, four elevations, 3.83 m maximum drawn height, 2.67 m portal-frame height and 4 m plan width",
     },
     {
       record: "E2026/47506",
@@ -135,7 +142,7 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
   limitations: [
     "The retained detail survey expressly says it is not a Survey under the Surveying Act 2002.",
     "C2 touches the cadastral boundary but has no detected parcel-interior overlap; boundary touch must not be treated as split zoning.",
-    "The retained stamped page does not prove the shed height or elevations.",
+    "The 3.83 m maximum height and 2.67 m portal-frame height are approved-plan dimensions, not an independent as-built survey.",
     "The 1.625 m figure is an approved-plan dimension, not a certified legal boundary setback.",
   ],
 } as const;
@@ -219,15 +226,17 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
     evidence: [
       "Approved plan area: 24 sqm",
       "Approved-plan southern boundary dimension: 1.625 m",
+      "Approved-plan maximum drawn height: 3.83 m",
+      "Approved-plan portal-frame height: 2.67 m",
+      "Approved-plan width: 4 m",
       "Detail survey carries a non-boundary-survey limitation",
-      "Height is absent from the retained reviewed page",
     ],
     outcome: "MORE_EVIDENCE",
-    reason: "Area and zone are confirmed for working outputs, but legal setback and height claims remain qualified.",
+    reason: "Area, zone and approved-plan height are confirmed for working outputs, but legal set-out and final current-control compliance remain qualified.",
     branches: [
-      { condition: "Height, legal boundaries and current controls are verified", decision: "PROCEED" },
+      { condition: "Legal boundaries and current controls are verified", decision: "PROCEED" },
       { condition: "A numeric variation requires justification", decision: "MERIT" },
-      { condition: "Height or legal set-out evidence is absent", decision: "MORE_EVIDENCE" },
+      { condition: "Legal set-out or final control evidence is absent", decision: "MORE_EVIDENCE" },
       { condition: "A non-negotiable numeric control is exceeded with no pathway", decision: "STOP" },
     ],
   },
@@ -342,7 +351,7 @@ export function buildItem74hCandidateReviewedPathwayProof() {
     finalSubmissionEligible: false,
     productionCheckoutEnabled: false,
     upgradeMessage:
-      "Start with the working product now. Add legal set-out, stamped elevations and reviewed consent conditions later to strengthen and regenerate the same purchased project; the A$49 same-scope credit remains available against the A$749 SEE.",
+      "Start with the working product now. Add legal set-out, reviewed consent conditions and final current-control validation later to strengthen and regenerate the same purchased project; the A$49 same-scope credit remains available against the A$749 SEE.",
   };
 }
 
