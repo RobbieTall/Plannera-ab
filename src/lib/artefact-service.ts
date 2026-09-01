@@ -1408,6 +1408,19 @@ export type PreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
   generatedAt: string;
   projectId: string;
+  documentReadiness: {
+    state: "WORKING_SEE" | "SUBMISSION_READY";
+    evidenceStatus: "CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
+    submissionReady: boolean;
+    customerMessage: string;
+  };
+  outstandingEvidence: Array<{
+    id: string;
+    topic: string;
+    status: "MORE_EVIDENCE_REQUIRED";
+    recommendedEvidence: string;
+    effect: string;
+  }>;
   siteDescription: {
     address: string | null;
     lga: string | null;
@@ -1455,6 +1468,7 @@ export type PreSeePlanningMemoContent = {
     generatedAt: string | null;
     commercialReady: boolean;
     sourceQuickSiteCheckArtefactId: string;
+    unresolvedTopics: string[];
   };
 };
 
@@ -1463,6 +1477,19 @@ const preSeePlanningMemoContentSchema = z.object({
   memoType: z.literal("pre_see_planning_memo"),
   generatedAt: z.string(),
   projectId: z.string(),
+  documentReadiness: z.object({
+    state: z.enum(["WORKING_SEE", "SUBMISSION_READY"]),
+    evidenceStatus: z.enum(["CONFIRMED", "MORE_EVIDENCE_REQUIRED"]),
+    submissionReady: z.boolean(),
+    customerMessage: z.string(),
+  }).optional(),
+  outstandingEvidence: z.array(z.object({
+    id: z.string(),
+    topic: z.string(),
+    status: z.literal("MORE_EVIDENCE_REQUIRED"),
+    recommendedEvidence: z.string(),
+    effect: z.string(),
+  })).default([]),
   siteDescription: z.object({
     address: z.string().nullable().default(null),
     lga: z.string().nullable().default(null),
@@ -1498,6 +1525,7 @@ const preSeePlanningMemoContentSchema = z.object({
     generatedAt: z.string().nullable(),
     commercialReady: z.boolean(),
     sourceQuickSiteCheckArtefactId: z.string(),
+    unresolvedTopics: z.array(z.string()).default([]),
   }).optional(),
 }).passthrough();
 
@@ -1738,7 +1766,7 @@ export async function createPreSeePlanningMemoArtefact({
   const resolvedPack = await resolveNewestCurrentDetailedPlanningPack({
     prismaClient: deps.prisma,
     project: projectWithContext,
-    requireCommercialReady: true,
+    requireCommercialReady: false,
     sourceDetailedPlanningPackArtefactId,
     expectedProposalBrief,
   });
@@ -1811,10 +1839,35 @@ export async function createPreSeePlanningMemoArtefact({
     .filter(Boolean)
     .join("\n\n");
 
+  const outstandingEvidence: PreSeePlanningMemoContent["outstandingEvidence"] =
+    resolvedPack.pack.unresolvedTopics.map((topic, index) => ({
+      id: `dpp-gap-${index + 1}`,
+      topic,
+      status: "MORE_EVIDENCE_REQUIRED",
+      recommendedEvidence:
+        resolvedPack.pack.consultantReviewQuestions[index] ??
+        `Provide current site evidence or consultant confirmation for: ${topic}`,
+      effect:
+        "The working SEE may proceed with this matter clearly qualified, but it cannot be treated as submission-ready until the evidence is reviewed.",
+    }));
+  const evidenceStatus = outstandingEvidence.length === 0 && resolvedPack.pack.commercialReady
+    ? "CONFIRMED" as const
+    : "MORE_EVIDENCE_REQUIRED" as const;
+  const customerMessage = evidenceStatus === "MORE_EVIDENCE_REQUIRED"
+    ? "Start your SEE now. Strengthen it as new evidence arrives. This working SEE identifies unconfirmed matters and is not submission-ready."
+    : "This working SEE has confirmed planning-pack evidence. Final DOCX/PDF generation and operator review are still required before submission-ready status.";
+
   const content: PreSeePlanningMemoContent = {
     memoType: "pre_see_planning_memo",
     generatedAt: new Date().toISOString(),
     projectId: project.id,
+    documentReadiness: {
+      state: "WORKING_SEE",
+      evidenceStatus,
+      submissionReady: false,
+      customerMessage,
+    },
+    outstandingEvidence,
     dcpClauses: Object.fromEntries(resolvedPack.pack.topicMatrix.map((topic) => [topic.topicId, topic.sourceRefs.length])),
     siteDescription,
     proposedWorksSummary,
@@ -1847,8 +1900,12 @@ export async function createPreSeePlanningMemoArtefact({
     },
     consistencyAssessment: controlAssessments,
     limitations: [
-      "This is an MVP pre-SEE planning memo, not a final legal Statement of Environmental Effects.",
-      "This memo is derived from a saved Detailed Planning Pack and its cited Quick Site Check provenance chain.",
+      customerMessage,
+      "This is a qualified working SEE, not a final legal or submission-ready Statement of Environmental Effects.",
+      "This working SEE is derived from a saved Detailed Planning Pack and its cited Quick Site Check provenance chain.",
+      ...(outstandingEvidence.length
+        ? ["The outstanding evidence schedule must be resolved or reviewed by the relevant consultant before lodgement."]
+        : []),
       "Confirm all controls against the current LEP, DCP, planning certificates, council mapping and specialist reports before lodgement.",
     ],
     sourceDetailedPlanningPack: {
@@ -1857,6 +1914,7 @@ export async function createPreSeePlanningMemoArtefact({
       generatedAt: resolvedPack.pack.generatedAt ?? resolvedPack.artefact.capturedAt?.toISOString?.() ?? null,
       commercialReady: resolvedPack.pack.commercialReady,
       sourceQuickSiteCheckArtefactId: resolvedPack.quickSiteCheckArtefact.id,
+      unresolvedTopics: resolvedPack.pack.unresolvedTopics,
     },
   };
 
@@ -1865,8 +1923,8 @@ export async function createPreSeePlanningMemoArtefact({
       projectId: project.id,
       createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
       type: "pre_see_planning_memo" as ArtefactType,
-      title: title || `Pre-SEE planning memo — ${siteDescription.address ?? project.title}`,
-      source: siteDescription.address ?? "Pre-SEE planning memo",
+      title: title || `Working SEE — ${siteDescription.address ?? project.title}`,
+      source: siteDescription.address ?? "Working SEE",
       overlays: [],
       notes: content.limitations[0],
       payload: content,
@@ -1965,7 +2023,6 @@ export async function createExpertReviewRequestArtefact({
   const seeMemoEntry = seeCandidates
     .map((artefact) => ({ artefact, see: parsePreSeePlanningMemoContent(artefact.payload) }))
     .find(({ see }) => Boolean(
-      pack.commercialReady === true &&
       see &&
       see.sourceDetailedPlanningPack?.artefactId === detailedPlanningPack.id &&
       see.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId === quickSiteCheck.id &&
@@ -2012,12 +2069,14 @@ export async function createExpertReviewRequestArtefact({
     !qsc.site?.zoneLabel && "Confirmed zoning layer",
     !pack.proposalBrief && "Detailed Planning Pack proposal brief",
     citedSources.size === 0 && "Cited LEP/DCP sources",
-    pack.commercialReady && !seeMemo && "Matching SEE generated from the current Detailed Planning Pack",
+    !seeMemo && "Matching working SEE generated from the current Detailed Planning Pack",
   ].filter((item): item is string => Boolean(item));
   const assumptions = [
     `Proposed works from Detailed Planning Pack: ${pack.proposalBrief}`,
     qsc.permissibility?.interpretation ?? null,
-    pack.commercialReady ? "Detailed Planning Pack is marked commercial-ready." : "Detailed Planning Pack is unresolved; this referral does not claim SEE readiness.",
+    pack.commercialReady
+      ? "Detailed Planning Pack is marked commercial-ready; the working SEE still requires final output and operator acceptance."
+      : "Detailed Planning Pack has identified evidence gaps; the attached working SEE carries those qualifications and does not claim submission readiness.",
     "Planner to verify currency of council controls before lodgement advice.",
   ].filter((item): item is string => Boolean(item));
 
@@ -2074,7 +2133,7 @@ export async function createExpertReviewRequestArtefact({
       zoneLabel: pack.site.zoneLabel ?? qsc.site.zoneLabel ?? project.zoning ?? project.zoningName ?? null,
     },
     packageSummary: seeMemo
-      ? "Expert review package assembled from the current Quick Site Check, Detailed Planning Pack and matching SEE draft."
+      ? "Expert review package assembled from the current Quick Site Check, Detailed Planning Pack and matching qualified working SEE."
       : "Expert review package assembled from the current Quick Site Check and unresolved Detailed Planning Pack. No SEE readiness is claimed.",
     includedArtefacts,
     citedSources: Array.from(citedSources.values()),
@@ -2102,7 +2161,7 @@ export async function createExpertReviewRequestArtefact({
     recommendedReviewScope: [
       "Confirm permissibility pathway and consent requirements.",
       "Check Quick Site Check and Detailed Planning Pack citations against current council instruments.",
-      ...(pack.unresolvedTopics.length ? ["Resolve the Detailed Planning Pack unresolved topics before treating this as SEE-ready."] : []),
+      ...(pack.unresolvedTopics.length ? ["Resolve or professionally review the outstanding evidence schedule before treating this working SEE as submission-ready."] : []),
       "Review SEE limitations, assumptions and any inferred controls before paid export or lodgement use.",
     ],
     consultantNeedsVersion: "consultant-needs.v1",
