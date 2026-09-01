@@ -13,7 +13,7 @@ import {
 } from "./pathway-progressive-commercial-binding";
 
 export const ITEM74H_CANDIDATE_REVIEWED_PATHWAY_VERSION =
-  "item74h-candidate-reviewed-pathway.v6" as const;
+  "item74h-candidate-reviewed-pathway.v7" as const;
 export const ITEM74H_CANDIDATE_SCOPE_KEY =
   "byron:lot-138-dp1265934:storage-shed:da-10.2026.223.1" as const;
 
@@ -42,6 +42,12 @@ const CONFIRMED_CONTROL_KEYS = [
   "PARCEL_INTERIOR_ZONE_R2",
   "C2_BOUNDARY_TOUCH_EXCLUDED_FROM_ZONE_MEMBERSHIP",
   "BYRON_DCP_2014_CURRENT_SOURCE",
+  "BYRON_LEP_2014_MAX_HEIGHT_9_M_CURRENT_2026_08_21",
+  "BYRON_LEP_2014_MAX_FSR_0_4_CURRENT_2026_08_21",
+  "BYRON_DCP_2014_D1_ADOPTED_2026_01_27_EFFECTIVE_2026_02_23",
+  "BYRON_DCP_D1_2_1_BUILDING_HEIGHT_PLANE",
+  "BYRON_DCP_D1_2_2_LOCAL_ROAD_FRONT_SETBACK_4_5_M",
+  "BYRON_DCP_D1_2_2_SIDE_REAR_SETBACK_0_9_M",
   "DA_PATHWAY_APPROVED_10_2026_223_1",
   "APPROVED_PLAN_SHED_AREA_24_SQM",
   "APPROVED_PLAN_SOUTHERN_BOUNDARY_DIMENSION_1_625_M",
@@ -57,7 +63,7 @@ const CONFIRMED_CONTROL_KEYS = [
 
 const OUTSTANDING_EVIDENCE = [
   "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-  "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
+  "FINAL_GENERATION_CONTROL_CURRENCY_REPLAY",
 ] as const;
 
 export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
@@ -84,6 +90,58 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       zoneRelationship: "C2_BOUNDARY_TOUCH_NO_INTERIOR_OVERLAP",
       zoneCurrencyDate: "2026-08-21",
       dcp: "Byron Development Control Plan 2014",
+      currentControls: {
+        authoritativeAsAt: "2026-09-01",
+        lep: {
+          source: "NSW EPI Primary Planning Layers",
+          sourceUrl:
+            "https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Planning/EPI_Primary_Planning_Layers/MapServer",
+          maximumBuildingHeight: {
+            value: 9,
+            unit: "m",
+            clause: "4.3",
+            mapLayer: 5,
+            pco: "2014-297",
+            amendment: "Map Amendment No 12",
+            currencyDate: "2026-08-21",
+          },
+          maximumFloorSpaceRatio: {
+            value: 0.4,
+            ratio: "0.4:1",
+            clause: "4.4",
+            mapLayer: 1,
+            pco: "2014-297",
+            amendment: "Map Amendment No 7",
+            currencyDate: "2026-08-21",
+          },
+        },
+        dcp: {
+          chapter:
+            "D1 Residential Accommodation in Urban, Village and Special Purpose Zones",
+          sourceUrl:
+            "https://www.datocms-assets.com/94948/1772682408-file-lzwnir3ttw-tjpcr1vky-a.pdf",
+          adoptedDate: "2026-01-27",
+          effectiveDate: "2026-02-23",
+          controls: {
+            buildingHeightPlane: {
+              section: "D1.2.1",
+              appliesToDomesticOutbuildings: true,
+              approvedCaseEvidence:
+                "Council-stamped elevations depict the building height plane and the consent binds the approved plans",
+            },
+            localRoadPrimaryFrontSetback: {
+              section: "D1.2.2",
+              minimumMetres: 4.5,
+            },
+            sideAndRearSetback: {
+              section: "D1.2.2",
+              minimumMetres: 0.9,
+              approvedPlanDepictedSouthernDimensionMetres: 1.625,
+              legalSetOutConfirmed: false,
+            },
+          },
+        },
+      },
     },
   },
   proposal: {
@@ -164,18 +222,38 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
         maximumExcavationAndFillDepthMetres: 1,
         buildingHeightPlaneCompliant: true,
       },
+      revalidatedClaims: [
+        {
+          field: "maximumBuildingHeightMetres",
+          seeValue: 9,
+          authoritativeValue: 9,
+          authoritativeClause: "Byron LEP 2014 clause 4.3",
+          currencyDate: "2026-08-21",
+        },
+      ],
       rejectedClaims: [
         {
           field: "siteAreaSquareMetres",
           seeValue: 1224,
           authoritativeCadastreValue: 2331.671,
           approvedPlanValue: 2333,
-          reason: "Submitted SEE value conflicts with authoritative cadastre and the approved plan",
+          reason:
+            "Submitted SEE value conflicts with authoritative cadastre and the approved plan",
+        },
+        {
+          field: "maximumFloorSpaceRatio",
+          seeValue: 0.5,
+          authoritativeValue: 0.4,
+          authoritativeClause: "Byron LEP 2014 clause 4.4",
+          currencyDate: "2026-08-21",
+          reason:
+            "Submitted SEE value conflicts with the current authoritative NSW EPI map layer",
         },
       ],
       limitations: [
         "The SEE control table is secondary proponent-authored evidence, not the authoritative instrument.",
         "The SEE clause labels are incomplete or misaligned and must not be used as final DCP citations.",
+        "The 1 m excavation and fill claim still requires the applicable current DCP Part B control to be bound before final reliance.",
       ],
     },
   },
@@ -200,7 +278,7 @@ export const ITEM74H_CANDIDATE_REVIEWED_EVIDENCE = {
       role: "SUBMITTED_SEE",
       review: "CONTROL_PAGES_5_7_8_OPERATOR_REVIEWED_AS_SECONDARY",
       evidence:
-        "Cross-checkable 9 m height, 0.5:1 FSR, 1 m fill and building-height-plane claims; conflicting 1224 sqm site area rejected",
+        "9 m height confirmed against current LEP mapping; 0.5:1 FSR rejected against authoritative 0.4:1 mapping; 1 m fill remains secondary; conflicting 1224 sqm site area rejected",
     },
     {
       record: "E2026/47509",
@@ -317,6 +395,10 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
     gate: "04",
     question: "Are the numeric envelope and legal setbacks submission-grade?",
     evidence: [
+      "Current Byron LEP 2014 maximum building height: 9 m",
+      "Current Byron LEP 2014 maximum floor-space ratio: 0.4:1",
+      "Current DCP D1.2.2 side/rear minimum setback: 0.9 m",
+      "Current DCP D1.2.2 local-road primary-front minimum setback: 4.5 m",
       "Approved plan area: 24 sqm",
       "Approved-plan southern boundary dimension: 1.625 m",
       "Approved-plan maximum drawn height: 3.83 m",
@@ -325,11 +407,11 @@ export const ITEM74H_CANDIDATE_DECISION_GATES: readonly CandidateDecisionGate[] 
       "Detail survey carries a non-boundary-survey limitation",
     ],
     outcome: "MORE_EVIDENCE",
-    reason: "Area, zone and approved-plan height are confirmed for working outputs, but legal set-out and final current-control compliance remain qualified.",
+    reason: "Current LEP/DCP controls and the approved-plan envelope are bound for working outputs, but the depicted boundary dimension is not a certified legal set-out and control currency must be replayed at final generation.",
     branches: [
-      { condition: "Legal boundaries and current controls are verified", decision: "PROCEED" },
+      { condition: "Legal boundaries are certified and current controls still apply", decision: "PROCEED" },
       { condition: "A numeric variation requires justification", decision: "MERIT" },
-      { condition: "Legal set-out or final control evidence is absent", decision: "MORE_EVIDENCE" },
+      { condition: "Legal set-out evidence is absent or control currency has expired", decision: "MORE_EVIDENCE" },
       { condition: "A non-negotiable numeric control is exceeded with no pathway", decision: "STOP" },
     ],
   },

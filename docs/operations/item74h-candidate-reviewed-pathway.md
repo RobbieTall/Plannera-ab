@@ -45,19 +45,30 @@ The corrected rule requires positive parcel-interior area overlap. For this parc
 
 ## Current-control revalidation status
 
-The public applicant SEE was operator-reviewed as secondary evidence only. It claims a 9 m maximum building height, 0.5:1 maximum floor-space ratio, 1 m excavation/fill limit and compliance with the building height plane. The stamped plan independently confirms a 3.83 m drawn height and retaining fill up to 1 m, and the consent binds the approved plans.
+The submitted SEE was operator-reviewed as secondary evidence only. Its claims were replayed against current authoritative sources instead of being copied into Plannera.
 
-The SEE is not accepted as an authoritative control source:
+Confirmed from the NSW EPI Primary Planning Layers, current 21 August 2026:
 
-- It states a 1224 sqm site area, conflicting with 2331.671 sqm authoritative cadastre and 2333 sqm on the approved plan. The SEE area is rejected.
-- Its DCP clause table is incomplete or misaligned, so its clause labels must not be used as final citations.
-- The current Council D1 chapter is adopted 27 January 2026 and effective 23 February 2026, but the protected Council server blocked automated retrieval of the exact PDF text.
-- Final LEP/DCP control citations remain outstanding until the authoritative current text is replayed. No older chapter or applicant-authored table may silently substitute for it.
+- Byron LEP 2014 clause 4.3 maximum building height is 9 m.
+- Byron LEP 2014 clause 4.4 maximum floor-space ratio is 0.4:1.
+- The submitted SEE's 9 m height claim is confirmed.
+- The submitted SEE's 0.5:1 floor-space-ratio claim is rejected and must not propagate into any product.
+
+Confirmed from the current Council-hosted DCP 2014 Chapter D1, adopted 27 January 2026 and effective 23 February 2026:
+
+- D1.2.1 applies the building height plane to domestic outbuildings and combines it with DCP setbacks and the LEP height limit.
+- D1.2.2 requires 4.5 m from a local-road primary front boundary.
+- D1.2.2 requires a minimum 900 mm side/rear setback.
+- The approved plan depicts 1.625 m to the southern boundary, which is greater than the 900 mm base minimum, but that depicted dimension is not represented as a certified legal set-out.
+- The submitted SEE's DCP clause labels are incomplete or misaligned and are not accepted as final citations.
+- Its 1 m excavation/fill claim remains secondary until the applicable current Part B control is bound.
+
+The authoritative source URL, control value, clause, amendment and currency/effective date are stored with the evidence. Final generation must replay currency rather than silently treating this snapshot as timeless.
 
 ## Evidence not yet confirmed
 
 - The retained detail survey expressly says it is not a Survey under the Surveying Act 2002. The 1.625 m approved-plan dimension is not represented as a certified legal boundary setback.
-- Current LEP and DCP controls must be revalidated again at final generation time.
+- The bound control snapshot must pass a final currency replay at generation time; a changed instrument re-opens the relevant gate.
 
 ## Deterministic gate result
 
@@ -67,7 +78,7 @@ The free Pathway Check returns useful confirmed results and MORE_EVIDENCE_REQUIR
 - Gate 01 ancillary storage-shed description: PROCEED for this reviewed case, with STOP and MORE_EVIDENCE branches if the use changes.
 - Gate 02 DA pathway: PROCEED because the official case was determined approved and all 24 numbered conditions are grouped into delivery phases. Similar sheds may receive different conditions.
 - Gate 03 exact proposal zone: PROCEED as R2. Boundary-touch-only C2 is excluded from parcel membership; positive future C2 overlap routes to MERIT or MORE_EVIDENCE.
-- Gate 04 numeric envelope: MORE_EVIDENCE because approved-plan height is now confirmed but legal set-out and final current-control compliance remain outstanding. Any variation requiring justification routes to MERIT.
+- Gate 04 numeric envelope: MORE_EVIDENCE because the current 9 m height, 0.4:1 FSR, 900 mm side/rear setback and 4.5 m local-road front setback are confirmed, but the depicted 1.625 m boundary dimension is not a certified legal set-out. Any variation requiring justification routes to MERIT.
 - Gate 05 commercial progress: PROCEED for working products only; a final or submission-ready claim must STOP.
 
 MORE_EVIDENCE_REQUIRED is not a refusal to help the customer progress.

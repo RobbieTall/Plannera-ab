@@ -57,6 +57,40 @@ describe("Item 74H candidate reviewed pathway", () => {
       "E2026/47509",
       "E2026/80895",
     ]);
+    expect(proof.manifest.site.planning.currentControls).toMatchObject({
+      authoritativeAsAt: "2026-09-01",
+      lep: {
+        maximumBuildingHeight: {
+          value: 9,
+          clause: "4.3",
+          currencyDate: "2026-08-21",
+        },
+        maximumFloorSpaceRatio: {
+          value: 0.4,
+          ratio: "0.4:1",
+          clause: "4.4",
+          currencyDate: "2026-08-21",
+        },
+      },
+      dcp: {
+        adoptedDate: "2026-01-27",
+        effectiveDate: "2026-02-23",
+        controls: {
+          buildingHeightPlane: {
+            section: "D1.2.1",
+            appliesToDomesticOutbuildings: true,
+          },
+          localRoadPrimaryFrontSetback: {
+            minimumMetres: 4.5,
+          },
+          sideAndRearSetback: {
+            minimumMetres: 0.9,
+            approvedPlanDepictedSouthernDimensionMetres: 1.625,
+            legalSetOutConfirmed: false,
+          },
+        },
+      },
+    });
     expect(proof.manifest.proposal.submittedSeeControlClaims).toMatchObject({
       evidenceClass: "SECONDARY_REQUIRES_AUTHORITATIVE_REVALIDATION",
       claims: {
@@ -65,12 +99,25 @@ describe("Item 74H candidate reviewed pathway", () => {
         maximumExcavationAndFillDepthMetres: 1,
         buildingHeightPlaneCompliant: true,
       },
+      revalidatedClaims: [
+        {
+          field: "maximumBuildingHeightMetres",
+          seeValue: 9,
+          authoritativeValue: 9,
+        },
+      ],
       rejectedClaims: [
         {
           field: "siteAreaSquareMetres",
           seeValue: 1224,
           authoritativeCadastreValue: 2331.671,
           approvedPlanValue: 2333,
+        },
+        {
+          field: "maximumFloorSpaceRatio",
+          seeValue: 0.5,
+          authoritativeValue: 0.4,
+          authoritativeClause: "Byron LEP 2014 clause 4.4",
         },
       ],
     });
@@ -164,7 +211,7 @@ describe("Item 74H candidate reviewed pathway", () => {
     expect(proof.binding.outstandingEvidence).toEqual(
       expect.arrayContaining([
         "REGISTERED_BOUNDARY_OR_SET_OUT_CONFIRMATION",
-        "CURRENT_LEP_DCP_CONTROL_REVALIDATION_AT_FINAL_GENERATION",
+        "FINAL_GENERATION_CONTROL_CURRENCY_REPLAY",
       ]),
     );
     expect(proof.binding.outstandingEvidence).not.toContain(
