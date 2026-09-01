@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   ITEM74H_VISUAL_ACCEPTANCE_BRANCH,
+  ITEM74H_VISUAL_ACCEPTANCE_PATH,
   item74hEvidenceChecklistCopy,
   item74hVisualAcceptanceAllowed,
+  item74hVisualAcceptanceRequestAllowed,
 } from "./item74h-visual-acceptance";
 
 const safePreview = {
@@ -17,6 +19,27 @@ const safePreview = {
 describe("Item 74H protected visual acceptance", () => {
   it("allows only the exact checkout-disabled Vercel Preview branch", () => {
     expect(item74hVisualAcceptanceAllowed(safePreview)).toBe(true);
+  });
+
+  it("allows only the exact protected path and environment together", () => {
+    expect(
+      item74hVisualAcceptanceRequestAllowed(
+        ITEM74H_VISUAL_ACCEPTANCE_PATH,
+        safePreview,
+      ),
+    ).toBe(true);
+    expect(
+      item74hVisualAcceptanceRequestAllowed(
+        ITEM74H_VISUAL_ACCEPTANCE_PATH + "/other",
+        safePreview,
+      ),
+    ).toBe(false);
+    expect(
+      item74hVisualAcceptanceRequestAllowed(
+        ITEM74H_VISUAL_ACCEPTANCE_PATH,
+        { ...safePreview, VERCEL_ENV: "production" },
+      ),
+    ).toBe(false);
   });
 
   it("keeps working-product evidence copy commercially truthful", () => {
