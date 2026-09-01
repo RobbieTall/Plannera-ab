@@ -1,0 +1,42 @@
+name: Item 74H candidate zone boundary
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/item74h-candidate-zone-boundary.yml"
+      - "docs/operations/item74h-candidate-reviewed-pathway.md"
+      - "src/lib/item74h-candidate-zone-boundary-evidence.ts"
+      - "src/lib/item74h-candidate-zone-boundary-evidence.test.ts"
+      - "src/lib/item74h-candidate-reviewed-pathway.ts"
+      - "src/lib/item74h-candidate-reviewed-pathway.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-candidate-zone-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-zone-boundary:
+    name: Candidate zone boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify boundary-touch correction and commercial binding
+        run: >-
+          npx vitest run
+          src/lib/item74h-candidate-zone-boundary-evidence.test.ts
+          src/lib/item74h-candidate-reviewed-pathway.test.ts
+          src/lib/pathway-progressive-commercial-binding.test.ts
+          src/lib/pathway-commercial-presentation.test.ts
