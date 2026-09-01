@@ -437,7 +437,18 @@ export function QuickSiteCheckModal({
             </div>
           ) : null}
 
-          <PathwayEvidenceChecklistPanel items={pathwayResult.evidenceChecklist} />
+          <PathwayEvidenceChecklistPanel
+            items={pathwayResult.evidenceChecklist}
+            commercialState={
+              pathwayResult.commercial.planningControlsPackReadiness === "WORKING" ||
+              pathwayResult.commercial.submissionSeeReadiness === "WORKING"
+                ? "WORKING"
+                : pathwayResult.commercial.planningControlsPackReadiness === "FINAL" &&
+                    pathwayResult.commercial.submissionSeeReadiness === "FINAL"
+                  ? "FINAL"
+                  : "BLOCKED"
+            }
+          />
           <ol className="mt-4 space-y-3">
             {pathwayResult.gates.map((gate) => (
               <li key={`${gate.order}-${gate.question}`} className="rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">

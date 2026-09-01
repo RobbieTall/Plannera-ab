@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ITEM74H_VISUAL_ACCEPTANCE_BRANCH,
+  item74hEvidenceChecklistCopy,
   item74hVisualAcceptanceAllowed,
 } from "./item74h-visual-acceptance";
 
@@ -16,6 +17,14 @@ const safePreview = {
 describe("Item 74H protected visual acceptance", () => {
   it("allows only the exact checkout-disabled Vercel Preview branch", () => {
     expect(item74hVisualAcceptanceAllowed(safePreview)).toBe(true);
+  });
+
+  it("keeps working-product evidence copy commercially truthful", () => {
+    const copy = item74hEvidenceChecklistCopy("WORKING");
+    expect(copy.introduction).toContain("Working outputs");
+    expect(copy.footer).toContain("same purchased project");
+    expect(copy.footer).toContain("submission-ready");
+    expect(copy.footer).not.toContain("remain locked");
   });
 
   it.each([

@@ -1,5 +1,9 @@
 import * as React from "react";
 
+import {
+  item74hEvidenceChecklistCopy,
+  type Item74hEvidenceChecklistCommercialState,
+} from "@/lib/item74h-visual-acceptance";
 import type {
   PathwayEvidenceRequest,
   PathwayEvidenceRequestKind,
@@ -7,6 +11,7 @@ import type {
 
 type PathwayEvidenceChecklistPanelProps = {
   items: PathwayEvidenceRequest[];
+  commercialState?: Item74hEvidenceChecklistCommercialState;
 };
 
 const kindLabel: Record<PathwayEvidenceRequestKind, string> = {
@@ -27,8 +32,10 @@ const gateLabel = (orders: number[]) =>
 
 export function PathwayEvidenceChecklistPanel({
   items,
+  commercialState = "BLOCKED",
 }: PathwayEvidenceChecklistPanelProps) {
   if (!items.length) return null;
+  const copy = item74hEvidenceChecklistCopy(commercialState);
 
   return (
     <section
@@ -45,8 +52,7 @@ export function PathwayEvidenceChecklistPanel({
         What to provide next
       </h4>
       <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-100">
-        These requests come from the saved blocking gates. They do not predict
-        approval or unlock a paid output.
+        {copy.introduction}
       </p>
 
       <ol className="mt-3 space-y-3">
@@ -79,8 +85,7 @@ export function PathwayEvidenceChecklistPanel({
       </ol>
 
       <p className="mt-3 text-xs leading-5 text-amber-900 dark:text-amber-100">
-        A$49 and A$749 outputs remain locked until the required evidence is
-        reviewed against the same confirmed site and proposal.
+        {copy.footer}
       </p>
     </section>
   );

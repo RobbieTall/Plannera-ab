@@ -13,6 +13,7 @@ on:
       - "src/lib/item74h-visual-acceptance.ts"
       - "src/lib/item74h-visual-acceptance.test.ts"
       - "src/components/projects/item74h-commercial-preview-harness.tsx"
+      - "src/components/projects/pathway-evidence-checklist-panel.tsx"
       - "src/components/projects/quick-site-check-modal.tsx"
       - "src/app/internal/item74h-commercial-acceptance/page.tsx"
       - "src/components/projects/project-workspace.tsx"

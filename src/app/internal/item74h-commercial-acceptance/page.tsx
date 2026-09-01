@@ -161,7 +161,7 @@ const lepResult: QuickSiteCheckLepSuccess = {
   lepName: "Byron Local Environmental Plan 2014",
   zone: "RU2",
   objectives: [
-    "Protected visual acceptance uses the current, cited LEP pathway evidence.",
+    "To maintain the rural landscape character of the land.",
   ],
   controls: {
     heightOfBuilding: null,
@@ -178,7 +178,7 @@ const lepResult: QuickSiteCheckLepSuccess = {
   dataSource: "db_clauses",
   landUse: {
     withoutConsent: [],
-    withConsent: [],
+    withConsent: ["Farm buildings"],
     prohibited: [],
   },
   part4: [],
