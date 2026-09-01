@@ -57,7 +57,7 @@ describe("Item 74H candidate reviewed pathway", () => {
       "E2026/47509",
       "E2026/80895",
     ]);
-    expect(proof.manifest.proposal.applicantSeeControlClaims).toMatchObject({
+    expect(proof.manifest.proposal.submittedSeeControlClaims).toMatchObject({
       evidenceClass: "SECONDARY_REQUIRES_AUTHORITATIVE_REVALIDATION",
       claims: {
         maximumBuildingHeightMetres: 9,
