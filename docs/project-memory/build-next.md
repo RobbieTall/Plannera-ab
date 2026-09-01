@@ -1419,3 +1419,12 @@ Success signal: a clean text-PDF council can be registered, prepared and made se
 - Unsupported exact claims remain prohibited. `SUBMISSION_READY`, polished paid outputs, and final commercial acceptance remain subject to the existing strict acceptance gate and operator review.
 - Consultant handoff includes the qualified working SEE and its evidence gaps. The commercial funnel audit reports `working_needs_evidence` rather than incorrectly reporting that no SEE exists.
 - Production checkout remains disabled. This change does not alter Production data, schema, payments, Blob resources, or environment variables.
+
+
+## Item 74H qualified working DOCX/PDF regeneration (2026-09-01)
+
+- The next protected slice adds a separate working-output renderer; it does not weaken or replace the strict submission renderer.
+- Qualified files are visibly titled, footered and named as `WORKING SEE - NOT SUBMISSION READY`.
+- Only `unready_dpp`, `unready_upload_evidence`, `declared_non_final` and `operator_review_incomplete` may remain. Identity, provenance, scope, A$749 price, citations, sections, output integrity and Production mode remain hard blockers.
+- The synthetic acceptance proves unresolved output, later evidence strengthening on the same project/site/QSC chain, explicit DPP predecessor lineage, regenerated DOCX/PDF hashes and continued final-acceptance refusal until operator review.
+- The gate is credential-free, in-memory and zero-residue. It is wired into GitHub and Vercel builds without changing Production data, schema, Blob resources, payments, environment variables or checkout.
