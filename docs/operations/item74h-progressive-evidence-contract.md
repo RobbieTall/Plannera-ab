@@ -109,3 +109,18 @@ The protected Item 74H acceptance must prove:
 - later evidence can promote affected facts without duplicating the project or losing provenance;
 - DOCX and PDF outputs display the same readiness and qualification state;
 - Production checkout and Production writers remain disabled until separately approved.
+
+
+## Persistence and commercial readiness bridge
+
+The accepted product contract is represented by an explicit progressive binding, separate from the final paid-artefact binding.
+
+- `pathwayDecision` records `PROCEED` or `MERIT_ASSESSMENT`.
+- `evidenceStatus` independently records `CONFIRMED` or `MORE_EVIDENCE_REQUIRED`.
+- `PLANNING_CONTROLS_PACK_WORKING` and `SUBMISSION_SEE_WORKING` permit truthful working outputs for the same project.
+- The A$49 and A$749 product codes, prices, scope digest, evidence digest, confirmed controls and outstanding evidence are persisted together.
+- Working outputs must remain `submissionReady: false` and `finalSubmissionEligible: false`.
+- Existing final-stage policy remains unchanged and must still reject incomplete evidence.
+- Production checkout remains disabled.
+
+The customer result exposes `BLOCKED`, `WORKING` or `FINAL` readiness separately from final eligibility. This lets the interface say “start now and strengthen the same project later” without describing provisional work as final.
