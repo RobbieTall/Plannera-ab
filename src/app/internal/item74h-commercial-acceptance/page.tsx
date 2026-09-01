@@ -243,6 +243,12 @@ export default function Item74hCommercialAcceptancePage() {
           document, database write, checkout activation or submission-ready
           claim is present.
         </p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          Current authoritative controls: 9 m maximum building height, 0.4:1
+          maximum floor-space ratio, 900 mm minimum side/rear setback, 4.5 m
+          minimum local-road primary-front setback, and 1 m general
+          excavation/fill maximum depth.
+        </p>
       </div>
       <Item74hCommercialPreviewHarness
         lepResult={lepResult}
