@@ -1144,7 +1144,7 @@ test("SEE binds to explicit source DPP and expected proposal without falling bac
   assert.equal(prisma.artefacts.filter((artefact) => artefact.type === "pre_see_planning_memo").length, 2);
 });
 
-test("unresolved DPP blocks SEE and persists no memo", async () => {
+test("unresolved DPP creates a qualified working SEE with no submission-ready claim", async () => {
   const prisma = new MockPrisma({ "proj-see-unresolved": ["user-1"] });
   const qsc: QuickSiteCheckReport = {
     projectId: "proj-see-unresolved",
@@ -1164,11 +1164,15 @@ test("unresolved DPP blocks SEE and persists no memo", async () => {
   dpp.payload.commercialReady = false;
   dpp.payload.unresolvedTopics = ["Parking: unresolved."];
 
-  await assert.rejects(() => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } }), ArtefactValidationError);
-  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
+  const { content: workingSee } = await createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } });
+  assert.equal(workingSee.documentReadiness.state, "WORKING_SEE");
+  assert.equal(workingSee.documentReadiness.evidenceStatus, "MORE_EVIDENCE_REQUIRED");
+  assert.equal(workingSee.documentReadiness.submissionReady, false);
+  assert.deepEqual(workingSee.sourceDetailedPlanningPack?.unresolvedTopics, ["Parking: unresolved."]);
+  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), true);
 });
 
-test("SEE rejects newer unresolved active DPP instead of falling back to older ready pack", async () => {
+test("working SEE uses the newer unresolved active DPP instead of falling back to an older ready pack", async () => {
   const prisma = new MockPrisma({ "proj-see-active-unresolved": ["user-1"] });
   const qsc: QuickSiteCheckReport = {
     projectId: "proj-see-active-unresolved",
@@ -1201,8 +1205,12 @@ test("SEE rejects newer unresolved active DPP instead of falling back to older r
     },
   });
 
-  await assert.rejects(() => createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-active-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } }), ArtefactValidationError);
-  assert.equal(prisma.artefacts.some((artefact) => artefact.type === "pre_see_planning_memo"), false);
+  const { content: workingSee } = await createPreSeePlanningMemoArtefact({ body: { projectId: "proj-see-active-unresolved" }, userId: "user-1", deps: { prisma: prisma as any, buildQuickSiteCheckReport: async () => qsc, getDCPContext: async () => [], getWorkspaceSourceContext: async () => ({ canonicalLgaCode: "BYRON", hasCouncilDcp: false, councilDcpSampleHeadings: [], perSourceTotals: {}, chunks: [] }) } });
+  assert.equal(workingSee.sourceDetailedPlanningPack?.artefactId, "proj-see-active-unresolved-newer-dpp");
+  assert.equal(workingSee.proposedWorksSummary, "Newer unresolved brief.");
+  assert.equal(workingSee.documentReadiness.evidenceStatus, "MORE_EVIDENCE_REQUIRED");
+  assert.equal(workingSee.documentReadiness.submissionReady, false);
+  assert.equal(prisma.artefacts.filter((artefact) => artefact.type === "pre_see_planning_memo").length, 1);
 });
 
 test("creates a Detailed Planning Pack from server-side saved QSC and filtered DCP evidence", async () => {
