@@ -16,6 +16,7 @@ on:
       - "src/components/projects/pathway-evidence-checklist-panel.tsx"
       - "src/components/projects/quick-site-check-modal.tsx"
       - "src/app/internal/item74h-commercial-acceptance/page.tsx"
+      - "middleware.ts"
       - "src/components/projects/project-workspace.tsx"
       - "scripts/item74h-public-da-persistence-preview.ts"
       - ".github/workflows/pathway-progressive-commercial-binding.yml"

@@ -1,5 +1,8 @@
 export const ITEM74H_VISUAL_ACCEPTANCE_BRANCH =
-  "agent/item74h-visual-customer-proof-20260901" as const;
+  "agent/item74h-visual-http-guard-20260901" as const;
+
+export const ITEM74H_VISUAL_ACCEPTANCE_PATH =
+  "/internal/item74h-commercial-acceptance" as const;
 
 type VisualAcceptanceEnvironment = {
   VERCEL?: string;
@@ -51,4 +54,14 @@ export function item74hEvidenceChecklistCopy(
     footer:
       "Working and final A$49 and A$749 outputs remain unavailable until the required evidence is reviewed against the same confirmed site and proposal.",
   };
+}
+
+export function item74hVisualAcceptanceRequestAllowed(
+  pathname: string,
+  environment: VisualAcceptanceEnvironment,
+): boolean {
+  return (
+    pathname === ITEM74H_VISUAL_ACCEPTANCE_PATH &&
+    item74hVisualAcceptanceAllowed(environment)
+  );
 }

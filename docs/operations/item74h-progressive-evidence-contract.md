@@ -149,7 +149,7 @@ must never be treated as planning evidence.
 The route renders only when all of these are true:
 
 - Vercel reports a Preview deployment.
-- The Git ref is exactly `agent/item74h-visual-customer-proof-20260901`.
+- The Git ref is exactly `agent/item74h-visual-http-guard-20260901`.
 - A$49 Planning Controls Pack checkout is not enabled.
 - A$749 submission SEE checkout is not enabled.
 
@@ -159,3 +159,9 @@ coordinates, and renders the real Pathway Check modal. Acceptance must visually
 confirm the separate MERIT and MORE_EVIDENCE states, the named evidence
 schedule, WORKING A$49/A$749 presentation, the same-scope credit explanation,
 and disabled checkout. Production checkout remains disabled.
+
+
+The root middleware enforces the same environment and branch contract before
+the App Router renders. Production and every non-approved branch must return a
+true HTTP 404 with `noindex, nofollow`; a rendered not-found body carried by an
+HTTP 200 streaming response is not acceptable evidence of this boundary.
