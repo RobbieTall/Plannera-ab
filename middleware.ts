@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
-    pathname === ITEM74H_VISUAL_ACCEPTANCE_PATH &&
+    pathname.startsWith(ITEM74H_VISUAL_ACCEPTANCE_PATH) &&
     !item74hVisualAcceptanceRequestAllowed(pathname, process.env)
   ) {
     return new NextResponse("Not Found", {

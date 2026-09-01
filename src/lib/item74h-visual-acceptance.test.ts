@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ITEM74H_VISUAL_ACCEPTANCE_BRANCH,
   ITEM74H_VISUAL_ACCEPTANCE_PATH,
+  ITEM74H_VISUAL_ACCEPTANCE_VIEW_PATH,
   item74hEvidenceChecklistCopy,
   item74hVisualAcceptanceAllowed,
   item74hVisualAcceptanceRequestAllowed,
@@ -25,6 +26,12 @@ describe("Item 74H protected visual acceptance", () => {
     expect(
       item74hVisualAcceptanceRequestAllowed(
         ITEM74H_VISUAL_ACCEPTANCE_PATH,
+        safePreview,
+      ),
+    ).toBe(true);
+    expect(
+      item74hVisualAcceptanceRequestAllowed(
+        ITEM74H_VISUAL_ACCEPTANCE_VIEW_PATH,
         safePreview,
       ),
     ).toBe(true);

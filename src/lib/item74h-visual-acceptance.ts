@@ -1,8 +1,10 @@
 export const ITEM74H_VISUAL_ACCEPTANCE_BRANCH =
-  "agent/item74h-visual-http-guard-20260901" as const;
+  "agent/item74h-visual-route-guard-20260901" as const;
 
 export const ITEM74H_VISUAL_ACCEPTANCE_PATH =
   "/internal/item74h-commercial-acceptance" as const;
+export const ITEM74H_VISUAL_ACCEPTANCE_VIEW_PATH =
+  "/internal/item74h-commercial-acceptance/view" as const;
 
 type VisualAcceptanceEnvironment = {
   VERCEL?: string;
@@ -61,7 +63,8 @@ export function item74hVisualAcceptanceRequestAllowed(
   environment: VisualAcceptanceEnvironment,
 ): boolean {
   return (
-    pathname === ITEM74H_VISUAL_ACCEPTANCE_PATH &&
+    (pathname === ITEM74H_VISUAL_ACCEPTANCE_PATH ||
+      pathname === ITEM74H_VISUAL_ACCEPTANCE_VIEW_PATH) &&
     item74hVisualAcceptanceAllowed(environment)
   );
 }

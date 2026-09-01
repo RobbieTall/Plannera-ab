@@ -149,7 +149,7 @@ must never be treated as planning evidence.
 The route renders only when all of these are true:
 
 - Vercel reports a Preview deployment.
-- The Git ref is exactly `agent/item74h-visual-http-guard-20260901`.
+- The Git ref is exactly `agent/item74h-visual-route-guard-20260901`.
 - A$49 Planning Controls Pack checkout is not enabled.
 - A$749 submission SEE checkout is not enabled.
 
@@ -165,3 +165,10 @@ The root middleware enforces the same environment and branch contract before
 the App Router renders. Production and every non-approved branch must return a
 true HTTP 404 with `noindex, nofollow`; a rendered not-found body carried by an
 HTTP 200 streaming response is not acceptable evidence of this boundary.
+
+
+The public acceptance URL is implemented as a non-streaming route handler.
+Unsafe environments receive a plain HTTP 404 before rendering. The exact
+protected Preview receives a temporary redirect to the guarded `/view` page,
+which renders the actual modal. This avoids mistaking an App Router streamed
+not-found body carried by HTTP 200 for a true transport-level 404.
