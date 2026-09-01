@@ -1,5 +1,5 @@
 export const ITEM74H_VISUAL_ACCEPTANCE_BRANCH =
-  "agent/item74h-visual-http-guard-20260901" as const;
+  "agent/item74h-candidate-reviewed-pathway-20260901" as const;
 
 export const ITEM74H_VISUAL_ACCEPTANCE_PATH =
   "/internal/item74h-commercial-acceptance" as const;

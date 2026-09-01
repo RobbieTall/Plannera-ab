@@ -8,6 +8,17 @@ The case is Council DA 10.2026.223.1 for Lot 138 DP1265934 at 33 Lorikeet Lane, 
 
 This is a protected Preview acceptance slice. Production checkout remains disabled. No Production data or schema change is part of this work.
 
+## Protected runtime acceptance
+
+The internal acceptance route is `/internal/item74h-commercial-acceptance`. It is fail-closed and may render only when all of the following are true:
+
+- Vercel environment is Preview.
+- Git commit branch is exactly `agent/item74h-candidate-reviewed-pathway-20260901`.
+- `PLANNING_PACK_CHECKOUT_ENABLED` is not `true`.
+- `SUBMISSION_SEE_CHECKOUT_ENABLED` is not `true`.
+
+Production, `main`, every other branch, and either checkout flag being enabled must receive a true 404. Vercel Authentication remains an independent outer protection layer.
+
 ## Evidence confirmed on 1 September 2026
 
 - Council tracker, stamped plan, site plan and NSW cadastral identifiers agree on the address and parcel.
