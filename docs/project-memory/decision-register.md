@@ -1252,3 +1252,13 @@ The free Pathway Check may truthfully explain missing registered-plan, reconcili
 Evidence: PR #365; protected Vercel Preview `dpl_HUMLJQ1MT8zLWXBeKCywMnwwkuQG`; Production deployment `dpl_H8pchMJGhTU4owpU2fGeuGJnQtjS`; `docs/operations/item74h-registered-plan-reconciliation.md`.
 
 Consequence: Item 74H remains active until a real registered plan and real legal measurements pass the protected evidence flow and the rendered A$49/A$749 outputs are inspected. No developer may weaken the four-role chain to make a commercial gate green.
+
+
+## Item 74H progressive-evidence SEE contract (2026-09-01)
+
+- A current-site, proposal-matched QSC/DPP provenance chain may create a qualified `WORKING_SEE` even when the DPP identifies evidence gaps.
+- The working SEE persists `evidenceStatus`, `submissionReady: false`, an outstanding-evidence schedule, and the exact source DPP/QSC chain.
+- Missing survey, specialist report, or similar clarifying evidence does not abandon the customer journey. The customer can start now and strengthen the same project as evidence arrives.
+- Unsupported exact claims remain prohibited. `SUBMISSION_READY`, polished paid outputs, and final commercial acceptance remain subject to the existing strict acceptance gate and operator review.
+- Consultant handoff includes the qualified working SEE and its evidence gaps. The commercial funnel audit reports `working_needs_evidence` rather than incorrectly reporting that no SEE exists.
+- Production checkout remains disabled. This change does not alter Production data, schema, payments, Blob resources, or environment variables.

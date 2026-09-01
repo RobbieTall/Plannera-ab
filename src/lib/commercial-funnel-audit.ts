@@ -22,7 +22,7 @@ export type CommercialFunnelAudit = {
   site: { address?: string | null; lgaName?: string | null; lgaCode?: string | null; zoneLabel?: string | null; zoneCode?: string | null };
   quickSiteCheck: { state: "missing" | "stale_mismatched" | "unresolved" | "ready"; artefactId: string | null; evidence: { label: string | null; sourceRef: string | null; citedControlCount: number | null; summary: string | null }; reasons: string[] };
   detailedPlanningPack: { state: "missing" | "stale_mismatched_malformed" | "needs_expert_review" | "ready"; artefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; citedTopicCount: number; unresolvedTopics: string[]; reasons: string[] };
-  see: { state: "missing" | "stale_mismatched_legacy" | "ready"; artefactId: string | null; sourceDetailedPlanningPackArtefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; applicableCitedEvidenceCount: number; reasons: string[] };
+  see: { state: "missing" | "stale_mismatched_legacy" | "working_needs_evidence" | "ready"; artefactId: string | null; sourceDetailedPlanningPackArtefactId: string | null; sourceQuickSiteCheckArtefactId: string | null; applicableCitedEvidenceCount: number; reasons: string[] };
   referralEligibility: "none" | "unresolved_pack_referral" | "quality_chain_referral";
   nextAction: { code: string; reasonCodes: string[] };
 };
@@ -115,7 +115,7 @@ export async function auditCommercialFunnel(projectIdentifier: string, deps: { p
     const memo = parsePreSeePlanningMemoContent(artefact.payload);
     return { artefact, memo, generatedAt: memo?.generatedAt ?? null };
   }));
-  const readySee = active?.pack.commercialReady ? seeDiagnostics.find(({ memo }) => Boolean(
+  const matchingSee = active ? seeDiagnostics.find(({ memo }) => Boolean(
     memo &&
     memo.projectId === project.id &&
     memo.sourceDetailedPlanningPack?.artefactId === active.artefact.id &&
@@ -125,6 +125,13 @@ export async function auditCommercialFunnel(projectIdentifier: string, deps: { p
     hasExactSeeEvidenceProvenance(memo, active.pack, active.quickSiteCheck) &&
     countApplicableSeeEvidence(memo) > 0,
   )) : undefined;
+  const readySee = active?.pack.commercialReady ? matchingSee : undefined;
+  const workingSee =
+    active?.pack.commercialReady === false &&
+    matchingSee?.memo?.documentReadiness?.state === "WORKING_SEE" &&
+    matchingSee.memo.documentReadiness.evidenceStatus === "MORE_EVIDENCE_REQUIRED"
+      ? matchingSee
+      : undefined;
   const newestSee = seeDiagnostics[0];
   const see = readySee ? {
     state: "ready" as const,
@@ -133,13 +140,20 @@ export async function auditCommercialFunnel(projectIdentifier: string, deps: { p
     sourceQuickSiteCheckArtefactId: readySee.memo?.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId ?? null,
     applicableCitedEvidenceCount: countApplicableSeeEvidence(readySee.memo),
     reasons: ["matching_active_current_site_see_ready"],
+  } : workingSee ? {
+    state: "working_needs_evidence" as const,
+    artefactId: workingSee.artefact.id,
+    sourceDetailedPlanningPackArtefactId: workingSee.memo?.sourceDetailedPlanningPack?.artefactId ?? null,
+    sourceQuickSiteCheckArtefactId: workingSee.memo?.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId ?? null,
+    applicableCitedEvidenceCount: countApplicableSeeEvidence(workingSee.memo),
+    reasons: ["matching_working_see_has_outstanding_evidence"],
   } : {
     state: seeDiagnostics.length ? "stale_mismatched_legacy" as const : "missing" as const,
     artefactId: newestSee?.artefact.id ?? null,
     sourceDetailedPlanningPackArtefactId: newestSee?.memo?.sourceDetailedPlanningPack?.artefactId ?? null,
     sourceQuickSiteCheckArtefactId: newestSee?.memo?.sourceDetailedPlanningPack?.sourceQuickSiteCheckArtefactId ?? null,
     applicableCitedEvidenceCount: 0,
-    reasons: active?.pack.commercialReady === false ? ["see_not_applicable_for_unresolved_active_pack"] : seeDiagnostics.length ? ["no_matching_active_current_site_see_chain"] : ["see_missing"],
+    reasons: seeDiagnostics.length ? ["no_matching_active_current_site_see_chain"] : ["see_missing"],
   };
 
   const referralEligibility = detailedPlanningPack.state === "needs_expert_review"

@@ -1409,3 +1409,13 @@ Success signal: a clean text-PDF council can be registered, prepared and made se
 - Production deployment `dpl_H8pchMJGhTU4owpU2fGeuGJnQtjS` reached Ready. It skipped the Preview-only migration and writers, passed `smoke:launch` with 18 green / 0 amber / 0 red, passed `smoke:whole-lga` with 60 green / 0 red, retained `productionCheckoutEnabled: false`, and performed no Item 74H Production mutation.
 - The temporary Neon Preview branch, branch-only Vercel acceptance variables and merged GitHub branch were deleted after acceptance.
 - Current commercial boundary: implemented and Preview-proven, not real-document accepted and not Production-activated. The next evidence step is for the customer/operator to obtain the real registered cadastral plan from NSW Land Registry Services, then privately reconcile the real plan, survey, legal setbacks and proposal layout before inspecting the actual A$49 and A$749 DOCX/PDF outputs.
+
+
+## Item 74H progressive-evidence SEE contract (2026-09-01)
+
+- A current-site, proposal-matched QSC/DPP provenance chain may create a qualified `WORKING_SEE` even when the DPP identifies evidence gaps.
+- The working SEE persists `evidenceStatus`, `submissionReady: false`, an outstanding-evidence schedule, and the exact source DPP/QSC chain.
+- Missing survey, specialist report, or similar clarifying evidence does not abandon the customer journey. The customer can start now and strengthen the same project as evidence arrives.
+- Unsupported exact claims remain prohibited. `SUBMISSION_READY`, polished paid outputs, and final commercial acceptance remain subject to the existing strict acceptance gate and operator review.
+- Consultant handoff includes the qualified working SEE and its evidence gaps. The commercial funnel audit reports `working_needs_evidence` rather than incorrectly reporting that no SEE exists.
+- Production checkout remains disabled. This change does not alter Production data, schema, payments, Blob resources, or environment variables.
