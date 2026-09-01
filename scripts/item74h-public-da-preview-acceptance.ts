@@ -19,6 +19,7 @@ const EXPECTED_BRANCHES = new Set([
   "agent/item74h-setback-evidence-20260831",
   "agent/item74h-registered-plan-proof-20260901",
   "agent/item74h-development-plans-discovery-20260901",
+  "agent/item74h-progressive-public-bridge-20260901",
 ]);
 const MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 const MAX_SCAN_SIZE_BYTES = 100 * 1024 * 1024;
