@@ -5,6 +5,8 @@ import {
 
 const ENABLED =
   process.env.ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED === "true";
+const DEVELOPMENT_PLANS_DISCOVERY_BRANCH =
+  "agent/item74h-development-plans-discovery-20260901";
 const EXPECTED_BRANCHES = new Set([
   "integration/item74h-public-da-20260830",
   "agent/item74h-evidence-refinement-20260830",
@@ -132,6 +134,23 @@ const main = async () => {
       JSON.stringify({
         gate: "item74h-public-da-reviewed-outcome",
         status: "SKIPPED_FEATURE_DISABLED",
+        productionCheckoutEnabled: false,
+      }),
+    );
+    return;
+  }
+
+  if (
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === DEVELOPMENT_PLANS_DISCOVERY_BRANCH
+  ) {
+    console.log(
+      JSON.stringify({
+        gate: "item74h-public-da-reviewed-outcome",
+        status: "SKIPPED_DISCOVERY_ONLY",
+        evidencePromotionPerformed: false,
+        persistenceMutationPerformed: false,
+        productionMutationPerformed: false,
         productionCheckoutEnabled: false,
       }),
     );

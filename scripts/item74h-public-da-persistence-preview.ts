@@ -40,6 +40,8 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-twilight-tooth-a75ar21y',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
+const DEVELOPMENT_PLANS_DISCOVERY_BRANCH =
+  'agent/item74h-development-plans-discovery-20260901';
 const PUBLIC_DA_TRACKER_URL =
   'https://datracker.byron.nsw.gov.au/MasterViewUI-External/Application/ApplicationDetails/010.2025.00000535.001/';
 const PUBLIC_DA_ADDRESS = '870 Wilsons Creek Road, Wilsons Creek NSW';
@@ -1598,6 +1600,23 @@ async function main(): Promise<void> {
         phase: 'disabled',
         passed: true,
         reason: 'approval_gated',
+        productionCheckoutEnabled: false,
+        productionMutationPerformed: false,
+      }),
+    );
+    return;
+  }
+
+  if (
+    process.env.VERCEL_ENV === 'preview' &&
+    process.env.VERCEL_GIT_COMMIT_REF === DEVELOPMENT_PLANS_DISCOVERY_BRANCH
+  ) {
+    console.log(
+      JSON.stringify({
+        acceptance: 'item74h-public-da-persistence-preview',
+        phase: 'disabled',
+        passed: true,
+        reason: 'development_plans_discovery_only',
         productionCheckoutEnabled: false,
         productionMutationPerformed: false,
       }),
