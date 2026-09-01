@@ -1,0 +1,34 @@
+name: Item 74H Candidate Spatial Policy
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/item74h-candidate-spatial-evidence.ts"
+      - "src/lib/item74h-candidate-spatial-evidence.test.ts"
+      - "scripts/item74h-candidate-spatial-preview.ts"
+      - "docs/operations/item74h-candidate-spatial-evidence.md"
+      - "package.json"
+      - ".github/workflows/item74h-candidate-spatial-policy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-spatial-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Test exact parcel and split-zone policy
+        run: npx vitest run --config vitest.config.ts src/lib/item74h-candidate-spatial-evidence.test.ts
+      - name: Prove the hosted runner is inert outside protected Preview
+        run: npm run accept:item74h-candidate-da-preview
+        env:
+          ITEM74H_CANDIDATE_DA_ACCEPTANCE_ENABLED: "false"
+          PLANNING_PACK_CHECKOUT_ENABLED: "false"
