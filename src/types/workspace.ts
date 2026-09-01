@@ -190,6 +190,19 @@ export type WorkspacePreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
   generatedAt: string;
   projectId: string;
+  documentReadiness?: {
+    state: "WORKING_SEE" | "SUBMISSION_READY";
+    evidenceStatus: "CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
+    submissionReady: boolean;
+    customerMessage: string;
+  };
+  outstandingEvidence?: Array<{
+    id: string;
+    topic: string;
+    status: "MORE_EVIDENCE_REQUIRED";
+    recommendedEvidence: string;
+    effect: string;
+  }>;
   siteDescription: {
     address: string | null;
     lga: string | null;
@@ -229,6 +242,7 @@ export type WorkspacePreSeePlanningMemoContent = {
     generatedAt: string | null;
     commercialReady: boolean;
     sourceQuickSiteCheckArtefactId: string;
+    unresolvedTopics?: string[];
   };
 };
 
