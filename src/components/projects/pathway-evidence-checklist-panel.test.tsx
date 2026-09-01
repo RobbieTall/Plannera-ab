@@ -4,21 +4,19 @@ import { describe, expect, it } from "vitest";
 
 import { PathwayEvidenceChecklistPanel } from "./pathway-evidence-checklist-panel";
 
+const roadEvidence = {
+  id: "authoritative-road-classification",
+  kind: "AUTHORITATIVE_ROAD_CLASSIFICATION" as const,
+  title: "Confirm the road classification and frontage",
+  why: "The road category is unresolved.",
+  provide: "Authoritative TfNSW or council evidence.",
+  blockingGateOrders: [1],
+};
+
 describe("PathwayEvidenceChecklistPanel", () => {
   it("renders the exact evidence action, reason, source request and gate", () => {
     const markup = renderToStaticMarkup(
-      <PathwayEvidenceChecklistPanel
-        items={[
-          {
-            id: "authoritative-road-classification",
-            kind: "AUTHORITATIVE_ROAD_CLASSIFICATION",
-            title: "Confirm the road classification and frontage",
-            why: "The road category is unresolved.",
-            provide: "Authoritative TfNSW or council evidence.",
-            blockingGateOrders: [1],
-          },
-        ]}
-      />,
+      <PathwayEvidenceChecklistPanel items={[roadEvidence]} />,
     );
 
     expect(markup).toContain("What to provide next");
@@ -32,8 +30,24 @@ describe("PathwayEvidenceChecklistPanel", () => {
       "<strong>Provide:</strong> Authoritative TfNSW or council evidence.",
     );
     expect(markup).toContain(
-      "A$49 and A$749 outputs remain locked",
+      "Working and final A$49 and A$749 outputs remain unavailable",
     );
+  });
+
+  it("keeps working outputs available while naming their final evidence boundary", () => {
+    const markup = renderToStaticMarkup(
+      <PathwayEvidenceChecklistPanel
+        items={[roadEvidence]}
+        commercialState="WORKING"
+      />,
+    );
+
+    expect(markup).toContain(
+      "You can start the working A$49 and A$749 outputs now",
+    );
+    expect(markup).toContain("strengthens the same purchased project");
+    expect(markup).toContain("final or submission-ready status");
+    expect(markup).not.toContain("outputs remain locked");
   });
 
   it("labels registered-plan, area-reconciliation and legal-setback actions", () => {
