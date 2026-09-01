@@ -7,7 +7,7 @@
     "migrate:deploy": "echo 'migrate disabled on vercel'",
     "db:push": "prisma db push",
     "build": "node ./scripts/prisma-generate.js && next build",
-    "vercel-build": "node ./scripts/prisma-generate.js && npm run migrate:item74h-preview && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && npm run accept:item74h-private-blob-preview && npm run accept:item74h-clamav-preview && npm run accept:item74h-public-da-preview && npm run accept:item74h-working-see-preview && next build",
+    "vercel-build": "node ./scripts/prisma-generate.js && npm run migrate:item74h-preview && npm run smoke:launch && npm run smoke:whole-lga && npm run accept:submission-see-credit-preview && npm run accept:item74h-real-site-preview && npm run accept:item74h-controlled-address-preview && npm run accept:item74h-controlled-persistence-preview && npm run accept:item74h-private-blob-preview && npm run accept:item74h-clamav-preview && npm run accept:item74h-public-da-preview && npm run accept:item74h-candidate-da-preview && npm run accept:item74h-working-see-preview && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "npm run test:node && npm run test:vitest",
@@ -45,6 +45,7 @@
     "accept:item74h-private-blob-preview": "tsx scripts/item74h-private-blob-preview-acceptance.ts",
     "accept:item74h-clamav-preview": "tsx scripts/item74h-clamav-preview-acceptance.ts",
     "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts && tsx scripts/item74h-public-da-persistence-preview.ts",
+    "accept:item74h-candidate-da-preview": "tsx scripts/item74h-candidate-spatial-preview.ts && tsx scripts/item74h-candidate-da-review-preview.ts",
     "accept:item74h-working-see-preview": "tsx scripts/item74h-working-see-preview-acceptance.ts"
   },
   "dependencies": {

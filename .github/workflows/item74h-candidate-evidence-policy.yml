@@ -1,0 +1,51 @@
+name: Item 74H Candidate Evidence Policy
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/item74h-candidate-da-download-policy.ts"
+      - "src/lib/item74h-candidate-da-download-policy.test.ts"
+      - "scripts/item74h-candidate-da-review-preview.ts"
+      - "docs/operations/item74h-candidate-da-evidence.md"
+      - "package.json"
+      - ".github/workflows/item74h-candidate-evidence-policy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-candidate-evidence-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Exact-source and fail-closed policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify exact Council source policy
+        run: npx vitest run --config vitest.config.ts src/lib/item74h-candidate-da-download-policy.test.ts
+
+      - name: Prove hosted acceptance is inert without its Preview flag
+        env:
+          ITEM74H_CANDIDATE_DA_ACCEPTANCE_ENABLED: "false"
+          PLANNING_PACK_CHECKOUT_ENABLED: "false"
+          SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+        run: |
+          output="$(npm run accept:item74h-candidate-da-preview 2>&1)"
+          printf '%s\n' "$output"
+          grep -F '"status":"SKIPPED_FEATURE_DISABLED"' <<< "$output"
+          grep -F '"productionCheckoutEnabled":false' <<< "$output"
