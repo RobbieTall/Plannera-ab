@@ -19,6 +19,14 @@ The internal acceptance route is `/internal/item74h-commercial-acceptance`. It i
 
 Production, `main`, every other branch, and either checkout flag being enabled must receive a true 404. Vercel Authentication remains an independent outer protection layer.
 
+The protected page must consume `buildItem74hCandidateReviewedPathwayProof()` and visibly identify the reviewed public case, rather than rendering the earlier synthetic RU2 fixture. Runtime acceptance must show:
+
+- DA `10.2026.223.1`, R2 and the 24 sqm approved storage shed;
+- 3.83 m approved-plan height and 1.625 m depicted southern boundary dimension;
+- current 9 m height, 0.4:1 FSR, 900 mm side/rear setback, 4.5 m local-road front setback and 1 m general excavation/fill controls;
+- pathway PROCEED with MORE_EVIDENCE_REQUIRED for certified legal set-out and final currency replay;
+- working A$49 and A$749 products, both with checkout inactive and no submission-ready claim.
+
 ## Evidence confirmed on 1 September 2026
 
 - Council tracker, stamped plan, site plan and NSW cadastral identifiers agree on the address and parcel.
