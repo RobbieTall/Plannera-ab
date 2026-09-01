@@ -6,6 +6,10 @@ import {
   unavailablePathwayCustomerResult,
   type PathwayCustomerResultInput,
 } from "./pathway-customer-result";
+import {
+  attachPersistedPathwayProgressiveCommercialBinding,
+  createPathwayProgressiveCommercialBinding,
+} from "./pathway-progressive-commercial-binding";
 
 const asOf = new Date("2026-08-26T12:00:00.000Z");
 
@@ -113,11 +117,16 @@ describe("Item 74H customer pathway result", () => {
       version: PATHWAY_CUSTOMER_RESULT_VERSION,
       status: "available",
       decision: "MORE_EVIDENCE_REQUIRED",
+      pathwayDecision: "MORE_EVIDENCE_REQUIRED",
+      evidenceStatus: "MORE_EVIDENCE_REQUIRED",
       current: true,
       commercial: {
         freePathwayCheckAvailable: true,
         planningControlsPackEligible: false,
         submissionSeeEligible: false,
+        planningControlsPackReadiness: "BLOCKED",
+        submissionSeeReadiness: "BLOCKED",
+        submissionReady: false,
         productionCheckoutEnabled: false,
       },
       proposal: {
@@ -186,6 +195,41 @@ describe("Item 74H customer pathway result", () => {
     expect(JSON.stringify(result)).not.toContain("privateSurveyNote");
   });
 
+  it("shows working A$49 and A$749 readiness without claiming final eligibility", () => {
+    const progressive = input();
+    const binding = createPathwayProgressiveCommercialBinding({
+      scopeKey: "public-byron-case",
+      siteEvidenceDigest: "b".repeat(64),
+      pathwayDecision: "MERIT_ASSESSMENT",
+      evidenceStatus: "MORE_EVIDENCE_REQUIRED",
+      confirmedControlKeys: ["dcp-other-road-setback"],
+      outstandingEvidence: [
+        "LEGAL_ROAD_SETBACK_M",
+        "REGISTERED_CADASTRAL_PLAN",
+      ],
+    });
+    progressive.result =
+      attachPersistedPathwayProgressiveCommercialBinding(
+        progressive.result,
+        binding,
+      );
+    const result = toPathwayCustomerResult(progressive, asOf);
+    expect(result).toMatchObject({
+      status: "available",
+      decision: "MORE_EVIDENCE_REQUIRED",
+      pathwayDecision: "MERIT_ASSESSMENT",
+      evidenceStatus: "MORE_EVIDENCE_REQUIRED",
+      commercial: {
+        planningControlsPackEligible: false,
+        submissionSeeEligible: false,
+        planningControlsPackReadiness: "WORKING",
+        submissionSeeReadiness: "WORKING",
+        submissionReady: false,
+        productionCheckoutEnabled: false,
+      },
+    });
+  });
+
   it("marks stale evidence as non-current and keeps paid products locked", () => {
     const stale = input();
     stale.evidenceSnapshots[0].staleAt = new Date(
@@ -198,6 +242,9 @@ describe("Item 74H customer pathway result", () => {
       commercial: {
         planningControlsPackEligible: false,
         submissionSeeEligible: false,
+        planningControlsPackReadiness: "BLOCKED",
+        submissionSeeReadiness: "BLOCKED",
+        submissionReady: false,
         productionCheckoutEnabled: false,
       },
     });
@@ -221,6 +268,9 @@ describe("Item 74H customer pathway result", () => {
         freePathwayCheckAvailable: false,
         planningControlsPackEligible: false,
         submissionSeeEligible: false,
+        planningControlsPackReadiness: "BLOCKED",
+        submissionSeeReadiness: "BLOCKED",
+        submissionReady: false,
         productionCheckoutEnabled: false,
       },
     });
