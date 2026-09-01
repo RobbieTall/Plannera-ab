@@ -23,6 +23,9 @@ type QuickSiteCheckModalProps = {
   planningPackCheckoutEnabled?: boolean;
   planningPackCheckoutBusy?: boolean;
   onStartPlanningPackCheckout?: () => void;
+  initialResult?: QuickSiteCheckLepSuccess;
+  initialPathwayResult?: PathwayCustomerResult;
+  acceptanceMode?: boolean;
 };
 
 export const formatList = (items: string[]) => (items.length ? items : ["None listed."]);
@@ -152,14 +155,21 @@ export function QuickSiteCheckModal({
   planningPackCheckoutEnabled = false,
   planningPackCheckoutBusy = false,
   onStartPlanningPackCheckout,
+  initialResult,
+  initialPathwayResult,
+  acceptanceMode = false,
 }: QuickSiteCheckModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<QuickSiteCheckLepSuccess | null>(null);
+  const [result, setResult] = useState<QuickSiteCheckLepSuccess | null>(
+    initialResult ?? null,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPermissibility, setShowPermissibility] = useState(false);
-  const [pathwayResult, setPathwayResult] = useState<PathwayCustomerResult | null>(null);
+  const [pathwayResult, setPathwayResult] = useState<PathwayCustomerResult | null>(
+    initialPathwayResult ?? null,
+  );
   const [pathwayStatus, setPathwayStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const { requireAuth } = useAuthGuard();
@@ -199,7 +209,7 @@ export function QuickSiteCheckModal({
   }, [result]);
 
   const runCheck = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || acceptanceMode) return;
     setStatus("loading");
     setError(null);
     setSaveError(null);
@@ -229,15 +239,15 @@ export function QuickSiteCheckModal({
       setResult(null);
       setStatus("error");
     }
-  }, [projectId]);
+  }, [acceptanceMode, projectId]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || acceptanceMode) return;
     runCheck();
-  }, [open, runCheck]);
+  }, [acceptanceMode, open, runCheck]);
 
   useEffect(() => {
-    if (!open || !projectId) return;
+    if (!open || !projectId || acceptanceMode) return;
     let cancelled = false;
     setPathwayStatus("loading");
 
@@ -263,7 +273,7 @@ export function QuickSiteCheckModal({
     return () => {
       cancelled = true;
     };
-  }, [open, projectId]);
+  }, [acceptanceMode, open, projectId]);
 
   const handleInsertToChat = () => {
     if (!result || !onInsertToChat) return;
@@ -332,11 +342,11 @@ export function QuickSiteCheckModal({
           <button
             type="button"
             onClick={runCheck}
-            disabled={status === "loading"}
+            disabled={status === "loading" || acceptanceMode}
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
           >
             {status === "loading" ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {hasResult ? "Re-run check" : "Run check"}
+            {acceptanceMode ? "Protected acceptance" : hasResult ? "Re-run check" : "Run check"}
           </button>
           <button
             type="button"
@@ -427,7 +437,18 @@ export function QuickSiteCheckModal({
             </div>
           ) : null}
 
-          <PathwayEvidenceChecklistPanel items={pathwayResult.evidenceChecklist} />
+          <PathwayEvidenceChecklistPanel
+            items={pathwayResult.evidenceChecklist}
+            commercialState={
+              pathwayResult.commercial.planningControlsPackReadiness === "WORKING" ||
+              pathwayResult.commercial.submissionSeeReadiness === "WORKING"
+                ? "WORKING"
+                : pathwayResult.commercial.planningControlsPackReadiness === "FINAL" &&
+                    pathwayResult.commercial.submissionSeeReadiness === "FINAL"
+                  ? "FINAL"
+                  : "BLOCKED"
+            }
+          />
           <ol className="mt-4 space-y-3">
             {pathwayResult.gates.map((gate) => (
               <li key={`${gate.order}-${gate.question}`} className="rounded-xl border border-amber-200 bg-white/70 p-3 dark:border-amber-900/60 dark:bg-slate-950/30">

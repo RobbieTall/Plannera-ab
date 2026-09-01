@@ -10,7 +10,12 @@ on:
       - "src/lib/pathway-customer-result.test.ts"
       - "src/lib/pathway-commercial-presentation.ts"
       - "src/lib/pathway-commercial-presentation.test.ts"
+      - "src/lib/item74h-visual-acceptance.ts"
+      - "src/lib/item74h-visual-acceptance.test.ts"
+      - "src/components/projects/item74h-commercial-preview-harness.tsx"
+      - "src/components/projects/pathway-evidence-checklist-panel.tsx"
       - "src/components/projects/quick-site-check-modal.tsx"
+      - "src/app/internal/item74h-commercial-acceptance/page.tsx"
       - "src/components/projects/project-workspace.tsx"
       - "scripts/item74h-public-da-persistence-preview.ts"
       - ".github/workflows/pathway-progressive-commercial-binding.yml"
@@ -46,4 +51,4 @@ jobs:
         run: ./node_modules/.bin/prisma generate
 
       - name: Prove progressive binding and customer readiness
-        run: ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/pathway-progressive-commercial-binding.test.ts src/lib/pathway-customer-result.test.ts src/lib/pathway-commercial-presentation.test.ts
+        run: ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/pathway-progressive-commercial-binding.test.ts src/lib/pathway-customer-result.test.ts src/lib/pathway-commercial-presentation.test.ts src/lib/item74h-visual-acceptance.test.ts
