@@ -213,12 +213,12 @@ const main = () => {
   strengthened.uploadEvidence.uploads.push({
     id: "detail-survey",
     name: "synthetic-detail-survey.pdf",
-    kind: "detail_survey",
+    kind: "site_plan",
     evidenceStatus: "READY",
     indexingStatus: "READY",
     contentHash: hash("b"),
     currentForSite: true,
-    usedInSections: ["site_description", "environmental_impacts"],
+    usedInSections: ["site_and_surrounds", "environmental_impacts"],
   });
   strengthened.sections = strengthened.sections.map((section) => ({
     ...section,
