@@ -1,11 +1,12 @@
 import { readPersistedPathwayCommercialBinding } from "./pathway-persisted-commercial-binding";
+import { readPersistedPathwayProgressiveCommercialBinding } from "./pathway-progressive-commercial-binding";
 import {
   buildPathwayEvidenceChecklist,
   type PathwayEvidenceRequest,
 } from "./pathway-evidence-checklist";
 
 export const PATHWAY_CUSTOMER_RESULT_VERSION =
-  "item74h-customer-result.v1" as const;
+  "item74h-customer-result.v2" as const;
 
 export type PathwayCustomerDecision =
   | "STOP"
@@ -84,6 +85,9 @@ export type PathwayCustomerResult =
         freePathwayCheckAvailable: false;
         planningControlsPackEligible: false;
         submissionSeeEligible: false;
+        planningControlsPackReadiness: "BLOCKED";
+        submissionSeeReadiness: "BLOCKED";
+        submissionReady: false;
         productionCheckoutEnabled: false;
       };
     }
@@ -91,6 +95,8 @@ export type PathwayCustomerResult =
       version: typeof PATHWAY_CUSTOMER_RESULT_VERSION;
       status: "available";
       decision: PathwayCustomerDecision;
+      pathwayDecision: PathwayCustomerDecision;
+      evidenceStatus: "CONFIRMED" | "MORE_EVIDENCE_REQUIRED";
       decisionLabel: string;
       message: string;
       trustLevel: string;
@@ -139,6 +145,9 @@ export type PathwayCustomerResult =
         freePathwayCheckAvailable: true;
         planningControlsPackEligible: boolean;
         submissionSeeEligible: boolean;
+        planningControlsPackReadiness: "BLOCKED" | "WORKING" | "FINAL";
+        submissionSeeReadiness: "BLOCKED" | "WORKING" | "FINAL";
+        submissionReady: boolean;
         productionCheckoutEnabled: false;
       };
       privacy: {
@@ -222,6 +231,9 @@ export function unavailablePathwayCustomerResult(
       freePathwayCheckAvailable: false,
       planningControlsPackEligible: false,
       submissionSeeEligible: false,
+      planningControlsPackReadiness: "BLOCKED",
+      submissionSeeReadiness: "BLOCKED",
+      submissionReady: false,
       productionCheckoutEnabled: false,
     },
   };
@@ -327,6 +339,37 @@ export function toPathwayCustomerResult(
     controlsCurrent &&
     spatialCurrent;
   const commercialBinding = readPersistedPathwayCommercialBinding(input.result);
+  const progressiveBinding =
+    readPersistedPathwayProgressiveCommercialBinding(input.result);
+  const planningControlsPackEligible = Boolean(
+    current && commercialBinding?.planningControlsPackEligible,
+  );
+  const submissionSeeEligible = Boolean(
+    current && commercialBinding?.submissionSeeEligible,
+  );
+  const progressiveWorkingEligible = Boolean(
+    current &&
+      progressiveBinding &&
+      progressiveBinding.productionCheckoutEnabled === false &&
+      progressiveBinding.finalSubmissionEligible === false,
+  );
+  const planningControlsPackReadiness = planningControlsPackEligible
+    ? "FINAL"
+    : progressiveWorkingEligible
+      ? "WORKING"
+      : "BLOCKED";
+  const submissionSeeReadiness = submissionSeeEligible
+    ? "FINAL"
+    : progressiveWorkingEligible
+      ? "WORKING"
+      : "BLOCKED";
+  const pathwayDecision =
+    progressiveBinding?.pathwayDecision || decision;
+  const evidenceStatus =
+    progressiveBinding?.evidenceStatus ||
+    (decision === "MORE_EVIDENCE_REQUIRED"
+      ? "MORE_EVIDENCE_REQUIRED"
+      : "CONFIRMED");
 
   const sources = input.evidenceSnapshots
     .filter(
@@ -404,6 +447,8 @@ export function toPathwayCustomerResult(
     version: PATHWAY_CUSTOMER_RESULT_VERSION,
     status: "available",
     decision,
+    pathwayDecision,
+    evidenceStatus,
     decisionLabel: decisionLabel[decision],
     message: decisionMessage[decision],
     trustLevel: input.trustLevel,
@@ -417,11 +462,14 @@ export function toPathwayCustomerResult(
     evidenceChecklist,
     commercial: {
       freePathwayCheckAvailable: true,
-      planningControlsPackEligible: Boolean(
-        current && commercialBinding?.planningControlsPackEligible,
-      ),
-      submissionSeeEligible: Boolean(
-        current && commercialBinding?.submissionSeeEligible,
+      planningControlsPackEligible,
+      submissionSeeEligible,
+      planningControlsPackReadiness,
+      submissionSeeReadiness,
+      submissionReady: Boolean(
+        current &&
+          commercialBinding?.submissionSeeEligible &&
+          input.trustLevel === "SUBMISSION_READY",
       ),
       productionCheckoutEnabled: false,
     },

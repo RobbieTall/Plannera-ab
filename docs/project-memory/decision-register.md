@@ -1273,3 +1273,14 @@ Every working DOCX/PDF must visibly state `WORKING SEE - NOT SUBMISSION READY`, 
 Evidence: `src/lib/submission-see-renderer.ts`; `scripts/item74h-working-see-preview-acceptance.ts`; `.github/workflows/item74h-working-see-preview.yml`; `docs/operations/item74h-working-see-output.md`.
 
 Consequence: Plannera can confidently tell a customer to start now and improve the work later, while unsupported exact claims and submission-ready status remain locked. Production checkout remains disabled and this decision authorizes no Production data, schema, payment, Blob or environment mutation.
+
+
+## Decision: persist working A$49/A$749 readiness separately from final eligibility (2026-09-01)
+
+Status: **ACCEPTED FOR PROTECTED PREVIEW PROOF / PRODUCTION CHECKOUT DISABLED**
+
+Decision: use internal `PLANNING_CONTROLS_PACK_WORKING` and `SUBMISSION_SEE_WORKING` stages backed by one deterministic progressive binding. The binding records independent pathway and evidence decisions, exact product/price, scope and evidence digests, confirmed controls, and outstanding evidence. It must always keep final submission eligibility and Production checkout false.
+
+The existing final paid-artefact policy is not weakened. Final `PLANNING_CONTROLS_PACK` and `SUBMISSION_SEE` bindings must continue to fail until exact evidence, trust, currentness and operator requirements are met.
+
+Consequence: customers may confidently start useful work and strengthen the same project later, while Plannera preserves an evidence-based distinction between working, final and submission-ready outputs. This decision authorizes no Production data, schema, payment, checkout or real-document mutation.

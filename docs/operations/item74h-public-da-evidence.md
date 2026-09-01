@@ -1,6 +1,6 @@
 # Item 74H public Byron DA Preview evidence
 
-Status: APPROVED FOR PROTECTED PREVIEW / CLEAN REVIEW COMPLETE / MORE_EVIDENCE_REQUIRED
+Status: PROTECTED PREVIEW EVIDENCE ACCEPTED / PROGRESSIVE WORKING-OUTPUT BRIDGE / FINAL OUTPUTS BLOCKED
 
 Last updated: 2026-08-31
 
@@ -91,9 +91,10 @@ The required decision is `MORE_EVIDENCE_REQUIRED`.
 
 - The free Pathway Check may show the confirmed facts and the exact missing
   evidence request.
-- The A$49 Planning Controls Pack is not eligible.
-- The A$749 submission SEE is not eligible.
-- No evidence is promoted and no paid artefact binding is created by this gate.
+- The A$49 Planning Controls Pack may be created only as a clearly labelled working pack with the exact outstanding-evidence schedule.
+- The A$749 SEE may be created only as a clearly labelled working SEE with `submissionReady: false`.
+- Final A$49 and A$749 artefact bindings remain ineligible until exact legal setback, registered-plan and lot-area evidence satisfies the existing strict policy.
+- Production checkout remains disabled. The working stages describe product readiness; they do not activate payment or make a submission-ready claim.
 
 This result is commercially useful: Plannera can use public planning documents
 quickly while preventing a plausible-looking summary from becoming unsupported
@@ -327,3 +328,17 @@ outputs.
 Operators must not accept NSW LRS legal terms for a customer, purchase a plan
 without explicit payment approval, expose signed links, or persist raw geometry
 to logs or customer-visible payloads.
+
+
+## Progressive working-output bridge (2026-09-01)
+
+The persistence model now separates the pathway decision from evidence readiness for this proof. The reviewed Byron case is `MERIT_ASSESSMENT` with `MORE_EVIDENCE_REQUIRED`: useful work may begin, but exact unresolved claims remain locked.
+
+Two internal, Preview-only stages carry this state without weakening the final policy:
+
+- `PLANNING_CONTROLS_PACK_WORKING` at A$49 scope.
+- `SUBMISSION_SEE_WORKING` at A$749 scope.
+
+Each working artefact must match the same assessment, evidence digest and deterministic scope digest; declare the exact product and price; copy the outstanding-evidence schedule; and persist `submissionReady: false` and `finalSubmissionEligible: false`. Replays must reuse the original binding. Separate probes must continue to prove that the final `PLANNING_CONTROLS_PACK` and `SUBMISSION_SEE` stages are blocked.
+
+This authorizes no Production database, schema, payment, checkout or real-document mutation.

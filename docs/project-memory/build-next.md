@@ -1428,3 +1428,14 @@ Success signal: a clean text-PDF council can be registered, prepared and made se
 - Only `unready_dpp`, `unready_upload_evidence`, `declared_non_final` and `operator_review_incomplete` may remain. Identity, provenance, scope, A$749 price, citations, sections, output integrity and Production mode remain hard blockers.
 - The synthetic acceptance proves unresolved output, later evidence strengthening on the same project/site/QSC chain, explicit DPP predecessor lineage, regenerated DOCX/PDF hashes and continued final-acceptance refusal until operator review.
 - The gate is credential-free, in-memory and zero-residue. It is wired into GitHub and Vercel builds without changing Production data, schema, Blob resources, payments, environment variables or checkout.
+
+
+## Item 74H progressive commercial persistence bridge (2026-09-01)
+
+- The accepted progressive-evidence promise is now carried by a deterministic binding rather than documentation alone.
+- The same persisted Byron assessment can bind replay-safe working A$49 and A$749 artefacts while its evidence status remains `MORE_EVIDENCE_REQUIRED`.
+- Customer output exposes independent pathway/evidence decisions and `BLOCKED`/`WORKING`/`FINAL` product readiness.
+- Working artefacts must declare exact product, price, scope/evidence digests, outstanding evidence, `submissionReady: false` and `finalSubmissionEligible: false`.
+- Final A$49 and A$749 stages still use the unchanged strict policy and remain blocked for the public Byron case.
+- The dedicated GitHub gate is pure and credential-free. Protected hosted persistence remains exact-branch, isolated Preview, zero-residue and checkout-disabled.
+- Next proof: run the exact-head protected Preview persistence/replay/cleanup gate, then inspect the real working outputs before considering merge.

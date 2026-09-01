@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 
 import { toPathwayCustomerResult } from '../src/lib/pathway-customer-result';
+import { createPathwayProgressiveCommercialBinding } from '../src/lib/pathway-progressive-commercial-binding';
 
 import {
   fetchItem74hCadastralEvidence,
@@ -28,6 +29,7 @@ const EXPECTED_REFS = new Set([
   'agent/item74h-layout-evidence-20260831',
   'agent/item74h-setback-evidence-20260831',
   'agent/item74h-registered-plan-proof-20260901',
+  'agent/item74h-progressive-public-bridge-20260901',
 ]);
 const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-misty-dream-a7l6wcp8',
@@ -38,6 +40,7 @@ const EXPECTED_NEON_ENDPOINTS = new Set([
   'ep-late-sun-a7r48wn4',
   'ep-old-flower-a7swrkp3',
   'ep-twilight-tooth-a75ar21y',
+  'ep-calm-unit-a7ido72m',
 ]);
 const ENABLE_FLAG = 'ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED';
 const DEVELOPMENT_PLANS_DISCOVERY_BRANCH =
@@ -399,6 +402,8 @@ async function runControlledPersistence(
     free: prefix + 'free',
     pack: prefix + 'pack',
     see: prefix + 'see',
+    finalPackProbe: prefix + 'final-pack-probe',
+    finalSeeProbe: prefix + 'final-see-probe',
   };
   const redactedAddress = 'REDACTED PUBLIC DA ADDRESS ' + preflight.addressFingerprint;
   const now = new Date();
@@ -958,6 +963,22 @@ async function runControlledPersistence(
       proposalType: 'SHED_OUTBUILDING',
     });
 
+    const progressiveBinding =
+      createPathwayProgressiveCommercialBinding({
+        scopeKey,
+        siteEvidenceDigest: evidenceDigest,
+        pathwayDecision: 'MERIT_ASSESSMENT',
+        evidenceStatus: 'MORE_EVIDENCE_REQUIRED',
+        confirmedControlKeys: controls.map((control) => control.controlKey),
+        outstandingEvidence: [
+          'LEGAL_REAR_SETBACK_M',
+          'LEGAL_ROAD_SETBACK_M',
+          'LEGAL_SIDE_SETBACK_M',
+          'LOT_AREA_RECONCILIATION',
+          'REGISTERED_CADASTRAL_PLAN',
+        ],
+      });
+
     await prisma.user.create({
       data: {
         id: ids.user,
@@ -1020,18 +1041,54 @@ async function runControlledPersistence(
           projectId: ids.project,
           createdById: ids.user,
           type: 'detailed_planning_pack',
-          title: 'Blocked controlled Planning Controls Pack candidate',
+          title: 'Working Planning Controls Pack - evidence outstanding',
           source: 'item74h-public-da-persistence-preview',
-          payload: { blocked: true, decision: 'MORE_EVIDENCE_REQUIRED' },
+          payload: {
+            productCode: 'PLANNING_CONTROLS_PACK',
+            priceAudCents: 4900,
+            readiness: 'WORKING_CONTROLS_PACK',
+            submissionReady: false,
+            finalSubmissionEligible: false,
+            scopeDigest: progressiveBinding.scopeDigest,
+            evidenceDigest,
+            outstandingEvidence: progressiveBinding.outstandingEvidence,
+          },
         },
         {
           id: ids.see,
           projectId: ids.project,
           createdById: ids.user,
           type: 'pre_see_planning_memo',
-          title: 'Blocked controlled submission SEE candidate',
+          title: 'Working SEE - not submission ready',
           source: 'item74h-public-da-persistence-preview',
-          payload: { blocked: true, decision: 'MORE_EVIDENCE_REQUIRED' },
+          payload: {
+            productCode: 'SUBMISSION_SEE',
+            priceAudCents: 74900,
+            readiness: 'WORKING_SEE',
+            submissionReady: false,
+            finalSubmissionEligible: false,
+            scopeDigest: progressiveBinding.scopeDigest,
+            evidenceDigest,
+            outstandingEvidence: progressiveBinding.outstandingEvidence,
+          },
+        },
+        {
+          id: ids.finalPackProbe,
+          projectId: ids.project,
+          createdById: ids.user,
+          type: 'detailed_planning_pack',
+          title: 'Final Planning Controls Pack eligibility probe',
+          source: 'item74h-public-da-persistence-preview',
+          payload: { submissionReady: false },
+        },
+        {
+          id: ids.finalSeeProbe,
+          projectId: ids.project,
+          createdById: ids.user,
+          type: 'pre_see_planning_memo',
+          title: 'Final submission SEE eligibility probe',
+          source: 'item74h-public-da-persistence-preview',
+          payload: { submissionReady: false },
         },
       ],
     });
@@ -1045,8 +1102,9 @@ async function runControlledPersistence(
       scopeKey,
       inputHash,
       evidenceDigest,
+      progressiveBinding,
       decision: 'MORE_EVIDENCE_REQUIRED',
-      trustLevel: 'SITE_CONFIRMED',
+      trustLevel: 'EVIDENCE_VERIFIED',
       input: {
         addressFingerprint: preflight.addressFingerprint,
         lgaCode: 'BYRON',
@@ -1056,6 +1114,8 @@ async function runControlledPersistence(
       },
       result: {
         decision: 'MORE_EVIDENCE_REQUIRED',
+        pathwayDecision: 'MERIT_ASSESSMENT',
+        evidenceStatus: 'MORE_EVIDENCE_REQUIRED',
         reason:
           'The address, Byron RU2 zone, approved farm-shed use, 200 square metre footprint, 5.996 metre height, OTHER_ROAD classification and an indicative 11.693 metre shed-to-fence dimension are confirmed. The Council detail survey states 39.47 hectares while the current official NSW cadastral feature records 38.8312589 hectares; the boundary is approximate and not classified as road, side or rear, so the registered plan, lot-area reconciliation and all three legal setbacks remain unresolved.',
         paidOutputEligible: false,
@@ -1387,8 +1447,11 @@ async function runControlledPersistence(
       customerResult.commercial.freePathwayCheckAvailable &&
         !customerResult.commercial.planningControlsPackEligible &&
         !customerResult.commercial.submissionSeeEligible &&
+        customerResult.commercial.planningControlsPackReadiness === 'WORKING' &&
+        customerResult.commercial.submissionSeeReadiness === 'WORKING' &&
+        !customerResult.commercial.submissionReady &&
         !customerResult.commercial.productionCheckoutEnabled,
-      'Customer commercial boundary did not preserve free-only access',
+      'Customer commercial boundary did not expose truthful working readiness',
     );
     assert(
       customerResult.sources.some((item) => item.kind === 'LEP') &&
@@ -1509,9 +1572,12 @@ async function runControlledPersistence(
         })),
       });
     } catch (error) {
-      unsafeProceedBlocked = expectedBlock(error, 'UNVERIFIED_SPATIAL');
+      unsafeProceedBlocked = expectedBlock(error, 'INVALID_PROGRESSIVE_BINDING');
     }
-    assert(unsafeProceedBlocked, 'Unverified controlled spatial evidence must block PROCEED');
+    assert(
+      unsafeProceedBlocked,
+      'Conflicting pathway and evidence decisions must block without write',
+    );
     assert(
       (await prisma.pathwayAssessment.count({
         where: { idempotencyKey: prefix + 'unsafe-proceed' },
@@ -1536,10 +1602,51 @@ async function runControlledPersistence(
     assert(!free.replayed && freeReplay.replayed, 'Controlled free binding was not replay-safe');
     assert(free.binding.id === freeReplay.binding.id, 'Controlled free replay changed binding');
 
+    const workingPack = await bindPathwayArtefact(prisma, {
+      assessmentId: first.assessment.id,
+      artefactId: ids.pack,
+      commercialStage: 'PLANNING_CONTROLS_PACK_WORKING',
+      scopeKey,
+      evidenceDigest,
+    });
+    const workingPackReplay = await bindPathwayArtefact(prisma, {
+      assessmentId: first.assessment.id,
+      artefactId: ids.pack,
+      commercialStage: 'PLANNING_CONTROLS_PACK_WORKING',
+      scopeKey,
+      evidenceDigest,
+    });
+    const workingSee = await bindPathwayArtefact(prisma, {
+      assessmentId: first.assessment.id,
+      artefactId: ids.see,
+      commercialStage: 'SUBMISSION_SEE_WORKING',
+      scopeKey,
+      evidenceDigest,
+    });
+    const workingSeeReplay = await bindPathwayArtefact(prisma, {
+      assessmentId: first.assessment.id,
+      artefactId: ids.see,
+      commercialStage: 'SUBMISSION_SEE_WORKING',
+      scopeKey,
+      evidenceDigest,
+    });
+    assert(
+      !workingPack.replayed &&
+        workingPackReplay.replayed &&
+        workingPack.binding.id === workingPackReplay.binding.id,
+      'Working A$49 binding was not replay-safe',
+    );
+    assert(
+      !workingSee.replayed &&
+        workingSeeReplay.replayed &&
+        workingSee.binding.id === workingSeeReplay.binding.id,
+      'Working A$749 binding was not replay-safe',
+    );
+
     const paidBlocks: string[] = [];
     for (const [artefactId, commercialStage] of [
-      [ids.pack, 'PLANNING_CONTROLS_PACK'],
-      [ids.see, 'SUBMISSION_SEE'],
+      [ids.finalPackProbe, 'PLANNING_CONTROLS_PACK'],
+      [ids.finalSeeProbe, 'SUBMISSION_SEE'],
     ] as const) {
       try {
         await bindPathwayArtefact(prisma, {
@@ -1577,6 +1684,9 @@ async function runControlledPersistence(
       freeCustomerResultRenderedFromReload: true,
       freeCustomerEvidenceChecklistRendered: true,
       customerPrivacyRedacted: true,
+      workingPlanningControlsPackCreatedOnceAndReplaySafe: true,
+      workingSubmissionSeeCreatedOnceAndReplaySafe: true,
+      workingOutputsSubmissionReady: false,
       planningControlsPackBlocked: paidBlocks.includes('PLANNING_CONTROLS_PACK'),
       submissionSeeBlocked: paidBlocks.includes('SUBMISSION_SEE'),
       rawAddressRetained: false,
