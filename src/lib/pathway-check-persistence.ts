@@ -741,7 +741,10 @@ export async function bindPathwayArtefact(
     const currentAt = (staleAt: Date | null) =>
       !staleAt || staleAt.getTime() > now.getTime();
     const policy = evaluateWorkingPathwayArtefactPolicy({
-      commercialStage: input.commercialStage,
+      commercialStage:
+        input.commercialStage === 'PLANNING_CONTROLS_PACK_WORKING'
+          ? 'PLANNING_CONTROLS_PACK_WORKING'
+          : 'SUBMISSION_SEE_WORKING',
       scopeKey: input.scopeKey,
       evidenceDigest: input.evidenceDigest,
       progressiveBinding:
