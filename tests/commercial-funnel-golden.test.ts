@@ -540,7 +540,7 @@ test("Kempsey E2 golden journey persists an exact quality chain through referral
   );
 });
 
-test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral", async () => {
+test("Kempsey evidence gap creates a qualified working SEE and unresolved-pack referral", async () => {
   const prisma = new GoldenPrisma(KEMPSEY);
   const quickSiteCheck = await saveQuickSiteCheck(prisma, KEMPSEY);
   const deps = serviceDependencies(prisma, KEMPSEY, "parking_access");
@@ -561,21 +561,19 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
     ),
   );
 
-  await assert.rejects(
-    () => createPreSeePlanningMemoArtefact({
-      body: { projectId: KEMPSEY.publicId, sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id, expectedProposalBrief: KEMPSEY.proposalBrief },
-      userId: USER_ID,
-      deps: deps as any,
-    }),
-    (error) =>
-      error instanceof ArtefactValidationError &&
-      /unresolved topics/.test(error.message),
-  );
-  assert.equal(
-    prisma.artefacts.some(
-      (artefact) => artefact.type === "pre_see_planning_memo",
-    ),
-    false,
+  const workingSee = await createPreSeePlanningMemoArtefact({
+    body: { projectId: KEMPSEY.publicId, sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id, expectedProposalBrief: KEMPSEY.proposalBrief },
+    userId: USER_ID,
+    deps: deps as any,
+  });
+  assert.equal(workingSee.content.documentReadiness.state, "WORKING_SEE");
+  assert.equal(workingSee.content.documentReadiness.evidenceStatus, "MORE_EVIDENCE_REQUIRED");
+  assert.equal(workingSee.content.documentReadiness.submissionReady, false);
+  assert.ok(workingSee.content.outstandingEvidence.some((item) => /Parking and access/.test(item.topic)));
+  assert.equal(workingSee.content.sourceDetailedPlanningPack?.commercialReady, false);
+  assert.deepEqual(
+    workingSee.content.sourceDetailedPlanningPack?.unresolvedTopics,
+    detailedPlanningPack.content.unresolvedTopics,
   );
 
   const review = await createExpertReviewRequestArtefact(
@@ -584,10 +582,10 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
   );
   assert.deepEqual(
     review.content.includedArtefacts.map((artefact) => artefact.type),
-    ["quick_site_check", "detailed_planning_pack"],
+    ["quick_site_check", "detailed_planning_pack", "pre_see_planning_memo"],
   );
-  assert.equal(review.content.sourceSeeMemo, null);
-  assert.match(review.content.packageSummary, /No SEE readiness is claimed/);
+  assert.equal(review.content.sourceSeeMemo?.artefactId, workingSee.artefact.id);
+  assert.match(review.content.packageSummary, /qualified working SEE/);
   assert.equal(review.content.detailedPlanningPack?.commercialReady, false);
   assert.equal(review.content.detailedPlanningPack?.citedRequirements?.length, 4);
   assert.ok(review.content.detailedPlanningPack?.citedRequirements?.every((requirement) => requirement.excerpt.length > 0));
@@ -613,7 +611,7 @@ test("Kempsey evidence gap blocks SEE and produces an unresolved-pack referral",
   assert.ok("referralEligibility" in audit);
   assert.equal(audit.quickSiteCheck.state, "ready");
   assert.equal(audit.detailedPlanningPack.state, "needs_expert_review");
-  assert.equal(audit.see.state, "missing");
+  assert.equal(audit.see.state, "working_needs_evidence");
   assert.equal(audit.referralEligibility, "unresolved_pack_referral");
   assert.equal(
     audit.nextAction.code,
