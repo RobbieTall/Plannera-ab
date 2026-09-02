@@ -9,11 +9,14 @@ payment, or change Production.
 ## Safety boundary
 
 - Dispatch only from the exact reviewed `main` commit.
+- Before dispatch, pin `ops/stripe-test-acceptance` to that exact reviewed
+  `main` commit and wait for its Vercel Preview deployment to report READY.
 - The protected GitHub environment is `stripe-test-acceptance`.
-- The workflow accepts only the exact allowlisted random Preview deployment
-  hostname and rejects Production and branch aliases.
+- The workflow accepts only an exact allowlisted random Preview hostname or the
+  stable `ops/stripe-test-acceptance` Vercel alias. Every Production, `main`,
+  and other branch alias is rejected.
 - The workflow never receives a Stripe secret key. The protected Preview owns
-  its test-only Stripe configuration.
+  its branch-scoped test-only Stripe configuration.
 - Production must keep `PLANNING_PACK_CHECKOUT_ENABLED` false or absent.
 - Use only disposable synthetic projects and proposals. Do not use customer
   documents, addresses, contacts, payment details, or Production data.
@@ -22,9 +25,9 @@ payment, or change Production.
 
 ## Prepare and execute the lifecycle
 
-1. Confirm the reviewed `main` commit has a green protected Preview configured
-   exactly as the existing Stripe acceptance runbook requires.
-2. Dispatch **Stripe test session preparation** from `main`.
+1. Pin `ops/stripe-test-acceptance` to the reviewed `main` commit and confirm
+   its protected Vercel Preview is READY.
+2. Dispatch **Stripe test session preparation** from that same `main` commit.
 3. Enter `PREPARE STRIPE TEST-MODE SESSION` and select
    `PROTECTED NON-PRODUCTION`.
 4. Privately retrieve the one-day `stripe-test-session-<run-id>` artifact. Do
