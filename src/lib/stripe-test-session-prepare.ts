@@ -52,7 +52,7 @@ const protectedPreviewBaseUrl = (
   }
 
   const protectedDeployment =
-    /^plannera-[a-z0-9]+-robbietalls-projects\.vercel\.app$/;
+    /^plannera-[a-z0-9]{6,32}-robbietalls-projects\.vercel\.app$/;
   if (!protectedDeployment.test(parsed.hostname)) {
     throw new Error("production_or_unprotected_host_denied");
   }
