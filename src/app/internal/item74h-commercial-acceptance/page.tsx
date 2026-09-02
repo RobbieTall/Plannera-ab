@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { Item74hCommercialPreviewHarness } from "@/components/projects/item74h-commercial-preview-harness";
+import { type CandidateGateDecision } from "@/lib/item74h-candidate-reviewed-pathway";
 import {
-  buildItem74hCandidateReviewedPathwayProof,
-  type CandidateGateDecision,
-} from "@/lib/item74h-candidate-reviewed-pathway";
+  buildItem74hProgressiveEvidenceRegenerationProof,
+  type Item74hProgressiveEvidenceRegenerationProof,
+} from "@/lib/item74h-progressive-evidence-regeneration";
 import {
   ITEM74H_VISUAL_ACCEPTANCE_BRANCH,
   item74hVisualAcceptanceAllowed,
@@ -18,8 +19,8 @@ import type { QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 
 export const dynamic = "force-dynamic";
 
-const asOf = new Date("2026-09-01T09:50:00.000Z");
-const currentUntil = new Date("2026-10-01T00:00:00.000Z");
+const asOf = new Date("2026-09-02T02:15:00.000Z");
+const currentUntil = new Date("2026-10-02T00:00:00.000Z");
 
 function toCustomerGateOutcome(
   outcome: CandidateGateDecision,
@@ -29,10 +30,11 @@ function toCustomerGateOutcome(
   return outcome;
 }
 
-function buildPathwayResult() {
-  const proof = buildItem74hCandidateReviewedPathwayProof();
+function buildPathwayResult(
+  proof: Item74hProgressiveEvidenceRegenerationProof,
+) {
   const input: PathwayCustomerResultInput = {
-    decision: "MORE_EVIDENCE_REQUIRED",
+    decision: proof.customerDecision,
     trustLevel: "SITE_CONFIRMED",
     isCurrent: true,
     assessedAt: asOf,
@@ -222,7 +224,8 @@ export default function Item74hCommercialAcceptancePage() {
     notFound();
   }
 
-  const pathwayResult = buildPathwayResult();
+  const proof = buildItem74hProgressiveEvidenceRegenerationProof();
+  const pathwayResult = buildPathwayResult(proof);
   if (pathwayResult.status !== "available") {
     notFound();
   }
@@ -234,20 +237,44 @@ export default function Item74hCommercialAcceptancePage() {
           Protected Preview acceptance
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-          Item 74H reviewed Byron shed proof
+          Same-project evidence regeneration
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
-          Public Council case DA 10.2026.223.1 at 33 Lorikeet Lane:
-          R2 parcel, 24 sqm approved storage shed, 3.83 m approved-plan height
-          and 1.625 m depicted southern boundary dimension. No customer-private
-          document, database write, checkout activation or submission-ready
-          claim is present.
+          The reviewed Byron case now accepts survey, consultant and selected
+          public DA evidence into one evidence graph. Generation 2 of both
+          working products is bound to the same purchased scope; unresolved
+          evidence stays visible and neither checkout is active.
         </p>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-          Current authoritative controls: 9 m maximum building height, 0.4:1
-          maximum floor-space ratio, 900 mm minimum side/rear setback, 4.5 m
-          minimum local-road primary-front setback, and 1 m general
-          excavation/fill maximum depth.
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <h2 className="font-semibold text-slate-950">Private evidence</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              {proof.intakeSummary.pendingPrivateEvidence} scanned private
+              candidates await applicability and operator review. They do not
+              resolve a gate merely because they were uploaded.
+            </p>
+          </section>
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <h2 className="font-semibold text-slate-950">DA History Assist</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              {proof.publicDaDiscovery.documents.length} public records were
+              discovered. Selection is explicit, automated copying is off, and
+              historical material is not treated as current law.
+            </p>
+          </section>
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <h2 className="font-semibold text-slate-950">Regenerated products</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              A$49 Controls Pack and A$749 working SEE are both generation 2,
+              remain not submission ready, and preserve the same-scope credit.
+            </p>
+          </section>
+        </div>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-700">
+          Current result: Gate 04 remains MORE_EVIDENCE_REQUIRED because the
+          survey and final control replay are not yet accepted. The conflicting
+          submitted SEE remains recorded and cannot override the authoritative
+          0.4:1 FSR.
         </p>
       </div>
       <Item74hCommercialPreviewHarness

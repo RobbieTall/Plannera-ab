@@ -1284,3 +1284,14 @@ Decision: use internal `PLANNING_CONTROLS_PACK_WORKING` and `SUBMISSION_SEE_WORK
 The existing final paid-artefact policy is not weakened. Final `PLANNING_CONTROLS_PACK` and `SUBMISSION_SEE` bindings must continue to fail until exact evidence, trust, currentness and operator requirements are met.
 
 Consequence: customers may confidently start useful work and strengthen the same project later, while Plannera preserves an evidence-based distinction between working, final and submission-ready outputs. This decision authorizes no Production data, schema, payment, checkout or real-document mutation.
+
+
+## 2026-09-02 - Public DA history is permission-aware evidence discovery, not a document scraper
+
+Decision: Plannera may discover allow-listed Council application metadata and document lists for an exact customer project, but must not silently crawl or copy public DA files. The customer selects relevant records; Plannera deep-links or accepts a customer-supplied private upload until an integration licence or written permission authorises server-side copying.
+
+Official determinations and stamped plans are dated case evidence. Submitted SEEs and proponent reports are secondary evidence. No historical record is current planning law, proof of current compliance or a promise that a similar proposal will be approved. Current LEP, DCP and authoritative spatial controls must be replayed independently.
+
+Discovery is a low-cost free or introductory feature. Protected OCR, extraction, conflict analysis and regeneration belong to the paid project and should run only for selected documents, with caching by permitted durable reference or content hash. Council adapters launch incrementally, beginning with Byron/Kempsey, and unsupported trackers fall back to a customer-supplied link or upload.
+
+Consequence: the evidence graph records source, date, authority, currency, scope, selection and copy basis. Pending, conflicting, expired or unreviewed evidence cannot resolve a deterministic gate. Production checkout remains disabled.
