@@ -50,6 +50,15 @@ Pending, rejected, expired, conflicting or secondary public evidence preserves t
 
 ## Protected runtime
 
-The route `/internal/item74h-commercial-acceptance` renders only on branch `agent/item74h-progressive-evidence-regeneration-20260902`, in Vercel Preview, while both checkout flags are not true. Middleware must return a real 404 for Production, main, every other branch or either checkout flag enabled.
+The route `/internal/item74h-commercial-acceptance` renders only on branch `agent/item77-protected-commercial-journey-20260902`, in Vercel Preview, while both checkout flags are not true. Middleware must return a real 404 for Production, main, every other branch or either checkout flag enabled.
 
 No schema, Production database, payment, credential or Production checkout change belongs to this slice.
+
+
+## Item 77 customer-journey continuation
+
+The same protected route now presents the accepted Item 74H evidence graph inside the complete commercial sequence: Property Check, A$49 Stripe test lifecycle, persistent pack, later evidence, exact-scope A$49 credit, and A$749 working SEE DOCX/PDF. This is a composed acceptance surface, not a Production launch claim.
+
+Long planning clauses use customer-controlled progressive disclosure. A concise view is shown first, with an accessible control to read the full clause and reduce it again. Motion is restrained, responsive and informational rather than decorative.
+
+A fresh Stripe hosted test lifecycle remains an execution gate. Production checkout remains disabled.
