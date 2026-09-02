@@ -1,0 +1,65 @@
+name: Stripe test session preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type PREPARE STRIPE TEST-MODE SESSION to create one unpaid protected Preview Checkout.
+        required: true
+        type: string
+      target_confirmation:
+        description: Confirm that the target is protected non-production only.
+        required: true
+        type: choice
+        options:
+          - PROTECTED NON-PRODUCTION
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-test-acceptance
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'PREPARE STRIPE TEST-MODE SESSION' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: stripe-test-acceptance
+    steps:
+      - name: Check out exact main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Verify preparation boundary
+        run: npx tsx --test tests/stripe-test-session-prepare.test.ts
+
+      - name: Prepare one unpaid test-mode session
+        run: npx tsx scripts/stripe-test-session-prepare.ts
+        env:
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_PREPARE_OUTPUT: ${{ runner.temp }}/stripe-test-session.json
+
+      - name: Retain private handoff briefly
+        uses: actions/upload-artifact@v4
+        with:
+          name: stripe-test-session-${{ github.run_id }}
+          path: ${{ runner.temp }}/stripe-test-session.json
+          if-no-files-found: error
+          retention-days: 1
