@@ -1,0 +1,48 @@
+name: Item 74H HTTP guard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/item74h-http-guard.yml"
+      - "middleware.ts"
+      - "src/middleware.ts"
+      - "src/middleware.test.ts"
+      - "src/lib/middleware-session.ts"
+      - "src/lib/middleware-session.test.ts"
+      - "src/lib/item74h-visual-acceptance.ts"
+      - "src/lib/item74h-visual-acceptance.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-http-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  http-guard:
+    name: Compiled location, cookie compatibility and true 404
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Require the src middleware boundary
+        run: |
+          test -f src/middleware.ts
+          test ! -f middleware.ts
+          ! grep -q '@/lib/auth' src/middleware.ts
+      - name: Verify HTTP guard and cookie compatibility
+        run: >-
+          npx vitest run
+          src/middleware.test.ts
+          src/lib/middleware-session.test.ts
+          src/lib/item74h-visual-acceptance.test.ts
