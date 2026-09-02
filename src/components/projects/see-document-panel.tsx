@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, Copy, Download } from "lucide-react";
+import { Check, ChevronDown, Copy, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
@@ -97,6 +97,18 @@ export function SeeDocumentPanel({
 }: SeeDocumentPanelProps) {
   const [visibleSections, setVisibleSections] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [expandedClauses, setExpandedClauses] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const toggleClause = (clauseId: string) => {
+    setExpandedClauses((current) => {
+      const next = new Set(current);
+      if (next.has(clauseId)) next.delete(clauseId);
+      else next.add(clauseId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (visibleSections >= SECTION_COUNT) return;
@@ -137,7 +149,7 @@ export function SeeDocumentPanel({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-slate-700 bg-slate-900 p-5 text-sm">
       {show(0) && (
-        <div className="flex items-start justify-between gap-3 border-b border-slate-700 pb-4">
+        <div className="flex flex-col gap-3 border-b border-slate-700 pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-white">
               Statement of Environmental Effects
@@ -152,7 +164,7 @@ export function SeeDocumentPanel({
                 : ""}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
             <Button
               size="sm"
               variant="outline"
@@ -263,26 +275,52 @@ export function SeeDocumentPanel({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             4. Relevant DCP Clauses
           </h3>
-          {clauses.map((cl, i) => (
-            <div
-              key={`${cl.ref ?? "clause"}-${i}`}
-              className="rounded-md border border-slate-700 bg-slate-800/50 px-3 py-2 text-xs"
-            >
-              <p className="font-semibold text-white">
-                [{cl.ref ?? "?"}] {cl.title}
-              </p>
-              {cl.headingPath && cl.headingPath.length > 0 && (
-                <p className="text-[10px] text-slate-500">
-                  {cl.headingPath.join(" › ")}
+          {clauses.map((cl, i) => {
+            const clauseId = `dcp-clause-${i}`;
+            const expanded = expandedClauses.has(clauseId);
+            const canExpand = (cl.bodyText?.length ?? 0) > 180;
+
+            return (
+              <article
+                key={`${cl.ref ?? "clause"}-${i}`}
+                className="rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-3 text-xs transition-colors duration-300 hover:border-slate-600"
+              >
+                <p className="font-semibold text-white">
+                  [{cl.ref ?? "?"}] {cl.title}
                 </p>
-              )}
-              {cl.bodyText && (
-                <p className="mt-1 line-clamp-4 text-slate-300">
-                  {cl.bodyText}
-                </p>
-              )}
-            </div>
-          ))}
+                {cl.headingPath && cl.headingPath.length > 0 && (
+                  <p className="mt-0.5 text-[10px] text-slate-500">
+                    {cl.headingPath.join(" › ")}
+                  </p>
+                )}
+                {cl.bodyText && (
+                  <div
+                    id={clauseId}
+                    className={`relative mt-2 overflow-hidden transition-[max-height] duration-500 ease-out ${expanded ? "max-h-[80rem]" : "max-h-16"}`}
+                  >
+                    <p className="leading-5 text-slate-300">{cl.bodyText}</p>
+                    {!expanded && canExpand ? (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-slate-800 to-transparent" />
+                    ) : null}
+                  </div>
+                )}
+                {canExpand ? (
+                  <button
+                    type="button"
+                    aria-controls={clauseId}
+                    aria-expanded={expanded}
+                    onClick={() => toggleClause(clauseId)}
+                    className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-full border border-slate-600 px-3 py-1.5 font-medium text-sky-300 transition-colors duration-200 hover:border-sky-400 hover:bg-sky-400/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                  >
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
+                    />
+                    {expanded ? "Show less" : "Read full clause"}
+                  </button>
+                ) : null}
+              </article>
+            );
+          })}
         </section>
       )}
 

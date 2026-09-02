@@ -1295,3 +1295,12 @@ Official determinations and stamped plans are dated case evidence. Submitted SEE
 Discovery is a low-cost free or introductory feature. Protected OCR, extraction, conflict analysis and regeneration belong to the paid project and should run only for selected documents, with caching by permitted durable reference or content hash. Council adapters launch incrementally, beginning with Byron/Kempsey, and unsupported trackers fall back to a customer-supplied link or upload.
 
 Consequence: the evidence graph records source, date, authority, currency, scope, selection and copy basis. Pending, conflicting, expired or unreviewed evidence cannot resolve a deterministic gate. Production checkout remains disabled.
+
+
+## 2026-09-02 - Commercial proof must be one customer journey, with progressive disclosure
+
+Decision: the next Item 74 acceptance composes existing services rather than creating another parallel product or duplicate commercial model. Property Check, A$49 pack purchase, evidence intake, regeneration, exact-scope credit and A$749 working SEE remain one persistent project and provenance chain.
+
+Long clauses and dense evidence are concise by default but never hidden permanently. Customers can expand the complete text and reduce it again with accessible controls. Motion may reinforce sequence and state changes, but must be restrained, responsive and must not delay access to planning information.
+
+Consequence: the deterministic composite gate proves contract compatibility; a fresh protected Stripe hosted lifecycle proves payment execution; exact-head Preview proves customer presentation. None of these activates Production checkout or changes Production data/schema without separate approval.

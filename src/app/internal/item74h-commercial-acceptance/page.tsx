@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { Item74hCommercialPreviewHarness } from "@/components/projects/item74h-commercial-preview-harness";
 import { type CandidateGateDecision } from "@/lib/item74h-candidate-reviewed-pathway";
+import { PLANNING_CONTROLS_PACK_TERMS } from "@/lib/planning-pack-commerce";
 import {
   buildItem74hProgressiveEvidenceRegenerationProof,
   type Item74hProgressiveEvidenceRegenerationProof,
@@ -15,12 +16,48 @@ import {
   type PathwayCustomerResultInput,
 } from "@/lib/pathway-customer-result";
 import { attachPersistedPathwayProgressiveCommercialBinding } from "@/lib/pathway-progressive-commercial-binding";
+import { SUBMISSION_SEE_COMMERCIAL_TERMS } from "@/lib/submission-see-credit";
 import type { QuickSiteCheckLepSuccess } from "@/types/quick-site-check-lep";
 
 export const dynamic = "force-dynamic";
 
 const asOf = new Date("2026-09-02T02:15:00.000Z");
 const currentUntil = new Date("2026-10-02T00:00:00.000Z");
+
+const aud = (minor: number) => `A${(minor / 100).toFixed(0)}`;
+
+const commercialJourney = [
+  {
+    step: "01",
+    label: "Property Check",
+    detail: "Site, pathway and evidence gaps",
+  },
+  {
+    step: "02",
+    label: `${aud(PLANNING_CONTROLS_PACK_TERMS.amountMinor)} Controls Pack`,
+    detail: "Stripe test lifecycle and one exact-scope pack",
+  },
+  {
+    step: "03",
+    label: "Living project",
+    detail: "Uploads strengthen the same purchased scope",
+  },
+  {
+    step: "04",
+    label: "Evidence review",
+    detail: "Authority, currency and conflicts stay visible",
+  },
+  {
+    step: "05",
+    label: `${aud(SUBMISSION_SEE_COMMERCIAL_TERMS.planningPackCreditMinor)} credit`,
+    detail: `${aud(SUBMISSION_SEE_COMMERCIAL_TERMS.creditedPayableMinor)} remains toward the SEE`,
+  },
+  {
+    step: "06",
+    label: `${aud(SUBMISSION_SEE_COMMERCIAL_TERMS.listAmountMinor)} working SEE`,
+    detail: "Regenerated DOCX and PDF, not submission ready",
+  },
+] as const;
 
 function toCustomerGateOutcome(
   outcome: CandidateGateDecision,
@@ -236,15 +273,35 @@ export default function Item74hCommercialAcceptancePage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
           Protected Preview acceptance
         </p>
-        <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-          Same-project evidence regeneration
+        <h1 className="mt-2 text-3xl font-semibold text-slate-950 sm:text-4xl">
+          One project, one commercial journey
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700">
-          The reviewed Byron case now accepts survey, consultant and selected
-          public DA evidence into one evidence graph. Generation 2 of both
-          working products is bound to the same purchased scope; unresolved
-          evidence stays visible and neither checkout is active.
+          This protected Preview brings the accepted Property Check, A$49 pack,
+          progressive evidence, exact-scope credit and A$749 working SEE
+          contracts into one customer story. It does not activate either
+          Production checkout or relabel unresolved evidence as ready.
         </p>
+        <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {commercialJourney.map((stage, index) => (
+            <li
+              key={stage.step}
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+              style={{ animationDelay: `${index * 70}ms` }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-700">
+                Step {stage.step}
+              </span>
+              <h2 className="mt-2 font-semibold text-slate-950">
+                {stage.label}
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                {stage.detail}
+              </p>
+              <div className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-sky-500 transition-transform duration-300 group-hover:scale-x-100" />
+            </li>
+          ))}
+        </ol>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <h2 className="font-semibold text-slate-950">Private evidence</h2>
@@ -265,8 +322,10 @@ export default function Item74hCommercialAcceptancePage() {
           <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <h2 className="font-semibold text-slate-950">Regenerated products</h2>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              A$49 Controls Pack and A$749 working SEE are both generation 2,
-              remain not submission ready, and preserve the same-scope credit.
+              {aud(PLANNING_CONTROLS_PACK_TERMS.amountMinor)} Controls Pack
+              and {aud(SUBMISSION_SEE_COMMERCIAL_TERMS.listAmountMinor)} working
+              SEE are generation 2, remain not submission ready, and preserve
+              the exact-scope credit.
             </p>
           </section>
         </div>

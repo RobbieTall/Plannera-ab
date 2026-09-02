@@ -185,3 +185,10 @@ See [Database change control](docs/operations/database-change-control.md) and th
 Planning work can begin before every survey or consultant report exists. The A$49 Planning Controls Pack and A$749 working SEE retain unresolved evidence visibly and regenerate on the same purchased project as stronger evidence arrives.
 
 The protected Item 74H proof also introduces permission-aware DA History Assist for Byron: it can identify relevant public application records and classify their likely evidentiary role, but it does not bulk-copy Council documents or treat an earlier approval as current law. Selected documents require a permitted integration or customer-supplied private upload, and current LEP/DCP/spatial controls are independently replayed. Production checkout remains disabled.
+
+
+## Protected end-to-end commercial journey
+
+Item 77 composes the accepted commercial contracts into one protected non-production customer journey: Property Check, Stripe test-mode A$49 Planning Controls Pack, one persistent exact-scope project, later evidence and regeneration, one single-use A$49 credit, and the A$749 working SEE with DOCX/PDF outputs. The real SEE panel now lets customers expand and reduce long DCP clauses without losing the concise overview.
+
+This composition does not activate Production checkout. A fresh protected Stripe lifecycle and exact-head Preview acceptance must pass before pilot readiness is claimed.

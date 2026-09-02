@@ -1,5 +1,5 @@
 export const ITEM74H_VISUAL_ACCEPTANCE_BRANCH =
-  "agent/item74h-progressive-evidence-regeneration-20260902" as const;
+  "agent/item77-protected-commercial-journey-20260902" as const;
 
 export const ITEM74H_VISUAL_ACCEPTANCE_PATH =
   "/internal/item74h-commercial-acceptance" as const;

@@ -346,3 +346,12 @@ The paid project is an evolving evidence workspace, not a one-off PDF. Survey, c
 Public DA discovery is permission-aware. The introductory layer may search an allow-listed tracker and show application/document metadata. It does not claim a complete history and does not automatically copy files. A document enters protected project processing only through an authorised integration or explicit customer-supplied upload. Historical approvals remain analogous or site-history evidence; current controls are always revalidated.
 
 Missing evidence does not automatically block purchase or working generation. It blocks only the affected unsupported assertion and final/submission-ready status. Production checkout remains disabled until the separate launch decision.
+
+
+## Item 77 protected customer journey
+
+The next commercial acceptance joins the already-approved components into one customer-visible sequence rather than another disconnected proof. It must preserve exact project/site/QSC/proposal scope from Property Check through A$49 test purchase, pack generation, later evidence, regeneration, A$49 credit and A$749 working SEE outputs.
+
+The touched interface uses progressive disclosure for long clauses and evidence detail, keeps primary status and next action visible on mobile, and uses restrained motion that never delays access to planning information.
+
+Acceptance remains protected and non-production. The deterministic composite gate is followed by a fresh Stripe hosted test lifecycle and exact-head Vercel Preview. Production checkout remains disabled until separate explicit approval.
