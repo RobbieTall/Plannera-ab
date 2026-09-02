@@ -178,3 +178,10 @@ App runs at http://localhost:3000. Before testing LEP-grounded features, set DAT
 Vercel builds are schema-read-only. They generate the Prisma client, run the Byron/Kempsey read-only launch smoke, and compile the application; they do not run `prisma db push` or migrations. Database and data changes require a dedicated reviewed plan, isolated non-production verification, and separate explicit approval before any Production operation. Never copy database connection values into GitHub, documentation, chat, logs, artifacts, or tracked files.
 
 See [Database change control](docs/operations/database-change-control.md) and the [Byron/Kempsey soft-launch gate](docs/operations/soft-launch-gate.md).
+
+
+## Progressive project evidence
+
+Planning work can begin before every survey or consultant report exists. The A$49 Planning Controls Pack and A$749 working SEE retain unresolved evidence visibly and regenerate on the same purchased project as stronger evidence arrives.
+
+The protected Item 74H proof also introduces permission-aware DA History Assist for Byron: it can identify relevant public application records and classify their likely evidentiary role, but it does not bulk-copy Council documents or treat an earlier approval as current law. Selected documents require a permitted integration or customer-supplied private upload, and current LEP/DCP/spatial controls are independently replayed. Production checkout remains disabled.

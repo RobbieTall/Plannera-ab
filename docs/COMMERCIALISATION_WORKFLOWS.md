@@ -337,3 +337,12 @@ Write consultant credential disclosure for directory and RFQ pages
 Extend the accepted Byron/Kempsey whole-LGA source matrix into representative address-and-proposal golden journeys
 Complete whole-funnel non-production payment, referral, upload, regeneration and rendered-document acceptance
 Obtain separate explicit operator approval before any Production pack or SEE checkout activation
+
+
+## Item 74H progressive evidence and DA History Assist
+
+The paid project is an evolving evidence workspace, not a one-off PDF. Survey, consultant and selected public DA material is added to the exact existing scope, classified by authority and currency, reviewed for applicability, and then used to regenerate the working A$49 Planning Controls Pack and A$749 SEE.
+
+Public DA discovery is permission-aware. The introductory layer may search an allow-listed tracker and show application/document metadata. It does not claim a complete history and does not automatically copy files. A document enters protected project processing only through an authorised integration or explicit customer-supplied upload. Historical approvals remain analogous or site-history evidence; current controls are always revalidated.
+
+Missing evidence does not automatically block purchase or working generation. It blocks only the affected unsupported assertion and final/submission-ready status. Production checkout remains disabled until the separate launch decision.

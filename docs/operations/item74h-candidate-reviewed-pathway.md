@@ -13,7 +13,7 @@ This is a protected Preview acceptance slice. Production checkout remains disabl
 The internal acceptance route is `/internal/item74h-commercial-acceptance`. It is fail-closed and may render only when all of the following are true:
 
 - Vercel environment is Preview.
-- Git commit branch is exactly `agent/item74h-candidate-reviewed-pathway-20260901`.
+- Git commit branch is exactly `agent/item74h-progressive-evidence-regeneration-20260902`.
 - `PLANNING_PACK_CHECKOUT_ENABLED` is not `true`.
 - `SUBMISSION_SEE_CHECKOUT_ENABLED` is not `true`.
 
@@ -117,3 +117,8 @@ The existing progressive commercial binding is reused.
 The next protected acceptance should replay current LEP/DCP controls against the confirmed R2 proposal and reviewed consent conditions, then prove how legal set-out uncertainty is presented without blocking purchase or overstating submission readiness. Any future retained page must still pass the deny-network scan and zero-residue controls.
 
 Final submission readiness remains false until every material gap is closed and replayed through the same evidence digest and scope binding.
+
+
+## Superseding Preview acceptance
+
+The protected route now consumes the progressive evidence-regeneration proof documented in `docs/operations/item74h-progressive-evidence-regeneration.md`. The reviewed Byron facts remain the baseline; the new proof adds same-project evidence events and does not weaken any prior control or readiness boundary.

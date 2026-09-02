@@ -1439,3 +1439,20 @@ Success signal: a clean text-PDF council can be registered, prepared and made se
 - Final A$49 and A$749 stages still use the unchanged strict policy and remain blocked for the public Byron case.
 - The dedicated GitHub gate is pure and credential-free. Protected hosted persistence remains exact-branch, isolated Preview, zero-residue and checkout-disabled.
 - Next proof: run the exact-head protected Preview persistence/replay/cleanup gate, then inspect the real working outputs before considering merge.
+
+
+## 76) Item 74H same-project evidence regeneration and DA History Assist - IN REVIEW (2026-09-02)
+
+Scope: prove in protected Preview that survey, consultant and customer-selected public DA evidence enters the same purchased project, carries authority/currency/provenance, changes the evidence digest, and regenerates both working products without inventing compliance.
+
+Acceptance:
+
+- Private survey and consultant candidates remain pending until scan, applicability and operator review complete.
+- Official case records remain dated case evidence; submitted SEEs remain secondary and cannot override current LEP/DCP controls.
+- Byron DA discovery lists metadata only, requires customer selection and performs no automated document copy.
+- Only accepted current professional survey evidence may resolve legal set-out; only accepted authoritative replay may resolve final control currency.
+- Pending or conflicting evidence preserves Gate 04 while generation 2 of the A$49 and A$749 working products remains available on the same scope.
+- Final submission readiness and both Production checkout surfaces remain false.
+- No Prisma, Production data, payment, credential or Production checkout mutation is included.
+
+Reference: `docs/operations/item74h-progressive-evidence-regeneration.md`.
