@@ -1,0 +1,55 @@
+name: Item 77 protected commercial journey
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/item77-protected-commercial-journey.yml"
+      - "src/app/internal/item74h-commercial-acceptance/page.tsx"
+      - "src/components/projects/see-document-panel.tsx"
+      - "src/lib/item74h-visual-acceptance.ts"
+      - "tests/see-document-panel.test.tsx"
+      - "src/lib/stripe-test-acceptance.ts"
+      - "tests/stripe-test-acceptance.test.ts"
+      - "src/lib/submission-see-credit.ts"
+      - "src/lib/submission-see-credit.test.ts"
+      - "src/lib/item74h-progressive-evidence-regeneration.ts"
+      - "src/lib/item74h-progressive-evidence-regeneration.test.ts"
+      - "src/lib/submission-see-renderer.ts"
+      - "src/lib/submission-see-renderer.test.ts"
+      - "scripts/item74h-working-see-preview-acceptance.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item77-protected-commercial-journey-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commercial-journey:
+    name: Exact scope, credit, evidence, outputs and UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify Stripe test lifecycle contract
+        run: npx tsx --test tests/stripe-test-acceptance.test.ts
+      - name: Verify credit, evidence, rendering and progressive disclosure
+        run: >-
+          npx vitest run
+          src/lib/submission-see-credit.test.ts
+          src/lib/item74h-progressive-evidence-regeneration.test.ts
+          src/lib/submission-see-renderer.test.ts
+          src/lib/item74h-visual-acceptance.test.ts
+          tests/see-document-panel.test.tsx
+      - name: Verify qualified working DOCX/PDF regeneration
+        run: npm run --silent accept:item74h-working-see-preview
