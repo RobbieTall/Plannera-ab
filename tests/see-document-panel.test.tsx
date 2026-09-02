@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
@@ -36,7 +36,7 @@ const mockContent: WorkspacePreSeePlanningMemoContent = {
         ref: "DCP 2010 cl. 2.3",
         title: "Setback Requirements",
         headingPath: ["Part 2", "Setbacks"],
-        bodyText: "Front setbacks shall be no less than 4.5m.",
+        bodyText: "Front setbacks shall be no less than 4.5m. ".repeat(12),
         score: 0.9,
       },
     ],
@@ -62,5 +62,24 @@ describe("SeeDocumentPanel", () => {
   it("renders LEP instrument name after reveal", async () => {
     render(<SeeDocumentPanel content={mockContent} />);
     await screen.findByText(/Byron LEP 2014/i, {}, { timeout: 3000 });
+  });
+
+  it("lets the customer expand and reduce a long planning clause", async () => {
+    render(<SeeDocumentPanel content={mockContent} />);
+    const expand = await screen.findByRole(
+      "button",
+      { name: "Read full clause" },
+      { timeout: 3000 },
+    );
+
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(expand);
+    expect(
+      screen.getByRole("button", { name: "Show less" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+    expect(
+      screen.getByRole("button", { name: "Read full clause" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 });
