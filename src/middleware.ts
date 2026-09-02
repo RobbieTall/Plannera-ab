@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { createAnonymousSession, decodeSessionCookie, serializeSession, SESSION_COOKIE_NAME } from "@/lib/auth";
+import {
+  createMiddlewareAnonymousSession,
+  decodeMiddlewareSessionCookie,
+  MIDDLEWARE_SESSION_COOKIE_NAME,
+  serializeMiddlewareSession,
+} from "@/lib/middleware-session";
 import {
   ITEM74H_VISUAL_ACCEPTANCE_PATH,
   item74hVisualAcceptanceRequestAllowed,
 } from "@/lib/item74h-visual-acceptance";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -27,10 +32,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const existingCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const session = decodeSessionCookie(existingCookie) ?? createAnonymousSession();
-  const serialized = serializeSession(session);
-
+  const existingCookie = request.cookies.get(
+    MIDDLEWARE_SESSION_COOKIE_NAME,
+  )?.value;
+  const session =
+    (await decodeMiddlewareSessionCookie(existingCookie)) ??
+    createMiddlewareAnonymousSession();
+  const serialized = await serializeMiddlewareSession(session);
   const response = NextResponse.next();
 
   if (!existingCookie || existingCookie !== serialized.value) {
