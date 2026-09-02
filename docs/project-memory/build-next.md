@@ -1456,3 +1456,22 @@ Acceptance:
 - No Prisma, Production data, payment, credential or Production checkout mutation is included.
 
 Reference: `docs/operations/item74h-progressive-evidence-regeneration.md`.
+
+
+## 77) Protected end-to-end commercial customer journey - IN PROGRESS (2026-09-02)
+
+Scope: compose the accepted Property Check, A$49 Stripe test purchase, persistent exact-scope pack, progressive evidence intake, same-project regeneration, single-use A$49 SEE credit and A$749 working DOCX/PDF into one protected non-production journey.
+
+Acceptance:
+
+- the server-owned A$49 and A$749 terms and exact-scope credit remain unchanged;
+- one paid A$49 scope creates at most one pack and paid replay reuses it;
+- changed project, site, QSC or proposal cannot reuse purchase or credit;
+- missing evidence permits a clearly qualified working product but never submission-ready status;
+- later reviewed evidence changes the evidence digest and regenerates the same project with predecessor lineage;
+- long clauses are concise by default and fully accessible through keyboard-operable expand/reduce controls;
+- the touched journey remains usable on mobile and desktop with restrained, non-blocking motion;
+- GitHub composite gates, a fresh protected Stripe test lifecycle and exact-head Vercel Preview all pass;
+- Production checkout remains disabled and no Production data/schema mutation is authorised.
+
+Reference: `docs/operations/item74h-progressive-evidence-regeneration.md`.
