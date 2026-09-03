@@ -18,9 +18,15 @@ Production checkout must remain disabled: `PLANNING_PACK_CHECKOUT_ENABLED` is fa
 - The same dedicated `cs_test_` ID is reused for `before_payment`, `paid`, paid replay and `refunded`.
 - Changed-proposal and other-project scopes remain denied, duplicate Checkout creation remains denied, and safe output remains limited to the allowlisted summary schema.
 
+## Protected session preparation
+
+The unpaid-session preparation workflow accepts only the dedicated stable protected Preview alias (or its reviewed deployment hostname), never a Production/main alias. Its `PLANNERA_STRIPE_TEST_SESSION_COOKIE` secret must contain exactly one complete secure cookie pair in the form `__Secure-next-auth.session-token=<opaque value>`; do not store only the token, all browser cookies, or any value in documentation or logs.
+
+Before attempting the checkout POST, the preparer now calls the read-only `/api/auth/session` endpoint through Vercel protection and requires a non-empty authenticated user ID. A malformed cookie fails before any network request; an expired, revoked or unrecognised session fails before any checkout creation. Refresh that environment secret only from a newly signed-in dedicated non-production requester on the stable acceptance alias. Never reuse a Production/customer session.
+
 ## Evidence boundary
 
-Focused deterministic tests cover malformed Checkout IDs and persistent paid replay. They prove the draft hardening implementation only. The draft hardening remains **NOT RE-EXECUTED** until an operator deliberately runs the protected workflow against an approved non-Production candidate and reviews the privacy-minimal evidence.
+Focused deterministic tests cover malformed Checkout IDs, the protected authentication preflight and persistent paid replay. They prove the draft hardening implementation only. The draft hardening remains **NOT RE-EXECUTED** until an operator deliberately runs the protected workflow against an approved non-Production candidate and reviews the privacy-minimal evidence.
 
 A fresh payment/refund lifecycle is not a prerequisite merely to continue Item 74 development. Require a new protected lifecycle only when a reviewed release candidate, payment contract or deployment boundary changes enough that the existing acceptance is no longer representative.
 

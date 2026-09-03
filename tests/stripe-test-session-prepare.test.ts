@@ -14,7 +14,8 @@ const env = {
     "https://plannera-abc123-robbietalls-projects.vercel.app",
   PLANNERA_STRIPE_TEST_PROJECT_ID: "project-a1",
   PLANNERA_STRIPE_TEST_PROPOSAL: "Protected synthetic proposal",
-  PLANNERA_STRIPE_TEST_SESSION_COOKIE: "private-cookie",
+  PLANNERA_STRIPE_TEST_SESSION_COOKIE:
+    "__Secure-next-auth.session-token=private-cookie-token",
   PLANNERA_STRIPE_TEST_VERCEL_BYPASS: "private-vercel-bypass",
 };
 
@@ -23,14 +24,41 @@ const checkoutResponse = () =>
   Response.json({
     checkoutUrl: `https://checkout.stripe.com/c/pay/${testSessionId}#test`,
   });
+const authenticatedSessionResponse = () =>
+  Response.json({ user: { id: "test-requester" } });
+
+const withAuthenticatedSession = (
+  checkout: () => Response | Promise<Response>,
+) => async (input: string | URL | Request) => {
+  if (String(input).endsWith("/api/auth/session")) {
+    return authenticatedSessionResponse();
+  }
+  return checkout();
+};
 
 const fetchOk = async (input: string | URL | Request, init?: RequestInit) => {
+  if (String(input).endsWith("/api/auth/session")) {
+    assert.equal(init?.method, "GET");
+    assert.equal(
+      (init?.headers as Record<string, string>).cookie,
+      env.PLANNERA_STRIPE_TEST_SESSION_COOKIE,
+    );
+    assert.equal(
+      (init?.headers as Record<string, string>)["x-vercel-protection-bypass"],
+      env.PLANNERA_STRIPE_TEST_VERCEL_BYPASS,
+    );
+    return authenticatedSessionResponse();
+  }
+
   assert.equal(
     String(input),
     `${env.PLANNERA_STRIPE_TEST_BASE_URL}/api/planning-pack/checkout`,
   );
   assert.equal(init?.method, "POST");
-  assert.equal((init?.headers as Record<string, string>).cookie, "private-cookie");
+  assert.equal(
+    (init?.headers as Record<string, string>).cookie,
+    env.PLANNERA_STRIPE_TEST_SESSION_COOKIE,
+  );
   assert.deepEqual(JSON.parse(String(init?.body)), {
     projectId: "project-a1",
     proposalBrief: "Protected synthetic proposal",
@@ -60,6 +88,9 @@ test("allows only the dedicated stable acceptance alias", async () => {
       PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: alias,
     },
     async (input) => {
+      if (String(input).endsWith("/api/auth/session")) {
+        return authenticatedSessionResponse();
+      }
       assert.equal(String(input), `${alias}/api/planning-pack/checkout`);
       return checkoutResponse();
     },
@@ -97,23 +128,81 @@ test("denies Production aliases and non-allowlisted hosts", async () => {
   );
 });
 
+test("requires the exact secure NextAuth cookie pair before any request", async () => {
+  let requests = 0;
+  await assert.rejects(
+    prepareStripeTestSession(
+      {
+        ...env,
+        PLANNERA_STRIPE_TEST_SESSION_COOKIE: "private-cookie-token",
+      },
+      async () => {
+        requests += 1;
+        return authenticatedSessionResponse();
+      },
+    ),
+    /session_cookie_invalid/,
+  );
+  assert.equal(requests, 0);
+});
+
+test("requires an authenticated session before posting Checkout", async () => {
+  let checkoutPosts = 0;
+  await assert.rejects(
+    prepareStripeTestSession(env, async (input) => {
+      if (String(input).endsWith("/api/auth/session")) {
+        return Response.json({});
+      }
+      checkoutPosts += 1;
+      return checkoutResponse();
+    }),
+    /session_cookie_not_authenticated/,
+  );
+  assert.equal(checkoutPosts, 0);
+
+  await assert.rejects(
+    prepareStripeTestSession(env, async () => new Response(null, { status: 401 })),
+    /session_preflight_failed_401/,
+  );
+});
+
 test("denies live, malformed and failed Checkout responses", async () => {
   await assert.rejects(
-    prepareStripeTestSession(env, async () =>
-      Response.json({
-        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_live_123",
-      }),
+    prepareStripeTestSession(
+      env,
+      withAuthenticatedSession(() =>
+        Response.json({
+          checkoutUrl: "https://checkout.stripe.com/c/pay/cs_live_123",
+        }),
+      ),
     ),
     /test_session_id_invalid/,
   );
   await assert.rejects(
-    prepareStripeTestSession(env, async () =>
-      Response.json({ checkoutUrl: "https://example.com/c/pay/cs_test_123" }),
+    prepareStripeTestSession(
+      env,
+      withAuthenticatedSession(() =>
+        Response.json({
+          checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123-invalid",
+        }),
+      ),
+    ),
+    /test_session_id_invalid/,
+  );
+  await assert.rejects(
+    prepareStripeTestSession(
+      env,
+      withAuthenticatedSession(() =>
+        Response.json({ checkoutUrl: "https://example.com/c/pay/cs_test_123" }),
+      ),
     ),
     /checkout_host_denied/,
   );
   await assert.rejects(
-    prepareStripeTestSession(env, async () => new Response(null, { status: 503 })),
+    prepareStripeTestSession(
+      env,
+      withAuthenticatedSession(() => new Response(null, { status: 503 })),
+    ),
     /checkout_request_failed_503/,
   );
 });
