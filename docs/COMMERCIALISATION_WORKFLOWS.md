@@ -355,3 +355,32 @@ The next commercial acceptance joins the already-approved components into one cu
 The touched interface uses progressive disclosure for long clauses and evidence detail, keeps primary status and next action visible on mobile, and uses restrained motion that never delays access to planning information.
 
 Acceptance remains protected and non-production. The deterministic composite gate is followed by a fresh Stripe hosted test lifecycle and exact-head Vercel Preview. Production checkout remains disabled until separate explicit approval.
+
+## Future evidence-aware concept design and CAD handoff
+
+This is an approved post-Item 77 product direction, not an active Production promise. It extends the same project, evidence graph, Planning Controls Pack, working SEE and consultant loop.
+
+Customer sequence:
+
+1. Upload a rough sketch, photograph, deposited plan or survey-derived markup.
+2. Plannera extracts visible geometry and written dimensions, classifies their source, and asks the customer to confirm or correct declared measurements.
+3. A deterministic geometry service creates a clean scaled concept; model reasoning may orchestrate operations but cannot establish measurement truth.
+4. Plannera overlays cited setbacks, mapped constraints, buildable envelopes and unresolved site evidence.
+5. The customer refines the concept conversationally or through simple controls, with immutable versions and provenance.
+6. Plannera produces responsive SVG/PDF previews and an editable, machine-validated DXF handoff.
+7. The concept, its assumptions and the original evidence remain available to the SEE and consultant workflows. Professional confirmation can strengthen the same project later without repurchase solely because evidence improved.
+
+Commercially, this can become a high-intent bridge between the A$49 Planning Controls Pack and the A$749 SEE, or a capability within the SEE/consultant package. Pricing is deliberately undecided until the narrow Byron/Kempsey proof measures model, geometry, rendering, support and professional-review costs.
+
+Guardrails:
+
+- never present a customer sketch, photograph or AI extraction as a current survey;
+- never infer absolute scale without at least one confirmed dimension or authoritative reference;
+- show known, declared, extracted, derived, conflicting and unresolved measurements distinctly;
+- fail closed on impossible or internally inconsistent geometry;
+- distinguish concept feasibility from certified design, construction documentation and submission readiness;
+- keep current planning-law validation independent of historical plans and analogous approvals;
+- require separate approval before Production uploads, checkout, paid entitlement or real-document processing.
+
+The authoritative capability contract and first-slice acceptance are in [Evidence-aware concept design](product/evidence-aware-concept-design.md).
+
