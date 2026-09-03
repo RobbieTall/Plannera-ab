@@ -192,3 +192,8 @@ The protected Item 74H proof also introduces permission-aware DA History Assist 
 Item 77 composes the accepted commercial contracts into one protected non-production customer journey: Property Check, Stripe test-mode A$49 Planning Controls Pack, one persistent exact-scope project, later evidence and regeneration, one single-use A$49 credit, and the A$749 working SEE with DOCX/PDF outputs. The real SEE panel now lets customers expand and reduce long DCP clauses without losing the concise overview.
 
 This composition does not activate Production checkout. A fresh protected Stripe lifecycle and exact-head Preview acceptance must pass before pilot readiness is claimed.
+
+## Future evidence-aware concept design
+
+After the protected Item 77 commercial journey is proven, Plannera may extend the same persistent project into an evidence-aware concept design workspace. A customer can upload a rough sketch, photograph or marked-up plan with dimensions; Plannera extracts and asks the customer to confirm those declared measurements, then a deterministic geometry service produces a clean scaled concept that can be refined against cited planning controls. Model reasoning may orchestrate extraction and design changes, but it is not the geometric authority. Every dimension retains its source and confidence, conflicting or missing measurements remain visible, and generated SVG/PDF/DXF material is labelled concept-only until an appropriate surveyor, designer or other professional confirms it for submission use. See [Evidence-aware concept design](docs/product/evidence-aware-concept-design.md).
+
