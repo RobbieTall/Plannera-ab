@@ -1475,3 +1475,22 @@ Acceptance:
 - Production checkout remains disabled and no Production data/schema mutation is authorised.
 
 Reference: `docs/operations/item74h-progressive-evidence-regeneration.md`.
+
+## Post-Item 77 direction: evidence-aware sketch-to-scaled concept
+
+Status: approved product direction; not the active acceptance gate and not a Production capability.
+
+Once the protected Property Check → A$49 pack → evidence/regeneration → exact-scope credit → A$749 working SEE journey is complete, prove one narrow concept-design slice inside the same project:
+
+- accept a synthetic rough sketch or marked-up plan with at least two user-declared dimensions;
+- preserve the original upload and immutable extraction/provenance record;
+- present extracted dimensions for explicit user confirmation rather than silently treating OCR or vision output as fact;
+- use a deterministic geometry kernel to create a closed, internally consistent scaled concept;
+- overlay cited planning setbacks, mapped constraints and unresolved evidence without converting assumptions into compliance claims;
+- support simple conversational revisions while retaining geometry and evidence version history;
+- render responsive SVG/PDF previews and a machine-validated editable DXF handoff;
+- label the result concept-only until the necessary surveyor/designer/professional confirmation is supplied;
+- keep Production checkout and Production document processing disabled until separately approved.
+
+The initial proof should use a representative synthetic Byron rural shed case, then a representative Kempsey case, before any general CAD promise. The model router should reserve the strongest reasoning/tool model for ambiguous extraction and design iteration, use economical models for routine classification, and keep all geometry, scale and export validation deterministic. The canonical contract is [docs/product/evidence-aware-concept-design.md](../product/evidence-aware-concept-design.md).
+
