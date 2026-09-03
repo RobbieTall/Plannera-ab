@@ -16,6 +16,9 @@ type FetchLike = (
 
 const PROTECTED_ACCEPTANCE_ALIAS =
   "plannera-ab-git-ops-stripe-test-acceptance-robbietalls-projects.vercel.app";
+const TEST_SESSION_ID = /^cs_test_[A-Za-z0-9]{1,247}$/;
+const SECURE_NEXT_AUTH_COOKIE =
+  /^__Secure-next-auth\.session-token=[^\s;]{8,4039}$/;
 
 const required = (
   env: StripeTestSessionPrepareEnvironment,
@@ -77,11 +80,48 @@ const sessionIdFromCheckoutUrl = (checkoutUrl: string): string => {
     throw new Error("checkout_host_denied");
   }
 
-  const sessionId = checkoutUrl.match(/cs_test_[A-Za-z0-9]{1,247}/)?.[0];
-  if (!sessionId || !/^cs_test_[A-Za-z0-9]{1,247}$/.test(sessionId)) {
+  const sessionId = parsed.pathname
+    .split("/")
+    .filter(Boolean)
+    .find((segment) => segment.startsWith("cs_"));
+  if (!sessionId || !TEST_SESSION_ID.test(sessionId)) {
     throw new Error("test_session_id_invalid");
   }
   return sessionId;
+};
+
+const requireAuthenticatedSession = async (
+  baseUrl: string,
+  headers: Record<string, string>,
+  fetchImpl: FetchLike,
+) => {
+  const response = await fetchImpl(`${baseUrl}/api/auth/session`, {
+    method: "GET",
+    redirect: "error",
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error(`session_preflight_failed_${response.status}`);
+  }
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error("session_preflight_invalid");
+  }
+
+  const user =
+    body && typeof body === "object"
+      ? (body as { user?: unknown }).user
+      : undefined;
+  const userId =
+    user && typeof user === "object"
+      ? (user as { id?: unknown }).id
+      : undefined;
+  if (typeof userId !== "string" || !userId.trim()) {
+    throw new Error("session_cookie_not_authenticated");
+  }
 };
 
 export const prepareStripeTestSession = async (
@@ -101,24 +141,25 @@ export const prepareStripeTestSession = async (
   if (proposalBrief.length < 3 || proposalBrief.length > 2_000) {
     throw new Error("proposal_invalid");
   }
-  if (
-    cookie.length < 8 ||
-    cookie.length > 4_096 ||
-    /[\r\n]/.test(cookie)
-  ) {
+  if (cookie.length > 4_096 || !SECURE_NEXT_AUTH_COOKIE.test(cookie)) {
     throw new Error("session_cookie_invalid");
   }
   if (!/^[A-Za-z0-9_-]{16,256}$/.test(vercelBypass)) {
     throw new Error("vercel_bypass_invalid");
   }
 
+  const headers = {
+    cookie,
+    "x-vercel-protection-bypass": vercelBypass,
+  };
+  await requireAuthenticatedSession(baseUrl, headers, fetchImpl);
+
   const response = await fetchImpl(`${baseUrl}/api/planning-pack/checkout`, {
     method: "POST",
     redirect: "error",
     headers: {
+      ...headers,
       "content-type": "application/json",
-      cookie,
-      "x-vercel-protection-bypass": vercelBypass,
     },
     body: JSON.stringify({ projectId, proposalBrief }),
   });
