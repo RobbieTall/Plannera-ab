@@ -1304,3 +1304,14 @@ Decision: the next Item 74 acceptance composes existing services rather than cre
 Long clauses and dense evidence are concise by default but never hidden permanently. Customers can expand the complete text and reduce it again with accessible controls. Motion may reinforce sequence and state changes, but must be restrained, responsive and must not delay access to planning information.
 
 Consequence: the deterministic composite gate proves contract compatibility; a fresh protected Stripe hosted lifecycle proves payment execution; exact-head Preview proves customer presentation. None of these activates Production checkout or changes Production data/schema without separate approval.
+
+## 2026-09-04 - Models orchestrate concept design; deterministic geometry remains authoritative
+
+Decision: Plannera may add an evidence-aware sketch-to-scaled-concept workspace after the protected Item 77 commercial journey is proven. A user may upload a rough sketch, photograph or marked-up plan and confirm its written dimensions. Model reasoning may interpret the drawing, ask focused questions and issue structured design operations, while a deterministic spatial/CAD service owns scale, topology, dimensions, constraint overlays and file validation.
+
+A sketch, photograph or model-derived measurement is declared or extracted evidence, not a survey fact. Each measurement records its source, confirmation state and confidence. Unknown, conflicting and stale geometry remains visible and blocks only the dependent assertion or submission-ready status; it does not prevent the user buying and progressively improving the same working project.
+
+Generated SVG, PDF, DXF or later CAD/BIM outputs are concept material until the appropriate professional confirms them. Plannera must not redraw or overwrite an authoritative survey as if it had become certified, infer absolute scale without a known dimension, or claim planning/building compliance from visual plausibility.
+
+Consequence: the capability extends the existing project evidence graph and SEE/consultant workflow rather than becoming a disconnected drawing product. Model choice is routed by task and benchmarked cost/quality; no single frontier model is a permanent architectural dependency. Production activation requires separate acceptance for extraction accuracy, deterministic geometry, provenance, export validity, responsive editing and professional handoff. See [docs/product/evidence-aware-concept-design.md](../product/evidence-aware-concept-design.md).
+
