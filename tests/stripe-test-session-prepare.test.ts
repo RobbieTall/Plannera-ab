@@ -19,6 +19,11 @@ const env = {
 };
 
 const testSessionId = "cs_test_1234567890ABCDEF";
+const checkoutResponse = () =>
+  Response.json({
+    checkoutUrl: `https://checkout.stripe.com/c/pay/${testSessionId}#test`,
+  });
+
 const fetchOk = async (input: string | URL | Request, init?: RequestInit) => {
   assert.equal(
     String(input),
@@ -30,9 +35,7 @@ const fetchOk = async (input: string | URL | Request, init?: RequestInit) => {
     projectId: "project-a1",
     proposalBrief: "Protected synthetic proposal",
   });
-  return Response.json({
-    checkoutUrl: `https://checkout.stripe.com/c/pay/${testSessionId}#test`,
-  });
+  return checkoutResponse();
 };
 
 test("prepares one strict test-mode Checkout handoff without exposing secrets", async () => {
@@ -47,20 +50,40 @@ test("prepares one strict test-mode Checkout handoff without exposing secrets", 
   assert.doesNotMatch(summary, /cs_test_|checkout\.stripe|private-cookie|proposal/i);
 });
 
-test("denies Production aliases and non-allowlisted hosts", async () => {
-  await assert.rejects(
-    prepareStripeTestSession(
-      {
-        ...env,
-        PLANNERA_STRIPE_TEST_BASE_URL:
-          "https://plannera-ab-robbietalls-projects.vercel.app",
-        PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL:
-          "https://plannera-ab-robbietalls-projects.vercel.app",
-      },
-      fetchOk,
-    ),
-    /production_or_unprotected_host_denied/,
+test("allows only the dedicated stable acceptance alias", async () => {
+  const alias =
+    "https://plannera-ab-git-ops-stripe-test-acceptance-robbietalls-projects.vercel.app";
+  const artifact = await prepareStripeTestSession(
+    {
+      ...env,
+      PLANNERA_STRIPE_TEST_BASE_URL: alias,
+      PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: alias,
+    },
+    async (input) => {
+      assert.equal(String(input), `${alias}/api/planning-pack/checkout`);
+      return checkoutResponse();
+    },
   );
+  assert.equal(artifact.baseUrl, alias);
+});
+
+test("denies Production aliases and non-allowlisted hosts", async () => {
+  for (const productionUrl of [
+    "https://plannera-ab-robbietalls-projects.vercel.app",
+    "https://plannera-ab-git-main-robbietalls-projects.vercel.app",
+  ]) {
+    await assert.rejects(
+      prepareStripeTestSession(
+        {
+          ...env,
+          PLANNERA_STRIPE_TEST_BASE_URL: productionUrl,
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: productionUrl,
+        },
+        fetchOk,
+      ),
+      /production_or_unprotected_host_denied/,
+    );
+  }
   await assert.rejects(
     prepareStripeTestSession(
       {

@@ -14,6 +14,9 @@ type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response>;
 
+const PROTECTED_ACCEPTANCE_ALIAS =
+  "plannera-ab-git-ops-stripe-test-acceptance-robbietalls-projects.vercel.app";
+
 const required = (
   env: StripeTestSessionPrepareEnvironment,
   name: string,
@@ -53,7 +56,10 @@ const protectedPreviewBaseUrl = (
 
   const protectedDeployment =
     /^plannera-[a-z0-9]{6,32}-robbietalls-projects\.vercel\.app$/;
-  if (!protectedDeployment.test(parsed.hostname)) {
+  if (
+    parsed.hostname !== PROTECTED_ACCEPTANCE_ALIAS &&
+    !protectedDeployment.test(parsed.hostname)
+  ) {
     throw new Error("production_or_unprotected_host_denied");
   }
 
