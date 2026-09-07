@@ -1315,3 +1315,23 @@ Generated SVG, PDF, DXF or later CAD/BIM outputs are concept material until the 
 
 Consequence: the capability extends the existing project evidence graph and SEE/consultant workflow rather than becoming a disconnected drawing product. Model choice is routed by task and benchmarked cost/quality; no single frontier model is a permanent architectural dependency. Production activation requires separate acceptance for extraction accuracy, deterministic geometry, provenance, export validity, responsive editing and professional handoff. See [docs/product/evidence-aware-concept-design.md](../product/evidence-aware-concept-design.md).
 
+## 2026-09-07 - Deployment builds are non-mutating; protected acceptance is a separate operation
+
+Status: **IN REVIEW / NO STATEFUL EXECUTION AUTHORIZED**
+
+Decision: a Vercel deployment build may generate the Prisma client, execute reviewed read-only or in-memory gates, and compile the application. It must not apply SQL, reconcile a migration ledger, write or clean database fixtures, write or delete Blob objects, or create/delete Sandbox resources. `vercel-build` is therefore an exact allowlist enforced before other build steps; each npm wrapper and direct entry source is pinned to its reviewed target and fingerprint.
+
+The Item 74H schema runner and stateful acceptance suites remain available only as manual GitHub workflows. Each run must be authorized for one full non-main commit SHA and identified isolated Preview endpoint, plus the exact private Blob target when required. Both checkout surfaces remain false. Workflow YAML cannot prove that GitHub environment reviewers or environment-scoped credentials have been configured, so an operator must inspect that external protection before dispatch.
+
+Migration-ledger reconciliation is not automated. The existing seven-file SQL runner remains separately guarded and non-transactional across files; target state and migration history require explicit operator review. Removing it from deployment builds does not break current Item 77 deterministic acceptance or UI presentation. Any future Item 77 persistence depending on Item 74H tables must use a separately completed schema step and fail closed if the target is not ready.
+
+Consequence: branch pushes may create Preview deployments without turning deployment into an implicit mutation approval. Stateful coverage is preserved but remains unexecuted until its external controls and isolated targets are explicitly reviewed. This decision authorizes no migration, acceptance run, cloud-resource mutation, Production checkout, refund, merge or manual deployment.
+## 2026-09-07 - Build and Preview authorization hardening clarification
+
+Status: **IN REVIEW / NO STATEFUL EXECUTION AUTHORIZED**
+
+Decision: manual Preview mutation workflows must prove authorisation without credentials before GitHub may enter the protected execution job. Dispatch inputs are data passed to a fixed command and validated against narrow formats. The exact checked-out SHA must equal the dispatch SHA and must not be an ancestor of `origin/main`; a non-main-looking branch name is insufficient. Protected secrets are step-scoped and appear only after environment allowlists have passed.
+
+The deployment verifier recursively fingerprints and scans the known local import closure of retained scripted gates, and Next.js compilation receives a scrubbed environment with known database, Blob, Sandbox, payment-write and acceptance credentials removed. This supersedes any interpretation that entry-file fingerprints alone prove all build behaviour non-mutating. Static checks cannot guarantee third-party semantics, generated or dynamically loaded code, unauthenticated side effects, or future framework behaviour. Independent review, least-privilege deployment configuration and the absence of write-capable deployment credentials remain required controls.
+
+Consequence: acceptance coverage remains available but separate and fail-closed. No migration, stateful acceptance, Production change, checkout activation, refund, merge or manual deployment is authorized by this clarification.

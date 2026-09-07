@@ -35,4 +35,4 @@ jobs:
           package-manager-cache: false
 
       - name: Verify protected Vercel smoke contract
-        run: node -e "const p=require('./package.json'); const smoke=p.scripts?.['smoke:launch']; const build=p.scripts?.['vercel-build']; if(smoke!=='tsx scripts/launch-smoke.ts'||typeof build!=='string'||build.includes('db:push')||build.includes('prisma db push')||!build.includes('npm run smoke:launch')||build.indexOf('npm run smoke:launch')>build.indexOf('next build')) throw new Error('Vercel builds must be schema-read-only and run npm run smoke:launch before next build')"
+        run: node ./scripts/verify-vercel-build-safety.mjs

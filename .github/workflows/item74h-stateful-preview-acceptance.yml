@@ -1,0 +1,179 @@
+name: Item 74H Stateful Preview Acceptance (Protected Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Exact stateful acceptance suite to run
+        required: true
+        type: choice
+        options:
+          - submission-credit
+          - pathway-persistence
+          - controlled-persistence
+          - private-evidence
+          - public-da
+          - candidate-da
+      expected_commit:
+        description: Full 40-character commit SHA authorized for this Preview acceptance
+        required: true
+        type: string
+      database_target:
+        description: Exact non-production Neon endpoint ID (ep-...)
+        required: true
+        type: string
+      blob_target:
+        description: Exact private Preview Blob store ID; required only for cloud suites
+        required: false
+        type: string
+      confirmation:
+        description: Type AUTHORIZE PREVIEW STATEFUL ACCEPTANCE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-stateful-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Credential-free exact-commit authorization
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the dispatched commit and main history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Reject unauthorized input or a commit contained in main
+        env:
+          ITEM74H_AUTH_PHASE: credential-free
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: ${{ inputs.suite }}
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+  execute:
+    name: ${{ inputs.suite }} on exact isolated Preview
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: item74h-stateful-preview-acceptance
+    env:
+      ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+      ITEM74H_AUTHORIZED_BLOB_TARGET: ${{ vars.ITEM74H_AUTHORIZED_BLOB_TARGET }}
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CREDIT_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE: "true"
+      ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_CLAMAV_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_CANDIDATE_DA_ACCEPTANCE_ENABLED: "true"
+      VERCEL: "1"
+      VERCEL_ENV: preview
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out the dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Recheck protected authorization and current main ancestry without credentials
+        env:
+          ITEM74H_AUTH_PHASE: protected
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: ${{ inputs.suite }}
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+      - name: Verify credentials are scoped to the authorized targets
+        env:
+          ITEM74H_AUTH_PHASE: credential-target
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: ${{ inputs.suite }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.blob_target }}
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      - name: Install without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Generate Prisma client
+        run: node ./scripts/prisma-generate.js
+
+      - name: Submission SEE credit persistence
+        if: inputs.suite == 'submission-credit'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+        run: npm run accept:submission-see-credit-preview
+
+      - name: Pathway persistence and replay cleanup
+        if: inputs.suite == 'pathway-persistence'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+        run: npm run accept:item74h-real-site-preview
+
+      - name: Controlled-address persistence and cleanup
+        if: inputs.suite == 'controlled-persistence'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_CONTROLLED_ADDRESS: ${{ secrets.ITEM74H_CONTROLLED_ADDRESS }}
+        run: npm run accept:item74h-controlled-persistence-preview
+
+      - name: Private Blob persistence and cleanup
+        if: inputs.suite == 'private-evidence'
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-private-blob-preview
+
+      - name: Private Sandbox/ClamAV acceptance and cleanup
+        if: inputs.suite == 'private-evidence'
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-clamav-preview
+
+      - name: Public DA evidence acceptance and cleanup
+        if: inputs.suite == 'public-da'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-public-da-preview
+
+      - name: Candidate DA evidence acceptance and cleanup
+        if: inputs.suite == 'candidate-da'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-candidate-da-preview

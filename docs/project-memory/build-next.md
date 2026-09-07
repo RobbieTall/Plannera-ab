@@ -1494,3 +1494,26 @@ Once the protected Property Check → A$49 pack → evidence/regeneration → ex
 
 The initial proof should use a representative synthetic Byron rural shed case, then a representative Kempsey case, before any general CAD promise. The model router should reserve the strongest reasoning/tool model for ambiguous extraction and design iteration, use economical models for routine classification, and keep all geometry, scale and export validation deterministic. The canonical contract is [docs/product/evidence-aware-concept-design.md](../product/evidence-aware-concept-design.md).
 
+
+## 78) Deployment build safety separation - IN REVIEW (2026-09-07)
+
+Scope: restore the documented rule that every Vercel deployment build is non-mutating, without losing the protected Preview evidence needed by Item 74H and Item 77.
+
+- `vercel-build` contains only an exact allowlist: Prisma generation, read-only Byron/Kempsey launch gates, read-only controlled-address preflight, in-memory working-SEE acceptance, and application compilation.
+- The build safety verifier resolves each permitted npm wrapper and pins the reviewed entry source, so a wrapper cannot silently introduce database, Blob, Sandbox or filesystem mutation.
+- Item 74H migrations and stateful acceptance move to separate manual workflows requiring an exact non-main commit, exact authorized Preview database target, exact Blob target where applicable, checkout-off state and explicit protected authorization.
+- GitHub environment protection, isolated credentials and per-run authorization are external prerequisites and must be inspected before any workflow run. Their existence is not inferred from repository YAML.
+- Migration-ledger reconciliation is not automated. Existing SQL sequencing and interruption risk remain operator-visible constraints.
+- Item 77's deterministic journey acceptance and UI work remain intact. Future durable Item 77 persistence must provision its Item 74H schema separately before deployment and fail closed when tables are absent.
+- No migration, stateful acceptance, cloud setting, Production checkout, refund, merge or deployment is authorized by this queue item.
+
+References: `docs/operations/database-change-control.md`; `docs/operations/item74h-real-site-preview-persistence.md`; `.github/workflows/item74h-preview-migration.yml`; `.github/workflows/item74h-stateful-preview-acceptance.yml`.
+### Item 78 build-safety hardening (2026-09-07 follow-up)
+
+- [x] Remove dispatch-input interpolation from protected workflow shell commands.
+- [x] Split credential-free Git/SHA authorisation from protected execution and scope secrets to individual steps.
+- [x] Reject commits contained in `origin/main` using Git ancestry evidence, not branch naming alone.
+- [x] Pin and scan the retained local build-script dependency closure; run Next.js compilation without known database, cloud-resource or payment-write credentials.
+- [x] Record the limits of static verification: fingerprints and source scanning reduce risk but do not prove all transitive or framework runtime behaviour.
+- [ ] Independently review the updated PR commit before merge.
+- [ ] Confirm GitHub environment protection, exact environment variables/secrets and non-production targets externally before any stateful workflow run.
