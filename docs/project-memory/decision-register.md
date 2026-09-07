@@ -1326,3 +1326,12 @@ The Item 74H schema runner and stateful acceptance suites remain available only 
 Migration-ledger reconciliation is not automated. The existing seven-file SQL runner remains separately guarded and non-transactional across files; target state and migration history require explicit operator review. Removing it from deployment builds does not break current Item 77 deterministic acceptance or UI presentation. Any future Item 77 persistence depending on Item 74H tables must use a separately completed schema step and fail closed if the target is not ready.
 
 Consequence: branch pushes may create Preview deployments without turning deployment into an implicit mutation approval. Stateful coverage is preserved but remains unexecuted until its external controls and isolated targets are explicitly reviewed. This decision authorizes no migration, acceptance run, cloud-resource mutation, Production checkout, refund, merge or manual deployment.
+## 2026-09-07 - Build and Preview authorization hardening clarification
+
+Status: **IN REVIEW / NO STATEFUL EXECUTION AUTHORIZED**
+
+Decision: manual Preview mutation workflows must prove authorisation without credentials before GitHub may enter the protected execution job. Dispatch inputs are data passed to a fixed command and validated against narrow formats. The exact checked-out SHA must equal the dispatch SHA and must not be an ancestor of `origin/main`; a non-main-looking branch name is insufficient. Protected secrets are step-scoped and appear only after environment allowlists have passed.
+
+The deployment verifier recursively fingerprints and scans the known local import closure of retained scripted gates, and Next.js compilation receives a scrubbed environment with known database, Blob, Sandbox, payment-write and acceptance credentials removed. This supersedes any interpretation that entry-file fingerprints alone prove all build behaviour non-mutating. Static checks cannot guarantee third-party semantics, generated or dynamically loaded code, unauthenticated side effects, or future framework behaviour. Independent review, least-privilege deployment configuration and the absence of write-capable deployment credentials remain required controls.
+
+Consequence: acceptance coverage remains available but separate and fail-closed. No migration, stateful acceptance, Production change, checkout activation, refund, merge or manual deployment is authorized by this clarification.

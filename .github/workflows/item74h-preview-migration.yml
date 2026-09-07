@@ -24,13 +24,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  migrate:
+  authorize:
+    name: Credential-free exact-commit authorization
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the dispatched commit and main history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Reject unauthorized input or a commit contained in main
+        env:
+          ITEM74H_AUTH_PHASE: credential-free
+          ITEM74H_AUTH_WORKFLOW: migration
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+  execute:
     name: Exact-commit isolated Preview migration
+    needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: item74h-preview-migration
     env:
-      DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
       ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
       ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
       ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
@@ -41,19 +61,28 @@ jobs:
       VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
       VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
     steps:
-      - name: Check out the exact authorized commit
+      - name: Check out the dispatched commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
         with:
-          ref: ${{ inputs.expected_commit }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Fail closed unless commit and Preview target are authorized
-        run: >-
-          node ./scripts/verify-preview-workflow-authorization.mjs
-          --workflow migration
-          --confirmation "${{ inputs.confirmation }}"
-          --expected-commit "${{ inputs.expected_commit }}"
-          --database-target "${{ inputs.database_target }}"
+      - name: Recheck protected authorization and current main ancestry without credentials
+        env:
+          ITEM74H_AUTH_PHASE: protected
+          ITEM74H_AUTH_WORKFLOW: migration
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+      - name: Verify credential is scoped to the authorized target
+        env:
+          ITEM74H_AUTH_PHASE: credential-target
+          ITEM74H_AUTH_WORKFLOW: migration
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.database_target }}
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
@@ -68,4 +97,6 @@ jobs:
         run: node ./scripts/prisma-generate.js
 
       - name: Apply the existing allowlisted Preview migration set
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
         run: npm run migrate:item74h-preview

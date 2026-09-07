@@ -1508,3 +1508,12 @@ Scope: restore the documented rule that every Vercel deployment build is non-mut
 - No migration, stateful acceptance, cloud setting, Production checkout, refund, merge or deployment is authorized by this queue item.
 
 References: `docs/operations/database-change-control.md`; `docs/operations/item74h-real-site-preview-persistence.md`; `.github/workflows/item74h-preview-migration.yml`; `.github/workflows/item74h-stateful-preview-acceptance.yml`.
+### Item 78 build-safety hardening (2026-09-07 follow-up)
+
+- [x] Remove dispatch-input interpolation from protected workflow shell commands.
+- [x] Split credential-free Git/SHA authorisation from protected execution and scope secrets to individual steps.
+- [x] Reject commits contained in `origin/main` using Git ancestry evidence, not branch naming alone.
+- [x] Pin and scan the retained local build-script dependency closure; run Next.js compilation without known database, cloud-resource or payment-write credentials.
+- [x] Record the limits of static verification: fingerprints and source scanning reduce risk but do not prove all transitive or framework runtime behaviour.
+- [ ] Independently review the updated PR commit before merge.
+- [ ] Confirm GitHub environment protection, exact environment variables/secrets and non-production targets externally before any stateful workflow run.
