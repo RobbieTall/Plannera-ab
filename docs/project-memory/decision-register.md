@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 41918)
-Total output lines: 1328
-
 # Decision Register
 
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
@@ -447,7 +444,386 @@ Gate status: OPEN with valid live evidence. Item 52 is no longer awaiting its fi
 
 Purpose: provide a secure, manually dispatched GitHub Actions lane for the already-merged fail-closed Item 52 commercial funnel audit runner, so the approved live Byron/Kempsey audit can be run without pasting the private admin token into chat and without local execution.
 
-Status: DONE/MERGED/DEPLOYED/CONFIGURED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. The protected environment was subsequently configur…11918 tokens truncated…ad-only GET per configured project; emits only an allowlisted documentation-safe summary; and fails closed for missing config, unsafe URLs, HTTP/auth/network/JSON/contract failures, project identity mismatches, or any broken QSC → DPP → SEE/referral invariant. The live gate cannot close unless both Byron and Kempsey golden chains independently pass.
+Status: DONE/MERGED/DEPLOYED/CONFIGURED. The protected lane merged in PR #295 at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` (reviewed head `fb752ea50ae307907549b945f6e7160920a806be`) and deployed successfully via Vercel deployment target `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`. The protected environment was subsequently configured with required-reviewer approval, main-only deployment policy, the private audit secret, and the three required variables. Run `29492417071` proved the lane executes safely; attempt 2 authenticated and produced the valid non-ready Item 52 evidence above. No projects were created and no production data was mutated. Billing, checkout, subscriptions, auth gating, and payment unlock remain deferred.
+
+Files changed in this slice:
+
+- `.github/workflows/commercial-funnel-live-audit.yml` — adds a `workflow_dispatch`-only protected environment lane requiring exact confirmation `RUN APPROVED READ-ONLY AUDIT`, `main` branch guard, read-only contents permission, non-cancelling concurrency, 10-minute timeout, immutable official action pins, `npm ci --ignore-scripts`, exactly one execution of `./node_modules/.bin/tsx scripts/audit-commercial-funnel.ts`, stdout capture to `commercial-funnel-audit.json`, JSON validation before display/upload, 14-day safe summary artifact retention, and final exit-0-only enforcement.
+- `tests/commercial-funnel-audit-workflow.test.ts` — static Node contract coverage for manual-only trigger, protected environment, main-only guard, approved vars/secret mapping, `github.sha` expected commit, exact runner invocation, forbidden commands/surfaces, JSON validation, safe artifact upload, final gate policy, and official full-SHA action pins.
+- `README.md` — adds protected remote-run setup and operator steps without secret or project values.
+- `docs/project-memory/decision-register.md` — adds DR-022 for the protected manual remote audit lane policy.
+
+Pinned official action SHAs selected for this lane:
+
+- `actions/checkout` v6.0.2 — `de0fac2e4500dabe0009e67214ff5f5447ce83dd`.
+- `actions/setup-node` v6.4.0 — `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
+- `actions/upload-artifact` v7.0.1 — `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`.
+
+Configuration completed on 2026-07-16: the protected GitHub environment `commercial-funnel-audit` has required reviewer `RobbieTall`, administrator bypass disabled, selected-branch policy limited to `main`, secret `PLANNERA_AUDIT_ADMIN_TOKEN`, and variables `PLANNERA_AUDIT_BASE_URL`, `PLANNERA_BYRON_PROJECT_ID`, and `PLANNERA_KEMPSEY_PROJECT_ID`. Secret values remain undocumented. The effective production admin credential follows `ADMIN_ACCESS_TOKEN` → `INGEST_ADMIN_SECRET` → `ADMIN_SECRET` precedence; the audit secret must match the first configured value. The workflow continues to derive `PLANNERA_AUDIT_EXPECTED_COMMIT` from `github.sha`.
+
+Checks for this slice:
+
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts` — 6 focused workflow contract tests passed.
+- PASS: `npx tsx --test tests/commercial-funnel-audit-workflow.test.ts tests/commercial-funnel-audit-runner.test.ts` — 12 focused workflow plus existing runner tests passed.
+- PASS: `ruby -e "require 'yaml'; YAML.load_file('.github/workflows/commercial-funnel-live-audit.yml'); puts 'YAML parsed'"` — non-executing YAML syntax parse/check completed for `.github/workflows/commercial-funnel-live-audit.yml`.
+- PASS: `npm run lint`.
+- PASS: `npx tsc --noEmit`.
+- PASS: `npm test` — full suite passed with 77 Node tests plus 48 Vitest files / 225 Vitest tests.
+- PASS: `npm run build`.
+- PASS: PR #295 squash-merged to `main` at exact merge commit `5582c2e83c0d3195805424e4c6a72703b221c916`; the reviewed final head was `fb752ea50ae307907549b945f6e7160920a806be` and the merged diff remained exactly five intended files.
+- PASS: Vercel reported success for merge commit `5582c2e83c0d3195805424e4c6a72703b221c916` at `https://vercel.com/robbietalls-projects/plannera-ab/fWBS4p1HGRTDzq339Ck6uRvS8Ssp`.
+- NOT RERUN FOR REVIEW CORRECTION: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres" npm run vercel-build` — intentionally not run again per review instruction; prior Item 53 verification had already recorded the known Codex Cloud `P1001` limitation.
+
+Lane status: DONE. Item 52 commercial readiness remains OPEN because the protected run returned valid exit `2`; both approved saved chains are missing.
+
+
+## 54) Live golden identity hardening and saved-output remediation — IDENTITY SLICE DONE/MERGED/DEPLOYED; SAVED-OUTPUT REMEDIATION OPEN (2026-07-16)
+
+Purpose: act on the first valid protected production audit without weakening its fail-closed contract or manufacturing readiness. This item separates representation-only identity mismatches from the real missing QSC → DPP → SEE chains.
+
+Identity slice completion:
+
+- PR #297 merged at exact commit `5cb75a51894aab40e701bff4d3f541cbff85e71d`.
+- Vercel production deployment succeeded at `https://vercel.com/robbietalls-projects/plannera-ab/BWaaGemdMei5UcPDNLUtquWCvdWs`.
+- Golden identity comparison now canonicalises only case/punctuation, `Road`/`Rd`, `Street`/`St`, whitespace, and the optional `Australia` suffix. Site number, locality, postcode, zone, and approved project identifier still must match.
+- The audit contract's canonical `lgaName` is accepted when `lgaCode` is null after removing council-type suffixes such as `Shire` and `Council`. Missing or conf…16055 tokens truncated…sure PR to say both projects reached an accepted terminal journey, rather than incorrectly claiming both chains are ready.
+
+## 72) Exact project-bound one-time DCP pack purchase — ITEM 72C COMPLETE; PRODUCTION CHECKOUT NOT ACTIVATED
+
+Purpose: charge once for proposal-specific DCP intelligence without allowing payment state to weaken evidence quality or cross project/site/proposal boundaries. The approved offer is the Planning Controls Pack at A$49.00 total including GST.
+
+Item 72A status: ✅ DONE (2026-07-26). PR #318 added the provider-neutral purchase and exact-scope entitlement domain foundation. PR #319 then hardened settlement and terminal lifecycle transitions against replay and concurrency, repaired the executable test harness, and placed the purchase-entitlement suite inside the mandatory Commercial Funnel Golden Gate. Checkout is still not launched: there is no selected payment provider, checkout, webhook, API route, UI, production price/flag/secret, DPP entitlement gate, customer payment event, live provider call, project mutation or consultant delivery. Existing free Detailed Planning Pack generation remains unchanged until the operator explicitly approves checkout launch.
+
+Item 72B status: ✅ IMPLEMENTED, NOT ACTIVATED (2026-07-26). Stripe hosted Checkout is implemented for the server-owned `planning_controls_pack` `v1` offer at A$49.00 total including GST, with exact-scope authenticated checkout/status routes, raw-body signature-verified idempotent webhook lifecycle with exact paid-fact validation and non-2xx reconciliation on contradictory money events, atomic opaque provider references, provider-confirmed full-refund revocation, minimal workspace UI and a feature-flagged DPP generation entitlement boundary. `PLANNING_PACK_CHECKOUT_ENABLED` is false/absent by default, so free DPP behavior is preserved and builds/previews require no Stripe configuration. Production checkout is explicitly not activated; no production secrets/flags were changed and no live charge was made.
+
+Approved retry/refund contract: the same exact requester/project/current-site QSC/proposal fingerprint/product/version may retry or regenerate without another payment; any changed scope requires a new purchase. Payment never upgrades cited/unresolved evidence. A persisted truthful pack including unresolved topics is delivered value for expert review. Only inability to generate and persist because of system/retrieval failure triggers a full original-method refund, and Plannera records `REFUNDED` only after provider confirmation.
+
+Activation gates still required before any launch:
+- Explicit production checkout approval and an operator runbook covering Stripe configuration, webhook health, reconciliation, support and confirmed-refund verification.
+- Stripe Tax registration/settings and an appropriate default product tax code must be configured and verified without hard-coding a tax code in Plannera. Protected Stripe test-mode acceptance must show the Australian billing case itemises A$4.45 GST inside the fixed A$49.00 customer total.
+- Protected non-production lifecycle evidence is complete for the accepted release; Production activation still requires the established current-release Byron/Kempsey gate and explicit operator approval.
+- Production secrets/URLs and the feature flag must be configured only during the separately approved activation change.
+
+Required contract:
+- Checkout is offered only after same-project promotion and a quality-valid current-site QSC plus non-empty proposal brief. The server creates a purchase intent from the owned project, exact QSC artefact ID, normalized proposal fingerprint, product/version and server-configured price; none is accepted from browser display state.
+- Payment-provider checkout and webhook handling are server-side, signature-verified and idempotent. A redirect/success page never grants access by itself.
+- The durable entitlement names the purchaser/requester, project, site/QSC snapshot, proposal fingerprint, product version, amount/currency, provider transaction and lifecycle state. It cannot unlock another project, changed site or materially changed proposal.
+- DPP generation verifies the paid entitlement at the server boundary before retrieval/persistence. Evidence qualification and `commercialReady` remain exactly fail-closed; payment purchases the analysis, not a favourable result.
+- Retries for the same paid scope are idempotent and the regeneration/refund policy is explicit. Failed or unavailable evidence produces the promised resolution path without silently consuming value or fabricating controls.
+- Test/bypass/admin operation is explicit and server-derived, excluded from customer conversion, and impossible to activate with client fields. Secrets, transaction details and contact data never enter artefact text or analytics properties.
+
+Verification must cover forged checkout fields, replayed webhooks, duplicate delivery, cross-user/project/site/proposal reuse, changed proposal, cancelled/failed/refunded states, guest-to-account claiming, DPP generation without entitlement, and successful exact-scope generation. Item 72B implements the approved provider and terms without activating production checkout.
+
+
+Senior-review hardening evidence: behavioral tests now execute the checkout controller, Stripe adapter request, signature-verification boundary, normalized event application, DPP entitlement boundary and purchase lifecycle service rather than regex-matching source. They prove already-entitled checkout makes no new purchase/provider call, unpaid redirect grants nothing, exact paid settlement and duplicate replay, paid-fact mismatch denial, cross-session denial, non-2xx contradictory transitions, durable refund-before-paid, partial-refund rejection, atomic reference races, feature-off compatibility and feature-on pre-generation denial. The Commercial Funnel Golden Gate runs these tests automatically.
+
+Merge and verification evidence:
+- PR #318 merged to `main` as `38c3386b3d7d2b234c6074d8858650509610db00`, adding the provider-neutral schema, migration, exact-scope service, tests and DR-044 without enabling checkout or changing free DPP access.
+- Review identified replay, terminal-transition and concurrent intent-creation gaps after #318 merged. PR #319 closed those gaps and merged to `main` as `e42d1303a822fbdbd81809c3b21295debc390ae1`.
+- Final #319 head `b48811bfe5d7b9eb5f8cb4e39bf76ad477d12116` passed Commercial Funnel Golden Gate run `30182618113` (#87): 105 Node tests and 69 Vitest tests passed with zero failures. Its Vercel preview also passed.
+- The commercial gate now executes `tests/purchase-entitlements.test.ts` and the behavioral `tests/planning-pack-checkout.test.ts` on every covered PR. Regression coverage includes replay after revoke/refund, guarded and idempotent terminal transitions, concurrent purchase-intent creation, cancellation winning during settlement, exact-scope isolation and privacy-minimal persistence.
+- Item 72A was the domain foundation. Item 72B implements the subsequently approved provider, terms, refund boundary and feature-gated entitlement check; it does not approve or perform production activation.
+
+### Item 72C — protected Stripe test-mode acceptance infrastructure — ✅ COMPLETE (2026-08-02)
+
+Item 72C adds the manual-dispatch, protected `stripe-test-acceptance` environment contract, fail-closed executable runner, safe artifact, focused tests, and operator runbook. It requires an operator-provided non-production deployment, dedicated requester/projects/current QSC/proposal, test key/session cookie, and one manual Stripe-hosted Australian test payment. It validates Stripe provider facts (test mode, paid payment session, one AUD 49.00 line with AUD 4.45 tax), webhook-settled exact entitlement, duplicate Checkout denial, changed-proposal and cross-project/site/QSC isolation, and three-phase before-payment/paid/refunded lifecycle and full-refund terminal reconciliation. It never prints raw provider responses or address/proposal/contact/card/secret data and never creates an environment, configures a secret, stores card data, aims at Production, or treats a redirect as settlement.
+
+Protected test-mode acceptance completed all three phases on one dedicated Checkout: `before_payment` run `30732647096`, corrected `paid` run `30734666290`, and `refunded` run `30735071908` passed. The sandbox payment was A$49.00 AUD with A$4.45 GST; exact-scope entitlement, changed-scope denial, one DPP creation, full refund, webhook-backed entitlement removal, and preservation of the project/QSC chain were independently observed. Safe final paid/refunded artifacts were `8829151091` and `8829295014`; the latter has digest `bdff979152e7b14d6993566bc4960e9014e48033d4112f11803a92de0a8ad015` and expires 2026-08-16. PR #331 repaired the verifier-only public/internal project-ID mismatch exposed by the first paid run and merged as `ec8875138462c50b98da2151b2ba3be1e86d0259` before the final green paid/refunded runs.
+
+Item 72C proves the protected non-production lifecycle; it does not activate checkout. Production `PLANNING_PACK_CHECKOUT_ENABLED` remains false/absent, and Production keys, webhook destination, payment data, projects and configuration were untouched. Production activation remains a separate explicit operator decision. The next build priority is Item 73.
+
+## 73) Real consultant referral submission and delivery state — ✅ COMPLETE, NOT PRODUCTION-ACTIVATED (2026-08-03)
+
+Current truth: Plannera already creates a self-contained, exact-DPP-bound Expert Review Request with cited requirements, gaps, assumptions and review scope, and lets the user copy/download it. That is consultant-ready packaging, not transmission to a consultant, quote request, acceptance, or completed referral.
+
+Minimum launch delivery contract:
+- The Planning Feasibility and Delivery Plan classifies each professional input as `Required`, `Conditional`, `Recommended`, or `Not identified from current evidence`, with the exact trigger, source, question and expected deliverable. It never promises that no later council or professional request will arise.
+- A user explicitly consents to submit one exact saved review-request artefact and supplies only the contact details required for follow-up. The server re-resolves project ownership and exact current DPP/QSC/SEE provenance; stale or changed proposals cannot be submitted.
+- Submission persists an immutable package snapshot plus operational status (`submitted`, `acknowledged`, `assigned`, `needs_information`, `declined`, `closed`) and a non-secret audit trail. Retries are idempotent and cannot send duplicate referrals.
+- The initial delivery target may be a truthful human-operated Plannera referral queue. Do not claim automated matching, consultant availability, response times, credentials or quote competition until those systems and disclosures exist.
+- User-facing confirmation distinguishes “package saved”, “submitted to Plannera”, “sent to consultant”, and “consultant acknowledged”. Copy/download remains available but cannot advance delivery status.
+- Contact information and package contents are excluded from analytics events and require reviewed retention, access, deletion and disclosure handling.
+
+Completion evidence requires server tests for ownership/provenance, duplicate submission, stale scope, status transitions and delivery failure; UI tests for explicit consent and truthful states; and an operationally verified non-production delivery target before production enablement.
+
+Implementation merged in PR #333 (`d536ae2848cf96c36aca65191b91d1df6237781c`):
+
+- Expert Review Request generation deterministically derives a versioned consultant-needs matrix from the exact current Quick Site Check and Planning Controls Pack. Statuses are limited to `Required`, `Conditional`, `Recommended`, and `Not identified from current evidence`; every identified need carries LEP/DCP evidence or an explicit `PACK_GAP`, while bushfire, flood, ecology, heritage and contamination/geotechnical remain visibly unassessed by the current evidence chain rather than being declared unnecessary.
+- Each identified discipline receives its own scope, questions, evidence and limitations inside a `consultant-needs.v1` review package. The existing copy/download export includes the matrix and discipline briefs.
+- A new provider-independent `ConsultantReferral` model persists one immutable, SHA-256-digested package snapshot per exact project/DPP/QSC/proposal scope, separate minimum follow-up contact fields, consent version/time, human-queue target and a delivery event ledger. Exact-scope retries are idempotent, contact replacement conflicts, and concurrent unique races return only the winning same-contact submission.
+- User submission re-resolves requester access, current site, active proposal, intact QSC/DPP provenance, optional exact SEE provenance, and a byte-equivalent server-recomputed needs matrix before persistence. Legacy, stale, altered or different-proposal packages fail closed.
+- Direct submission requires explicit consent and truthfully distinguishes package saved, submitted to Plannera, sent to consultant and consultant acknowledged. Copy/download cannot advance delivery. The operational states are `SUBMITTED`, `ACKNOWLEDGED`, `ASSIGNED`, `CONSULTANT_ACKNOWLEDGED`, `NEEDS_INFORMATION`, `DECLINED`, and `CLOSED`.
+- The protected operator API lists the human queue and performs guarded, append-only status transitions. A protected deletion endpoint plus a daily bearer-authenticated retention job delete declined/closed records 180 days after terminal state and support verified early deletion requests.
+- Submission emits one property-free, server-confirmed `CONSULTANT_REFERRAL_SUBMITTED` funnel milestone only after durable persistence. Contact fields and package contents are structurally absent from that event.
+- Production remains fail-closed. Submission requires both `CONSULTANT_REFERRALS_ENABLED=true` and `CONSULTANT_REFERRAL_QUEUE_TARGET=plannera_human_queue`; neither is changed by this implementation.
+- A manual, environment-protected non-production acceptance workflow and `docs/operations/consultant-referral-queue.md` prove preflight emptiness, synthetic consented submission, protected queue visibility, ordered operator transitions, user-safe status, safe artifact output and cleanup. It refuses production/localhost/non-exact targets and any pre-existing referral scope.
+
+Completion evidence:
+
+- Clean application CI passed on PR #333 head `1ff996a3779a24e6f0d0f18c66832d017de2db35`: Commercial Funnel Golden Gate run `30745647472` generated Prisma successfully, then passed 138 Node tests and 77 Vitest tests with zero failures. The latest hardening independently recomputes the stored package-snapshot digest, requires non-empty exact QSC/DPP-bound consultant needs and discipline packages, and verifies the precise user-visible delivery-event sequence during protected acceptance. Local lint, typecheck and diff checks passed; the focused local `tsx` invocation could not start because the shared checkout points at an incompatible esbuild binary, so the clean remote gate is the authoritative execution evidence.
+- Vercel Preview deployment `CE8rgtqopLHRisCAWk4FmEEBgxKt` for exact head `1ff996a3779a24e6f0d0f18c66832d017de2db35` reached `Ready` in 1m 59s after integration provisioning completed in 3s. After merge, the branch-only acceptance configuration was loaded by Ready redeployment `LqcHskjGm` at `plannera-ab-git-feat-item-73-consul-dae87e-robbietalls-projects.vercel.app`. Only that Preview branch has `CONSULTANT_REFERRALS_ENABLED=true`, `CONSULTANT_REFERRAL_QUEUE_TARGET=plannera_human_queue`, and its dedicated admin token. Production remains false/absent and untouched.
+- GitHub environment `consultant-referral-test-acceptance` permits only `main`, requires reviewer `RobbieTall`, disallows administrator bypass, and holds the exact allowed/base Preview URL plus dedicated encrypted cookie, Vercel bypass and admin-token secrets. One new non-customer Byron SP3 project produced a cited Quick Site Check, an exact proposal-bound Planning Controls Pack with two cited and three honestly unresolved topics, and a `consultant-needs.v1` review-request package.
+- Initial protected run `30771610148` failed before contacting the app because the CLI used top-level `await` under CommonJS `tsx`; it made no referral mutation. PR #334 added a real CLI regression, passed Commercial Funnel Golden Gate run `30771992616`, reached a Ready Vercel Preview after one operator-approved stale Neon Preview deletion, and merged as `299145bfa7158c0cc5495cae2812dccbef6b9c2b`.
+- Protected acceptance run `30772575070` on exact `main` commit `299145bfa7158c0cc5495cae2812dccbef6b9c2b` passed. Safe artifact `8841017675` (`sha256:78cca470ff0e340349a5194939a7ba846159257401ff40dc296d8f0cc8ee1e77`) records every check true: exact configuration, empty preflight, consented submission, protected operator-queue visibility, transitions, user-safe status and cleanup. The observed sequence was exactly `SUBMITTED` → `ACKNOWLEDGED` → `ASSIGNED` → `CONSULTANT_ACKNOWLEDGED` → `CLOSED`; the immutable package digest was independently verified and the synthetic referral was deleted at the end.
+- Item 73 is complete as protected non-production capability and evidence. Production activation remains a separate explicit operator decision; completion does not claim automated matching, consultant availability, credentials, quotes or response times.
+
+## 74) Submission-grade SEE and Byron/Kempsey whole-LGA commercial readiness — IN PROGRESS (2026-08-03)
+
+Purpose: finish the second paid product and prove both launch councils across their complete current LEP zone sets before expansion. The commercial SEE list price is **A$749 before credits**. One settled, unrefunded A$49 Planning Controls Pack for the same requester/project/current-site QSC/normalized proposal may be consumed once as an A$49 credit, leaving **A$700 payable**. The credit is exact-scope, single-use, non-transferable, not cash-redeemable, and cannot upgrade evidence confidence or readiness.
+
+### 74A — Evidence intake and spatial provenance
+- Index supported project uploads rather than merely storing them. Extract PDF/DOCX/spreadsheet/text content, add OCR fallback for scans, retain source title/page/date/hash, and expose `Ready`, `Partially readable`, `Image only`, or `Needs review` status.
+- Treat maps and plans as evidence objects with authoritative source, capture/effective date, layer/legend, site identity, user-confirmed observation and limitation. Stored screenshots alone do not prove a constraint.
+- Reconcile uploaded and spatial facts against the exact proposal and statutory chain. Conflicts, stale files and unsupported claims remain visible and block affected final sections.
+- Returned consultant reports enter the same evidence pipeline; referral completion does not automatically make a report accepted or applicable.
+
+Implementation checkpoint — evidence extraction and provenance foundation (`feat/item-74-evidence-intake`):
+- Workspace uploads now retain SHA-256 source hash, extraction method/time/metadata, PDF page count, extracted text, readability status, review reason, indexing status/time and indexing failure detail. Existing uploads default to `Needs review`/not indexed rather than acquiring unsupported readiness.
+- PDF extraction uses real page-aware parsing and preserves page numbers on citation chunks. DOCX raw text, XLSX worksheet/cell text, CSV and plain text are supported; DOCX parser warnings demote the upload to `Partially readable`. Legacy DOC/XLS and ZIP fail closed with conversion/review guidance.
+- Image uploads and text-empty scanned PDFs are marked `Image only`; they do not enter retrieval until OCR plus visual review exists. OCR is therefore still open work, not implied by this checkpoint.
+- Readability and semantic indexing are separate persisted facts. Extracted evidence is chunked with source title, hash, extraction method and page/sheet provenance. Embedding/index failure leaves the upload visible with `FAILED` indexing instead of treating it as SEE-ready.
+- The workspace Sources panel exposes `Ready`, `Partially readable`, `Image only`, or `Needs review` and the review/indexing reason. A stored upload is no longer labelled generically as synced.
+- Regression coverage proves hashing/text extraction, PDF page provenance, image-only/legacy/parser-failure demotion, successful indexing and visible indexing failure. On 3 August 2026, Commercial Funnel Golden Gate run `30776099344` passed on head `7313eba` (155 Node tests and 77 Vitest tests, zero failures) and the Vercel Preview deployment completed successfully with the additive Prisma migration and full application build.
+
+Remaining before 74A is complete: add an asynchronous OCR/provider path with operator-visible retry/review; model map/plan source, layer/legend, dates, site identity, observation and limitation; add proposal/statutory reconciliation and conflict/freshness gates; and make SEE section readiness consume only readable, successfully indexed, accepted evidence.
+
+### 74B — Professional SEE compiler and paid entitlement
+- Replace the current pre-SEE `.txt` memo as the commercial endpoint with a versioned living SEE that becomes final only when all required inputs are resolved or explicitly routed to professional review.
+- Compile site/context, proposal, statutory framework, zone objectives/permissibility, LEP standards, DCP compliance, applicable SEPPs, section 4.15 considerations, natural/built/social/economic impacts, access/parking, hazards, servicing/waste/stormwater, mitigation, suitability, public interest, conclusion, source register and appendices as applicable to the exact proposal.
+- Every material statement must cite legislation, DCP, a spatial source, an uploaded report, or labelled user-provided information. Page/layer references and a source schedule are mandatory; missing evidence is not filled from generic model knowledge.
+- Produce an editable DOCX and professionally rendered PDF with stable headings, tables, maps/figures, page numbers, document metadata, revision history and appendix/report schedule. Copy/`.txt` remains convenience output only.
+- Add a provider-neutral `see_document` purchase/entitlement and credit-consumption ledger. Checkout derives A$749, eligible A$49 credit and A$700 balance server-side, shows applicable GST truthfully, and prevents replay, cross-scope use, refunded/revoked-pack use and double consumption.
+- Regeneration preserves immutable versions and identifies which sections changed after new evidence; it never silently overwrites the previously purchased document.
+
+### 74C — Whole-LGA coverage and flight acceptance
+- Inventory the complete current authoritative Byron and Kempsey corpus: LEP zones/objectives/land-use tables and mapped controls; every relevant DCP part/chapter/appendix; relevant state instruments, contributions/planning policies, lodgement guidance and available authoritative spatial layers. Store source URLs, effective dates, hashes and freshness state.
+- Build a coverage matrix for every current zone code and exact LEP land-use term. Preserve statutory terms while grouping them into maintainable assessment/document families; never infer permissibility from a family.
+- Make DCP material table-aware and stably citable. Structured controls are promoted only where source text supports them; absent values remain `Unavailable` or `Needs Expert Review`.
+- Flight-test representative permitted, consent-required and prohibited developments across every zone, plus changed-site/proposal, stale-source, map conflict, unreadable upload, missing report, referral-return and credit/payment cases.
+- Require the complete journey: investigate → Quick Site Check → paid pack → feasibility/consultant triage → direct SEE or referral → report upload → final DOCX/PDF → optional review/submission. Inspect rendered documents, citations, source coverage and privacy, not only JSON or route success.
+- Add freshness monitoring and fail-closed coverage demotion when a source URL, effective date, hash, parser result or golden case changes. Obtain explicit operator sign-off before either LGA is described as commercially flight-ready.
+
+Success signal: any address resolving to a current Byron or Kempsey zone and any exact development term in its LEP receives a truthful cited or explicitly unresolved journey, with a proposal-specific paid pack and either a polished evidence-backed SEE or a complete consultant pathway. No fabricated control, uncited material claim, unexamined upload/map, cross-scope credit or unsupported readiness claim is allowed.
+
+## 75) Repeatable LGA Pack Registry and paid just-in-time onboarding — QUEUED AFTER ITEM 74
+
+Do not start this slice until Item 73 has a verified non-production referral target and Item 74 has explicit Byron/Kempsey whole-LGA and document-flight sign-off.
+
+Purpose: make later LGA expansion a configure, ingest and verify process while preserving the user-funded just-in-time path.
+
+Minimum contract:
+- A new-LGA user receives available LEP/state preliminaries immediately. Purchasing the A$49 proposal-specific Planning Controls Pack queues source discovery, retrieval, ingestion and QA; the project shows queued/in-progress/ready/failed status, an honest service target, interim limitations and persistent notification.
+- Add a versioned LGA manifest covering LGA code, LEP instrument, DCP title/effective date, authoritative document/part URLs, parser profile, spatial sources, council policies, priority topics, golden addresses and expected extraction counts.
+- Use one generic pipeline for fetch, hashing, archival metadata, text/table extraction, OCR fallback, cited chunking and coverage transitions. Council-specific adapters remain explicit only where a source genuinely breaks the generic contract.
+- Generate a privacy-safe QA report and require source, zone, citation, structured-control, spatial and golden-address gates before promotion from searchable to structured or verified states.
+- Monitor URLs, effective dates and hashes so amendments cannot silently leave a council marked current. Searchable coverage supports cited guidance; only reviewed rule packs support deterministic claims or higher document automation.
+- LGA preparation is shared infrastructure after completion, but each A$49 purchase remains a proposal-specific analysis and may earn only its own exact-scope SEE credit.
+
+Success signal: a clean text-PDF council can be registered, prepared and made searchable without application branching, then promoted through repeatable automated/operator QA and notified back to the paying project without claiming whole-LGA verification from one site or zone.
+
+## Item 74H protected Preview evidence flight: 2026-08-25
+
+Status: **AUTHORITATIVE SITE EVIDENCE ACCEPTED / PAID ELIGIBILITY STILL BLOCKED**
+
+- A controlled Byron RU2 shed/outbuilding Preview flight uniquely resolved the site and authoritative coordinate-intersection zoning.
+- Seven cadastral, hazard, proximity, road-reference, heritage, flood-planning, and biodiversity observation groups were retrieved without returning raw site identifiers or geometry.
+- Persistence remained replay-safe and cleanup returned zero residual synthetic rows.
+- Production checkout stayed disabled; the A$49 pack and A$749 SEE remain blocked at `MORE_EVIDENCE_REQUIRED`.
+- A protected-log privacy failure in an earlier run was invalidated, corrected with request-scoped resolver suppression, and successfully rerun without the resolver disclosure.
+- Temporary branch-scoped Preview acceptance variables were removed. Clean deployment: `dpl_Hf6FDPm2G9WdWcKEtxnw1JqmBJRY`; exact head: `0730fc762ad86a4a4ae2fabfe23cd1bf93216b43`.
+- Next delivery boundary: complete the evidence-confirmed road/setback and mapped-constraint interpretation required to bind an exact paid scope. Do not make either paid output eligible until that manifest is complete.
+
+## Item 74H exact commercial binding: 2026-08-25
+
+Status: **DURABLE PREVIEW BINDING IMPLEMENTED / REAL-SITE PAID SCOPE STILL BLOCKED**
+
+- The site-evidence digest, Byron DCP road-setback control, confirmed road category, measured setback and deterministic `PROCEED` or `MERIT_ASSESSED` outcome now form a SHA-256 exact-scope digest.
+- The commercial binding is embedded in the persisted Preview assessment result and participates in idempotent replay identity.
+- Paid artefact creation and replay read only that persisted binding. A caller cannot supply a replacement binding at artefact time.
+- The A$49 pack requires evidence-verified trust. The A$749 SEE additionally requires operator-approved trust.
+- Current assessment, evidence snapshots and control snapshots are required for first binding and replay.
+- Production checkout remains disabled and no Production or schema mutation occurred.
+- The controlled Byron site remains `MORE_EVIDENCE_REQUIRED` until authoritative road classification and a measured site-plan setback are available.
+- Next: acquire and persist those two real-site facts, then exercise one protected exact-scope paid binding and cleanup in Preview.
+
+## Item 74H private evidence lifecycle: 2026-08-28
+
+Status: **PRIVATE PREVIEW BLOB/SANDBOX LIFECYCLE ACCEPTED / SCAN AND REVIEW STILL BLOCKED**
+
+- A dedicated private Vercel Blob store is connected to `plannera-ab` for Preview only through the `ITEM74H_PRIVATE_BLOB_*` namespace. No Item 74H private Blob variable targets Production and no credential value was copied or logged.
+- `@vercel/blob` and `@vercel/sandbox` are locked at current accepted SDK versions. The build gate is a safe no-op unless its separate branch-scoped acceptance switch is explicitly present.
+- Protected deployment `dpl_3xJhSkPcuCN3Khn4ruBgWjh9V81Y` at commit `c1b571830f84dfac12902933389ffb489a8c4bf4` passed the synthetic private lifecycle: one write, replay reuse, unauthenticated denial, authenticated hash match, deny-all Sandbox hash match and stop, deletion and zero residual objects.
+- The accepted result deliberately remained `QUARANTINED`, with malware scan `NOT_EXECUTED`, evidence review `PENDING`, paid eligibility false and Production checkout false.
+- The temporary branch switch was deleted. Clean-state deployment `dpl_3JoLthts8RZwfgEkpbBr97iFbnTt` at commit `28557377bb911a9bf56e71ac6ceff3f2961c5737` is READY, passed 20/20 GitHub workflows and reported `SKIPPED_FEATURE_DISABLED`.
+- Next delivery boundary: implement and accept the fail-closed current-signature malware scan record and trusted operator-review promotion for synthetic safe content. Do not ingest a real document or unlock either paid artefact until those stages are independently proven.
+# Decision Register
+
+A compact register of active product/architecture decisions.
+
+## DR-001 — Product Philosophy Anchor
+
+**Status:** Active  
+**Decision:** Plannera turns planning complexity into project intelligence, with explicit confidence handling and source-aware guidance.  
+**Reference:** `docs/plannera-product-philosophy.md`
+
+## DR-002 — Staged Intelligence Delivery
+
+**Status:** Active  
+**Decision:** Start with usable search-supported capability, then progress to structured controls and verified rule packs. Do not pretend partial ingestion is complete intelligence. Workspace chat must surface source confidence explicitly so retrieved statutory/DCP excerpts are shown as cited, model-only guidance is labelled inferred, and coverage gaps remain unresolved until local controls are available.
+**Reference:** `docs/plannera-product-philosophy.md`
+
+## DR-003 — Just-in-Time LGA Activation
+
+**Status:** Active  
+**Decision:** For unsupported LGAs, return immediate baseline guidance and trigger asynchronous local DCP/mapping preparation. Do not run full DCP parse in live request path.  
+**Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+## DR-004 — Truthful User Messaging
+
+**Status:** Active  
+**Decision:** Use restrained language during local preparation (e.g., “reviewing local controls”); avoid “correct/complete” certainty until confidence level supports it.  
+**Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+## DR-005 — Statutory-First Data Strategy
+
+**Status:** Active
+
+**Decision:** Prioritise authoritative statutory instruments (LEPs, SEPPs, and council DCP source material) as the primary grounding layer before heuristic or model-inferred planning guidance. Local-control answers must cite retrieved statutory/DCP excerpts where available and must identify unresolved controls when source coverage is not yet searchable or verified.
+
+**Reference:** `docs/architecture/just-in-time-lga-activation.md`
+
+
+## DR-006 — Stale-not-deleted Artefact Strategy
+
+**Status:** Active
+
+**Decision:** When an LGA reaches `SEARCHABLE_READY`, existing artefacts are marked with `staleAt` rather than deleted, preserving history while surfacing a regeneration prompt to the user.
+
+**Reference:** `docs/project-memory/build-next.md`
+
+## DR-007 — Deterministic QA Gates for Coverage Maturity
+
+**Status:** Active
+
+**Decision:** Deterministic QA gates for coverage maturity — VERIFIED state requires ≥50 clauses with zoning and height/FSR coverage, plus all STRUCTURED_PARTIAL checks. Checks run automatically post-ingestion and can be re-run via admin API. FAILED_REVIEW_NEEDED is set on any check failure to surface issues without blocking the system.
+
+**Reference:** `docs/project-memory/build-next.md`
+
+## DR-008 — Live LGA Preparation Visibility
+
+**Status:** Active
+
+**Decision:** While LGA coverage state is `QUEUED` or `PROCESSING`, surface a dismissible status banner in the workspace using a polling hook (10s interval). Stop polling on terminal states. Never show internal `errorMessage` to end users — `FAILED_REVIEW_NEEDED` shows generic "review needed" copy only.
+
+**Reference:** `docs/project-memory/build-next.md`
+
+## DR-009 — Persistent LGA Ready Notifications
+
+**Status:** Active
+
+**Decision:** When an LGA transitions to SEARCHABLE_READY from a project-triggered preparation job, create a persistent in-app notification for the relevant project. Use in-app notifications before email to avoid provider/env complexity. Notifications must be deduplicated per project/LGA and dismissible by the user.
+
+**Reference:** `docs/project-memory/build-next.md`
+
+## DR-010 — Workspace Project Intelligence Summary
+
+**Status:** Active
+
+**Decision:** Surface a compact Project Intelligence card in the workspace sidebar as the primary at-a-glance summary of site context, LGA coverage maturity, artefact freshness and answer confidence mix. Keep the card read-only for this slice and derive it from existing workspace state and APIs rather than adding new persistence.
+
+**Reference:** `docs/project-memory/build-next.md`
+
+## DR-011 — Byron and Kempsey as Production Test LGAs
+
+Status: Active
+
+Decision: Byron Shire and Kempsey Shire are the two designated production test LGAs for Plannera's initial live customer release. All launch-path features (Quick Site Check, Detailed Planning Pack, Planning Feasibility Summary, SEE Builder, and consultant referral) must function with real, cited planning controls for these two councils before auth, paywall, or broader LGA expansion is enabled. Byron is the primary test LGA and Kempsey is the secondary test LGA; current ingestion/coverage truth is tracked in `build-next.md`, not frozen in this older decision's original rollout wording.
+
+Rationale: These two LGAs represent different coastal NSW planning contexts — Byron is a high-demand lifestyle/development market; Kempsey is a regional council without a proprietary GIS platform. Together they validate the full feature set across different data availability profiles.
+
+Reference: docs/project-memory/build-next.md items 24–28
+
+## DR-012 — No Auth/Paywall Until Both Test LGAs Are Fully Functional
+
+Status: Active
+
+Decision: Authentication (magic-link email), user accounts, and any paywall or subscription features must not be enabled in production until the Quick Site Check → Detailed Planning Pack → Planning Feasibility Summary → SEE/referral path produces predominantly Cited, exact-bound outputs for the approved Byron and Kempsey journeys. The product must work before it is closed off.
+
+Reference: docs/project-memory/build-next.md item 28
+
+
+## DR-013 — Correctness Before New Features: Zone-Aware Retrieval Priority
+
+Status: Active
+
+Decision: Following live production testing on 2026-07-13 that found Kempsey LEP/DCP retrieval surfacing zone-irrelevant (rural/residential) clauses for a confirmed E2 Commercial Centre site, fixing zone-aware LEP/DCP retrieval takes priority over new feature work, including build-next.md item 42 (review request copy/download handoff). Item 40 (paid export/review gate) remains out of scope. This reinforces DR-011/DR-012: Kempsey must produce predominantly Cited, zone-relevant responses before any auth/paywall work proceeds.
+
+Reference: docs/project-memory/build-next.md item 43
+
+## DR-014 — Commercial Readiness Requires Evidence Quality
+
+Status: Active
+
+Decision: Commercial readiness is evidence/quality-based, never artefact-existence-based. A saved Quick Site Check, SEE, feasibility result, or review artefact only advances the Byron/Kempsey commercial path when it is scoped to the current site and contains relevant cited or otherwise quality-valid controls. Empty, zone-irrelevant, stale, or failed outputs remain useful project history, but must not trigger “ready for paid export or expert review” messaging.
+
+Reference: docs/project-memory/build-next.md item 28 follow-up
+
+## DR-015 — Canonical Shared LEP Zone Projections
+
+Status: Active
+
+Decision: Instrument-scoped `LepZoneObjective` and `LepZoneLandUse` projections are the canonical source for LEP zone objectives and land-use permissibility in fresh projects. `project.lepData` is compatibility/cache fallback only. LEP ingestion and refresh paths must idempotently rebuild these projections even when raw current `Clause` rows already exist, without forcing destructive corpus replacement, and must expose refreshed zone codes so a missing target zone is observable rather than hidden by aggregate counts.
+
+Reference: docs/project-memory/build-next.md item 28 corrective slice after PR #281
+
+## DR-016 — Citation Existence Is Not Applicability
+
+Status: Active
+
+Decision: A retrieved or saved citation is not, by itself, evidence quality. Clause title, hierarchy, zone scope and land-use scope must support the current site before the citation can make Quick Site Check, chat, SEE, or readiness output Confirmed/Cited. Conflicting zone or land-use scopes in title/hierarchy win over incidental current-zone tokens in long clause bodies. Unsupported controls must remain Unavailable/Unresolved rather than inferred from unrelated sources. Generic plan-name clauses such as `BYRON_2014_1` are not support and must not appear in reply text, persisted LEP source refs, or source attribution for unresolved answers.
+
+Reference: docs/project-memory/build-next.md item 28 corrective slice after PR #281
+
+## DR-017 — Preserve statutory list terms during LEP normalisation
+
+Date: 2026-07-14
+
+Decision: Structured LEP list parsing must preserve statutory land-use terms exactly where normalisation is only reconstructing list rows. Intra-word hyphenated terms such as `tourist-oriented`, `Centre-based`, `Eco-tourist`, `Home-based`, and `Tank-based` are legal terms and must not be split into fragments. The parser may split actual list boundaries and semicolon-delimited land-use entries, and may remove standalone structural land-use-table ordinals, but item references inside statutory text (for example `item 2 or 3`) must remain intact.
+
+Rationale: Quick Site Check is a cited statutory product surface. Normalisation can improve display and structured storage, but it must not alter the meaning of LEP objectives or land-use permissibility terms.
+
+
+## DR-018 — Evidence-Gated Commercial Funnel
+
+Status: Active
+
+Decision: Near-term monetisation follows a deliberately narrow free Quick Site Check → proposal-aware cited Detailed Planning Pack → consultant-ready SEE/referral funnel, with the pack represented as its own durable artefact type rather than a SEE memo or review request. Payment/auth gating remains deferred until the Detailed Planning Pack passes Byron/Kempsey golden-case saved-output and live-verification gates. Artefact existence alone is not commercial readiness; cited, applicable evidence and honest unresolved topics control readiness.
+
+Reference: docs/project-memory/build-next.md item 49
+
+## DR-019 — DPP-Provenance Branch for SEE and Referral
+
+Status: Active
+
+Decision: SEE generation requires a current-site, commercial-ready Detailed Planning Pack with an intact cited Quick Site Check provenance chain. Expert referral may branch earlier when the newest current-site Detailed Planning Pack is unresolved: package QSC + DPP, list unresolved topics/questions, and omit SEE rather than pretending commercial readiness. Review packaging must resolve QSC, DPP, and SEE by durable provenance and current-site scope, not by newest artefact type alone.
+
+Reference: docs/project-memory/build-next.md item 50
+
+
+## DR-020 — Billing/Auth Unlock Requires Read-Only Live Chain Audit
+
+Status: Active
+
+Decision: Billing, checkout, subscriptions, auth gating, or paid commercial unlock cannot be justified by artefact existence, local tests, or deployment success. The protected read-only commercial funnel audit plus approved live evidence must prove an exact current-site Quick Site Check → Detailed Planning Pack → SEE/referral chain before the Byron/Kempsey commercial gate can close. Legacy, stale, malformed, forged, cross-site, or broken-provenance artefacts remain history only and must never unlock payment/auth readiness.
+
+Reference: docs/project-memory/build-next.md item 51
+
+
+## DR-021 — Fail-Closed Commercial Funnel Live-Audit Runner
+
+Status: Active
+
+Decision: Item 52 live verification must use the deterministic commercial funnel audit runner rather than ad hoc production calls. The runner is environment-only for base URL, admin token, expected commit, and approved existing Byron/Kempsey project IDs; authenticates with the `x-admin-token` header; performs exactly one read-only GET per configured project; emits only an allowlisted documentation-safe summary; and fails closed for missing config, unsafe URLs, HTTP/auth/network/JSON/contract failures, project identity mismatches, or any broken QSC → DPP → SEE/referral invariant. The live gate cannot close unless both Byron and Kempsey golden chains independently pass.
 
 Reference: docs/project-memory/build-next.md item 52
 
