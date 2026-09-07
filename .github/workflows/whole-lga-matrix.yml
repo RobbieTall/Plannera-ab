@@ -36,7 +36,7 @@ jobs:
           package-manager-cache: false
 
       - name: Verify protected Vercel matrix contract
-        run: node -e "const p=require('./package.json'); const launch=p.scripts?.['smoke:launch']; const matrix=p.scripts?.['smoke:whole-lga']; const build=p.scripts?.['vercel-build']; const launchAt=build?.indexOf('npm run smoke:launch')??-1; const matrixAt=build?.indexOf('npm run smoke:whole-lga')??-1; const buildAt=build?.indexOf('next build')??-1; if(launch!=='tsx scripts/launch-smoke.ts'||matrix!=='tsx scripts/whole-lga-matrix-smoke.ts'||typeof build!=='string'||build.includes('db:push')||build.includes('prisma db push')||launchAt<0||matrixAt<0||buildAt<0||launchAt>matrixAt||matrixAt>buildAt) throw new Error('Vercel builds must stay schema-read-only and run launch then whole-LGA matrix before next build')"
+        run: node ./scripts/verify-vercel-build-safety.mjs
 
       - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts

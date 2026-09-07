@@ -4,6 +4,23 @@
 
 Vercel builds are schema-read-only. Preview and Production builds may generate the Prisma client, run read-only acceptance checks, and compile the application, but they must not run `prisma db push`, `prisma migrate deploy`, or any other schema/data mutation command.
 
+## Build-safety enforcement
+
+`vercel-build` is an exact permitted-command list. `scripts/verify-vercel-build-safety.mjs` runs first and rejects command additions, npm-wrapper drift, entry-file fingerprint drift, and direct database, Blob, Sandbox or filesystem mutation signatures in every pre-build entry point. The permitted chain is Prisma client generation, Byron/Kempsey read-only smoke gates, the read-only controlled-address preflight, the in-memory working-SEE acceptance, and `next build`.
+
+Stateful Item 74H acceptance and Preview schema migration are not deployment-build responsibilities. They are available only through the manual `item74h-stateful-preview-acceptance.yml` and `item74h-preview-migration.yml` workflows. Neither workflow is scheduled, pull-request-triggered or push-triggered.
+
+Before either workflow may run, an administrator must separately create and protect its named GitHub environment, require an appropriate reviewer, provide only isolated non-production credentials, and set all of the following environment-scoped authorization values for one exact run:
+
+- `ITEM74H_PREVIEW_MUTATION_APPROVED=true`
+- `ITEM74H_WORKFLOW_AUTHORIZED_COMMIT=<full 40-character commit SHA>`
+- `ITEM74H_AUTHORIZED_DATABASE_TARGET=<exact Neon Preview endpoint ID>`
+- `ITEM74H_AUTHORIZED_BLOB_TARGET=<exact private Preview Blob store ID>` when a cloud suite is selected
+
+The operator must also type the workflow confirmation phrase and the same target identifiers. The checked-out commit, GitHub commit, hosted commit, protected authorization, credential hostname and checkout-off state must all agree before dependencies are installed or a stateful command begins. Missing environment protection or authorization is a blocker; the workflow definition does not prove that external protection exists.
+
+Migration-ledger reconciliation remains a deliberate operator task. The migration workflow invokes only the existing allowlisted SQL runner and must not create, repair or infer Prisma migration-ledger entries. Confirm the isolated branch state and approved migration history before dispatch, and delete obsolete Preview resources only under the separate resource-cleanup authority.
+
 The repository may retain `npm run db:push` for deliberate local or isolated development work. It is not a deployment command. Never run it against Production.
 
 ## Required process for a schema change

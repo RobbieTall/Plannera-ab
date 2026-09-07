@@ -2,8 +2,9 @@
 
 ## Purpose
 
-The protected Vercel Preview build now exercises both Item 74H persistence
-boundaries against the isolated Neon branch.
+The protected Vercel Preview acceptance historically exercised both Item 74H
+persistence boundaries against the isolated Neon branch. That evidence remains
+valid, but stateful acceptance is no longer part of a deployment build.
 
 The established scenario proves that unresolved synthetic evidence persists and
 replays safely while both paid stages remain blocked.
@@ -40,10 +41,10 @@ This synthetic scenario remains separate from the public-document quarantine run
 make the actual Byron site evidence-confirmed, does not replace operator review,
 and does not activate checkout.
 
-## Build evidence
+## Historical build evidence
 
-The vercel-build command runs the composite scenario through
-accept:pathway-persistence-preview. A successful JSON summary must show:
+The earlier `vercel-build` command ran the composite scenario through
+`accept:pathway-persistence-preview`. Its successful JSON summary showed:
 
 - decision PROCEED for the synthetic composite scope;
 - one replay-safe assessment;
@@ -102,10 +103,18 @@ provisioned once on that isolated branch through the proven ten-migration
 rehearsal. They are not replayed by the hosted build because they were not
 authored as replay-safe migrations.
 
-The hosted build continues to apply only the six replay-safe Item 74H
-migrations before running the synthetic acceptance suite. This keeps repeat
-deployments deterministic while preserving the zero-residue contract.
+The hosted build formerly applied six Item 74H migrations before running the
+synthetic acceptance suite. This build-coupled behavior is superseded and must
+not be restored.
 
 This allowlist extension authorizes only the named integration Preview pair.
 It grants no Production database, schema, checkout, payment or deployment
 authority.
+
+## Current separated execution contract (2026-09-07)
+
+Use `.github/workflows/item74h-preview-migration.yml` only after a fresh isolated Neon Preview target, exact commit and protected GitHub environment have been explicitly authorized. This is a separate manual operation, never a deployment side effect. It does not reconcile the Prisma migration ledger and does not make the seven SQL files a single transaction; operators must verify the target state before running it.
+
+After schema readiness is independently established, use `.github/workflows/item74h-stateful-preview-acceptance.yml` to invoke exactly one named persistence/cloud suite. The workflow requires the same exact-commit and exact-target authorization, keeps both checkout surfaces off, and relies on each acceptance script's existing branch/resource guards and zero-residue cleanup. A skipped or unavailable suite is not evidence of acceptance.
+
+The GitHub environments `item74h-preview-migration` and `item74h-stateful-preview-acceptance` require external setup and reviewer protection. Until that configuration is inspected and the isolated credentials are installed, both workflows are defined but not authorized to run.

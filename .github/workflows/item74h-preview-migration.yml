@@ -1,0 +1,71 @@
+name: Item 74H Preview Migration (Protected Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Full 40-character commit SHA authorized for this Preview migration
+        required: true
+        type: string
+      database_target:
+        description: Exact non-production Neon endpoint ID (ep-...)
+        required: true
+        type: string
+      confirmation:
+        description: Type AUTHORIZE PREVIEW MIGRATION
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item74h-preview-migration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Exact-commit isolated Preview migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: item74h-preview-migration
+    env:
+      DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+      ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      VERCEL: "1"
+      VERCEL_ENV: preview
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out the exact authorized commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          ref: ${{ inputs.expected_commit }}
+          persist-credentials: false
+
+      - name: Fail closed unless commit and Preview target are authorized
+        run: >-
+          node ./scripts/verify-preview-workflow-authorization.mjs
+          --workflow migration
+          --confirmation "${{ inputs.confirmation }}"
+          --expected-commit "${{ inputs.expected_commit }}"
+          --database-target "${{ inputs.database_target }}"
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      - name: Install without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Generate Prisma client
+        run: node ./scripts/prisma-generate.js
+
+      - name: Apply the existing allowlisted Preview migration set
+        run: npm run migrate:item74h-preview
