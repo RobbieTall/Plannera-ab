@@ -193,7 +193,20 @@ Item 77 composes the accepted commercial contracts into one protected non-produc
 
 This composition does not activate Production checkout. A fresh protected Stripe lifecycle and exact-head Preview acceptance must pass before pilot readiness is claimed.
 
+## Item 78A: durable same-project commercial bridge
+
+Item 78A implements the protected Preview-only acceptance bridge from a real Stripe test-mode paid A$49 Planning Controls Pack to later reviewed evidence, regeneration on the same persisted project, a single-use A$49 credit, and working A$749 SEE DOCX/PDF outputs.
+
+- The source pack must be a real paid test-mode purchase with its active entitlement and exactly one matching persisted DPP.
+- Requester, project, site, QSC, proposal digest, evidence digest, and version are bound and checked server-side.
+- Synthetic private evidence passes through intake, malware-scan observation, operator review, and promotion boundaries; mismatch, pending-review, replay, and changed-evidence cases fail closed.
+- The working SEE remains visibly `NOT SUBMISSION READY`, requires operator review, and does not replace the Item 78B canonical SEE compiler work.
+- Acceptance creates only deterministic synthetic SEE-side records and removes all of them, while leaving the real paid pack and customer project untouched.
+- The protected workflow separately proves the real private Blob and malware-scan lifecycle before running the commercial bridge.
+- Production checkout remains disabled. No production payment, deployment, secret mutation, refund, or customer record mutation is performed.
+
+Implementation is complete; protected hosted acceptance and its evidence record remain pending.
+
 ## Future evidence-aware concept design
 
 After the protected Item 77 commercial journey is proven, Plannera may extend the same persistent project into an evidence-aware concept design workspace. A customer can upload a rough sketch, photograph or marked-up plan with dimensions; Plannera extracts and asks the customer to confirm those declared measurements, then a deterministic geometry service produces a clean scaled concept that can be refined against cited planning controls. Model reasoning may orchestrate extraction and design changes, but it is not the geometric authority. Every dimension retains its source and confidence, conflicting or missing measurements remain visible, and generated SVG/PDF/DXF material is labelled concept-only until an appropriate surveyor, designer or other professional confirms it for submission use. See [Evidence-aware concept design](docs/product/evidence-aware-concept-design.md).
-

@@ -19,7 +19,7 @@ const validInput = (): PathwayPrivateEvidenceIntakeInput => ({
     projectOwnerRef: "user_opaque_74h",
   },
   storage: {
-    access: "private",
+    access: "private" as const,
     sdkVersion: "2.3.0",
     host: "store-74h.private.blob.vercel-storage.com",
     signedAccessTtlSeconds: 300,
@@ -34,7 +34,7 @@ const validInput = (): PathwayPrivateEvidenceIntakeInput => ({
 const dependencies = (): PathwayPrivateEvidenceIntakeDependencies => ({
   createObjectRef: () => OBJECT_REF,
   putQuarantined: vi.fn(async () => ({
-    access: "private",
+    access: "private" as const,
     sdkVersion: "2.3.0",
     host: "store-74h.private.blob.vercel-storage.com",
     objectRef: OBJECT_REF,
@@ -122,7 +122,7 @@ describe("Item 74H private evidence intake", () => {
   it("deletes an object when the storage adapter returns an unsafe result", async () => {
     const deps = dependencies();
     deps.putQuarantined = vi.fn(async () => ({
-      access: "public",
+      access: "public" as const,
       sdkVersion: "2.0.0",
       host: "store-74h.public.blob.vercel-storage.com",
       objectRef: OBJECT_REF,

@@ -31,7 +31,7 @@
     "smoke:launch": "tsx scripts/launch-smoke.ts",
     "smoke:whole-lga": "tsx scripts/whole-lga-matrix-smoke.ts",
     "ingest:production": "bash scripts/ingest-production.sh",
-    "test:node": "tsx --test tests/*.test.ts",
+    "test:node": "tsx --test tests/*.test.ts src/lib/pathway-authoritative-planning-layers.test.ts src/lib/pathway-authoritative-spatial.test.ts src/lib/pathway-check-acceptance.test.ts src/lib/pathway-free-decision.test.ts src/lib/pathway-site-evidence.test.ts src/lib/pathway-tfnsw-road-categorisation.test.ts src/lib/pathway-tfnsw-road-evidence-bridge.test.ts",
     "test:vitest": "vitest run --config vitest.config.ts",
     "audit:commercial-funnel": "tsx scripts/audit-commercial-funnel.ts",
     "test:commercial-funnel": "tsx --test tests/stripe-test-acceptance.test.ts tests/stripe-test-acceptance-workflow.test.ts tests/purchase-entitlements.test.ts tests/planning-pack-checkout.test.ts tests/commercial-funnel-golden.test.ts tests/commercial-funnel-golden-workflow.test.ts tests/map-snapshot.test.ts tests/spatial-evidence.test.ts tests/upload-evidence-applicability.test.ts tests/commercial-next-action.test.ts tests/quick-site-check-evidence.test.ts tests/detailed-planning-pack-selector.test.ts tests/planning-feasibility-summary.test.ts tests/feasibility-parse.test.ts tests/commercial-funnel-audit-runner.test.ts tests/consultant-referrals.test.ts tests/consultant-referral-acceptance.test.ts tests/upload-evidence.test.ts tests/uploads.test.ts tests/upload-route.test.ts && vitest run --config vitest.config.ts src/lib/nsw-planning-controls.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts src/lib/projects.requester-scope.test.ts src/lib/artefact-review-request.test.ts src/lib/review-request-handoff.test.ts src/lib/commercial-funnel-audit.test.ts src/lib/commercial-funnel-events.test.ts src/lib/consultant-needs.test.ts src/components/projects/consultant-referral-panel.test.tsx src/app/api/admin/commercial-funnel-audit/route.test.ts src/app/api/admin/commercial-funnel-metrics/route.test.ts src/app/api/commercial-funnel/handoff/route.test.ts src/app/api/cron/commercial-funnel-retention/route.test.ts src/app/api/plannera-check/start/route.test.ts tests/feasibility-panel.test.tsx",
@@ -47,7 +47,8 @@
     "accept:item74h-clamav-preview": "tsx scripts/item74h-clamav-preview-acceptance.ts",
     "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts && tsx scripts/item74h-public-da-persistence-preview.ts",
     "accept:item74h-candidate-da-preview": "tsx scripts/item74h-candidate-spatial-preview.ts && tsx scripts/item74h-candidate-da-review-preview.ts",
-    "accept:item74h-working-see-preview": "tsx scripts/item74h-working-see-preview-acceptance.ts"
+    "accept:item74h-working-see-preview": "tsx scripts/item74h-working-see-preview-acceptance.ts",
+    "accept:item78a-durable-commercial-bridge": "tsx scripts/item78a-durable-commercial-bridge.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

@@ -70,7 +70,7 @@ test("acceptance CLI runs in the repository CommonJS tsx mode", () => {
     ["scripts/consultant-referral-acceptance.ts"],
     {
       encoding: "utf8",
-      env: { PATH: process.env.PATH ?? "" },
+      env: { NODE_ENV: "test", PATH: process.env.PATH ?? "" },
     },
   );
 

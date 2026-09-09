@@ -14,8 +14,8 @@ describe("homepage commercial entry copy", () => {
     expect(source).toContain("52 Belgrave St, Kempsey NSW 2440");
     expect(source).not.toContain("32 Smith St, Kempsey NSW 2440");
     expect(source).toContain("Pilot coverage is focused on Byron and Kempsey");
-    expect(source).toContain("The same project and evidence continue into Detailed Planning Pack");
-    expect(source).toContain("not legal or professional planning advice");
+    expect(source).toMatch(/The same project and evidence continue into[\s\S]*Detailed Planning\s+Pack/);
+    expect(source).toMatch(/not legal or professional planning\s+advice/);
   });
 
   it("does not include generic or fabricated readiness claims", () => {
