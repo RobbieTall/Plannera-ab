@@ -101,6 +101,22 @@ describe("dev bypass project access", () => {
       .fn()
       .mockResolvedValueOnce(project)
       .mockResolvedValueOnce({ id: project.id });
+    const projectFindUnique = vi.fn().mockResolvedValueOnce({
+      ...project,
+      address: "1 Test Street, Byron Bay NSW 2481",
+      zoning: null,
+      siteContext: {
+        formattedAddress: "1 Test Street, Byron Bay NSW 2481",
+        lgaCode: "BYRON",
+        lgaName: "Byron Shire",
+        parcelId: null,
+        lot: null,
+        planNumber: null,
+        latitude: -28.64,
+        longitude: 153.61,
+        zone: null,
+      },
+    });
     const artefactCreate = vi.fn().mockResolvedValueOnce(artefact);
     const saveFile = vi.fn().mockResolvedValueOnce({ url: "/uploads/map.png" });
     const formData = new FormData();
@@ -108,6 +124,13 @@ describe("dev bypass project access", () => {
     formData.set("projectId", project.publicId);
     formData.set("title", "Map snapshot");
     formData.set("source", "Planning portal");
+    formData.set("overlays", "Project access fixture");
+    formData.set("sourceAuthority", "OTHER");
+    formData.set("legendStatus", "NOT_APPLICABLE");
+    formData.set("legendNotes", "No legend applies to this access-control fixture.");
+    formData.set("observation", "The fixture confirms project access resolution only.");
+    formData.set("limitation", "It does not establish any planning or spatial conclusion.");
+    formData.set("observationConfirmed", "true");
 
     await expect(
       createMapSnapshotArtefact({
@@ -116,7 +139,7 @@ describe("dev bypass project access", () => {
         userId: DEV_BYPASS_USER_ID,
         deps: {
           prisma: {
-            project: { findFirst: projectFindFirst, findUnique: vi.fn() },
+            project: { findFirst: projectFindFirst, findUnique: projectFindUnique },
             artefact: { create: artefactCreate, findMany: vi.fn() },
           },
           saveFile,

@@ -73,3 +73,11 @@ The orchestration must fail closed on cross-project ownership, evidence-digest m
 Plannera has now proven the payment lifecycle and the evidence-aware product contracts separately. The highest-impact unfinished Item 77 work is no longer another isolated contract test. It is the durable protected Preview bridge that turns those accepted pieces into one repeatable customer journey.
 
 Production checkout remains disabled. No Production data, schema, credential or live payment change is authorized by this record.
+
+## Item 78A extension (2026-09-09)
+
+Issue #388 adds a protected `commercial-bridge` suite that begins with the real paid test-mode A$49 pack already required by this operating record. It proves that later reviewed evidence, regeneration, one A$49 credit, and working A$749 SEE outputs remain attached to the same persisted project.
+
+The implementation is present, but this record must not claim acceptance until the suite has run at the exact authorized Preview commit and its privacy-safe summary has been captured. Required protected inputs are the existing Preview, Neon, Blob and Sandbox values plus the Stripe test session, project, alternate project, QSC, authenticated session, bypass, proposal, alternate proposal and DPP request values.
+
+The run must leave zero synthetic database and object residue and must not mutate the real paid pack, entitlement, project, QSC or DPP. Production remains disabled, and refunds remain outside this suite until paid checks have passed and a separate approved refund action is requested.
