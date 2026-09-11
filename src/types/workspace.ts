@@ -186,6 +186,23 @@ export type DetailedPlanningPackContent = {
   commercialReady: boolean;
 };
 
+export type WorkspaceCanonicalSeeCompilation = {
+  standardVersion: "see-builder-standard.v1";
+  status: "ready" | "blocked";
+  generatedAt: string;
+  sourceDetailedPlanningPackArtefactId: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    narrative: string;
+    sourceIds: string[];
+  }>;
+  issues: Array<{
+    code: string;
+    detail: string;
+  }>;
+};
+
 export type WorkspacePreSeePlanningMemoContent = {
   memoType: "pre_see_planning_memo";
   generatedAt: string;
@@ -236,6 +253,7 @@ export type WorkspacePreSeePlanningMemoContent = {
     citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
+  canonicalSee?: WorkspaceCanonicalSeeCompilation;
   sourceDetailedPlanningPack?: {
     artefactId: string;
     title: string;

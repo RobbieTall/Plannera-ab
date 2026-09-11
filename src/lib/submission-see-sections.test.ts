@@ -184,7 +184,7 @@ describe("submission SEE section compilation", () => {
   it.each([
     ["BYRON", "SP3"],
     ["KEMPSEY", "E2"],
-  ] as const)("compiles eight cited sections for %s %s", (lgaCode, zoneCode) => {
+  ] as const)("compiles eight canonical core sections for %s %s", (lgaCode, zoneCode) => {
     const result = compileSubmissionSeeSections(makeInput(lgaCode, zoneCode));
 
     expect(result).toMatchObject({
@@ -196,7 +196,7 @@ describe("submission SEE section compilation", () => {
         sections: expect.arrayContaining([
           expect.objectContaining({ id: "executive_summary" }),
           expect.objectContaining({ id: "environmental_impacts" }),
-          expect.objectContaining({ id: "mitigation_measures" }),
+          expect.objectContaining({ id: "section_4_15_evaluation" }),
           expect.objectContaining({ id: "conclusion" }),
         ]),
       },
@@ -223,7 +223,7 @@ describe("submission SEE section compilation", () => {
     });
   });
 
-  it("omits environmental and mitigation sections without complete impact evidence", () => {
+  it("omits environmental effects without complete impact evidence", () => {
     const input = makeInput("KEMPSEY", "E2");
     input.impactAssessments = [];
 
@@ -238,9 +238,6 @@ describe("submission SEE section compilation", () => {
     );
     expect(result.draft.sections.map((section) => section.id)).not.toContain(
       "environmental_impacts",
-    );
-    expect(result.draft.sections.map((section) => section.id)).not.toContain(
-      "mitigation_measures",
     );
   });
 
@@ -275,4 +272,130 @@ describe("submission SEE section compilation", () => {
       ]),
     );
   });
+
+  it("keeps a simple proposal proportional by omitting unsupported optional sections", () => {
+    const result = compileSubmissionSeeSections(makeInput("BYRON", "SP3"));
+    const ids = result.draft.sections.map((section) => section.id);
+
+    expect(ids).not.toContain("application_history");
+    expect(ids).not.toContain("assessment_pathway_referrals");
+    expect(ids).not.toContain("variations_and_merit");
+    expect(ids).not.toContain("appendices_supporting_evidence");
+    expect(result.draft.standardVersion).toBe("see-builder-standard.v1");
+  });
+
+  it("adds pathway, history, variation and appendix sections only when cited", () => {
+    const input = makeInput("KEMPSEY", "E2");
+    input.applicationHistory = {
+      narrative:
+        "The registered evidence records an earlier consent and modification affecting the current access arrangement, and the present assessment carries that history forward without treating it as proof of current controls.",
+      sourceIds: ["upload-plan"],
+    };
+    input.assessmentPathway = {
+      narrative:
+        "The proposal requires development consent from the recorded consent authority, with the cited evidence identifying the assessment pathway and any referral questions that must be resolved before lodgement.",
+      sourceIds: ["LEP:2.3", "DCP:DCP-1"],
+    };
+    input.variations = [
+      {
+        controlRef: "DCP-1",
+        kind: "dcp_departure",
+        requirement:
+          "The cited control establishes a numerical built-form outcome for this development type.",
+        proposedOutcome:
+          "The current plans record a site-responsive alternative built-form outcome.",
+        quantifiedDeparture: "A 0.5 metre numerical departure is recorded.",
+        objectives:
+          "The control objectives seek an appropriate relationship to the street, adjoining development and the established locality character.",
+        siteSpecificMerit:
+          "The constrained site geometry and retained landscape response allow the objective to be achieved without transferring unreasonable effects to adjoining land.",
+        environmentalEffects:
+          "The cited assessment identifies no material additional privacy, overshadowing, visual or access effect arising solely from the numerical departure.",
+        mitigation:
+          "Retain the cited setbacks, landscape screening and final design dimensions.",
+        separateRequestRequired: false,
+        sourceIds: ["DCP:DCP-1", "upload-plan"],
+      },
+    ];
+    input.appendices = [
+      {
+        title: "Current proposal plans",
+        description:
+          "The registered current-site proposal plans relied upon by the assessment.",
+        sourceIds: ["upload-plan"],
+      },
+    ];
+
+    const result = compileSubmissionSeeSections(input);
+    const ids = result.draft.sections.map((section) => section.id);
+
+    expect(result.ready).toBe(true);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "application_history",
+        "assessment_pathway_referrals",
+        "variations_and_merit",
+        "appendices_supporting_evidence",
+      ]),
+    );
+    expect(
+      result.draft.sections.find(
+        (section) => section.id === "variations_and_merit",
+      )?.narrative,
+    ).toMatch(/site-specific merit/i);
+  });
+
+  it("integrates an exact specialist report and blocks unresolved conflicts", () => {
+    const input = makeInput("BYRON", "SP3");
+    input.specialistReports = [
+      {
+        title: "Traffic and parking assessment",
+        sourceId: "upload-environment",
+        siteMatched: true,
+        proposalRevisionMatched: true,
+        pageReferences: ["Section 4", "Page 18"],
+        findings:
+          "The report assesses the current access, parking demand and servicing layout against the proposal plans for the confirmed site.",
+        recommendations:
+          "Retain the documented access geometry and servicing management measures.",
+        limitations: ["Final detailed design remains subject to consent conditions."],
+        conflicts: [],
+      },
+    ];
+
+    const accepted = compileSubmissionSeeSections(input);
+    expect(accepted.ready).toBe(true);
+    expect(
+      accepted.draft.sections.find(
+        (section) => section.id === "environmental_impacts",
+      )?.narrative,
+    ).toMatch(/Traffic and parking assessment.*Section 4.*Recommendations:/);
+
+    input.specialistReports[0]!.conflicts = [
+      "The architectural plan revision does not match the traffic report.",
+    ];
+    const blocked = compileSubmissionSeeSections(input);
+    expect(blocked.ready).toBe(false);
+    expect(blocked.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "specialist_conflict" }),
+      ]),
+    );
+  });
+
+  it("requires a dedicated merit assessment when source evidence signals a departure", () => {
+    const input = makeInput("KEMPSEY", "E2");
+    input.preSeeMemo.consistencyAssessment[1]!.assessment =
+      "The proposal records a numerical DCP departure that requires a site-specific merit assessment.";
+
+    const result = compileSubmissionSeeSections(input);
+
+    expect(result.ready).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing_variation_assessment" }),
+      ]),
+    );
+  });
+
 });

@@ -4,13 +4,20 @@ export const SUBMISSION_SEE_PRICE_AUD = 749;
 
 export const REQUIRED_SUBMISSION_SEE_SECTIONS = [
   "executive_summary",
-  "site_and_surrounds",
   "proposed_development",
+  "site_and_surrounds",
   "statutory_planning_framework",
   "planning_controls_assessment",
   "environmental_impacts",
-  "mitigation_measures",
+  "section_4_15_evaluation",
   "conclusion",
+] as const;
+
+export const OPTIONAL_SUBMISSION_SEE_SECTIONS = [
+  "application_history",
+  "assessment_pathway_referrals",
+  "variations_and_merit",
+  "appendices_supporting_evidence",
 ] as const;
 
 export type SubmissionSeeSectionId =

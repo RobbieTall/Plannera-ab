@@ -348,4 +348,25 @@ describe("submission SEE rendering", () => {
       /operator_review_incomplete/,
     );
   });
+
+  it("renders optional canonical sections without forcing unrelated boilerplate", () => {
+    const candidate = makeCandidate();
+    candidate.sections.splice(3, 0, {
+      id: "variations_and_merit",
+      title: "Variations, Departures And Merit Justification",
+      narrative:
+        "The cited DCP departure is quantified and assessed against the control objectives, site-specific circumstances, environmental effects and retained mitigation, without asserting that this SEE replaces any separate legal request.",
+      sourceIds: ["lep", "dcp", "upload-plan"],
+    });
+
+    const rendered = renderSubmissionSeeOutputs(candidate);
+    const entries = storedZipEntries(rendered.docx);
+
+    expect(entries.get("word/document.xml")!.toString("utf8")).toContain(
+      "Variations, Departures And Merit Justification",
+    );
+    expect(rendered.pdf.includes("Variations,")).toBe(true);
+    expect(rendered.outputs).toHaveLength(2);
+  });
+
 });

@@ -10,6 +10,7 @@ import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
 import { summariseQuickSiteCheckEvidence } from "@/lib/quick-site-check-evidence";
 import { assessQuickSiteCheckDevelopmentIntent } from "@/lib/plannera-check-flow";
 import { buildPlanningFeasibilitySummary } from "@/lib/planning-feasibility-summary";
+import { compileCanonicalSeeFromPreSee } from "@/lib/submission-see-application-adapter";
 import { buildConsultantNeedsMatrix, buildDisciplineReferralPackages } from "@/lib/consultant-needs";
 import { buildQuickSiteCheckLep } from "@/lib/lep/quick-site-check";
 import { getLepContextForProject, type LepClauseContext, type LepContext } from "@/lib/lep/lep-context";
@@ -29,7 +30,12 @@ import type { Session } from "next-auth";
 import type { Artefact, ArtefactType, PrismaClient } from "@prisma/client";
 import type { QuickSiteCheckControl, QuickSiteCheckReport } from "@/types/quick-site-check";
 import type { LepControlValue } from "@/types/quick-site-check-lep";
-import type { DetailedPlanningPackContent, FeasibilityContent, WorkspacePreSeePlanningMemoContent } from "@/types/workspace";
+import type {
+  DetailedPlanningPackContent,
+  FeasibilityContent,
+  WorkspaceCanonicalSeeCompilation,
+  WorkspacePreSeePlanningMemoContent,
+} from "@/types/workspace";
 
 export const DEV_BYPASS_USER_ID = "dev-bypass-user";
 
@@ -1462,6 +1468,7 @@ export type PreSeePlanningMemoContent = {
     citations?: SeeSourceCitation[];
   }>;
   limitations: string[];
+  canonicalSee?: WorkspaceCanonicalSeeCompilation;
   sourceDetailedPlanningPack?: {
     artefactId: string;
     title: string;
@@ -1917,6 +1924,12 @@ export async function createPreSeePlanningMemoArtefact({
       unresolvedTopics: resolvedPack.pack.unresolvedTopics,
     },
   };
+
+  content.canonicalSee = compileCanonicalSeeFromPreSee({
+    detailedPlanningPackArtefactId: resolvedPack.artefact.id,
+    detailedPlanningPack: resolvedPack.pack,
+    preSeeMemo: content as WorkspacePreSeePlanningMemoContent,
+  });
 
   const artefact = await deps.prisma.artefact.create({
     data: {

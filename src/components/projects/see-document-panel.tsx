@@ -29,6 +29,22 @@ function buildPlainText(c: WorkspacePreSeePlanningMemoContent): string {
   lines.push(c.proposedWorksSummary ?? "");
   lines.push("");
 
+  if (c.canonicalSee?.sections.length) {
+    c.canonicalSee.sections.forEach((section, index) => {
+      lines.push(`${index + 1}. ${section.title.toUpperCase()}`);
+      lines.push("-".repeat(40));
+      lines.push(section.narrative);
+      lines.push(`Sources: ${section.sourceIds.join("; ")}`);
+      lines.push("");
+    });
+    if (c.limitations?.length) {
+      lines.push("LIMITATIONS");
+      lines.push("-".repeat(40));
+      for (const limitation of c.limitations) lines.push(`- ${limitation}`);
+    }
+    return lines.join("\n");
+  }
+
   const ctrl = c.applicableControls;
   if (ctrl?.lepInstrument?.name) {
     lines.push("2. APPLICABLE LEP INSTRUMENT");
@@ -87,8 +103,6 @@ function buildPlainText(c: WorkspacePreSeePlanningMemoContent): string {
   return lines.join("\n");
 }
 
-const SECTION_COUNT = 7;
-
 export function SeeDocumentPanel({
   content,
   generatedAt,
@@ -100,6 +114,8 @@ export function SeeDocumentPanel({
   const [expandedClauses, setExpandedClauses] = useState<Set<string>>(
     () => new Set(),
   );
+  const canonicalSee = content.canonicalSee;
+  const sectionCount = canonicalSee ? canonicalSee.sections.length + 1 : 7;
 
   const toggleClause = (clauseId: string) => {
     setExpandedClauses((current) => {
@@ -111,10 +127,10 @@ export function SeeDocumentPanel({
   };
 
   useEffect(() => {
-    if (visibleSections >= SECTION_COUNT) return;
+    if (visibleSections >= sectionCount) return;
     const t = setTimeout(() => setVisibleSections((v) => v + 1), 400);
     return () => clearTimeout(t);
-  }, [visibleSections]);
+  }, [sectionCount, visibleSections]);
 
   const plainText = buildPlainText(content);
   const ctrl = content.applicableControls;
@@ -201,7 +217,50 @@ export function SeeDocumentPanel({
         </div>
       )}
 
-      {show(1) && (
+      {canonicalSee && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-teal-700/60 bg-teal-950/40 px-3 py-2 text-xs text-teal-100">
+            <p className="font-semibold">Canonical SEE compiler</p>
+            <p className="mt-0.5 text-teal-200/80">
+              {canonicalSee.status === "ready"
+                ? "Core planning sections are evidence-compiled. Submission readiness still depends on final outputs and operator review."
+                : "This working SEE remains blocked where evidence or planning reasoning is incomplete."}
+            </p>
+          </div>
+          {canonicalSee.sections.map((section, index) =>
+            show(index + 1) ? (
+              <section
+                key={section.id}
+                className="space-y-2 rounded-lg border border-slate-700 bg-slate-800/40 px-4 py-3"
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+                  {index + 1}. {section.title}
+                </h3>
+                <p className="leading-relaxed text-slate-200">
+                  {section.narrative}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  Sources: {section.sourceIds.join("; ")}
+                </p>
+              </section>
+            ) : null,
+          )}
+          {canonicalSee.issues.length > 0 && show(canonicalSee.sections.length) ? (
+            <section className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-4 py-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+                Evidence and review requirements
+              </h3>
+              <ul className="mt-2 space-y-1 text-xs text-amber-100/80">
+                {canonicalSee.issues.map((issue) => (
+                  <li key={`${issue.code}:${issue.detail}`}>{issue.detail}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      )}
+
+      {!canonicalSee && show(1) && (
         <section className="space-y-1">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             1. Proposed Works
@@ -212,7 +271,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {show(2) && ctrl?.lepInstrument?.name && (
+      {!canonicalSee && show(2) && ctrl?.lepInstrument?.name && (
         <section className="space-y-1">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             2. Applicable LEP Instrument
@@ -245,7 +304,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {show(3) && controlKeys.length > 0 && (
+      {!canonicalSee && show(3) && controlKeys.length > 0 && (
         <section className="space-y-1">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             3. Key Development Standards
@@ -270,7 +329,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {show(4) && clauses.length > 0 && (
+      {!canonicalSee && show(4) && clauses.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             4. Relevant DCP Clauses
@@ -324,7 +383,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {show(5) && (content.consistencyAssessment?.length ?? 0) > 0 && (
+      {!canonicalSee && show(5) && (content.consistencyAssessment?.length ?? 0) > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             5. Consistency Assessment
@@ -346,7 +405,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {show(6) && (content.limitations?.length ?? 0) > 0 && (
+      {!canonicalSee && show(6) && (content.limitations?.length ?? 0) > 0 && (
         <section className="space-y-1">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             6. Limitations
@@ -365,7 +424,7 @@ export function SeeDocumentPanel({
         </section>
       )}
 
-      {visibleSections < SECTION_COUNT && (
+      {visibleSections < sectionCount && (
         <div className="animate-pulse space-y-2">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="h-4 w-full rounded bg-slate-800" />

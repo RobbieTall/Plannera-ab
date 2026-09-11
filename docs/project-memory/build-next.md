@@ -1518,7 +1518,7 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - [ ] Independently review the updated PR commit before merge.
 - [ ] Confirm GitHub environment protection, exact environment variables/secrets and non-production targets externally before any stateful workflow run.
 
-### Item 78A - Durable same-project commercial bridge - IMPLEMENTED, HOSTED ACCEPTANCE PENDING (2026-09-09)
+### Item 78A - Durable same-project commercial bridge - ACCEPTED/MERGED (2026-09-11)
 
 - Protected Preview-only runner starts from a real Stripe test-mode paid A$49 Planning Controls Pack and its active entitlement.
 - The bridge binds requester, project, site, QSC, proposal digest, DPP version, reviewed evidence digest, credit target, and generated outputs to the same persisted project.
@@ -1526,4 +1526,17 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - Generated DOCX/PDF outputs are visibly `WORKING SEE - NOT SUBMISSION READY`; canonical approval-oriented SEE compiler integration remains Item 78B.
 - Synthetic SEE-side records are deterministic and removed in cleanup. The paid pack, entitlement, project, QSC, and DPP are never deleted or rewritten.
 - Production remains disabled. No production checkout, deployment, secret mutation, or refund occurs in the runner.
-- Remaining gate: configure the protected environment inputs, run the `commercial-bridge` suite at the exact authorized Preview commit, and record the privacy-safe evidence after all repository checks are green.
+- Hosted evidence: PR #390 merged at `22df069c007f116d5fe7c66e06a86d7f9057cdc2`; protected run #34565128134 passed all checks and an independent Neon query confirmed zero synthetic residue.
+
+
+### Item 78B - Canonical world-class SEE compiler integration - ACCEPTED (2026-09-11)
+
+- Issue #391 and branch `feat/item-78b-canonical-see-compiler` are strictly scoped to the flexible SEE standard.
+- The versioned compiler retains eight evidence-required core sections, replaces the rigid mitigation chapter with section 4.15 synthesis, and keeps mitigation/residual-impact reasoning with each material effect.
+- Optional history, pathway/referral, variation/merit and appendix sections are selected only from relevant cited evidence.
+- Specialist evidence must match the site and proposal revision and preserve findings, recommendations, page references, limitations and conflicts.
+- The existing DPP/QSC-derived generation service stores the canonical compilation additively so legacy memo payloads and the public API response remain compatible.
+- Acceptance gates: focused compiler, adapter, renderer and panel tests; Byron/Kempsey regressions; all repository checks; Vercel Preview.
+- Production checkout, Production mutation, schema changes, payment changes, new LGAs and workspace redesign remain out of scope.
+- Acceptance evidence: PR #392 head `31940931c662b6185b16febca831b59ae767e333`; all nine GitHub workflow groups green, including section compilation, candidate assembly, acceptance, deterministic DOCX/PDF, working SEE Preview, commercial funnel, whole-LGA, launch smoke and the protected Item 77 journey.
+- Vercel Preview deployment `dpl_XLFMD4zaV9YTmCx4EhzX4QDS3B1v` reached `READY` at https://plannera-84vocx0xf-robbietalls-projects.vercel.app after deleting the obsolete Neon Preview branch for merged PR #390; `main`, active acceptance branches and Production were untouched.
