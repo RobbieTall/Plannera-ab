@@ -90,13 +90,34 @@ test("does not expose identifiers, credentials, addresses or proposal text", () 
   }
 });
 
-test("counts only paid planning packs across bridge replay", () => {
+test("keeps the paid pack and SEE product keys distinct across bridge replay", () => {
   const runner = readFileSync(
     new URL("../scripts/item78a-durable-commercial-bridge.ts", import.meta.url),
     "utf8",
   );
   const normalizedRunner = runner.replace(/\s+/g, " ");
   const paidPackPredicate =
-    'scopeKey: exactScopeKey, productCode: PLANNING_CONTROLS_PACK_TERMS.productCode, productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion, status: "PAID",';
+    'scopeKey: planningPackScopeKey, productCode: PLANNING_CONTROLS_PACK_TERMS.productCode, productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion, status: "PAID",';
+
+  assert.match(
+    normalizedRunner,
+    /const submissionScopeKey = submissionSeeScopeKey\(scope\);/,
+  );
+  assert.match(
+    normalizedRunner,
+    /const planningPackScopeKey = sourcePurchase\.scopeKey;/,
+  );
+  assert.match(
+    normalizedRunner,
+    /planningPackScopeKey !== submissionScopeKey/,
+  );
+  assert.doesNotMatch(
+    normalizedRunner,
+    /sourcePurchase\.scopeKey === submissionScopeKey/,
+  );
   assert.equal(normalizedRunner.split(paidPackPredicate).length - 1, 2);
+  assert.equal(
+    normalizedRunner.split("scopeKey: submissionScopeKey,").length - 1,
+    2,
+  );
 });

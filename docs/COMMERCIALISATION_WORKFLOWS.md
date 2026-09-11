@@ -396,4 +396,6 @@ The authoritative capability contract and first-slice acceptance are in [Evidenc
 
 The protected `commercial-bridge` Preview suite extends the paid-pack journey without creating another isolated commercial subsystem. It resolves a real paid Stripe test-mode A$49 pack, requires its active entitlement and matching persisted DPP, introduces reviewed later evidence, regenerates working SEE outputs on the same project, and proves a single-use A$49 credit against the A$749 SEE.
 
+Same-project scope means the same requester, owned project, current-site Quick Site Check and normalized proposal; it does not mean reusing one product key. The A$49 Planning Controls Pack and A$749 SEE retain distinct product-specific scope keys, and the single-use credit ledger is the explicit bridge between them. Historical cancelled checkout attempts remain auditable but do not count as additional paid packs.
+
 The source payment is real test-mode commerce. The target SEE-side purchase and artefact records are deterministic synthetic acceptance records, use the credited A$700 payable amount, and are removed after replay and denial checks. The output remains working-only and requires operator review. Production checkout is disabled.

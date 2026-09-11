@@ -489,22 +489,23 @@ async function runBridge(prisma: PrismaClient) {
     quickSiteCheckArtefactId: sourcePurchase.quickSiteCheckArtefactId,
     proposalBrief: stripeConfig.proposal,
   });
-  const exactScopeKey = submissionSeeScopeKey(scope);
+  const submissionScopeKey = submissionSeeScopeKey(scope);
+  const planningPackScopeKey = sourcePurchase.scopeKey;
   assert(
     sourcePurchase.projectId === project.id &&
       sourcePurchase.quickSiteCheckArtefactId ===
         stripeConfig.quickSiteCheckArtefactId &&
       sourcePurchase.proposalFingerprint === scope.proposalFingerprint &&
-      sourcePurchase.scopeKey === exactScopeKey &&
+      planningPackScopeKey !== submissionScopeKey &&
       sourcePurchase.amountMinor === PLANNING_CONTROLS_PACK_TERMS.amountMinor &&
       sourcePurchase.currency === PLANNING_CONTROLS_PACK_TERMS.currency &&
-      sourcePurchase.entitlement.activeScopeKey === exactScopeKey,
+      sourcePurchase.entitlement.activeScopeKey === planningPackScopeKey,
     stage,
   );
 
   const packPurchasesBefore = await prisma.purchase.count({
     where: {
-      scopeKey: exactScopeKey,
+      scopeKey: planningPackScopeKey,
       productCode: PLANNING_CONTROLS_PACK_TERMS.productCode,
       productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion,
       status: "PAID",
@@ -531,7 +532,7 @@ async function runBridge(prisma: PrismaClient) {
   const pack = matchingPacks[0];
 
   const runKey = sha256(
-    `${process.env.GITHUB_SHA}:${sourcePurchase.id}:${exactScopeKey}`,
+    `${process.env.GITHUB_SHA}:${sourcePurchase.id}:${planningPackScopeKey}:${submissionScopeKey}`,
   ).slice(0, 24);
   const prefix = `item78a_${runKey}`;
   const evidenceRef = `${prefix}_survey`;
@@ -868,7 +869,7 @@ async function runBridge(prisma: PrismaClient) {
         status: "PENDING",
         providerName: "item78a_protected_preview",
         idempotencyKey: `${targetPurchaseId}:idempotency`,
-        scopeKey: exactScopeKey,
+        scopeKey: submissionScopeKey,
       },
     });
     const reserved = await creditService.reserve({
@@ -954,7 +955,7 @@ async function runBridge(prisma: PrismaClient) {
     const addressFingerprint = sha256(
       project.siteContext.formattedAddress ?? project.id,
     );
-    const baselineDigest = sha256(`${exactScopeKey}:baseline`);
+    const baselineDigest = sha256(`${submissionScopeKey}:baseline`);
     const reviewedDigest = sha256(
       `${baselineDigest}:${evidenceHash}:${verifiedRecord.recordHash}`,
     );
@@ -1070,7 +1071,7 @@ async function runBridge(prisma: PrismaClient) {
       item78aBridge: {
         version: ITEM78A_DURABLE_COMMERCIAL_BRIDGE_VERSION,
         generation,
-        scopeKey: exactScopeKey,
+        scopeKey: submissionScopeKey,
         evidenceDigest,
         predecessorArtefactId,
         creditTargetPurchaseId: targetPurchaseId,
@@ -1135,7 +1136,7 @@ async function runBridge(prisma: PrismaClient) {
         }),
         prisma.purchase.count({
           where: {
-            scopeKey: exactScopeKey,
+            scopeKey: planningPackScopeKey,
             productCode: PLANNING_CONTROLS_PACK_TERMS.productCode,
             productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion,
             status: "PAID",
