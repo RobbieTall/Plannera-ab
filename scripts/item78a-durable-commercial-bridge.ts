@@ -93,6 +93,22 @@ const sha256 = (value: string | Uint8Array) =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+const canonicalJson = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalJson(value[key])}`,
+      )
+      .join(",")}}`;
+  }
+  return value === undefined ? "undefined" : JSON.stringify(value);
+};
+
 const enabled = (value: string | undefined) =>
   value?.trim().toLowerCase() === "true";
 
@@ -360,14 +376,14 @@ async function persistWorkingVersion(input: {
   payload: Prisma.InputJsonValue;
   capturedAt: Date;
 }) {
-  const expectedHash = sha256(JSON.stringify(input.payload));
+  const expectedHash = sha256(canonicalJson(input.payload));
   const existing = await input.prisma.artefact.findUnique({
     where: { id: input.id },
   });
   if (existing) {
     assert(
       existing.projectId === input.projectId &&
-        sha256(JSON.stringify(existing.payload)) === expectedHash,
+        sha256(canonicalJson(existing.payload)) === expectedHash,
       "replay",
     );
     return { artefact: existing, replayed: true };
@@ -401,7 +417,7 @@ async function persistWorkingVersion(input: {
     assert(
       winner &&
         winner.projectId === input.projectId &&
-        sha256(JSON.stringify(winner.payload)) === expectedHash,
+        sha256(canonicalJson(winner.payload)) === expectedHash,
       "replay",
     );
     return { artefact: winner, replayed: true };
