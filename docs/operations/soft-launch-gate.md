@@ -30,3 +30,18 @@ Both launch LGAs must have:
 The representative preflight zones are Byron `SP3`, `R2`, and `R3`, plus Kempsey `E2` and `SP2`. Byron search is scoped to `SP3 Tourist`; Kempsey search is scoped to `E2 Commercial Centre`. These cases catch launch regressions but do not replace the complete zone/source matrix, every-zone flight tests, rendered SEE inspection, or explicit operator sign-off required by Item 74C.
 
 Any missing database connection, stale/unprepared coverage marker, unsupported LEP provenance, incomplete projection, absent DCP source/chunks, unreferenced retrieval result, or other red result blocks deployment and soft launch. Output contains counts and public planning-source labels only. Database credentials are redacted and no downloadable smoke artifact is produced.
+
+
+## Item 78C whole-funnel release gate
+
+The source-data smoke above remains necessary but is not the commercial launch decision. Item 78C adds a protected, manual, exact-commit gate that combines two isolated persisted Preview fixtures:
+
+- Byron and Kempsey must each complete the Item 78A paid A$49 pack, later-evidence regeneration, single-use A$49 credit and working A$749 SEE bridge.
+- The exact commit must pass the Item 78B `see-builder-standard.v1` candidate, dynamic-section, statutory/s4.15, evidence-finality and DOCX/PDF renderer contracts.
+- Exactly one council fixture must complete the truthful consultant-referral lifecycle; the other represents the direct working-SEE path.
+- Both bridge summaries must prove replay safety and zero database/object residue.
+- The combined artifact contains council and journey-role labels plus booleans only. It excludes addresses, proposals, project, payment and artefact identifiers, cookies and secrets.
+
+Run `Item 78C Byron and Kempsey Whole-funnel Acceptance` manually against a full 40-character feature commit. The `item78c-byron-preview` and `item78c-kempsey-preview` GitHub environments must each be pinned to their exact isolated Neon endpoint, private Blob store, paid Stripe test fixture and protected Preview credentials. The workflow fails closed if either council or the consultant route is incomplete.
+
+A green result is `READY_FOR_NON_PRODUCTION_ACCEPTANCE`, not Production approval. Production checkout, Production data mutation and customer launch remain disabled until the rendered outputs are inspected, the evidence artifact is linked in the acceptance record and an operator records a separate go/no-go decision.
