@@ -116,7 +116,7 @@ describe("SeeDocumentPanel", () => {
     expect(screen.getByText("Canonical SEE compiler")).toBeInTheDocument();
     expect(
       await screen.findByText(
-        "Section 4.15 Evaluation",
+        /Section 4\.15 Evaluation/,
         {},
         { timeout: 3000 },
       ),
