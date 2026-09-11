@@ -365,3 +365,16 @@ A world-class Plannera SEE is successful when a competent consent-authority plan
 - why the site is suitable and approval is in the public interest.
 
 That is the target standard for the Plannera SEE Builder.
+
+## Versioned implementation contract
+
+The first repository implementation of this standard is `see-builder-standard.v1`.
+
+- Core acceptance sections are Executive Summary, Development Proposal, Site, Locality and Planning Context, Statutory Planning Assessment, Planning Controls Assessment, Environmental Effects and Impact Assessment, Section 4.15 Evaluation, and Conclusion.
+- Existing approvals/history, assessment pathway/referrals, variations/merit and appendices are optional evidence-driven sections. They are omitted rather than filled with boilerplate when not relevant.
+- Mitigation and residual-impact reasoning belong with each material environmental effect; a separate generic mitigation chapter is not mandatory.
+- A potential variation trigger without a dedicated cited merit assessment blocks compiler readiness.
+- LEP development-standard departures must identify the need for a separate clause 4.6 or other formal request where required; the SEE never claims to replace it.
+- Specialist reports must match the exact site and proposal revision, include attributable findings and recommendations, and preserve limitations and conflicts.
+- Compiler readiness means the section set is complete against registered evidence. It does not itself mean submission readiness, which still requires accepted evidence, polished outputs and operator approval.
+- Legacy pre-SEE fields and public API response shapes remain readable during migration.
