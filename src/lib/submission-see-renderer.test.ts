@@ -353,7 +353,7 @@ describe("submission SEE rendering", () => {
     const candidate = makeCandidate();
     candidate.sections.splice(3, 0, {
       id: "variations_and_merit",
-      title: "Variations, Departures and Merit Justification",
+      title: "Variations, Departures And Merit Justification",
       narrative:
         "The cited DCP departure is quantified and assessed against the control objectives, site-specific circumstances, environmental effects and retained mitigation, without asserting that this SEE replaces any separate legal request.",
       sourceIds: ["lep", "dcp", "upload-plan"],
