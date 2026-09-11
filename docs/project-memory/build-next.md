@@ -1529,7 +1529,7 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - Hosted evidence: PR #390 merged at `22df069c007f116d5fe7c66e06a86d7f9057cdc2`; protected run #34565128134 passed all checks and an independent Neon query confirmed zero synthetic residue.
 
 
-### Item 78B - Canonical world-class SEE compiler integration - IMPLEMENTED (2026-09-11)
+### Item 78B - Canonical world-class SEE compiler integration - ACCEPTED (2026-09-11)
 
 - Issue #391 and branch `feat/item-78b-canonical-see-compiler` are strictly scoped to the flexible SEE standard.
 - The versioned compiler retains eight evidence-required core sections, replaces the rigid mitigation chapter with section 4.15 synthesis, and keeps mitigation/residual-impact reasoning with each material effect.
@@ -1538,3 +1538,5 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - The existing DPP/QSC-derived generation service stores the canonical compilation additively so legacy memo payloads and the public API response remain compatible.
 - Acceptance gates: focused compiler, adapter, renderer and panel tests; Byron/Kempsey regressions; all repository checks; Vercel Preview.
 - Production checkout, Production mutation, schema changes, payment changes, new LGAs and workspace redesign remain out of scope.
+- Acceptance evidence: PR #392 head `31940931c662b6185b16febca831b59ae767e333`; all nine GitHub workflow groups green, including section compilation, candidate assembly, acceptance, deterministic DOCX/PDF, working SEE Preview, commercial funnel, whole-LGA, launch smoke and the protected Item 77 journey.
+- Vercel Preview deployment `dpl_XLFMD4zaV9YTmCx4EhzX4QDS3B1v` reached `READY` at https://plannera-84vocx0xf-robbietalls-projects.vercel.app after deleting the obsolete Neon Preview branch for merged PR #390; `main`, active acceptance branches and Production were untouched.
