@@ -18,6 +18,7 @@ import {
 
 export type SubmissionSeeDraft = {
   kind: "submission_see_draft";
+  standardVersion?: "see-builder-standard.v1";
   generatedAt: string;
   sourceDetailedPlanningPackArtefactId: string;
   proposalSummary: string;
