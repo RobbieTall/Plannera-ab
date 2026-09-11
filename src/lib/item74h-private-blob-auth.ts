@@ -10,8 +10,16 @@ export type Item74hPrivateBlobAuth =
 
 const readValue = (value: string | undefined) => value?.trim() || undefined;
 
+const defaultEnvironment = (): Item74hPrivateBlobEnvironment => ({
+  ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN:
+    process.env.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN,
+  ITEM74H_PRIVATE_BLOB_STORE_ID:
+    process.env.ITEM74H_PRIVATE_BLOB_STORE_ID,
+  VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN,
+});
+
 export const resolveItem74hPrivateBlobAuth = (
-  environment: Item74hPrivateBlobEnvironment = process.env,
+  environment: Item74hPrivateBlobEnvironment = defaultEnvironment(),
 ): Item74hPrivateBlobAuth => {
   const storeId = readValue(environment.ITEM74H_PRIVATE_BLOB_STORE_ID);
   const oidcToken = readValue(environment.VERCEL_OIDC_TOKEN);
