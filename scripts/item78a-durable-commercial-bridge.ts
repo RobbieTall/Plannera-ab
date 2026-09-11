@@ -68,6 +68,8 @@ type Stage =
   | "operator_review"
   | "credit"
   | "working_see"
+  | "working_see_render"
+  | "working_see_persist"
   | "replay"
   | "cleanup"
   | "unhandled";
@@ -1018,6 +1020,7 @@ async function runBridge(prisma: PrismaClient) {
       sourceDetailedPlanningPackArtefactId: pack.id,
       predecessorDetailedPlanningPackArtefactId: pack.id,
     };
+    stage = "working_see_render";
     const initialRendered = renderWorkingSeeOutputs(
       initialCandidate,
       initialContext,
@@ -1092,6 +1095,7 @@ async function runBridge(prisma: PrismaClient) {
       strengthenedContext,
       strengthenedRendered.outputs,
     );
+    stage = "working_see_persist";
     const firstVersion = await persistWorkingVersion({
       prisma,
       id: initialSeeId,

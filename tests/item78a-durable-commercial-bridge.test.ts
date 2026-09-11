@@ -99,24 +99,12 @@ test("keeps the paid pack and SEE product keys distinct across bridge replay", (
   const paidPackPredicate =
     'scopeKey: planningPackScopeKey, productCode: PLANNING_CONTROLS_PACK_TERMS.productCode, productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion, status: "PAID",';
 
-  assert.match(
-    normalizedRunner,
-    /const submissionScopeKey = submissionSeeScopeKey\(scope\);/,
-  );
-  assert.match(
-    normalizedRunner,
-    /const planningPackScopeKey = sourcePurchase\.scopeKey;/,
-  );
+  assert.match(normalizedRunner, /const submissionScopeKey = submissionSeeScopeKey\(scope\);/);
+  assert.match(normalizedRunner, /const planningPackScopeKey = sourcePurchase\.scopeKey;/);
   assert.match(normalizedRunner, /planningPackScopeKey !== submissionScopeKey/);
-  assert.doesNotMatch(
-    normalizedRunner,
-    /sourcePurchase\.scopeKey === submissionScopeKey/,
-  );
+  assert.doesNotMatch(normalizedRunner, /sourcePurchase\.scopeKey === submissionScopeKey/);
   assert.equal(normalizedRunner.split(paidPackPredicate).length - 1, 2);
-  assert.equal(
-    normalizedRunner.split("scopeKey: submissionScopeKey,").length - 1,
-    2,
-  );
+  assert.equal(normalizedRunner.split("scopeKey: submissionScopeKey,").length - 1, 2);
 });
 
 test("preserves safe stage diagnostics and classifies cleanup failures", () => {
@@ -126,12 +114,8 @@ test("preserves safe stage diagnostics and classifies cleanup failures", () => {
   );
   const normalizedRunner = runner.replace(/\s+/g, " ");
 
-  assert.match(
-    normalizedRunner,
-    /catch \(error\) \{ if \(error instanceof BridgeFailure\) throw error; throw new BridgeFailure\(stage\); \} finally/,
-  );
-  assert.match(
-    normalizedRunner,
-    /catch \{ throw new BridgeFailure\("cleanup"\); \}/,
-  );
+  assert.match(normalizedRunner, /catch \(error\) \{ if \(error instanceof BridgeFailure\) throw error; throw new BridgeFailure\(stage\); \} finally/);
+  assert.match(normalizedRunner, /catch \{ throw new BridgeFailure\("cleanup"\); \}/);
+  assert.match(normalizedRunner, /stage = "working_see_render"; const initialRendered/);
+  assert.match(normalizedRunner, /stage = "working_see_persist"; const firstVersion/);
 });
