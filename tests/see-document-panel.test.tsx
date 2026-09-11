@@ -48,6 +48,33 @@ const mockContent: WorkspacePreSeePlanningMemoContent = {
   limitations: ["Data sourced from LEP XML; always verify with Council."],
 };
 
+const canonicalContent: WorkspacePreSeePlanningMemoContent = {
+  ...mockContent,
+  canonicalSee: {
+    standardVersion: "see-builder-standard.v1",
+    status: "ready",
+    generatedAt: mockContent.generatedAt,
+    sourceDetailedPlanningPackArtefactId: "dpp-current",
+    sections: [
+      {
+        id: "executive_summary",
+        title: "Executive Summary",
+        narrative:
+          "The cited evidence supports preparation of the current proposal for development consent, subject to final outputs and operator review.",
+        sourceIds: ["LEP:2.3", "DCP:DCP-1"],
+      },
+      {
+        id: "section_4_15_evaluation",
+        title: "Section 4.15 Evaluation",
+        narrative:
+          "The applicable instruments, likely impacts, site suitability and public interest are synthesised from the registered current-site evidence.",
+        sourceIds: ["LEP:2.3", "DCP:DCP-1"],
+      },
+    ],
+    issues: [],
+  },
+};
+
 describe("SeeDocumentPanel", () => {
   it("renders site address immediately", () => {
     render(<SeeDocumentPanel content={mockContent} />);
@@ -82,4 +109,21 @@ describe("SeeDocumentPanel", () => {
       screen.getByRole("button", { name: "Read full clause" }),
     ).toHaveAttribute("aria-expanded", "false");
   });
+
+  it("renders canonical dynamic sections instead of the legacy memo outline", async () => {
+    render(<SeeDocumentPanel content={canonicalContent} />);
+
+    expect(screen.getByText("Canonical SEE compiler")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Section 4.15 Evaluation",
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Applicable LEP Instrument"),
+    ).not.toBeInTheDocument();
+  });
+
 });
