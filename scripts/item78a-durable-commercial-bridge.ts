@@ -1225,9 +1225,16 @@ async function runBridge(prisma: PrismaClient) {
     const summary = summarizeItem78aDurableCommercialBridge(facts);
     assert(summary.passed, "unhandled");
     return summary;
+  } catch (error) {
+    if (error instanceof BridgeFailure) throw error;
+    throw new BridgeFailure(stage);
   } finally {
     objects.clear();
-    await cleanupSynthetic(prisma, cleanupInput);
+    try {
+      await cleanupSynthetic(prisma, cleanupInput);
+    } catch {
+      throw new BridgeFailure("cleanup");
+    }
   }
 }
 

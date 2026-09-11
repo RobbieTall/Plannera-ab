@@ -107,10 +107,7 @@ test("keeps the paid pack and SEE product keys distinct across bridge replay", (
     normalizedRunner,
     /const planningPackScopeKey = sourcePurchase\.scopeKey;/,
   );
-  assert.match(
-    normalizedRunner,
-    /planningPackScopeKey !== submissionScopeKey/,
-  );
+  assert.match(normalizedRunner, /planningPackScopeKey !== submissionScopeKey/);
   assert.doesNotMatch(
     normalizedRunner,
     /sourcePurchase\.scopeKey === submissionScopeKey/,
@@ -119,5 +116,22 @@ test("keeps the paid pack and SEE product keys distinct across bridge replay", (
   assert.equal(
     normalizedRunner.split("scopeKey: submissionScopeKey,").length - 1,
     2,
+  );
+});
+
+test("preserves safe stage diagnostics and classifies cleanup failures", () => {
+  const runner = readFileSync(
+    new URL("../scripts/item78a-durable-commercial-bridge.ts", import.meta.url),
+    "utf8",
+  );
+  const normalizedRunner = runner.replace(/\s+/g, " ");
+
+  assert.match(
+    normalizedRunner,
+    /catch \(error\) \{ if \(error instanceof BridgeFailure\) throw error; throw new BridgeFailure\(stage\); \} finally/,
+  );
+  assert.match(
+    normalizedRunner,
+    /catch \{ throw new BridgeFailure\("cleanup"\); \}/,
   );
 });

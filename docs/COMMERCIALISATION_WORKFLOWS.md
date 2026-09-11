@@ -399,3 +399,5 @@ The protected `commercial-bridge` Preview suite extends the paid-pack journey wi
 Same-project scope means the same requester, owned project, current-site Quick Site Check and normalized proposal; it does not mean reusing one product key. The A$49 Planning Controls Pack and A$749 SEE retain distinct product-specific scope keys, and the single-use credit ledger is the explicit bridge between them. Historical cancelled checkout attempts remain auditable but do not count as additional paid packs.
 
 The source payment is real test-mode commerce. The target SEE-side purchase and artefact records are deterministic synthetic acceptance records, use the credited A$700 payable amount, and are removed after replay and denial checks. The output remains working-only and requires operator review. Production checkout is disabled.
+
+Acceptance output is deliberately non-sensitive. Expected assertion failures and unexpected exceptions report only the active stage code; cleanup exceptions report `cleanup`. Raw credentials, identifiers, addresses, proposal text and exception payloads must never be emitted.
