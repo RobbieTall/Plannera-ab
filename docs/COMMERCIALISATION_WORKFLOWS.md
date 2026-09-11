@@ -401,3 +401,26 @@ Same-project scope means the same requester, owned project, current-site Quick S
 The source payment is real test-mode commerce. The target SEE-side purchase and artefact records are deterministic synthetic acceptance records, use the credited A$700 payable amount, and are removed after replay and denial checks. The output remains working-only and requires operator review. Production checkout is disabled.
 
 Acceptance output is deliberately non-sensitive. Expected assertion failures and unexpected exceptions report only the active stage code; cleanup exceptions report `cleanup`. Raw credentials, identifiers, addresses, proposal text and exception payloads must never be emitted.
+
+
+## Item 78C Byron and Kempsey whole-funnel acceptance
+
+Item 78C is the release gate over the existing Item 78A commercial bridge and Item 78B canonical SEE compiler. It does not introduce a parallel checkout, entitlement, evidence or document-generation path.
+
+The manual `Item 78C Byron and Kempsey Whole-funnel Acceptance` workflow runs two isolated protected Preview fixtures at one exact feature commit. Each GitHub environment, `item78c-byron-preview` and `item78c-kempsey-preview`, uses the same variable and secret names as the proven Item 78A bridge while targeting a different persisted council project, Neon endpoint, private Blob store and paid Stripe test-mode session. Each fixture is additionally pinned with `ITEM78C_EXPECTED_COUNCIL`, so a valid Kempsey run cannot be reported as Byron or vice versa.
+
+The workflow proves:
+
+- authoritative Quick Site Check, Detailed Planning Pack and working SEE lineage for both councils;
+- settled A$49 pack entitlement, later reviewed evidence, regeneration and one-time A$49 SEE credit;
+- the A$749 working SEE path with DOCX/PDF outputs and operator-review qualification;
+- the `see-builder-standard.v1` dynamic, statutory/s4.15, variation/merit, specialist-report and evidence-finality contracts;
+- exactly one consultant-referral lifecycle and one direct working-SEE journey;
+- replay/idempotency and zero synthetic database/object residue; and
+- Production checkout and mutation remain disabled.
+
+Protected environment setup is configuration, not evidence. Both environments require exact-commit authorization variables, isolated Preview database and Blob credentials, Stripe test acceptance values, and consultant-referral values. The consultant project and review-request artefact identifiers belong in protected environment variables, never workflow inputs or the combined artifact.
+
+Only sanitized upstream summaries enter the release decision. The final `item78c-whole-funnel-decision` artifact contains the two council labels, their journey roles, boolean checks and either `READY_FOR_NON_PRODUCTION_ACCEPTANCE` or `HOLD`. Raw referral output, addresses, proposal text, project IDs, artefact IDs, payment/session IDs, cookies and secrets are not uploaded.
+
+A green Item 78C run authorizes rendered-output review and a non-production launch-readiness decision only. It does not enable Production checkout, promote a database branch, mutate Production records or constitute customer launch approval. Those remain separate explicit approvals.

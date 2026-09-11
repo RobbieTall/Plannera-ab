@@ -57,6 +57,7 @@ import {
 } from "../src/lib/stripe-test-acceptance";
 
 const ENABLE_FLAG = "ITEM78A_DURABLE_BRIDGE_ACCEPTANCE_ENABLED";
+const EXPECTED_COUNCIL_FLAG = "ITEM78C_EXPECTED_COUNCIL";
 const PROMOTION_VERSION = "item74h-private-evidence-promotion.v1";
 
 type Stage =
@@ -974,7 +975,15 @@ async function runBridge(prisma: PrismaClient) {
     const zoneCode = String(site.zoneCode ?? project.zoningCode ?? "")
       .trim()
       .toUpperCase();
-    assert(["BYRON", "KEMPSEY"].includes(lgaCode) && zoneCode, stage);
+    const expectedCouncil = process.env[EXPECTED_COUNCIL_FLAG]
+      ?.trim()
+      .toUpperCase();
+    assert(
+      ["BYRON", "KEMPSEY"].includes(lgaCode) &&
+        Boolean(zoneCode) &&
+        (!expectedCouncil || expectedCouncil === lgaCode),
+      stage,
+    );
     const addressFingerprint = sha256(
       project.siteContext.formattedAddress ?? project.id,
     );

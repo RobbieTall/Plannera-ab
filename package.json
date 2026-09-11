@@ -48,7 +48,8 @@
     "accept:item74h-public-da-preview": "tsx scripts/item74h-public-da-preview-acceptance.ts && tsx scripts/item74h-public-da-review-discovery-preview.ts && tsx scripts/item74h-public-da-reviewed-outcome-preview.ts && tsx scripts/item74h-public-da-persistence-preview.ts",
     "accept:item74h-candidate-da-preview": "tsx scripts/item74h-candidate-spatial-preview.ts && tsx scripts/item74h-candidate-da-review-preview.ts",
     "accept:item74h-working-see-preview": "tsx scripts/item74h-working-see-preview-acceptance.ts",
-    "accept:item78a-durable-commercial-bridge": "tsx scripts/item78a-durable-commercial-bridge.ts"
+    "accept:item78a-durable-commercial-bridge": "tsx scripts/item78a-durable-commercial-bridge.ts",
+    "accept:item78c-whole-funnel": "tsx scripts/item78c-whole-funnel-release-gate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

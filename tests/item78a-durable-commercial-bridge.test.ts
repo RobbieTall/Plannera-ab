@@ -119,3 +119,13 @@ test("preserves safe stage diagnostics and classifies cleanup failures", () => {
   assert.match(normalizedRunner, /stage = "working_see_render"; const initialRendered/);
   assert.match(normalizedRunner, /stage = "working_see_persist"; const firstVersion/);
 });
+
+
+test("optionally pins a protected bridge run to one exact launch council", () => {
+  const runner = readFileSync(
+    new URL("../scripts/item78a-durable-commercial-bridge.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(runner, /ITEM78C_EXPECTED_COUNCIL/);
+  assert.match(runner, /!expectedCouncil \|\| expectedCouncil === lgaCode/);
+});

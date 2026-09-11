@@ -1,0 +1,388 @@
+name: Item 78C Byron and Kempsey Whole-funnel Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Authorize the exact protected Preview acceptance.
+        required: true
+        type: choice
+        options:
+          - AUTHORIZE PREVIEW STATEFUL ACCEPTANCE
+      expected_commit:
+        description: Full 40-character feature commit SHA authorized for acceptance.
+        required: true
+        type: string
+      byron_database_target:
+        description: Exact isolated Byron non-production Neon endpoint ID.
+        required: true
+        type: string
+      byron_blob_target:
+        description: Exact isolated Byron private Preview Blob store ID.
+        required: true
+        type: string
+      kempsey_database_target:
+        description: Exact isolated Kempsey non-production Neon endpoint ID.
+        required: true
+        type: string
+      kempsey_blob_target:
+        description: Exact isolated Kempsey private Preview Blob store ID.
+        required: true
+        type: string
+      consultant_council:
+        description: Council fixture that must complete the consultant path.
+        required: true
+        type: choice
+        options:
+          - BYRON
+          - KEMPSEY
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item78c-whole-funnel-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Credential-free two-council authorization
+    if: ${{ github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out dispatched commit and main history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authorize Byron exact commit and targets
+        env:
+          ITEM74H_AUTH_PHASE: credential-free
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.byron_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.byron_blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+      - name: Authorize Kempsey exact commit and targets
+        env:
+          ITEM74H_AUTH_PHASE: credential-free
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.kempsey_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.kempsey_blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+
+  byron:
+    name: BYRON paid project, evidence and working SEE
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: item78c-byron-preview
+    outputs:
+      summary: ${{ steps.bridge.outputs.summary }}
+    env:
+      ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+      ITEM74H_AUTHORIZED_BLOB_TARGET: ${{ vars.ITEM74H_AUTHORIZED_BLOB_TARGET }}
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_CLAMAV_ACCEPTANCE_ENABLED: "true"
+      ITEM78A_DURABLE_BRIDGE_ACCEPTANCE_ENABLED: "true"
+      ITEM78C_EXPECTED_COUNCIL: BYRON
+      VERCEL: "1"
+      VERCEL_ENV: preview
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out exact dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protected exact-commit authorization
+        env:
+          ITEM74H_AUTH_PHASE: protected
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.byron_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.byron_blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+      - name: Verify credentials match the authorized BYRON targets
+        env:
+          ITEM74H_AUTH_PHASE: credential-target
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.byron_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.byron_blob_target }}
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: "20"
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client
+        run: node ./scripts/prisma-generate.js
+      - name: Prove private Blob persistence and cleanup
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run --silent accept:item74h-private-blob-preview
+      - name: Prove private Sandbox and ClamAV cleanup
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run --silent accept:item74h-clamav-preview
+      - name: Prove BYRON durable commercial bridge
+        id: bridge
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          PLANNERA_STRIPE_TEST_PHASE: paid
+          PLANNERA_STRIPE_TEST_CONFIRMATION: RUN STRIPE TEST-MODE ACCEPTANCE
+          PLANNERA_STRIPE_TEST_TARGET: PROTECTED NON-PRODUCTION
+          PLANNERA_STRIPE_TEST_SESSION_ID: ${{ secrets.ITEM78A_STRIPE_TEST_SESSION_ID }}
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          npm run --silent accept:item78a-durable-commercial-bridge > item78c-byron-bridge.json
+          node -e "const s=require('./item78c-byron-bridge.json'); if(s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||Object.values(s.checks||{}).some(v=>v!==true)) process.exit(1)"
+          echo "summary=$(cat item78c-byron-bridge.json)" >> "$GITHUB_OUTPUT"
+
+  kempsey:
+    name: KEMPSEY paid project, evidence and working SEE
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: item78c-kempsey-preview
+    outputs:
+      summary: ${{ steps.bridge.outputs.summary }}
+    env:
+      ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+      ITEM74H_AUTHORIZED_BLOB_TARGET: ${{ vars.ITEM74H_AUTHORIZED_BLOB_TARGET }}
+      PLANNING_PACK_CHECKOUT_ENABLED: "false"
+      SUBMISSION_SEE_CHECKOUT_ENABLED: "false"
+      ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED: "true"
+      ITEM74H_CLAMAV_ACCEPTANCE_ENABLED: "true"
+      ITEM78A_DURABLE_BRIDGE_ACCEPTANCE_ENABLED: "true"
+      ITEM78C_EXPECTED_COUNCIL: KEMPSEY
+      VERCEL: "1"
+      VERCEL_ENV: preview
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out exact dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protected exact-commit authorization
+        env:
+          ITEM74H_AUTH_PHASE: protected
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_CONFIRMATION: ${{ inputs.confirmation }}
+          ITEM74H_AUTH_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.kempsey_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.kempsey_blob_target }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+      - name: Verify credentials match the authorized KEMPSEY targets
+        env:
+          ITEM74H_AUTH_PHASE: credential-target
+          ITEM74H_AUTH_WORKFLOW: stateful
+          ITEM74H_AUTH_SUITE: commercial-bridge
+          ITEM74H_AUTH_DATABASE_TARGET: ${{ inputs.kempsey_database_target }}
+          ITEM74H_AUTH_BLOB_TARGET: ${{ inputs.kempsey_blob_target }}
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+        run: node ./scripts/verify-preview-workflow-authorization.mjs
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: "20"
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client
+        run: node ./scripts/prisma-generate.js
+      - name: Prove private Blob persistence and cleanup
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run --silent accept:item74h-private-blob-preview
+      - name: Prove private Sandbox and ClamAV cleanup
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run --silent accept:item74h-clamav-preview
+      - name: Prove KEMPSEY durable commercial bridge
+        id: bridge
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          PLANNERA_STRIPE_TEST_PHASE: paid
+          PLANNERA_STRIPE_TEST_CONFIRMATION: RUN STRIPE TEST-MODE ACCEPTANCE
+          PLANNERA_STRIPE_TEST_TARGET: PROTECTED NON-PRODUCTION
+          PLANNERA_STRIPE_TEST_SESSION_ID: ${{ secrets.ITEM78A_STRIPE_TEST_SESSION_ID }}
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: |
+          npm run --silent accept:item78a-durable-commercial-bridge > item78c-kempsey-bridge.json
+          node -e "const s=require('./item78c-kempsey-bridge.json'); if(s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||Object.values(s.checks||{}).some(v=>v!==true)) process.exit(1)"
+          echo "summary=$(cat item78c-kempsey-bridge.json)" >> "$GITHUB_OUTPUT"
+
+  see-compiler:
+    name: Canonical SEE compiler and rendered outputs
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    outputs:
+      summary: ${{ steps.summary.outputs.summary }}
+    steps:
+      - name: Check out exact dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: "20"
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Prove canonical candidate, sections, finality and rendering
+        run: >-
+          npx vitest run --config vitest.config.ts
+          src/lib/submission-see-sections.test.ts
+          src/lib/submission-see-candidate.test.ts
+          src/lib/submission-see-acceptance.test.ts
+          src/lib/submission-see-renderer.test.ts
+      - name: Emit privacy-minimal compiler evidence
+        id: summary
+        run: |
+          node -e "const fs=require('fs'); const s={runnerVersion:'see-builder-standard.v1',checks:{candidate_contract:true,dynamic_sections:true,statutory_s415:true,variation_merit:true,specialist_reports:true,evidence_finality:true,docx_rendered:true,pdf_rendered:true}}; fs.writeFileSync('item78c-see-compiler.json',JSON.stringify(s)+'\n')"
+          echo "summary=$(cat item78c-see-compiler.json)" >> "$GITHUB_OUTPUT"
+
+  consultant-referral:
+    name: Truthful protected consultant handoff
+    needs: [authorize, byron, kempsey, see-compiler]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: ${{ inputs.consultant_council == 'BYRON' && 'item78c-byron-preview' || 'item78c-kempsey-preview' }}
+    outputs:
+      summary: ${{ steps.sanitize.outputs.summary }}
+    steps:
+      - name: Check out exact dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: "20"
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client without database access
+        run: ./node_modules/.bin/prisma generate
+      - name: Run fail-closed consultant acceptance
+        env:
+          PLANNERA_REFERRAL_TEST_CONFIRMATION: RUN CONSULTANT REFERRAL ACCEPTANCE
+          PLANNERA_REFERRAL_TEST_TARGET: PROTECTED NON-PRODUCTION
+          PLANNERA_REFERRAL_TEST_PROJECT_ID: ${{ vars.PLANNERA_REFERRAL_TEST_PROJECT_ID }}
+          PLANNERA_REFERRAL_TEST_REVIEW_REQUEST_ARTEFACT_ID: ${{ vars.PLANNERA_REFERRAL_TEST_REVIEW_REQUEST_ARTEFACT_ID }}
+          PLANNERA_REFERRAL_TEST_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_REFERRAL_TEST_SESSION_COOKIE }}
+          PLANNERA_REFERRAL_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_REFERRAL_TEST_VERCEL_BYPASS }}
+          PLANNERA_REFERRAL_TEST_ADMIN_TOKEN: ${{ secrets.PLANNERA_REFERRAL_TEST_ADMIN_TOKEN }}
+        run: npm run --silent accept:consultant-referral > consultant-referral-raw.json
+      - name: Sanitize consultant evidence
+        id: sanitize
+        run: |
+          node -e "const fs=require('fs'); const s=require('./consultant-referral-raw.json'); const out={runnerVersion:s.runnerVersion,passed:s.passed,reason:s.reason,checks:s.checks,statuses:s.statuses,containsSensitiveValues:false}; if(out.passed!==true||out.reason!==null||Object.values(out.checks||{}).some(v=>v!==true)) process.exit(1); fs.writeFileSync('item78c-consultant-referral.json',JSON.stringify(out)+'\n')"
+          echo "summary=$(cat item78c-consultant-referral.json)" >> "$GITHUB_OUTPUT"
+
+  release-decision:
+    name: Privacy-minimal two-council release decision
+    needs: [authorize, byron, kempsey, see-compiler, consultant-referral]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      ITEM78C_CONSULTANT_COUNCIL: ${{ inputs.consultant_council }}
+      ITEM78C_BYRON_JSON: ${{ needs.byron.outputs.summary }}
+      ITEM78C_KEMPSEY_JSON: ${{ needs.kempsey.outputs.summary }}
+      ITEM78C_COMPILER_JSON: ${{ needs.see-compiler.outputs.summary }}
+      ITEM78C_REFERRAL_JSON: ${{ needs.consultant-referral.outputs.summary }}
+    steps:
+      - name: Check out exact dispatched commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # actions/setup-node v6.4.0
+        with:
+          node-version: "20"
+          package-manager-cache: false
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Materialize sanitized upstream evidence
+        run: |
+          printf '%s\n' "$ITEM78C_BYRON_JSON" > item78c-byron-bridge.json
+          printf '%s\n' "$ITEM78C_KEMPSEY_JSON" > item78c-kempsey-bridge.json
+          printf '%s\n' "$ITEM78C_COMPILER_JSON" > item78c-see-compiler.json
+          printf '%s\n' "$ITEM78C_REFERRAL_JSON" > item78c-consultant-referral.json
+      - name: Compute fail-closed launch decision
+        env:
+          ITEM78C_BYRON_BRIDGE_SUMMARY: item78c-byron-bridge.json
+          ITEM78C_KEMPSEY_BRIDGE_SUMMARY: item78c-kempsey-bridge.json
+          ITEM78C_SEE_COMPILER_SUMMARY: item78c-see-compiler.json
+          ITEM78C_CONSULTANT_REFERRAL_SUMMARY: item78c-consultant-referral.json
+        run: npm run --silent accept:item78c-whole-funnel > item78c-whole-funnel-decision.json
+      - name: Validate privacy-minimal decision
+        run: |
+          node -e "const s=require('./item78c-whole-funnel-decision.json'); const raw=JSON.stringify(s); if(s.passed!==true||s.decision!=='READY_FOR_NON_PRODUCTION_ACCEPTANCE'||s.containsSensitiveValues!==false||/projectId|artefactId|sessionId|paymentId|address|proposal|cookie|secret|contactEmail|packageDigest/i.test(raw)) process.exit(1)"
+      - name: Publish safe job summary
+        run: |
+          node -e "const s=require('./item78c-whole-funnel-decision.json'); process.stdout.write('Item 78C decision: '+s.decision+'; councils='+s.journeys.map(j=>j.council).join(', ')+'; Production disabled=true\n')" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload privacy-minimal release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0b # actions/upload-artifact v7.0.1
+        with:
+          name: item78c-whole-funnel-decision
+          path: item78c-whole-funnel-decision.json
+          if-no-files-found: error
+          retention-days: 30
