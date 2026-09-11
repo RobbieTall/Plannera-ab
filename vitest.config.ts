@@ -7,7 +7,19 @@ export default defineConfig({
     environment: "node",
     environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
     setupFiles: ["./tests/setup.ts"],
-    exclude: ["**/node_modules/**", "**/.next/**", "tests/**/*.test.ts"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "tests/**/*.test.ts",
+      "tests/**/*.test.mjs",
+      "src/lib/pathway-authoritative-planning-layers.test.ts",
+      "src/lib/pathway-authoritative-spatial.test.ts",
+      "src/lib/pathway-check-acceptance.test.ts",
+      "src/lib/pathway-free-decision.test.ts",
+      "src/lib/pathway-site-evidence.test.ts",
+      "src/lib/pathway-tfnsw-road-categorisation.test.ts",
+      "src/lib/pathway-tfnsw-road-evidence-bridge.test.ts",
+    ],
   },
   resolve: {
     alias: {

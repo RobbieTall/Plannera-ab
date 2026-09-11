@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CLOUD_SUITES = new Set(["private-evidence", "public-da", "candidate-da"]);
+const CLOUD_SUITES = new Set(["private-evidence", "public-da", "candidate-da", "commercial-bridge"]);
 const STATEFUL_SUITES = new Set([
   "submission-credit",
   "pathway-persistence",

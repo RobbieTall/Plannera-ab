@@ -349,6 +349,7 @@ describe("Item 74H real-site commercial bridge", () => {
       isCurrent: true,
       evidenceCurrent: true,
       controlsCurrent: true,
+      fixtureEvidence: false,
     };
     expect(
       evaluatePaidArtefactBindingPolicy({

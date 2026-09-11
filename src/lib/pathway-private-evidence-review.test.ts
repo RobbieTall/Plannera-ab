@@ -26,16 +26,16 @@ const request = (): PathwayPrivateEvidenceReviewRequest => ({
 const dependencies = (): PathwayPrivateEvidenceReviewDependencies => ({
   loadEvidence: vi.fn(async () => ({
     evidenceRef: EVIDENCE_REF,
-    role: "REGISTERED_CADASTRAL_PLAN",
+    role: "REGISTERED_CADASTRAL_PLAN" as const,
     contentHash: CONTENT_HASH,
-    storageAccess: "private",
-    quarantineStatus: "QUARANTINED",
+    storageAccess: "private" as const,
+    quarantineStatus: "QUARANTINED" as const,
   })),
   loadSecurityScan: vi.fn(async () => ({
-    recordSource: "SERVER_SECURITY_SCAN",
+    recordSource: "SERVER_SECURITY_SCAN" as const,
     evidenceRef: EVIDENCE_REF,
     contentHash: CONTENT_HASH,
-    status: "CLEAN",
+    status: "CLEAN" as const,
     scannerEngine: "scanner-engine",
     engineVersion: "1.2.3",
     definitionVersion: "2026.08.27",
@@ -57,10 +57,10 @@ const dependencies = (): PathwayPrivateEvidenceReviewDependencies => ({
     sandboxStopped: true,
   })),
   loadOperatorReview: vi.fn(async () => ({
-    recordSource: "SERVER_OPERATOR_REVIEW",
+    recordSource: "SERVER_OPERATOR_REVIEW" as const,
     evidenceRef: EVIDENCE_REF,
     contentHash: CONTENT_HASH,
-    status: "EVIDENCE_VERIFIED",
+    status: "EVIDENCE_VERIFIED" as const,
     reviewerRef: "reviewer_opaque_74h",
     reviewedAt: "2026-08-27T03:00:00.000Z",
     pageReferences: ["Sheet 1", "Page 2"],
@@ -107,10 +107,10 @@ describe("Item 74H private evidence review promotion", () => {
   it("keeps a pending scan quarantined and does not persist promotion", async () => {
     const deps = dependencies();
     deps.loadSecurityScan = vi.fn(async () => ({
-      recordSource: "SERVER_SECURITY_SCAN",
+      recordSource: "SERVER_SECURITY_SCAN" as const,
       evidenceRef: EVIDENCE_REF,
       contentHash: CONTENT_HASH,
-      status: "PENDING",
+      status: "PENDING" as const,
       scannerEngine: null,
       engineVersion: null,
       definitionVersion: null,
@@ -143,10 +143,10 @@ describe("Item 74H private evidence review promotion", () => {
   it("requires deletion when authoritative scanning detects malware", async () => {
     const deps = dependencies();
     deps.loadSecurityScan = vi.fn(async () => ({
-      recordSource: "SERVER_SECURITY_SCAN",
+      recordSource: "SERVER_SECURITY_SCAN" as const,
       evidenceRef: EVIDENCE_REF,
       contentHash: CONTENT_HASH,
-      status: "INFECTED",
+      status: "INFECTED" as const,
       scannerEngine: "scanner-engine",
       engineVersion: "1.2.3",
       definitionVersion: "2026.08.27",
@@ -208,10 +208,10 @@ describe("Item 74H private evidence review promotion", () => {
   it("keeps digest-mismatched records quarantined", async () => {
     const deps = dependencies();
     deps.loadOperatorReview = vi.fn(async () => ({
-      recordSource: "SERVER_OPERATOR_REVIEW",
+      recordSource: "SERVER_OPERATOR_REVIEW" as const,
       evidenceRef: EVIDENCE_REF,
       contentHash: "b".repeat(64),
-      status: "EVIDENCE_VERIFIED",
+      status: "EVIDENCE_VERIFIED" as const,
       reviewerRef: "reviewer_opaque_74h",
       reviewedAt: "2026-08-27T03:00:00.000Z",
       pageReferences: ["Sheet 1"],
@@ -227,10 +227,10 @@ describe("Item 74H private evidence review promotion", () => {
   it("rejects review that predates the authoritative scan", async () => {
     const deps = dependencies();
     deps.loadOperatorReview = vi.fn(async () => ({
-      recordSource: "SERVER_OPERATOR_REVIEW",
+      recordSource: "SERVER_OPERATOR_REVIEW" as const,
       evidenceRef: EVIDENCE_REF,
       contentHash: CONTENT_HASH,
-      status: "EVIDENCE_VERIFIED",
+      status: "EVIDENCE_VERIFIED" as const,
       reviewerRef: "reviewer_opaque_74h",
       reviewedAt: "2026-08-27T01:00:00.000Z",
       pageReferences: ["Sheet 1"],

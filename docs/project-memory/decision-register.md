@@ -1335,3 +1335,13 @@ Decision: manual Preview mutation workflows must prove authorisation without cre
 The deployment verifier recursively fingerprints and scans the known local import closure of retained scripted gates, and Next.js compilation receives a scrubbed environment with known database, Blob, Sandbox, payment-write and acceptance credentials removed. This supersedes any interpretation that entry-file fingerprints alone prove all build behaviour non-mutating. Static checks cannot guarantee third-party semantics, generated or dynamically loaded code, unauthenticated side effects, or future framework behaviour. Independent review, least-privilege deployment configuration and the absence of write-capable deployment credentials remain required controls.
 
 Consequence: acceptance coverage remains available but separate and fail-closed. No migration, stateful acceptance, Production change, checkout activation, refund, merge or manual deployment is authorized by this clarification.
+
+## 2026-09-09 - Item 78A proves one durable customer chain without weakening boundaries
+
+Status: **IMPLEMENTED / PROTECTED HOSTED ACCEPTANCE PENDING**
+
+Decision: commercial acceptance must begin with a real paid Stripe test-mode A$49 Planning Controls Pack and continue on that same persisted project through reviewed later evidence, regeneration, one single-use A$49 credit, and working A$749 SEE outputs. It may not fabricate the source payment or entitlement, create a second pack, bypass private-evidence review, or treat a working SEE as submission-ready.
+
+Implementation boundary: the protected workflow proves real Blob quarantine and malware scanning before the domain bridge. The bridge then exercises persisted evidence review/promotion, exact-scope binding, replay/idempotency, credit reservation and consumption, regenerated DOCX/PDF outputs, and zero synthetic database residue. Production checkout remains disabled.
+
+Evidence status: implemented in the Issue #388 branch. Protected hosted execution evidence is still required before acceptance is recorded as complete.

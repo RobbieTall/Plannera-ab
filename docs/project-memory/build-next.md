@@ -1517,3 +1517,13 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - [x] Record the limits of static verification: fingerprints and source scanning reduce risk but do not prove all transitive or framework runtime behaviour.
 - [ ] Independently review the updated PR commit before merge.
 - [ ] Confirm GitHub environment protection, exact environment variables/secrets and non-production targets externally before any stateful workflow run.
+
+### Item 78A - Durable same-project commercial bridge - IMPLEMENTED, HOSTED ACCEPTANCE PENDING (2026-09-09)
+
+- Protected Preview-only runner starts from a real Stripe test-mode paid A$49 Planning Controls Pack and its active entitlement.
+- The bridge binds requester, project, site, QSC, proposal digest, DPP version, reviewed evidence digest, credit target, and generated outputs to the same persisted project.
+- Evidence intake, scan observation, pending/verified operator review, promotion replay, changed-evidence denial, credit reserve/consume replay, and regenerated working SEE outputs are covered.
+- Generated DOCX/PDF outputs are visibly `WORKING SEE - NOT SUBMISSION READY`; canonical approval-oriented SEE compiler integration remains Item 78B.
+- Synthetic SEE-side records are deterministic and removed in cleanup. The paid pack, entitlement, project, QSC, and DPP are never deleted or rewritten.
+- Production remains disabled. No production checkout, deployment, secret mutation, or refund occurs in the runner.
+- Remaining gate: configure the protected environment inputs, run the `commercial-bridge` suite at the exact authorized Preview commit, and record the privacy-safe evidence after all repository checks are green.

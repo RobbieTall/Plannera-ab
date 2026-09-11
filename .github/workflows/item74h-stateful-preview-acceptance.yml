@@ -14,6 +14,7 @@ on:
           - private-evidence
           - public-da
           - candidate-da
+          - commercial-bridge
       expected_commit:
         description: Full 40-character commit SHA authorized for this Preview acceptance
         required: true
@@ -66,7 +67,7 @@ jobs:
     needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: item74h-stateful-preview-acceptance
+    environment: ${{ inputs.suite == 'commercial-bridge' && 'stripe-test-acceptance' || 'item74h-stateful-preview-acceptance' }}
     env:
       ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
       ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
@@ -80,6 +81,7 @@ jobs:
       ITEM74H_CLAMAV_ACCEPTANCE_ENABLED: "true"
       ITEM74H_PUBLIC_DA_ACCEPTANCE_ENABLED: "true"
       ITEM74H_CANDIDATE_DA_ACCEPTANCE_ENABLED: "true"
+      ITEM78A_DURABLE_BRIDGE_ACCEPTANCE_ENABLED: "true"
       VERCEL: "1"
       VERCEL_ENV: preview
       VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
@@ -159,6 +161,43 @@ jobs:
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
           VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
         run: npm run accept:item74h-clamav-preview
+
+      - name: Prove private Blob persistence before the commercial bridge
+        if: inputs.suite == 'commercial-bridge'
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-private-blob-preview
+
+      - name: Prove private Sandbox and ClamAV scanning before the commercial bridge
+        if: inputs.suite == 'commercial-bridge'
+        env:
+          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
+          ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
+          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+        run: npm run accept:item74h-clamav-preview
+
+      - name: Durable same-project commercial bridge and cleanup
+        if: inputs.suite == 'commercial-bridge'
+        env:
+          DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          PLANNERA_STRIPE_TEST_PHASE: paid
+          PLANNERA_STRIPE_TEST_CONFIRMATION: RUN STRIPE TEST-MODE ACCEPTANCE
+          PLANNERA_STRIPE_TEST_TARGET: PROTECTED NON-PRODUCTION
+          PLANNERA_STRIPE_TEST_SESSION_ID: ${{ secrets.ITEM78A_STRIPE_TEST_SESSION_ID }}
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        run: npm run --silent accept:item78a-durable-commercial-bridge
 
       - name: Public DA evidence acceptance and cleanup
         if: inputs.suite == 'public-da'

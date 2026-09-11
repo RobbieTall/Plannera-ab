@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { del, get, list, put } from "@vercel/blob";
 import { Sandbox } from "@vercel/sandbox";
 
+import { resolveItem74hPrivateBlobAuth } from "../src/lib/item74h-private-blob-auth";
+
 import {
   runPathwayPrivateBlobAcceptance,
   type PathwayPrivateBlobAcceptanceDependencies,
@@ -33,11 +35,7 @@ if (
   throw new Error("Paid checkout must remain disabled during Item 74H acceptance");
 }
 
-const token = process.env.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN;
-const storeId = process.env.ITEM74H_PRIVATE_BLOB_STORE_ID;
-if (!token || !storeId) {
-  throw new Error("Dedicated Preview private Blob configuration is unavailable");
-}
+const blobAuth = resolveItem74hPrivateBlobAuth();
 
 const objectRef = `ev_${randomUUID().replaceAll("-", "")}`;
 const bytes = new TextEncoder().encode(
@@ -46,7 +44,7 @@ const bytes = new TextEncoder().encode(
 const privateUrls = new Map<string, string>();
 
 const findExact = async (ref: string) => {
-  const result = await list({ prefix: ref, limit: 2, token });
+  const result = await list({ prefix: ref, limit: 2, ...blobAuth });
   return result.blobs.filter((blob) => blob.pathname === ref);
 };
 
@@ -63,8 +61,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
 
     const blob = await put(ref, Buffer.from(body), {
       access: "private",
-      token,
-      storeId,
+      ...blobAuth,
       addRandomSuffix: false,
       allowOverwrite: false,
       contentType: "application/json",
@@ -72,7 +69,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
     });
     const hostname = new URL(blob.url).hostname;
     if (!/^[a-z0-9-]+\.private\.blob\.vercel-storage\.com$/.test(hostname)) {
-      await del(ref, { token }).catch(() => {});
+      await del(ref, { ...blobAuth }).catch(() => {});
       throw new Error("Private Blob returned a non-private host");
     }
     privateUrls.set(ref, blob.url);
@@ -86,7 +83,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
     return !response.ok;
   },
   readAuthenticated: async ({ objectRef: ref }) => {
-    const result = await get(ref, { access: "private", token, storeId });
+    const result = await get(ref, { access: "private", ...blobAuth });
     if (!result || result.statusCode !== 200) {
       throw new Error("Authenticated private Blob read failed");
     }
@@ -133,7 +130,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
     }
   },
   deleteObject: async ({ objectRef: ref }) => {
-    await del(ref, { token });
+    await del(ref, { ...blobAuth });
     privateUrls.delete(ref);
   },
 };

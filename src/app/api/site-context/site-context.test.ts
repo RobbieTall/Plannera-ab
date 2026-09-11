@@ -136,7 +136,11 @@ describe("site-context api validation", () => {
       }),
       create: expect.objectContaining({ formattedAddress: candidate.formattedAddress }),
     });
-    expect(result).toEqual(mockSite);
+    expect(result).toMatchObject(mockSite);
+    expect(result.spatialProvenance).toMatchObject({
+      status: "unresolved",
+      authoritative: false,
+    });
   });
 
   it("accepts set-site dialog payloads for Google candidates via the API route", async () => {
@@ -359,7 +363,11 @@ describe("site-context api validation", () => {
         longitude: null,
       }),
     });
-    expect(result).toEqual(mockSite);
+    expect(result).toMatchObject(mockSite);
+    expect(result.spatialProvenance).toMatchObject({
+      status: "unresolved",
+      authoritative: false,
+    });
   });
   it("persists zoning from a resolver candidate zone when the spatial lookup returns no zoning", async () => {
     const candidate = {
@@ -397,7 +405,7 @@ describe("site-context api validation", () => {
     });
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "db-proj-zoned" },
-      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "NSW_EPI_LZN" },
+      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "CANDIDATE" },
     });
   });
 
@@ -479,15 +487,15 @@ describe("site-context api validation", () => {
 
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "db-proj-byron" },
-      data: { zoningCode: "SP3", zoningName: "Tourist", zoningSource: "NSW_EPI_LZN" },
+      data: { zoningCode: "SP3", zoningName: "Tourist", zoningSource: "LAUNCH_FIXTURE" },
     });
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "db-proj-kempsey-sp2" },
-      data: { zoningCode: "SP2", zoningName: "Infrastructure", zoningSource: "NSW_EPI_LZN" },
+      data: { zoningCode: "SP2", zoningName: "Infrastructure", zoningSource: "LAUNCH_FIXTURE" },
     });
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "db-proj-kempsey-e2" },
-      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "NSW_EPI_LZN" },
+      data: { zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "LAUNCH_FIXTURE" },
     });
   });
 

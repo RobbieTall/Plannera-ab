@@ -10,6 +10,11 @@ const site = (overrides: Partial<SiteContextSummary> = {}): SiteContextSummary =
   id: "site", projectId: "project", addressInput: "52 Belgrave St", formattedAddress: "52 Belgrave St, Kempsey NSW 2440",
   lgaName: "Kempsey Shire", lgaCode: "KEMPSEY", parcelId: "1/DP1", lot: null, planNumber: null, latitude: -31, longitude: 152,
   zone: "E2 Commercial Centre", zoningCode: "E2", zoningName: "Commercial Centre", zoningSource: "resolver", createdAt: "now", updatedAt: "now", ...overrides,
+  spatialProvenance: overrides.spatialProvenance ?? {
+    status: "partial", authoritative: false, zoneCode: "E2", zoningSource: "resolver", resolutionMethod: "parcel_lookup",
+    serviceUrl: null, layerUrl: null, featureIdentifier: null, resolvedAt: null,
+    query: { coordinates: { lat: -31, lng: 152 }, parcelId: "1/DP1" }, limitations: ["non_authoritative_source"],
+  },
 });
 
 test("focused check eligibility accepts confirmed candidate context", () => {

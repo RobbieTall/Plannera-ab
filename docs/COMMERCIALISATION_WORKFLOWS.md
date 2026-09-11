@@ -339,6 +339,14 @@ Complete whole-funnel non-production payment, referral, upload, regeneration and
 Obtain separate explicit operator approval before any Production pack or SEE checkout activation
 
 
+## Private Preview Blob authentication
+
+Protected private-Blob acceptance supports Vercel OIDC and the legacy read-write token. OIDC is preferred: provide `ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN` and `ITEM74H_PRIVATE_BLOB_STORE_ID`; `ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN` is required only for a store that has not been upgraded to OIDC.
+
+Do not copy an OIDC credential into the legacy token option. The Blob SDK gives an explicit `token` precedence over OIDC and interprets it as a legacy read-write token. Acceptance therefore resolves one mode explicitly, prefers OIDC when both are configured, and always pairs OIDC with the authorized store ID. Refresh the short-lived OIDC secret immediately before a protected run. Credential rotation and Preview redeployment remain explicit operator actions, and Production must stay disabled.
+
+The `commercial-bridge` suite runs in the established `stripe-test-acceptance` GitHub environment so the paid-session fixtures remain in their original protected boundary. Every other stateful suite continues to use `item74h-stateful-preview-acceptance`. The Stripe environment must additionally hold the exact Item 74H Preview database URL, private Blob store ID, current Vercel OIDC token, Item 78A Stripe test session ID, and the four Item 74H authorization variables. Do not duplicate the Stripe commercial secrets into a second environment.
+
 ## Item 74H progressive evidence and DA History Assist
 
 The paid project is an evolving evidence workspace, not a one-off PDF. Survey, consultant and selected public DA material is added to the exact existing scope, classified by authority and currency, reviewed for applicability, and then used to regenerate the working A$49 Planning Controls Pack and A$749 SEE.
@@ -384,3 +392,12 @@ Guardrails:
 
 The authoritative capability contract and first-slice acceptance are in [Evidence-aware concept design](product/evidence-aware-concept-design.md).
 
+## Item 78A protected commercial bridge
+
+The protected `commercial-bridge` Preview suite extends the paid-pack journey without creating another isolated commercial subsystem. It resolves a real paid Stripe test-mode A$49 pack, requires its active entitlement and matching persisted DPP, introduces reviewed later evidence, regenerates working SEE outputs on the same project, and proves a single-use A$49 credit against the A$749 SEE.
+
+Same-project scope means the same requester, owned project, current-site Quick Site Check and normalized proposal; it does not mean reusing one product key. The A$49 Planning Controls Pack and A$749 SEE retain distinct product-specific scope keys, and the single-use credit ledger is the explicit bridge between them. Historical cancelled checkout attempts remain auditable but do not count as additional paid packs.
+
+The source payment is real test-mode commerce. The target SEE-side purchase and artefact records are deterministic synthetic acceptance records, use the credited A$700 payable amount, and are removed after replay and denial checks. The output remains working-only and requires operator review. Production checkout is disabled.
+
+Acceptance output is deliberately non-sensitive. Expected assertion failures and unexpected exceptions report only the active stage code; cleanup exceptions report `cleanup`. Raw credentials, identifiers, addresses, proposal text and exception payloads must never be emitted.
