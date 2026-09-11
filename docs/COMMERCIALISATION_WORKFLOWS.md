@@ -339,6 +339,12 @@ Complete whole-funnel non-production payment, referral, upload, regeneration and
 Obtain separate explicit operator approval before any Production pack or SEE checkout activation
 
 
+## Private Preview Blob authentication
+
+Protected private-Blob acceptance supports Vercel OIDC and the legacy read-write token. OIDC is preferred: provide `ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN` and `ITEM74H_PRIVATE_BLOB_STORE_ID`; `ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN` is required only for a store that has not been upgraded to OIDC.
+
+Do not copy an OIDC credential into the legacy token option. The Blob SDK gives an explicit `token` precedence over OIDC and interprets it as a legacy read-write token. Acceptance therefore resolves one mode explicitly, prefers OIDC when both are configured, and always pairs OIDC with the authorized store ID. Refresh the short-lived OIDC secret immediately before a protected run. Credential rotation and Preview redeployment remain explicit operator actions, and Production must stay disabled.
+
 ## Item 74H progressive evidence and DA History Assist
 
 The paid project is an evolving evidence workspace, not a one-off PDF. Survey, consultant and selected public DA material is added to the exact existing scope, classified by authority and currency, reviewed for applicability, and then used to regenerate the working A$49 Planning Controls Pack and A$749 SEE.
