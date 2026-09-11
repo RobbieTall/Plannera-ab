@@ -360,8 +360,11 @@ describe("submission SEE rendering", () => {
     });
 
     const rendered = renderSubmissionSeeOutputs(candidate);
+    const entries = storedZipEntries(rendered.docx);
 
-    expect(rendered.docx.includes("Variations, Departures and Merit Justification")).toBe(true);
+    expect(entries.get("word/document.xml")!.toString("utf8")).toContain(
+      "Variations, Departures and Merit Justification",
+    );
     expect(rendered.pdf.includes("Variations,")).toBe(true);
     expect(rendered.outputs).toHaveLength(2);
   });
