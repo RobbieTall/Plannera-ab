@@ -345,6 +345,8 @@ Protected private-Blob acceptance supports Vercel OIDC and the legacy read-write
 
 Do not copy an OIDC credential into the legacy token option. The Blob SDK gives an explicit `token` precedence over OIDC and interprets it as a legacy read-write token. Acceptance therefore resolves one mode explicitly, prefers OIDC when both are configured, and always pairs OIDC with the authorized store ID. Refresh the short-lived OIDC secret immediately before a protected run. Credential rotation and Preview redeployment remain explicit operator actions, and Production must stay disabled.
 
+The `commercial-bridge` suite runs in the established `stripe-test-acceptance` GitHub environment so the paid-session fixtures remain in their original protected boundary. Every other stateful suite continues to use `item74h-stateful-preview-acceptance`. The Stripe environment must additionally hold the exact Item 74H Preview database URL, private Blob store ID, current Vercel OIDC token, Item 78A Stripe test session ID, and the four Item 74H authorization variables. Do not duplicate the Stripe commercial secrets into a second environment.
+
 ## Item 74H progressive evidence and DA History Assist
 
 The paid project is an evolving evidence workspace, not a one-off PDF. Survey, consultant and selected public DA material is added to the exact existing scope, classified by authority and currency, reviewed for applicability, and then used to regenerate the working A$49 Planning Controls Pack and A$749 SEE.

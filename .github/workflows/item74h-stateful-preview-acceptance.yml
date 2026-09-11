@@ -67,7 +67,7 @@ jobs:
     needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: item74h-stateful-preview-acceptance
+    environment: ${{ inputs.suite == 'commercial-bridge' && 'stripe-test-acceptance' || 'item74h-stateful-preview-acceptance' }}
     env:
       ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
       ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
