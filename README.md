@@ -205,8 +205,21 @@ Item 78A implements the protected Preview-only acceptance bridge from a real Str
 - The protected workflow separately proves the real private Blob and malware-scan lifecycle before running the commercial bridge.
 - Production checkout remains disabled. No production payment, deployment, secret mutation, refund, or customer record mutation is performed.
 
-Implementation is complete; protected hosted acceptance and its evidence record remain pending.
+Implementation and protected hosted acceptance are complete. PR #390 merged at `22df069c007f116d5fe7c66e06a86d7f9057cdc2`; protected run #34565128134 passed every bridge check with zero synthetic database and object residue. Production remained disabled.
 
 ## Future evidence-aware concept design
 
 After the protected Item 77 commercial journey is proven, Plannera may extend the same persistent project into an evidence-aware concept design workspace. A customer can upload a rough sketch, photograph or marked-up plan with dimensions; Plannera extracts and asks the customer to confirm those declared measurements, then a deterministic geometry service produces a clean scaled concept that can be refined against cited planning controls. Model reasoning may orchestrate extraction and design changes, but it is not the geometric authority. Every dimension retains its source and confidence, conflicting or missing measurements remain visible, and generated SVG/PDF/DXF material is labelled concept-only until an appropriate surveyor, designer or other professional confirms it for submission use. See [Evidence-aware concept design](docs/product/evidence-aware-concept-design.md).
+
+
+## Item 78B: canonical world-class SEE compiler
+
+Issue #391 integrates the flexible standard in `docs/product/see-builder-standard.md` with the existing server-authoritative DPP-to-SEE path.
+
+- Eight evidence-required core sections now include an explicit section 4.15 synthesis rather than a rigid standalone mitigation chapter.
+- Application history, assessment pathway/referrals, variations and appendices are included only when relevant cited evidence is supplied.
+- Specialist findings, recommendations, page references, limitations and conflicts are integrated into the relevant environmental-effects reasoning.
+- Potential departures without dedicated merit evidence, cross-scope specialist reports, unknown citations and unresolved specialist conflicts fail closed.
+- The existing `/api/artefacts/generate-see` response remains compatible and persists a versioned canonical compilation alongside the legacy working-memo fields.
+- Existing saved memos remain readable. Finality still depends on evidence, rendered outputs and operator review.
+- Production checkout and Production mutation remain disabled.
