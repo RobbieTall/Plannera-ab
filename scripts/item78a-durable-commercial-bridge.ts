@@ -239,6 +239,9 @@ function buildCandidate(input: {
 }): SubmissionSeeCandidate {
   const uploadId = "reviewed-private-survey";
   const sourceIds = ["lep", "dcp", "spatial", uploadId];
+  const customerQualification = input.evidenceReady
+    ? "Reviewed evidence strengthened this working version; final operator approval remains required."
+    : "The working SEE remains provisional while evidence is reviewed.";
   return {
     documentType: "statement_of_environmental_effects",
     productCode: "submission_see",
@@ -337,6 +340,7 @@ function buildCandidate(input: {
     outputs: [],
     limitations: [
       "WORKING SEE - NOT SUBMISSION READY",
+      customerQualification,
       "Synthetic evidence is used only inside this protected acceptance and is deleted before exit.",
     ],
     operatorReview: {
@@ -491,13 +495,14 @@ async function runBridge(prisma: PrismaClient) {
     quickSiteCheckArtefactId: sourcePurchase.quickSiteCheckArtefactId,
     proposalBrief: stripeConfig.proposal,
   });
-  const submissionScopeKey = submissionSeeScopeKey(scope);
   const planningPackScopeKey = sourcePurchase.scopeKey;
+  const submissionScopeKey = submissionSeeScopeKey(scope);
   assert(
     sourcePurchase.projectId === project.id &&
       sourcePurchase.quickSiteCheckArtefactId ===
         stripeConfig.quickSiteCheckArtefactId &&
       sourcePurchase.proposalFingerprint === scope.proposalFingerprint &&
+      sourcePurchase.scopeKey === planningPackScopeKey &&
       planningPackScopeKey !== submissionScopeKey &&
       sourcePurchase.amountMinor === PLANNING_CONTROLS_PACK_TERMS.amountMinor &&
       sourcePurchase.currency === PLANNING_CONTROLS_PACK_TERMS.currency &&
@@ -534,7 +539,7 @@ async function runBridge(prisma: PrismaClient) {
   const pack = matchingPacks[0];
 
   const runKey = sha256(
-    `${process.env.GITHUB_SHA}:${sourcePurchase.id}:${planningPackScopeKey}:${submissionScopeKey}`,
+    `${process.env.GITHUB_SHA}:${sourcePurchase.id}:${submissionScopeKey}`,
   ).slice(0, 24);
   const prefix = `item78a_${runKey}`;
   const evidenceRef = `${prefix}_survey`;
@@ -990,7 +995,7 @@ async function runBridge(prisma: PrismaClient) {
     const outstanding = [
       {
         id: "survey-review",
-        topic: "Current survey evidence remains under review",
+        topic: "Current reviewed survey evidence is required.",
         status: "MORE_EVIDENCE_REQUIRED" as const,
         recommendedEvidence: "Complete the protected operator review.",
         effect: "The working SEE remains non-submission-ready.",
@@ -1018,7 +1023,7 @@ async function runBridge(prisma: PrismaClient) {
       },
       outstandingEvidence: [],
       sourceDetailedPlanningPackArtefactId: pack.id,
-      predecessorDetailedPlanningPackArtefactId: pack.id,
+      predecessorDetailedPlanningPackArtefactId: initialSeeId,
     };
     stage = "working_see_render";
     const initialRendered = renderWorkingSeeOutputs(
