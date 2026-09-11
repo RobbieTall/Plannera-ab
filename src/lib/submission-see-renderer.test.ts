@@ -363,7 +363,7 @@ describe("submission SEE rendering", () => {
     const entries = storedZipEntries(rendered.docx);
 
     expect(entries.get("word/document.xml")!.toString("utf8")).toContain(
-      "Variations, Departures and Merit Justification",
+      "Variations, Departures And Merit Justification",
     );
     expect(rendered.pdf.includes("Variations,")).toBe(true);
     expect(rendered.outputs).toHaveLength(2);
