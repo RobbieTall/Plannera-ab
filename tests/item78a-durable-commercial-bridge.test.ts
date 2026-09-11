@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -87,4 +88,15 @@ test("does not expose identifiers, credentials, addresses or proposal text", () 
   ]) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+test("counts only paid planning packs across bridge replay", () => {
+  const runner = readFileSync(
+    new URL("../scripts/item78a-durable-commercial-bridge.ts", import.meta.url),
+    "utf8",
+  );
+  const normalizedRunner = runner.replace(/\s+/g, " ");
+  const paidPackPredicate =
+    'scopeKey: exactScopeKey, productCode: PLANNING_CONTROLS_PACK_TERMS.productCode, productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion, status: "PAID",';
+  assert.equal(normalizedRunner.split(paidPackPredicate).length - 1, 2);
 });

@@ -507,6 +507,7 @@ async function runBridge(prisma: PrismaClient) {
       scopeKey: exactScopeKey,
       productCode: PLANNING_CONTROLS_PACK_TERMS.productCode,
       productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion,
+      status: "PAID",
     },
   });
   const packArtefacts = await prisma.artefact.findMany({
@@ -1137,6 +1138,7 @@ async function runBridge(prisma: PrismaClient) {
             scopeKey: exactScopeKey,
             productCode: PLANNING_CONTROLS_PACK_TERMS.productCode,
             productVersion: PLANNING_CONTROLS_PACK_TERMS.productVersion,
+            status: "PAID",
           },
         }),
         prisma.artefact.count({ where: { id: pack.id } }),
