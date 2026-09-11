@@ -1338,10 +1338,21 @@ Consequence: acceptance coverage remains available but separate and fail-closed.
 
 ## 2026-09-09 - Item 78A proves one durable customer chain without weakening boundaries
 
-Status: **IMPLEMENTED / PROTECTED HOSTED ACCEPTANCE PENDING**
+Status: **ACCEPTED / MERGED**
 
 Decision: commercial acceptance must begin with a real paid Stripe test-mode A$49 Planning Controls Pack and continue on that same persisted project through reviewed later evidence, regeneration, one single-use A$49 credit, and working A$749 SEE outputs. It may not fabricate the source payment or entitlement, create a second pack, bypass private-evidence review, or treat a working SEE as submission-ready.
 
 Implementation boundary: the protected workflow proves real Blob quarantine and malware scanning before the domain bridge. The bridge then exercises persisted evidence review/promotion, exact-scope binding, replay/idempotency, credit reservation and consumption, regenerated DOCX/PDF outputs, and zero synthetic database residue. Production checkout remains disabled.
 
-Evidence status: implemented in the Issue #388 branch. Protected hosted execution evidence is still required before acceptance is recorded as complete.
+Evidence status: PR #390 merged at `22df069c007f116d5fe7c66e06a86d7f9057cdc2`; protected run #34565128134 passed the complete bridge and cleanup, and an independent Neon query confirmed zero synthetic residue.
+
+
+## 2026-09-11 - Item 78B uses one versioned flexible compiler, not a parallel SEE architecture
+
+Status: **ADOPTED**
+
+Decision: `see-builder-standard.v1` is the canonical section-compilation contract. The existing server-authoritative current-project DPP and QSC remain the source of site, proposal, control and provenance facts. The application generation path stores the canonical compilation additively inside the existing working-memo payload so legacy artefacts and `/api/artefacts/generate-see` remain compatible while the older rigid outline is retired for new outputs.
+
+Core sections remain evidence-required. History, pathway/referrals, variations/merit and appendices are dynamic and must be omitted when irrelevant. Mitigation and residual impacts are assessed with the corresponding environmental effect. Potential departures without cited merit reasoning, specialist reports from another site/proposal revision, unknown citations and unresolved specialist conflicts block readiness.
+
+Compiler readiness is not submission readiness. Final DOCX/PDF output and operator approval remain separate acceptance states. No schema, payment, Production or LGA expansion is authorized by this decision.
