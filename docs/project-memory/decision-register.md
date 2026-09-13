@@ -1356,3 +1356,25 @@ Decision: `see-builder-standard.v1` is the canonical section-compilation contrac
 Core sections remain evidence-required. History, pathway/referrals, variations/merit and appendices are dynamic and must be omitted when irrelevant. Mitigation and residual impacts are assessed with the corresponding environmental effect. Potential departures without cited merit reasoning, specialist reports from another site/proposal revision, unknown citations and unresolved specialist conflicts block readiness.
 
 Compiler readiness is not submission readiness. Final DOCX/PDF output and operator approval remain separate acceptance states. No schema, payment, Production or LGA expansion is authorized by this decision.
+
+## 2026-09-13 - Item 78C uses one immutable commit with independent council fixtures
+
+**Status:** PREVIEW INFRASTRUCTURE CONFIGURED / FINAL RUN INPUTS PENDING / NOT EXECUTED / PRODUCTION DISABLED
+
+Decision:
+
+- Item 78C acceptance is pinned to `accept/item-78c-byron-kempsey-20260911` at `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; the commit must not move during acceptance.
+- Byron and Kempsey must use independent persisted project, payment, artefact and proposal scopes. They may share the one explicitly approved isolated Preview database and private Blob infrastructure, but one council fixture must never stand in for the other.
+- Vercel checkout, Stripe webhook and consultant settings remain exact-branch Preview overrides. Identically named settings on historical branches are isolated by branch scope and are not Item 78C duplicates.
+- The Vercel Sandbox OIDC credential is short-lived. It must be refreshed just in time for the protected workflow rather than treated as durable configuration.
+- Saved configuration is prerequisite evidence only. `READY_FOR_NON_PRODUCTION_ACCEPTANCE` requires two independently paid Stripe test sessions, persistent payment idempotency, private evidence, DPP/SEE output, consultant handoff and representative DOCX/PDF inspection.
+- Production checkout remains disabled. Production deployment, data/schema mutation and customer launch require separate explicit approval.
+
+Evidence at decision time:
+
+- current `main`: `02b9d4f11ba535066edb5bcdf5ea39a1727bc481`;
+- exact acceptance commit: `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`;
+- branch comparison: identical;
+- protected environments: present and branch-restricted;
+- isolated Neon Preview branch: ready and non-primary/non-default;
+- final acceptance result: not yet produced.
