@@ -223,3 +223,27 @@ Issue #391 integrates the flexible standard in `docs/product/see-builder-standar
 - The existing `/api/artefacts/generate-see` response remains compatible and persists a versioned canonical compilation alongside the legacy working-memo fields.
 - Existing saved memos remain readable. Finality still depends on evidence, rendered outputs and operator review.
 - Production checkout and Production mutation remain disabled.
+
+## Item 78C: Byron and Kempsey whole-funnel acceptance
+
+Status: **PREVIEW INFRASTRUCTURE CONFIGURED / FINAL RUN INPUTS PENDING / NOT EXECUTED** (2026-09-13).
+
+Item 78C is the protected commercial acceptance gate built on the existing Item 78A payment bridge, Item 78B canonical SEE compiler, private evidence pipeline and consultant-referral workflow. The implementation is merged on `main` at `02b9d4f11ba535066edb5bcdf5ea39a1727bc481`. Hosted acceptance remains pinned to branch `accept/item-78c-byron-kempsey-20260911` at exact commit `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; the branch has no commit drift.
+
+Confirmed configuration:
+
+- the Byron and Kempsey GitHub environments exist and each permits only the exact acceptance branch;
+- the isolated Preview Neon branch is ready and is not the primary/default branch;
+- the Vercel checkout, Stripe test webhook, consultant-referral and admin settings are scoped only to the exact acceptance branch;
+- the Stripe endpoint is test-mode only and targets the exact Preview host;
+- Production checkout remains disabled and Production data/schema are outside this acceptance.
+
+Remaining before dispatch:
+
+- redeploy the exact Preview commit so the final branch-only Vercel settings are active;
+- provide a fresh short-lived Vercel Sandbox credential to both protected GitHub environments immediately before the run;
+- create and pay separate Stripe test-mode sessions for Byron and Kempsey and save each session ID only in its matching environment;
+- complete the Kempsey consultant admin/session credentials;
+- dispatch the protected workflow and inspect representative DOCX/PDF output.
+
+The release decision is **HOLD** until the workflow produces `READY_FOR_NON_PRODUCTION_ACCEPTANCE`. Configuration alone is not acceptance evidence. Historical variables with the same names but a different branch scope are isolated settings, not duplicate Item 78C values.
