@@ -42,6 +42,20 @@ The source-data smoke above remains necessary but is not the commercial launch d
 - Both bridge summaries must prove replay safety and zero database/object residue.
 - The combined artifact contains council and journey-role labels plus booleans only. It excludes addresses, proposals, project, payment and artefact identifiers, cookies and secrets.
 
-Run `Item 78C Byron and Kempsey Whole-funnel Acceptance` manually against a full 40-character feature commit. The `item78c-byron-preview` and `item78c-kempsey-preview` GitHub environments must each be pinned to their exact isolated Neon endpoint, private Blob store, paid Stripe test fixture and protected Preview credentials. The workflow fails closed if either council or the consultant route is incomplete.
+Run `Item 78C Byron and Kempsey Whole-funnel Acceptance` manually against a full 40-character feature commit. The `item78c-byron-preview` and `item78c-kempsey-preview` GitHub environments must each be pinned to the explicitly approved isolated Preview endpoint/store and to independent persisted council projects, paid Stripe test fixtures, artefact/proposal scopes and protected credentials. Shared Preview infrastructure does not permit one council fixture to stand in for the other. The workflow fails closed if either council or the consultant route is incomplete.
 
 A green result is `READY_FOR_NON_PRODUCTION_ACCEPTANCE`, not Production approval. Production checkout, Production data mutation and customer launch remain disabled until the rendered outputs are inspected, the evidence artifact is linked in the acceptance record and an operator records a separate go/no-go decision.
+
+## Current Item 78C checkpoint (2026-09-13)
+
+- Authorized branch: `accept/item-78c-byron-kempsey-20260911`.
+- Authorized commit: `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`.
+- Branch drift: none.
+- Protected Byron/Kempsey environments: present and restricted to the authorized branch.
+- Isolated Neon Preview branch: ready and non-primary/non-default.
+- Exact-branch Vercel checkout, webhook and consultant configuration: present; redeployment still required.
+- Protected run inputs still required: fresh short-lived Sandbox credential, independent Byron/Kempsey paid test-session IDs, and Kempsey consultant admin/session credentials.
+- Acceptance status: not executed; decision remains `HOLD`.
+- Production checkout: disabled.
+
+Do not dispatch until every pending protected input is present. Do not record `READY_FOR_NON_PRODUCTION_ACCEPTANCE` until the workflow passes and representative DOCX/PDF output has been inspected.

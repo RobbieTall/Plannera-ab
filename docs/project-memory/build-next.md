@@ -1540,3 +1540,27 @@ References: `docs/operations/database-change-control.md`; `docs/operations/item7
 - Production checkout, Production mutation, schema changes, payment changes, new LGAs and workspace redesign remain out of scope.
 - Acceptance evidence: PR #392 head `31940931c662b6185b16febca831b59ae767e333`; all nine GitHub workflow groups green, including section compilation, candidate assembly, acceptance, deterministic DOCX/PDF, working SEE Preview, commercial funnel, whole-LGA, launch smoke and the protected Item 77 journey.
 - Vercel Preview deployment `dpl_XLFMD4zaV9YTmCx4EhzX4QDS3B1v` reached `READY` at https://plannera-84vocx0xf-robbietalls-projects.vercel.app after deleting the obsolete Neon Preview branch for merged PR #390; `main`, active acceptance branches and Production were untouched.
+
+## Item 78C Byron and Kempsey whole-funnel acceptance - PREVIEW INFRASTRUCTURE CONFIGURED / RUN INPUTS PENDING / NOT EXECUTED (2026-09-13)
+
+The Item 78C gate is merged on `main` at `02b9d4f11ba535066edb5bcdf5ea39a1727bc481`. The authorized acceptance branch remains exactly `accept/item-78c-byron-kempsey-20260911` at `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`.
+
+Verified state:
+
+- both protected GitHub environments exist and are restricted to the exact branch;
+- the acceptance branch has no commit drift;
+- the isolated Preview Neon branch is ready and non-primary/non-default;
+- the exact-branch Vercel configuration covers Preview URLs, test checkout, Stripe webhook handling and consultant referral;
+- the Stripe webhook is test-mode only;
+- Production checkout remains disabled.
+
+Next actions, in order:
+
+1. Add a freshly generated short-lived Vercel Sandbox credential to both protected environments just before execution.
+2. Redeploy only the exact acceptance commit so the final branch-scoped Vercel settings are active.
+3. Create and pay independent Byron and Kempsey Stripe test sessions and save each session ID only in the corresponding environment.
+4. Complete the Kempsey consultant admin/session credentials.
+5. Dispatch the Item 78C workflow, require both councils and the consultant lifecycle to pass, and inspect representative DOCX/PDF output.
+6. Record only privacy-minimal evidence and the final `READY_FOR_NON_PRODUCTION_ACCEPTANCE` or `HOLD` decision.
+
+Current decision: **HOLD**. No Item 78C acceptance run has yet established commercial readiness, and no Production checkout or Production mutation is authorized.
