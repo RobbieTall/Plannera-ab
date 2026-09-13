@@ -407,7 +407,7 @@ Acceptance output is deliberately non-sensitive. Expected assertion failures and
 
 Item 78C is the release gate over the existing Item 78A commercial bridge and Item 78B canonical SEE compiler. It does not introduce a parallel checkout, entitlement, evidence or document-generation path.
 
-The manual `Item 78C Byron and Kempsey Whole-funnel Acceptance` workflow runs two isolated protected Preview fixtures at one exact feature commit. Each GitHub environment, `item78c-byron-preview` and `item78c-kempsey-preview`, uses the same variable and secret names as the proven Item 78A bridge while targeting a different persisted council project, Neon endpoint, private Blob store and paid Stripe test-mode session. Each fixture is additionally pinned with `ITEM78C_EXPECTED_COUNCIL`, so a valid Kempsey run cannot be reported as Byron or vice versa.
+The manual `Item 78C Byron and Kempsey Whole-funnel Acceptance` workflow runs two independent protected Preview fixtures at one exact feature commit. Each GitHub environment, `item78c-byron-preview` and `item78c-kempsey-preview`, uses the same variable and secret names as the proven Item 78A bridge while targeting a different persisted council project, paid Stripe test-mode session, artefact scope and proposal scope. The two jobs may share the one explicitly approved isolated Preview database and private Blob infrastructure, but each fixture is pinned with `ITEM78C_EXPECTED_COUNCIL`, so a valid Kempsey run cannot be reported as Byron or vice versa.
 
 The workflow proves:
 
@@ -424,3 +424,11 @@ Protected environment setup is configuration, not evidence. Both environments re
 Only sanitized upstream summaries enter the release decision. The final `item78c-whole-funnel-decision` artifact contains the two council labels, their journey roles, boolean checks and either `READY_FOR_NON_PRODUCTION_ACCEPTANCE` or `HOLD`. Raw referral output, addresses, proposal text, project IDs, artefact IDs, payment/session IDs, cookies and secrets are not uploaded.
 
 A green Item 78C run authorizes rendered-output review and a non-production launch-readiness decision only. It does not enable Production checkout, promote a database branch, mutate Production records or constitute customer launch approval. Those remain separate explicit approvals.
+
+### Current Item 78C checkpoint (2026-09-13)
+
+Status: **PREVIEW INFRASTRUCTURE CONFIGURED / FINAL RUN INPUTS PENDING / NOT EXECUTED**.
+
+The immutable acceptance branch and commit are confirmed, both protected GitHub environments are branch-restricted, the isolated Neon Preview branch is ready, and the Vercel checkout/referral/webhook settings are scoped only to the exact branch. A fresh short-lived Sandbox credential, two independent paid Stripe test-session IDs and the Kempsey consultant admin/session credentials remain required before dispatch. The exact Preview commit must then be redeployed, the protected workflow run, and representative DOCX/PDF output inspected.
+
+No `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision has been produced. Production checkout remains disabled.
