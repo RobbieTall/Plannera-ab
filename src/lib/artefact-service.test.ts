@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 
+const { cookiesGetMock, decodeSessionCookieMock } = vi.hoisted(() => ({
+  cookiesGetMock: vi.fn(),
+  decodeSessionCookieMock: vi.fn(),
+}));
+
 vi.mock("next/headers", () => ({
-  cookies: () => ({ get: vi.fn() }),
+  cookies: () => ({ get: cookiesGetMock }),
 }));
 
 vi.mock("next-auth", () => ({
@@ -11,7 +16,9 @@ vi.mock("next-auth", () => ({
 
 vi.mock("@/lib/auth", () => ({
   NEXT_AUTH_SESSION_COOKIE: { name: "next-auth.session-token" },
+  SESSION_COOKIE_NAME: "np_session",
   authOptions: {},
+  decodeSessionCookie: decodeSessionCookieMock,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -39,6 +46,8 @@ const getServerSessionMock = vi.mocked(getServerSession);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cookiesGetMock.mockReturnValue(undefined);
+  decodeSessionCookieMock.mockReturnValue(null);
   if (originalAuthEnabled === undefined) {
     delete process.env.NEXT_PUBLIC_AUTH_ENABLED;
   } else {
@@ -78,6 +87,49 @@ describe("requireSessionUser", () => {
       userId: "dev-bypass-user",
     });
     expect(getServerSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the signed Plannera user instead of the development bypass", async () => {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = "false";
+    cookiesGetMock.mockImplementation((name: string) =>
+      name === "np_session" ? { value: "signed-session" } : undefined,
+    );
+    decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
+
+    await expect(requireSessionUser()).resolves.toEqual({
+      userId: "plannera-user",
+    });
+    expect(getServerSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("prefers an explicit NextAuth user over the signed Plannera user", async () => {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = "true";
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "next-auth-user" },
+      expires: "2099-01-01T00:00:00.000Z",
+    });
+    cookiesGetMock.mockImplementation((name: string) =>
+      name === "np_session" ? { value: "signed-session" } : undefined,
+    );
+    decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
+
+    await expect(requireSessionUser()).resolves.toEqual({
+      userId: "next-auth-user",
+    });
+    expect(decodeSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a signed Plannera user when explicit auth has no NextAuth session", async () => {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = "true";
+    getServerSessionMock.mockResolvedValueOnce(null);
+    cookiesGetMock.mockImplementation((name: string) =>
+      name === "np_session" ? { value: "signed-session" } : undefined,
+    );
+    decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
+
+    await expect(requireSessionUser()).resolves.toEqual({
+      userId: "plannera-user",
+    });
   });
 
   it("requires a real session when auth is explicitly enabled", async () => {

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
+import {
+  NEXT_AUTH_SESSION_COOKIE,
+  SESSION_COOKIE_NAME,
+  authOptions,
+  decodeSessionCookie,
+} from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
@@ -208,15 +213,13 @@ export class ArtefactAccessError extends Error {
 }
 
 export async function requireSessionUser() {
-  if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") {
-    return { userId: DEV_BYPASS_USER_ID };
-  }
-
   let session: Session | null = null;
-  try {
-    session = await getServerSession(authOptions);
-  } catch {
-    session = null;
+  if (process.env.NEXT_PUBLIC_AUTH_ENABLED === "true") {
+    try {
+      session = await getServerSession(authOptions);
+    } catch {
+      session = null;
+    }
   }
   const userId = session?.user?.id as string | undefined;
 
@@ -224,8 +227,23 @@ export async function requireSessionUser() {
     return { userId };
   }
 
+  const signedPlanneraSession = decodeSessionCookie(
+    cookies().get(SESSION_COOKIE_NAME)?.value,
+  );
+
+  if (signedPlanneraSession?.userId) {
+    return { userId: signedPlanneraSession.userId };
+  }
+
+  if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") {
+    return { userId: DEV_BYPASS_USER_ID };
+  }
+
   const hasSessionCookie = Boolean(
-    cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ?? cookies().get("__Secure-next-auth.session-token") ?? cookies().get("next-auth.session-token"),
+    cookies().get(SESSION_COOKIE_NAME) ??
+      cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ??
+      cookies().get("__Secure-next-auth.session-token") ??
+      cookies().get("next-auth.session-token"),
   );
 
   throw new ArtefactAccessError(
