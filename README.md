@@ -247,3 +247,11 @@ Remaining before dispatch:
 - dispatch the protected workflow and inspect representative DOCX/PDF output.
 
 The release decision is **HOLD** until the workflow produces `READY_FOR_NON_PRODUCTION_ACCEPTANCE`. Configuration alone is not acceptance evidence. Historical variables with the same names but a different branch scope are isolated settings, not duplicate Item 78C values.
+
+## Item 78C security checkpoint (2026-09-14)
+
+- PR #397 merged to `main` as `ae63ee208c938907d7342b058735baf8620c6f43` after all four GitHub checks, a Ready Vercel Preview and an independent exact-commit security review passed.
+- Authenticated identity now comes only from revocable database-backed NextAuth sessions. The `np_session` cookie is anonymous browser continuity only, and targeted project claiming requires the exact originating anonymous session.
+- The preserved acceptance branch `accept/item-78c-byron-kempsey-20260911` and SHA `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8` predate this correction. They are **superseded and must not be dispatched or reported as current acceptance evidence**.
+- Item 78C remains **HOLD**. The exact blocker is approval and creation of a new immutable non-production acceptance snapshot from corrected `main`, followed by re-pinning both protected council environments and completing the independent paid test journeys and rendered-output review.
+- Production checkout remains disabled. No Production data or schema mutation is authorized.

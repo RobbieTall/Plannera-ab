@@ -1564,3 +1564,25 @@ Next actions, in order:
 6. Record only privacy-minimal evidence and the final `READY_FOR_NON_PRODUCTION_ACCEPTANCE` or `HOLD` decision.
 
 Current decision: **HOLD**. No Item 78C acceptance run has yet established commercial readiness, and no Production checkout or Production mutation is authorized.
+
+## Item 78C corrected acceptance snapshot required (2026-09-14)
+
+Status: **HOLD / AUTHENTICATION FIX MERGED / NEW IMMUTABLE ACCEPTANCE SNAPSHOT REQUIRED**.
+
+Completed:
+
+- PR #397 merged to `main` as `ae63ee208c938907d7342b058735baf8620c6f43`.
+- Forty-two focused authentication, session, ownership and project-route tests passed; TypeScript, focused lint, the 11-test build-safety contract and a synthetic credential-free build passed.
+- All four GitHub checks and the exact-head Vercel Preview passed.
+- Independent exact-commit review found no remaining blocker.
+- Production checkout remained disabled and no stateful acceptance or Production mutation was performed.
+
+Next action:
+
+1. Obtain explicit approval to replace the superseded Item 78C acceptance snapshot.
+2. Create a new immutable non-production acceptance branch/commit from corrected `main`.
+3. Re-pin both protected Byron and Kempsey environments to that exact branch and commit without recreating confirmed credentials unnecessarily.
+4. Redeploy only that Preview snapshot, complete independent Stripe test-mode journeys and the Kempsey consultant fixture, then dispatch the protected Item 78C workflow.
+5. Require `READY_FOR_NON_PRODUCTION_ACCEPTANCE` and inspect representative DOCX/PDF outputs before any Production go/no-go.
+
+Do not dispatch `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; it predates the required authentication correction. Production checkout remains disabled.

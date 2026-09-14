@@ -59,3 +59,16 @@ A green result is `READY_FOR_NON_PRODUCTION_ACCEPTANCE`, not Production approval
 - Production checkout: disabled.
 
 Do not dispatch until every pending protected input is present. Do not record `READY_FOR_NON_PRODUCTION_ACCEPTANCE` until the workflow passes and representative DOCX/PDF output has been inspected.
+
+## Superseding Item 78C checkpoint (2026-09-14)
+
+- Corrected `main`: `ae63ee208c938907d7342b058735baf8620c6f43` from reviewed PR #397.
+- Historical acceptance branch: `accept/item-78c-byron-kempsey-20260911`.
+- Historical acceptance SHA: `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`.
+- Historical snapshot status: **SUPERSEDED; DO NOT DISPATCH**. It predates the required authentication and project-claim correction.
+- Current Item 78C decision: **HOLD**.
+- Exact blocker: explicit approval for a new immutable non-production acceptance snapshot from corrected `main`, followed by exact branch/SHA protection, independent Byron and Kempsey test payments, Kempsey consultant credentials, protected workflow execution and representative DOCX/PDF inspection.
+- Production checkout: disabled.
+- Production data/schema mutation: not authorized.
+
+Do not edit or reuse the historical acceptance branch/SHA. Do not report configuration or a green build as `READY_FOR_NON_PRODUCTION_ACCEPTANCE`; only a passing protected workflow at the newly approved exact snapshot plus rendered-output inspection can produce that decision.
