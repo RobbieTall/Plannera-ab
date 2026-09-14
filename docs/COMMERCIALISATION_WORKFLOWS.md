@@ -432,3 +432,13 @@ Status: **PREVIEW INFRASTRUCTURE CONFIGURED / FINAL RUN INPUTS PENDING / NOT EXE
 The immutable acceptance branch and commit are confirmed, both protected GitHub environments are branch-restricted, the isolated Neon Preview branch is ready, and the Vercel checkout/referral/webhook settings are scoped only to the exact branch. A fresh short-lived Sandbox credential, two independent paid Stripe test-session IDs and the Kempsey consultant admin/session credentials remain required before dispatch. The exact Preview commit must then be redeployed, the protected workflow run, and representative DOCX/PDF output inspected.
 
 No `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision has been produced. Production checkout remains disabled.
+
+### Item 78C authentication checkpoint (2026-09-14)
+
+Status: **HOLD / CORRECTED MAIN READY / ACCEPTANCE SNAPSHOT SUPERSEDED**.
+
+PR #397 merged the reviewed authentication and ownership correction to `main` as `ae63ee208c938907d7342b058735baf8620c6f43`. Authenticated identity now comes only from a revocable database-backed NextAuth session; `np_session` is limited to anonymous browser continuity. Targeted project claiming requires the exact originating anonymous session, and Edge/Node secret selection is consistent.
+
+The former immutable acceptance SHA `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8` remains preserved but is superseded and must not be dispatched because it predates the correction. The next protected run requires an explicitly approved new immutable branch/commit from corrected `main`, both council environments re-pinned to it, independent paid Stripe test sessions, the Kempsey consultant fixture and representative DOCX/PDF inspection.
+
+No `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision has been produced. Production checkout remains disabled, and no Production data/schema mutation or customer launch is authorized.

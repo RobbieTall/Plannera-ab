@@ -1378,3 +1378,28 @@ Evidence at decision time:
 - protected environments: present and branch-restricted;
 - isolated Neon Preview branch: ready and non-primary/non-default;
 - final acceptance result: not yet produced.
+
+## 2026-09-14 - Item 78C acceptance snapshot must be regenerated after authentication correction
+
+Status: ACCEPTED / IMPLEMENTED ON MAIN / ACCEPTANCE HOLD
+
+Decision:
+
+- PR #397 corrected the Item 78C authenticated ownership boundary and merged to `main` as `ae63ee208c938907d7342b058735baf8620c6f43`.
+- Authenticated identity is now sourced only from revocable database-backed NextAuth sessions. The signed `np_session` cookie preserves anonymous browser continuity but is not user authentication.
+- A targeted claim requires the exact originating anonymous `sessionId` and an unowned project; knowledge of a project identifier alone is insufficient.
+- Edge and Node runtimes use the same first trimmed nonblank signing secret.
+- The prior immutable acceptance branch and SHA remain preserved as historical evidence but are superseded because they predate this correction. They must not be moved, reused or dispatched as current Item 78C acceptance.
+- A new immutable non-production acceptance snapshot requires explicit approval and fresh protected-environment pinning. Production checkout remains disabled.
+
+Evidence:
+
+- corrected `main`: `ae63ee208c938907d7342b058735baf8620c6f43`;
+- superseded acceptance SHA: `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`;
+- focused tests: 42 passed;
+- build-safety contract: 11 passed;
+- TypeScript, focused lint and synthetic credential-free build: passed;
+- exact-head GitHub checks: four passed;
+- exact-head Vercel Preview: Ready;
+- independent exact-commit review: no blocking findings, merge recommended;
+- Item 78C workflow decision: not yet produced; `HOLD`.
