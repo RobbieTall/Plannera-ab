@@ -4,7 +4,6 @@ import {
   NEXT_AUTH_SESSION_COOKIE,
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
-  attachUserToSession,
   createAnonymousSession,
   decodeSessionCookie,
   serializeSession,
@@ -71,10 +70,11 @@ export async function GET(request: NextRequest) {
     // same records created from the landing page flow. If the cookie is missing/invalid, we still
     // create a fresh session for the authenticated user, but skip the claim.
     const baseSession = decodedSession ?? createAnonymousSession();
-    const upgradedSession = attachUserToSession(baseSession, user.id);
 
     const response = NextResponse.redirect(new URL(callbackUrl ?? "/dashboard", request.url));
-    const serialized = serializeSession(upgradedSession);
+    // This cookie preserves anonymous-workspace continuity only. Authenticated identity
+    // is carried by the revocable database-backed NextAuth session created below.
+    const serialized = serializeSession(baseSession);
     response.cookies.set(serialized.name, serialized.value, serialized.attributes);
 
     const sessionToken = randomUUID();

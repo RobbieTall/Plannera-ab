@@ -87,10 +87,10 @@ describe("requireSessionUser", () => {
     await expect(requireSessionUser()).resolves.toEqual({
       userId: "dev-bypass-user",
     });
-    expect(getServerSessionMock).not.toHaveBeenCalled();
+    expect(getServerSessionMock).toHaveBeenCalled();
   });
 
-  it("uses the signed Plannera user instead of the development bypass", async () => {
+  it("does not treat the signed Plannera cookie as authenticated identity", async () => {
     process.env.NEXT_PUBLIC_AUTH_ENABLED = "false";
     vi.stubEnv("MAGIC_LINK_SECRET", "test-session-secret");
     cookiesGetMock.mockImplementation((name: string) =>
@@ -99,9 +99,10 @@ describe("requireSessionUser", () => {
     decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
 
     await expect(requireSessionUser()).resolves.toEqual({
-      userId: "plannera-user",
+      userId: DEV_BYPASS_USER_ID,
     });
-    expect(getServerSessionMock).not.toHaveBeenCalled();
+    expect(getServerSessionMock).toHaveBeenCalled();
+    expect(decodeSessionCookieMock).not.toHaveBeenCalled();
   });
 
   it("prefers an explicit NextAuth user over the signed Plannera user", async () => {

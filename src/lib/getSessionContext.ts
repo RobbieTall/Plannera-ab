@@ -12,7 +12,7 @@ const mapSessionStateToContext = (value: string | undefined): RequestSession | n
 
   return {
     sessionId: parsed.id,
-    userId: parsed.userId ?? null,
+    userId: null,
   };
 };
 
@@ -38,6 +38,6 @@ export const getSessionContext = (): RequestSession => {
 
   return {
     sessionId: anonymousSession.id,
-    userId: anonymousSession.userId ?? null,
+    userId: null,
   };
 };

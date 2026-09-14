@@ -109,7 +109,9 @@ export type MagicLinkTokenPayload = {
 };
 
 const resolveMagicLinkSecret = () => {
-  const secret = process.env.MAGIC_LINK_SECRET ?? process.env.NEXTAUTH_SECRET;
+  const secret =
+    process.env.MAGIC_LINK_SECRET?.trim() ||
+    process.env.NEXTAUTH_SECRET?.trim();
 
   if (!secret) {
     console.warn("MAGIC_LINK_SECRET is not configured. Falling back to a development-only secret.");

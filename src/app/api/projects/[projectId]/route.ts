@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getUserContext } from "@/lib/getUserContext";
 import { deleteProjectForRequester, getProjectForRequester, renameProjectForRequester } from "@/lib/projects";
-import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const session = getSessionFromRequest(request);
+  const session = await getUserContext();
   const project = await getProjectForRequester(params.projectId, session?.sessionId, session?.userId);
 
   if (!project) {
@@ -29,11 +29,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const session = getSessionFromRequest(request);
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await getUserContext();
 
   const deletion = await deleteProjectForRequester(params.projectId, session.userId ?? null, session.sessionId);
 
@@ -57,12 +53,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid title" }, { status: 400 });
   }
 
-  const session = getSessionFromRequest(request);
+  const session = await getUserContext();
 
   const result = await renameProjectForRequester(
     params.projectId,
-    session?.userId ?? null,
-    session?.sessionId ?? null,
+    session.userId,
+    session.sessionId,
     trimmedTitle,
   );
 
