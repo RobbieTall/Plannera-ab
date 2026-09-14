@@ -198,8 +198,23 @@ export const decodeSessionCookie = (value: string | undefined): SessionState | n
     return null;
   }
 
+  if (!process.env.MAGIC_LINK_SECRET?.trim() && !process.env.NEXTAUTH_SECRET?.trim()) {
+    return null;
+  }
+
   const payload = verifySignedToken<SessionState>(value);
-  if (!payload || typeof payload.id !== "string" || typeof payload.createdAt !== "number") {
+  if (
+    !payload ||
+    typeof payload.id !== "string" ||
+    typeof payload.createdAt !== "number" ||
+    !Number.isFinite(payload.createdAt) ||
+    (payload.userId !== null && payload.userId !== undefined && typeof payload.userId !== "string")
+  ) {
+    return null;
+  }
+
+  const ageMs = Date.now() - payload.createdAt;
+  if (ageMs < 0 || ageMs > SESSION_MAX_AGE_SECONDS * 1000) {
     return null;
   }
 

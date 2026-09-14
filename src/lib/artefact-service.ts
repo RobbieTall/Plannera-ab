@@ -213,8 +213,9 @@ export class ArtefactAccessError extends Error {
 }
 
 export async function requireSessionUser() {
+  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
   let session: Session | null = null;
-  if (process.env.NEXT_PUBLIC_AUTH_ENABLED === "true") {
+  if (authEnabled) {
     try {
       session = await getServerSession(authOptions);
     } catch {
@@ -227,29 +228,32 @@ export async function requireSessionUser() {
     return { userId };
   }
 
-  const signedPlanneraSession = decodeSessionCookie(
-    cookies().get(SESSION_COOKIE_NAME)?.value,
+  if (authEnabled) {
+    const hasSessionCookie = Boolean(
+      cookies().get(SESSION_COOKIE_NAME) ??
+        cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ??
+        cookies().get("__Secure-next-auth.session-token") ??
+        cookies().get("next-auth.session-token"),
+    );
+
+    throw new ArtefactAccessError(
+      hasSessionCookie ? "Your session expired. Please sign in again." : "Authentication required",
+      401,
+    );
+  }
+
+  const hasConfiguredSessionSecret = Boolean(
+    process.env.MAGIC_LINK_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim(),
   );
+  const signedPlanneraSession = hasConfiguredSessionSecret
+    ? decodeSessionCookie(cookies().get(SESSION_COOKIE_NAME)?.value)
+    : null;
 
   if (signedPlanneraSession?.userId) {
     return { userId: signedPlanneraSession.userId };
   }
 
-  if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") {
-    return { userId: DEV_BYPASS_USER_ID };
-  }
-
-  const hasSessionCookie = Boolean(
-    cookies().get(SESSION_COOKIE_NAME) ??
-      cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ??
-      cookies().get("__Secure-next-auth.session-token") ??
-      cookies().get("next-auth.session-token"),
-  );
-
-  throw new ArtefactAccessError(
-    hasSessionCookie ? "Your session expired. Please sign in again." : "Authentication required",
-    401,
-  );
+  return { userId: DEV_BYPASS_USER_ID };
 }
 
 export function parseMapSnapshotFormData(formData: FormData, projectIdFromParams: string) {

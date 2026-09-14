@@ -46,6 +46,7 @@ const getServerSessionMock = vi.mocked(getServerSession);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
   cookiesGetMock.mockReturnValue(undefined);
   decodeSessionCookieMock.mockReturnValue(null);
   if (originalAuthEnabled === undefined) {
@@ -91,6 +92,7 @@ describe("requireSessionUser", () => {
 
   it("uses the signed Plannera user instead of the development bypass", async () => {
     process.env.NEXT_PUBLIC_AUTH_ENABLED = "false";
+    vi.stubEnv("MAGIC_LINK_SECRET", "test-session-secret");
     cookiesGetMock.mockImplementation((name: string) =>
       name === "np_session" ? { value: "signed-session" } : undefined,
     );
@@ -119,7 +121,7 @@ describe("requireSessionUser", () => {
     expect(decodeSessionCookieMock).not.toHaveBeenCalled();
   });
 
-  it("accepts a signed Plannera user when explicit auth has no NextAuth session", async () => {
+  it("rejects a signed Plannera user when explicit auth has no NextAuth session", async () => {
     process.env.NEXT_PUBLIC_AUTH_ENABLED = "true";
     getServerSessionMock.mockResolvedValueOnce(null);
     cookiesGetMock.mockImplementation((name: string) =>
@@ -127,9 +129,26 @@ describe("requireSessionUser", () => {
     );
     decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
 
-    await expect(requireSessionUser()).resolves.toEqual({
-      userId: "plannera-user",
+    await expect(requireSessionUser()).rejects.toMatchObject({
+      message: "Your session expired. Please sign in again.",
+      status: 401,
     });
+    expect(decodeSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("does not trust a signed Plannera identity without a configured secret", async () => {
+    process.env.NEXT_PUBLIC_AUTH_ENABLED = "false";
+    vi.stubEnv("MAGIC_LINK_SECRET", "");
+    vi.stubEnv("NEXTAUTH_SECRET", "");
+    cookiesGetMock.mockImplementation((name: string) =>
+      name === "np_session" ? { value: "signed-session" } : undefined,
+    );
+    decodeSessionCookieMock.mockReturnValue({ userId: "forged-user" });
+
+    await expect(requireSessionUser()).resolves.toEqual({
+      userId: DEV_BYPASS_USER_ID,
+    });
+    expect(decodeSessionCookieMock).not.toHaveBeenCalled();
   });
 
   it("requires a real session when auth is explicitly enabled", async () => {
