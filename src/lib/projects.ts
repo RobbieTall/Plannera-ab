@@ -145,18 +145,17 @@ export const claimProjectForUser = async (
   userId: string,
   sessionId?: string | null,
 ): Promise<boolean> => {
+  if (!sessionId) {
+    return false;
+  }
+
   const identityFilter: Prisma.ProjectWhereInput = {
     OR: [{ id: projectId }, { publicId: projectId }],
   };
 
-  const ownershipFilters: Prisma.ProjectWhereInput[] = [{ userId: null }];
-  if (sessionId) {
-    ownershipFilters.push({ sessionId });
-  }
-
   const result = await prisma.project.updateMany({
     where: {
-      AND: [identityFilter, { OR: ownershipFilters }],
+      AND: [identityFilter, { sessionId, userId: null }],
     },
     data: { userId, sessionId: null },
   });

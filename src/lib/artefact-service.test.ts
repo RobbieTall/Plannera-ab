@@ -131,7 +131,7 @@ describe("requireSessionUser", () => {
     decodeSessionCookieMock.mockReturnValue({ userId: "plannera-user" });
 
     await expect(requireSessionUser()).rejects.toMatchObject({
-      message: "Your session expired. Please sign in again.",
+      message: "Authentication required",
       status: 401,
     });
     expect(decodeSessionCookieMock).not.toHaveBeenCalled();

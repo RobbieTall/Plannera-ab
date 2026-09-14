@@ -1,13 +1,6 @@
-Warning: truncated output (original token count: 23679)
-Total output lines: 2218
-
 import { z } from "zod";
 
-import {
-  NEXT_AUTH_SESSION_COOKIE,
-  SESSION_COOKIE_NAME,
-  authOptions,
-} from "@/lib/auth";
+import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
@@ -228,21 +221,18 @@ export async function requireSessionUser() {
     return { userId };
   }
 
-  if (authEnabled) {
-    const hasSessionCookie = Boolean(
-      cookies().get(SESSION_COOKIE_NAME) ??
-        cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ??
-        cookies().get("__Secure-next-auth.session-token") ??
-        cookies().get("next-auth.session-token"),
-    );
-
-    throw new ArtefactAccessError(
-      hasSessionCookie ? "Your session expired. Please sign in again." : "Authentication required",
-      401,
-    );
+  if (!authEnabled) {
+    return { userId: DEV_BYPASS_USER_ID };
   }
 
-  return { userId: DEV_BYPASS_USER_ID };
+  const hasSessionCookie = Boolean(
+    cookies().get(NEXT_AUTH_SESSION_COOKIE.name) ?? cookies().get("__Secure-next-auth.session-token") ?? cookies().get("next-auth.session-token"),
+  );
+
+  throw new ArtefactAccessError(
+    hasSessionCookie ? "Your session expired. Please sign in again." : "Authentication required",
+    401,
+  );
 }
 
 export function parseMapSnapshotFormData(formData: FormData, projectIdFromParams: string) {
@@ -989,7 +979,349 @@ export const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackCo
     artefactId: z.string(),
     title: z.string(),
     generatedAt: z.string().nullable().default(null),
-    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(nu…3679 tokens truncated…nt: boolean) => {
+    lepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
+  }),
+  carriedLepEvidenceSummary: quickSiteCheckEvidenceSummarySchema.nullable().default(null),
+  dcpEvidence: z.array(z.object({
+    topicId: z.string(),
+    topicLabel: z.string(),
+    status: z.enum(["Cited", "Unavailable", "Needs Expert Review"]),
+    reason: z.string(),
+    citations: z.array(dppCitationSchema),
+  })),
+  topicMatrix: z.array(z.object({
+    topicId: z.string(),
+    topicLabel: z.string(),
+    status: z.enum(["Cited", "Unavailable", "Needs Expert Review"]),
+    summary: z.string(),
+    sourceRefs: z.array(z.string()),
+  })),
+  unresolvedTopics: z.array(z.string()),
+  consultantReviewQuestions: z.array(z.string()),
+  nextAction: z.string(),
+  commercialReady: z.boolean(),
+}).passthrough();
+
+export const currentScopeForProject = (project: ProjectWithOptionalSiteContext): CurrentSiteScope => ({
+  address: project.siteContext?.formattedAddress ?? project.address ?? null,
+  lgaName: project.siteContext?.lgaName ?? null,
+  lgaCode: project.siteContext?.lgaCode ?? null,
+  zoneLabel: project.siteContext?.zone ?? project.zoning ?? project.zoningName ?? null,
+  zoneCode: project.zoningCode ?? null,
+});
+
+export const artefactRecencyMs = (artefact: Artefact, generatedAt?: string | null) => {
+  const generated = generatedAt ? Date.parse(generatedAt) : Number.NaN;
+  if (Number.isFinite(generated)) return generated;
+  const captured = artefact.capturedAt?.getTime?.() ?? Number.NaN;
+  if (Number.isFinite(captured)) return captured;
+  return artefact.createdAt?.getTime?.() ?? Number.NEGATIVE_INFINITY;
+};
+
+export type CurrentDetailedPlanningPackChain = {
+  artefact: Artefact;
+  pack: DetailedPlanningPackContent;
+  quickSiteCheckArtefact: Artefact;
+  quickSiteCheck: QuickSiteCheckReport;
+};
+
+export type CurrentDetailedPlanningPackChainResolution = {
+  active: CurrentDetailedPlanningPackChain | null;
+  sawPack: boolean;
+  sawCurrentPack: boolean;
+  sawUnreadyCurrentPack: boolean;
+  candidates: Array<{ artefact: Artefact; pack: DetailedPlanningPackContent | null; quickSiteCheckArtefact?: Artefact; quickSiteCheck?: QuickSiteCheckReport; validProvenance: boolean }>;
+};
+
+export async function resolveCurrentDetailedPlanningPackChain({
+  prismaClient,
+  project,
+}: {
+  prismaClient: ArtefactDependencies["prisma"];
+  project: ProjectWithOptionalSiteContext;
+}): Promise<CurrentDetailedPlanningPackChainResolution> {
+  const currentScope = currentScopeForProject(project);
+  const artefacts = await prismaClient.artefact.findMany({
+    where: { projectId: project.id, type: { in: ["detailed_planning_pack", "quick_site_check"] as ArtefactType[] } },
+    orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
+  });
+  const projectIdentifiers = [project.id, (project as { publicId?: string | null }).publicId].filter(Boolean);
+  const qscById = new Map<string, { artefact: Artefact; report: QuickSiteCheckReport }>();
+  for (const artefact of artefacts) {
+    if (artefact.type !== "quick_site_check") continue;
+    const parsed = quickSiteCheckReportSchema.safeParse(artefact.payload);
+    if (parsed.success) qscById.set(artefact.id, { artefact, report: parsed.data as QuickSiteCheckReport });
+  }
+
+  const parsedPacks = artefacts
+    .filter((artefact) => artefact.type === "detailed_planning_pack")
+    .map((artefact) => {
+      const parsed = detailedPlanningPackContentSchema.safeParse(artefact.payload);
+      return parsed.success ? { artefact, pack: parsed.data } : { artefact, pack: null };
+    })
+    .sort((left, right) => {
+      const recency = artefactRecencyMs(right.artefact, right.pack?.generatedAt) - artefactRecencyMs(left.artefact, left.pack?.generatedAt);
+      return recency || left.artefact.id.localeCompare(right.artefact.id);
+    });
+
+  const sawPack = parsedPacks.length > 0;
+  let sawCurrentPack = false;
+  let sawUnreadyCurrentPack = false;
+  let active: CurrentDetailedPlanningPackChain | null = null;
+  const candidates: CurrentDetailedPlanningPackChainResolution["candidates"] = [];
+  for (const { artefact, pack } of parsedPacks) {
+    if (!pack) {
+      candidates.push({ artefact, pack: null, validProvenance: false });
+      continue;
+    }
+    if (pack.projectId !== project.id) {
+      candidates.push({ artefact, pack, validProvenance: false });
+      continue;
+    }
+    const current = isArtefactCurrentForSite(currentScope, detailedPlanningPackScope(pack));
+    if (!current) {
+      candidates.push({ artefact, pack, validProvenance: false });
+      continue;
+    }
+    sawCurrentPack = true;
+    const qscEntry = qscById.get(pack.sourceQuickSiteCheck.artefactId);
+    const validProvenance = Boolean(
+      qscEntry &&
+      projectIdentifiers.includes(qscEntry.report.projectId) &&
+      qscEntry.report.lepEvidenceSummary?.label === "Cited" &&
+      isArtefactCurrentForSite(currentScope, quickSiteCheckScope(qscEntry.report)) &&
+      isArtefactCurrentForSite(detailedPlanningPackScope(pack), quickSiteCheckScope(qscEntry.report)),
+    );
+    candidates.push({ artefact, pack, quickSiteCheckArtefact: qscEntry?.artefact, quickSiteCheck: qscEntry?.report, validProvenance });
+    if (!validProvenance) continue;
+    if (!active) {
+      active = { artefact, pack, quickSiteCheckArtefact: qscEntry!.artefact, quickSiteCheck: qscEntry!.report };
+      sawUnreadyCurrentPack = !pack.commercialReady;
+    }
+  }
+
+  return { active, sawPack, sawCurrentPack, sawUnreadyCurrentPack, candidates };
+}
+
+async function resolveNewestCurrentDetailedPlanningPack({
+  prismaClient,
+  project,
+  requireCommercialReady,
+  sourceDetailedPlanningPackArtefactId,
+  expectedProposalBrief,
+}: {
+  prismaClient: ArtefactDependencies["prisma"];
+  project: ProjectWithOptionalSiteContext;
+  requireCommercialReady: boolean;
+  sourceDetailedPlanningPackArtefactId?: string | null;
+  expectedProposalBrief?: string | null;
+}) {
+  const resolution = await resolveCurrentDetailedPlanningPackChain({ prismaClient, project });
+  if (sourceDetailedPlanningPackArtefactId || expectedProposalBrief?.trim()) {
+    if (!sourceDetailedPlanningPackArtefactId || !expectedProposalBrief?.trim()) {
+      throw new ArtefactValidationError("Provide both source Detailed Planning Pack artefact ID and expected proposal brief before continuing.");
+    }
+
+    const candidate = resolution.candidates.find(({ artefact }) => artefact.id === sourceDetailedPlanningPackArtefactId);
+    if (!candidate) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack was not found in this project. Regenerate the pack before continuing.");
+    }
+    if (!candidate.pack) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack is malformed. Regenerate the pack before continuing.");
+    }
+    if (!candidate.validProvenance || !candidate.quickSiteCheckArtefact || !candidate.quickSiteCheck) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack is stale, cross-site, or missing its cited Quick Site Check provenance. Regenerate the pack before continuing.");
+    }
+    if (normalizeProposalBriefForBinding(candidate.pack.proposalBrief) !== normalizeProposalBriefForBinding(expectedProposalBrief)) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack was generated for a different proposed-works brief. Regenerate the pack before continuing.");
+    }
+    if (requireCommercialReady && !candidate.pack.commercialReady) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
+    }
+    return {
+      artefact: candidate.artefact,
+      pack: candidate.pack,
+      quickSiteCheckArtefact: candidate.quickSiteCheckArtefact,
+      quickSiteCheck: candidate.quickSiteCheck,
+    };
+  }
+
+  if (resolution.active) {
+    if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
+    throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
+  }
+
+  const reason = !resolution.sawPack
+    ? "Generate a current-site Detailed Planning Pack before continuing."
+    : !resolution.sawCurrentPack
+      ? "Only stale or cross-site Detailed Planning Packs were found. Generate a current-site Detailed Planning Pack."
+      : resolution.sawUnreadyCurrentPack
+        ? "The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first."
+        : "No current Detailed Planning Pack has an intact cited Quick Site Check provenance chain. Regenerate the pack from a saved current-site Quick Site Check.";
+  throw new ArtefactValidationError(reason);
+}
+
+
+export async function createMapSnapshotArtefact({
+  formData,
+  projectId,
+  userId,
+  deps = { prisma, saveFile: saveFileToUploads },
+}: {
+  formData: FormData;
+  projectId: string;
+  userId: string;
+  deps?: ArtefactDependencies;
+}): Promise<Artefact> {
+  const { file, payload } = parseMapSnapshotFormData(formData, projectId);
+
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
+
+  const projectWithContext = await deps.prisma.project.findUnique({
+    where: { id: project.id },
+    include: { siteContext: true },
+  });
+  const siteContext = projectWithContext?.siteContext;
+  const siteAddress = siteContext?.formattedAddress?.trim() || projectWithContext?.address?.trim();
+  if (!projectWithContext || !siteContext || !siteAddress) {
+    throw new ArtefactValidationError("Confirm the project site before adding spatial evidence");
+  }
+
+  const siteIdentity = {
+    address: siteAddress,
+    lgaCode: siteContext.lgaCode,
+    lgaName: siteContext.lgaName,
+    parcelId: siteContext.parcelId,
+    lot: siteContext.lot,
+    planNumber: siteContext.planNumber,
+    latitude: siteContext.latitude,
+    longitude: siteContext.longitude,
+    zone: siteContext.zone ?? projectWithContext.zoning,
+  };
+  const siteFingerprint = buildSpatialSiteFingerprint(siteIdentity);
+  const contentHash = await hashSpatialEvidenceFile(file);
+  const capturedAt = payload.capturedAt ?? new Date();
+  const sourceCheckedAt = payload.sourceCheckedAt ?? capturedAt;
+  const expiresAt = buildSpatialEvidenceExpiry(sourceCheckedAt);
+
+  const savedFile = await deps.saveFile(file);
+
+  return deps.prisma.artefact.create({
+    data: {
+      projectId: project.id,
+      createdById: userId === DEV_BYPASS_USER_ID ? null : userId,
+      type: "map_snapshot" as ArtefactType,
+      title: payload.title,
+      source: payload.source,
+      sourceUrl: payload.sourceUrl,
+      overlays: payload.overlays,
+      notes: payload.notes,
+      imageUrl: savedFile.url,
+      capturedAt,
+      payload: {
+        schema: "spatial_evidence.v1",
+        contentHash,
+        siteFingerprint,
+        sourceAuthority: payload.sourceAuthority,
+        legendStatus: payload.legendStatus,
+        legendNotes: payload.legendNotes ?? null,
+        observation: payload.observation,
+        limitation: payload.limitation,
+        sourceEffectiveAt: payload.sourceEffectiveAt?.toISOString() ?? null,
+        sourceCheckedAt: sourceCheckedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      },
+      spatialEvidence: {
+        create: {
+          project: { connect: { id: project.id } },
+          sourceAuthority: payload.sourceAuthority,
+          contentHash,
+          siteFingerprint,
+          siteAddress,
+          parcelId: siteContext.parcelId,
+          lot: siteContext.lot,
+          planNumber: siteContext.planNumber,
+          latitude: siteContext.latitude,
+          longitude: siteContext.longitude,
+          layers: payload.overlays,
+          legendStatus: payload.legendStatus,
+          legendNotes: payload.legendNotes,
+          observation: payload.observation,
+          limitation: payload.limitation,
+          observationConfirmedAt: new Date(),
+          sourceEffectiveAt: payload.sourceEffectiveAt,
+          sourceCheckedAt,
+          expiresAt,
+        },
+      },
+    },
+    include: { spatialEvidence: { include: { reviewEvents: true } } },
+  });
+}
+
+export async function createQuickSiteCheckArtefact({
+  body,
+  projectId,
+  userId,
+  deps = { prisma },
+}: {
+  body: unknown;
+  projectId: string;
+  userId: string;
+  deps?: QuickSiteCheckArtefactDeps;
+}): Promise<Artefact> {
+  const parsed = quickSiteCheckArtefactSchema.safeParse(body);
+
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid Quick Site Check payload";
+    throw new ArtefactValidationError(message);
+  }
+
+  const { projectId: payloadProjectId, report, title } = parsed.data as QuickSiteCheckArtefactInput;
+
+  const project = await assertProjectAccess(deps.prisma, projectId, userId);
+  const projectIdentifiers = [project.id, (project as { publicId?: string | null }).publicId].filter(Boolean);
+
+  if (!projectIdentifiers.includes(payloadProjectId)) {
+    throw new ArtefactValidationError("Project mismatch between URL and payload");
+  }
+
+  if (!projectIdentifiers.includes(report.projectId)) {
+    throw new ArtefactValidationError("Report belongs to a different project");
+  }
+
+  const projectWithContext = await deps.prisma.project.findUnique({
+    where: { id: project.id },
+    include: { siteContext: true },
+  });
+
+  const lepEnrichment = await loadLepEnrichmentForProject(projectWithContext ?? project, deps);
+  const enrichedReport = applyRealLepEnrichmentToReport(report, lepEnrichment);
+
+  const generatedAt = new Date(enrichedReport.generatedAt ?? Date.now());
+  const capturedAt = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
+
+  const lgaCode = normalizeCouncilLgaCode(enrichedReport.site?.lga ?? enrichedReport.lepInstrument?.lga ?? null);
+  const shouldEnrichWithStatutoryGrounding = Boolean(lgaCode && deps.prisma.lgaCoverageState);
+  const statutoryContext = shouldEnrichWithStatutoryGrounding && lgaCode
+    ? await buildStatutoryContextBlock({
+        lgaCode,
+        query: [
+          enrichedReport.site?.zoneLabel,
+          "zone permissibility floor space ratio height of buildings minimum lot size",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        maxDcpClauses: 0,
+        maxLepClauses: 6,
+        siteZone: enrichedReport.site?.zoneLabel ?? ([enrichedReport.site?.zoneCode, enrichedReport.site?.zoneName].filter(Boolean).join(" – ") || null),
+      })
+    : null;
+  const coverageState = lgaCode && deps.prisma.lgaCoverageState
+    ? (await deps.prisma.lgaCoverageState.findUnique({ where: { lgaCode }, select: { state: true } }))?.state ?? null
+    : null;
+
+  const sourceForControl = (clauseRef: string | null | undefined, present: boolean) => {
     if (!present) return "Not in retrieved data";
     return clauseRef ? `LEP clause ${clauseRef}` : "Not in retrieved data";
   };
