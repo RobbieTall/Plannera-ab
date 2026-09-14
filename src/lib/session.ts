@@ -17,7 +17,9 @@ export const getSessionFromRequest = (request: NextRequest): RequestSession | nu
 
   return {
     sessionId: parsed.id,
-    userId: parsed.userId ?? null,
+    // The custom cookie is a browser-continuity token, not authentication.
+    // Signed-in identity must be resolved from the database-backed NextAuth session.
+    userId: null,
   };
 };
 
@@ -34,7 +36,7 @@ export const getOrCreateSessionFromRequest = (
   const serializedCookie = serializeSession(anonymousSession);
 
   return {
-    session: { sessionId: anonymousSession.id, userId: anonymousSession.userId ?? null },
+    session: { sessionId: anonymousSession.id, userId: null },
     serializedCookie,
   };
 };

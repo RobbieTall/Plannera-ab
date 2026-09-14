@@ -208,10 +208,7 @@ export class ArtefactAccessError extends Error {
 }
 
 export async function requireSessionUser() {
-  if (process.env.NEXT_PUBLIC_AUTH_ENABLED !== "true") {
-    return { userId: DEV_BYPASS_USER_ID };
-  }
-
+  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
   let session: Session | null = null;
   try {
     session = await getServerSession(authOptions);
@@ -222,6 +219,10 @@ export async function requireSessionUser() {
 
   if (userId) {
     return { userId };
+  }
+
+  if (!authEnabled) {
+    return { userId: DEV_BYPASS_USER_ID };
   }
 
   const hasSessionCookie = Boolean(

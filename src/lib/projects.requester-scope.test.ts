@@ -18,7 +18,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { deleteProjectForRequester, getProjectForRequester, listProjectsForRequester } from "@/lib/projects";
+import {
+  claimProjectForUser,
+  deleteProjectForRequester,
+  getProjectForRequester,
+  listProjectsForRequester,
+} from "@/lib/projects";
 
 const projectRow = { id: "project-1", publicId: null, title: "Site", address: null, zoning: null, updatedAt: new Date("2026-07-17T00:00:00.000Z") };
 
@@ -81,6 +86,26 @@ describe("requester-scoped project continuity", () => {
       where: { userId: "user-1" },
       orderBy: { updatedAt: "desc" },
       select: expect.any(Object),
+    });
+  });
+
+  it("refuses a targeted claim without the originating anonymous session", async () => {
+    await expect(claimProjectForUser("project-1", "user-1", null)).resolves.toBe(false);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("claims a targeted unowned project only from its originating anonymous session", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await expect(claimProjectForUser("public-project", "user-1", "session-1")).resolves.toBe(true);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          { OR: [{ id: "public-project" }, { publicId: "public-project" }] },
+          { sessionId: "session-1", userId: null },
+        ],
+      },
+      data: { userId: "user-1", sessionId: null },
     });
   });
 

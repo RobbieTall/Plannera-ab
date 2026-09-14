@@ -12,7 +12,7 @@ export type UserContext = {
 /**
  * Resolves the current requester context for server components and route handlers.
  * - Always returns the sessionId from our session cookie (creating one if needed).
- * - Surfaces a server-trusted userId from NextAuth first, then the signed session payload; otherwise null.
+ * - Surfaces userId only from the revocable database-backed NextAuth session.
  */
 export const getUserContext = async (): Promise<UserContext> => {
   const sessionContext = getSessionContext();
@@ -25,7 +25,7 @@ export const getUserContext = async (): Promise<UserContext> => {
     authSession = null;
   }
 
-  const userId = authSession?.user?.id ?? sessionContext.userId ?? null;
+  const userId = authSession?.user?.id ?? null;
 
   return {
     sessionId: sessionContext.sessionId,

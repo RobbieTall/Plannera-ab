@@ -1,16 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
+import { getUserContext } from "@/lib/getUserContext";
 import { claimProjectsForUser } from "@/lib/projects";
-import { getSessionFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
-  const session = getSessionFromRequest(request);
-
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+export async function POST() {
+  const session = await getUserContext();
 
   if (!session.userId) {
     return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 400 });

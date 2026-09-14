@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSessionFromRequestMock, deleteProjectForRequesterMock } = vi.hoisted(() => ({
-  getSessionFromRequestMock: vi.fn(),
+const { getUserContextMock, deleteProjectForRequesterMock } = vi.hoisted(() => ({
+  getUserContextMock: vi.fn(),
   deleteProjectForRequesterMock: vi.fn(),
 }));
 
-vi.mock("@/lib/session", () => ({
-  getSessionFromRequest: getSessionFromRequestMock,
+vi.mock("@/lib/getUserContext", () => ({
+  getUserContext: getUserContextMock,
 }));
 
 vi.mock("@/lib/projects", () => ({
@@ -22,7 +22,7 @@ describe("DELETE /api/projects/[projectId] requester scope", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("deletes guest projects with current session identity only", async () => {
-    getSessionFromRequestMock.mockReturnValue({ sessionId: "session-1", userId: null });
+    getUserContextMock.mockResolvedValue({ sessionId: "session-1", userId: null });
     deleteProjectForRequesterMock.mockResolvedValue({ count: 1 });
 
     const response = await DELETE(new NextRequest("http://localhost/api/projects/project-1", { method: "DELETE" }), {
@@ -34,7 +34,7 @@ describe("DELETE /api/projects/[projectId] requester scope", () => {
   });
 
   it("returns not found when another requester cannot delete", async () => {
-    getSessionFromRequestMock.mockReturnValue({ sessionId: "session-2", userId: null });
+    getUserContextMock.mockResolvedValue({ sessionId: "session-2", userId: null });
     deleteProjectForRequesterMock.mockResolvedValue({ count: 0 });
 
     const response = await DELETE(new NextRequest("http://localhost/api/projects/project-1", { method: "DELETE" }), {

@@ -12,7 +12,11 @@ export type MiddlewareSessionState = {
 type SessionCookieEnvironment = Record<string, string | undefined>;
 
 function sessionSecret(env: SessionCookieEnvironment = process.env) {
-  return env.MAGIC_LINK_SECRET ?? env.NEXTAUTH_SECRET ?? DEVELOPMENT_SECRET;
+  return (
+    env.MAGIC_LINK_SECRET?.trim() ||
+    env.NEXTAUTH_SECRET?.trim() ||
+    DEVELOPMENT_SECRET
+  );
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {

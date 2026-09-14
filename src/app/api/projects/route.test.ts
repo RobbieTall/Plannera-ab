@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSessionFromRequestMock, createProjectForRequesterMock, listProjectsForRequesterMock } = vi.hoisted(() => ({
-  getSessionFromRequestMock: vi.fn(),
+const { getUserContextMock, createProjectForRequesterMock, listProjectsForRequesterMock } = vi.hoisted(() => ({
+  getUserContextMock: vi.fn(),
   createProjectForRequesterMock: vi.fn(),
   listProjectsForRequesterMock: vi.fn(),
 }));
 
-vi.mock("@/lib/session", () => ({
-  getSessionFromRequest: getSessionFromRequestMock,
+vi.mock("@/lib/getUserContext", () => ({
+  getUserContext: getUserContextMock,
 }));
 
 vi.mock("@/lib/projects", () => ({
@@ -24,7 +24,7 @@ describe("/api/projects requester identity", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("creates projects from server-derived requester identity and ignores client owner fields", async () => {
-    getSessionFromRequestMock.mockReturnValue({ sessionId: "session-1", userId: null });
+    getUserContextMock.mockResolvedValue({ sessionId: "session-1", userId: null });
     createProjectForRequesterMock.mockResolvedValue({ id: "project-1", title: "Site", updatedAt });
 
     const response = await POST(
@@ -39,7 +39,7 @@ describe("/api/projects requester identity", () => {
   });
 
   it("lists guest/current-session projects from server-derived requester identity", async () => {
-    getSessionFromRequestMock.mockReturnValue({ sessionId: "session-1", userId: null });
+    getUserContextMock.mockResolvedValue({ sessionId: "session-1", userId: null });
     listProjectsForRequesterMock.mockResolvedValue([{ id: "project-1", publicId: null, title: "Site", address: null, zoning: null, updatedAt }]);
 
     const response = await GET(new NextRequest("http://localhost/api/projects"));
@@ -51,7 +51,7 @@ describe("/api/projects requester identity", () => {
   });
 
   it("lists signed/session-bound requester projects coherently", async () => {
-    getSessionFromRequestMock.mockReturnValue({ sessionId: "session-1", userId: "user-1" });
+    getUserContextMock.mockResolvedValue({ sessionId: "session-1", userId: "user-1" });
     listProjectsForRequesterMock.mockResolvedValue([]);
 
     const response = await GET(new NextRequest("http://localhost/api/projects"));
