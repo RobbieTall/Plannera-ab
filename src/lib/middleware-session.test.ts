@@ -12,9 +12,12 @@ import {
 const SECRET = "middleware-compatibility-test-secret";
 const ENV = { MAGIC_LINK_SECRET: SECRET };
 
-function nodeSessionToken(session: MiddlewareSessionState) {
+function nodeSessionToken(
+  session: MiddlewareSessionState,
+  secret = SECRET,
+) {
   const payload = Buffer.from(JSON.stringify(session)).toString("base64url");
-  const signature = createHmac("sha256", SECRET)
+  const signature = createHmac("sha256", secret)
     .update(payload)
     .digest("base64url");
   return `${payload}.${signature}`;
@@ -50,6 +53,27 @@ describe("Edge middleware session compatibility", () => {
     await expect(
       decodeMiddlewareSessionCookie(nodeSessionToken(session), ENV),
     ).resolves.toEqual(session);
+  });
+
+  it("matches the server fallback when the primary secret is blank", async () => {
+    const fallbackSecret = "nextauth-fallback-compatibility-secret";
+    const env = {
+      MAGIC_LINK_SECRET: "   ",
+      NEXTAUTH_SECRET: fallbackSecret,
+    };
+    const session: MiddlewareSessionState = {
+      id: "session_blank_primary",
+      userId: null,
+      createdAt: 1_725_000_000_004,
+    };
+    const serverToken = nodeSessionToken(session, fallbackSecret);
+
+    await expect(
+      decodeMiddlewareSessionCookie(serverToken, env),
+    ).resolves.toEqual(session);
+    await expect(serializeMiddlewareSession(session, env)).resolves.toMatchObject({
+      value: serverToken,
+    });
   });
 
   it("fails closed for a modified signature", async () => {
