@@ -1,19 +1,34 @@
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+const normalizeBaseUrl = (value: string, source: string): string => {
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${source} must be a valid absolute URL`);
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error(`${source} must be an HTTP(S) origin without credentials`);
+  }
+
+  return url.origin;
+};
+
 export function getBaseUrl(request?: Request): string {
   const appUrl = process.env.APP_URL;
   if (appUrl && appUrl.length > 0) {
-    return appUrl.replace(/\/+$/, "");
+    return normalizeBaseUrl(appUrl, "APP_URL");
   }
 
   const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl && vercelUrl.length > 0) {
-    return `https://${vercelUrl}`.replace(/\/+$/, "");
+    return normalizeBaseUrl(`https://${vercelUrl}`, "VERCEL_URL");
   }
 
   if (request) {
-    const url = new URL(request.url);
-    return `${url.protocol}//${url.host}`.replace(/\/+$/, "");
+    return normalizeBaseUrl(request.url, "Request URL");
   }
 
   throw new Error("Base URL could not be determined");

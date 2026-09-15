@@ -9,6 +9,7 @@ import {
   serializeSession,
   verifyMagicLinkToken,
 } from "@/lib/auth";
+import { getBaseUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { claimProjectForUser, claimSessionProjectsForUser } from "@/lib/projects";
 import { getSessionFromRequest } from "@/lib/session";
@@ -56,6 +57,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 });
     }
 
+    const redirectBaseUrl = getBaseUrl(request);
+    const fallbackRedirectUrl = new URL("/dashboard", redirectBaseUrl);
+    const requestedRedirectUrl = new URL(callbackUrl ?? "/dashboard", redirectBaseUrl);
+    const redirectUrl = requestedRedirectUrl.origin === fallbackRedirectUrl.origin
+      ? requestedRedirectUrl
+      : fallbackRedirectUrl;
+
     const email = payload.email.trim().toLowerCase();
     const user = await prisma.user.upsert({
       where: { email },
@@ -71,7 +79,7 @@ export async function GET(request: NextRequest) {
     // create a fresh session for the authenticated user, but skip the claim.
     const baseSession = decodedSession ?? createAnonymousSession();
 
-    const response = NextResponse.redirect(new URL(callbackUrl ?? "/dashboard", request.url));
+    const response = NextResponse.redirect(redirectUrl);
     // This cookie preserves anonymous-workspace continuity only. Authenticated identity
     // is carried by the revocable database-backed NextAuth session created below.
     const serialized = serializeSession(baseSession);
