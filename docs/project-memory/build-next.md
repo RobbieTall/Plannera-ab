@@ -1586,3 +1586,32 @@ Next action:
 5. Require `READY_FOR_NON_PRODUCTION_ACCEPTANCE` and inspect representative DOCX/PDF outputs before any Production go/no-go.
 
 Do not dispatch `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; it predates the required authentication correction. Production checkout remains disabled.
+
+## Item 78C HOLD checkpoint - 2026-09-17
+
+**Decision:** `HOLD`.
+
+Protected workflow run
+[35200070708](https://github.com/RobbieTall/Plannera-ab/actions/runs/35200070708)
+used exact commit `580b474c5bd5738299e5b10ac2a5ef4bb3c9762e`.
+Both council authorization checks passed and the canonical SEE compiler plus
+DOCX/PDF rendering contract passed. Byron and Kempsey independently failed
+closed at `BLOB_CLEANUP`: deletion by the provider-returned private URL and
+the exact pathname was rejected, and exact post-failure listing confirmed
+synthetic residue. Consultant referral and the combined Item 78C release
+decision were correctly skipped.
+
+Next work, in order:
+
+1. Pause further Item 78C dispatches.
+2. Establish and correct the Vercel private Blob delete path without weakening
+   the exact zero-residue assertion.
+3. Remove and reconcile all synthetic objects left by failed protected runs in
+   the approved Preview-only store.
+4. Commit the correction, repin both protected environments to one exact SHA,
+   and rerun both independent council jobs.
+5. Inspect representative DOCX/PDF artifacts and update the decision only
+   after the workflow emits `READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
+
+Production checkout stays disabled. Production data/schema and real documents
+remain out of scope.
