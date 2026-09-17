@@ -22,7 +22,11 @@ export type Item74hPrivateBlobErrorCategory =
   | "BLOB_ACCESS_DENIED"
   | "BLOB_NOT_FOUND"
   | "BLOB_STORE_NOT_FOUND"
+  | "BLOB_STORE_SUSPENDED"
   | "BLOB_RATE_LIMITED"
+  | "BLOB_SERVICE_UNAVAILABLE"
+  | "BLOB_REQUEST_REJECTED"
+  | "BLOB_PROVIDER_UNKNOWN"
   | "NETWORK_ERROR"
   | "UNKNOWN";
 
@@ -35,6 +39,13 @@ const readString = (
   key: string,
 ): string => (typeof record[key] === "string" ? record[key] : "");
 
+const readConstructorName = (
+  record: Readonly<Record<string, unknown>>,
+): string => {
+  const constructorValue = record.constructor;
+  return typeof constructorValue === "function" ? constructorValue.name : "";
+};
+
 export const classifyItem74hPrivateBlobError = (
   error: unknown,
 ): Item74hPrivateBlobErrorCategory => {
@@ -44,10 +55,9 @@ export const classifyItem74hPrivateBlobError = (
       : {};
   const statusValue = record.statusCode ?? record.status;
   const status = typeof statusValue === "number" ? statusValue : undefined;
-  const signature = `${readString(record, "name")}:${readString(
+  const signature = `${readString(record, "name")}:${readConstructorName(
     record,
-    "code",
-  )}`.toLowerCase();
+  )}:${readString(record, "code")}`.toLowerCase();
 
   if (status === 429 || signature.includes("ratelimit")) {
     return "BLOB_RATE_LIMITED";
@@ -58,17 +68,30 @@ export const classifyItem74hPrivateBlobError = (
   ) {
     return "BLOB_STORE_NOT_FOUND";
   }
+  if (signature.includes("storesuspended")) {
+    return "BLOB_STORE_SUSPENDED";
+  }
+  if (signature.includes("servicenotavailable")) {
+    return "BLOB_SERVICE_UNAVAILABLE";
+  }
   if (
     status === 401 ||
     status === 403 ||
     signature.includes("access") ||
     signature.includes("forbidden") ||
-    signature.includes("unauthorized")
+    signature.includes("unauthorized") ||
+    signature.includes("oidcenvironmentnotallowed")
   ) {
     return "BLOB_ACCESS_DENIED";
   }
   if (status === 404 || signature.includes("notfound")) {
     return "BLOB_NOT_FOUND";
+  }
+  if (signature.includes("blobunknownerror")) {
+    return "BLOB_PROVIDER_UNKNOWN";
+  }
+  if (signature.split(":").includes("bloberror")) {
+    return "BLOB_REQUEST_REJECTED";
   }
   if (
     signature.includes("fetcherror") ||
