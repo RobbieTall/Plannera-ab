@@ -1,41 +1,81 @@
 export type PrivateBlobDeletionReconciliationDependencies = {
   deleteTarget: (target: string) => Promise<void>;
   countExactObjects: () => Promise<number>;
+  wait?: (delayMs: number) => Promise<void>;
 };
 
 export type PrivateBlobDeletionReconciliationInput = {
   primaryTarget: string;
   fallbackTarget: string;
+  verificationDelaysMs?: readonly number[];
+  fallbackAfterVerificationCount?: number;
 };
+
+export const PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS = [
+  0, 250, 750, 2_000, 4_000, 8_000, 10_000, 12_000, 12_000, 12_000,
+] as const;
+
+export const PRIVATE_BLOB_FALLBACK_AFTER_VERIFICATION_COUNT = 3;
+
+const wait = (delayMs: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 
 export const deletePrivateBlobWithReconciliation = async (
   input: PrivateBlobDeletionReconciliationInput,
   deps: PrivateBlobDeletionReconciliationDependencies,
 ): Promise<void> => {
   const targets = [...new Set([input.primaryTarget, input.fallbackTarget])];
-  let lastDeletionError: unknown;
+  const verificationDelaysMs =
+    input.verificationDelaysMs ??
+    PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS;
+  const fallbackAfterVerificationCount =
+    input.fallbackAfterVerificationCount ??
+    PRIVATE_BLOB_FALLBACK_AFTER_VERIFICATION_COUNT;
 
-  for (const target of targets) {
+  if (
+    verificationDelaysMs.length < 2 ||
+    fallbackAfterVerificationCount < 1 ||
+    fallbackAfterVerificationCount >= verificationDelaysMs.length
+  ) {
+    throw new Error("Private Blob deletion verification policy is invalid");
+  }
+
+  const waitFor = deps.wait ?? wait;
+  let lastDeletionError: unknown;
+  let lastInspectionError: unknown;
+  let fallbackAttempted = targets.length === 1;
+
+  const attemptDelete = async (target: string) => {
     try {
       await deps.deleteTarget(target);
-      return;
     } catch (error) {
       lastDeletionError = error;
     }
+  };
+
+  await attemptDelete(targets[0]);
+
+  for (const [index, delayMs] of verificationDelaysMs.entries()) {
+    if (delayMs > 0) await waitFor(delayMs);
 
     try {
       if ((await deps.countExactObjects()) === 0) return;
-    } catch {
-      // Continue to the fallback target. The caller's final residue check
-      // remains authoritative if deletion later succeeds.
+    } catch (error) {
+      lastInspectionError = error;
+    }
+
+    if (
+      !fallbackAttempted &&
+      index + 1 === fallbackAfterVerificationCount
+    ) {
+      fallbackAttempted = true;
+      await attemptDelete(targets[1]);
     }
   }
 
-  try {
-    if ((await deps.countExactObjects()) === 0) return;
-  } catch {
-    // Preserve the provider deletion failure without exposing provider details.
-  }
-
-  throw lastDeletionError ?? new Error("Private Blob deletion failed closed");
+  throw (
+    lastDeletionError ??
+    lastInspectionError ??
+    new Error("Private Blob deletion left a residual object")
+  );
 };
