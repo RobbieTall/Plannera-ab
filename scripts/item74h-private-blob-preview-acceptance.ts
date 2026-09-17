@@ -80,7 +80,7 @@ const main = async () => {
       });
       const hostname = new URL(blob.url).hostname;
       if (!/^[a-z0-9-]+\.private\.blob\.vercel-storage\.com$/.test(hostname)) {
-        await del(ref, { ...blobAuth }).catch(() => {});
+        await del(blob.url, { ...blobAuth }).catch(() => {});
         throw new Error("Private Blob returned a non-private host");
       }
       privateUrls.set(ref, blob.url);
@@ -146,7 +146,8 @@ const main = async () => {
     },
     deleteObject: async ({ objectRef: ref }) => {
       currentStage = "BLOB_CLEANUP";
-      await del(ref, { ...blobAuth });
+      const privateUrl = privateUrls.get(ref);
+      await del(privateUrl ?? ref, { ...blobAuth });
       privateUrls.delete(ref);
     },
   };
