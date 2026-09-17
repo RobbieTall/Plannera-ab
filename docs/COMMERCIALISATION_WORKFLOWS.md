@@ -347,7 +347,7 @@ For every protected GitHub environment that can run private-evidence or commerci
 
 Do not copy an OIDC credential into either access-token option. The Blob SDK gives an explicit Blob `token` precedence over OIDC and interprets it as a legacy read-write Blob token; the Sandbox SDK requires a Vercel access token together with the exact team and project IDs in external CI. Credential rotation remains an explicit operator action, and Production must stay disabled.
 
-The `commercial-bridge` suite runs in the established `stripe-test-acceptance` GitHub environment so the paid-session fixtures remain in their original protected boundary. Every other stateful suite continues to use `item74h-stateful-preview-acceptance`. The Stripe environment must additionally hold the exact Item 74H Preview database URL, private Blob store ID, current Vercel OIDC token, Item 78A Stripe test session ID, and the four Item 74H authorization variables. Do not duplicate the Stripe commercial secrets into a second environment.
+The `commercial-bridge` suite runs in the established `stripe-test-acceptance` GitHub environment so the paid-session fixtures remain in their original protected boundary. Every other stateful suite continues to use `item74h-stateful-preview-acceptance`. The Stripe environment must additionally hold the exact Item 74H Preview database URL, private Blob store ID, Vercel access token, Vercel team ID, Vercel project ID, Item 78A Stripe test session ID, and the four Item 74H authorization variables. Do not persist a Vercel OIDC token in GitHub or duplicate the Stripe commercial secrets into a second environment.
 
 ## Item 74H progressive evidence and DA History Assist
 

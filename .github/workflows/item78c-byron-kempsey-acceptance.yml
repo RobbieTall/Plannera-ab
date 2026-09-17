@@ -172,7 +172,7 @@ jobs:
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
           npm run --silent accept:item78a-durable-commercial-bridge > item78c-byron-bridge-raw.json
-          node -e "const fs=require('fs'); const s=require('./item78c-byron-bridge-raw.json'); const checkNames=['protected_preview','paid_source','exact_scope','single_pack','evidence_boundaries','evidence_regeneration','single_use_credit','cross_scope_denial','working_outputs','replay_safety','production_disabled','zero_residue']; const checks=Object.fromEntries(checkNames.map((name)=>[name,s.checks?.[name]])); if(s.runnerVersion!=='item78a-durable-commercial-bridge.v1'||s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||s.syntheticOnly!==true||Object.values(checks).some((value)=>value!==true)) process.exit(1); const out={runnerVersion:s.runnerVersion,passed:s.passed,checks,failedCheck:s.failedCheck,productionCheckoutEnabled:s.productionCheckoutEnabled,productionMutationPerformed:s.productionMutationPerformed,syntheticOnly:s.syntheticOnly,containsSensitiveValues:s.containsSensitiveValues}; fs.writeFileSync('item78c-byron-bridge.json',JSON.stringify(out)+'\n')"
+          node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-byron-bridge-raw.json item78c-byron-bridge.json
           echo "summary=$(cat item78c-byron-bridge.json)" >> "$GITHUB_OUTPUT"
 
   kempsey:
@@ -270,7 +270,7 @@ jobs:
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
           npm run --silent accept:item78a-durable-commercial-bridge > item78c-kempsey-bridge-raw.json
-          node -e "const fs=require('fs'); const s=require('./item78c-kempsey-bridge-raw.json'); const checkNames=['protected_preview','paid_source','exact_scope','single_pack','evidence_boundaries','evidence_regeneration','single_use_credit','cross_scope_denial','working_outputs','replay_safety','production_disabled','zero_residue']; const checks=Object.fromEntries(checkNames.map((name)=>[name,s.checks?.[name]])); if(s.runnerVersion!=='item78a-durable-commercial-bridge.v1'||s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||s.syntheticOnly!==true||Object.values(checks).some((value)=>value!==true)) process.exit(1); const out={runnerVersion:s.runnerVersion,passed:s.passed,checks,failedCheck:s.failedCheck,productionCheckoutEnabled:s.productionCheckoutEnabled,productionMutationPerformed:s.productionMutationPerformed,syntheticOnly:s.syntheticOnly,containsSensitiveValues:s.containsSensitiveValues}; fs.writeFileSync('item78c-kempsey-bridge.json',JSON.stringify(out)+'\n')"
+          node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-kempsey-bridge-raw.json item78c-kempsey-bridge.json
           echo "summary=$(cat item78c-kempsey-bridge.json)" >> "$GITHUB_OUTPUT"
 
   see-compiler:

@@ -59,22 +59,67 @@ describe("Item 74H Sandbox authentication", () => {
   });
 
   it("requires external-CI Sandbox credentials in protected workflows", async () => {
-    for (const workflowPath of [
-      ".github/workflows/item74h-stateful-preview-acceptance.yml",
-      ".github/workflows/item78c-byron-kempsey-acceptance.yml",
+    for (const { workflowPath, expectedCredentialSteps, expectedCredentialJobs } of [
+      {
+        workflowPath:
+          ".github/workflows/item74h-stateful-preview-acceptance.yml",
+        expectedCredentialSteps: 4,
+        expectedCredentialJobs: 1,
+      },
+      {
+        workflowPath:
+          ".github/workflows/item78c-byron-kempsey-acceptance.yml",
+        expectedCredentialSteps: 4,
+        expectedCredentialJobs: 2,
+      },
     ]) {
       const workflow = await readFile(workflowPath, "utf8");
+      const stepBlocks = workflow.split(/\n(?=      - name: )/);
+      const jobBlocks = workflow
+        .slice(workflow.indexOf("\njobs:\n") + "\njobs:\n".length)
+        .split(/\n(?=  [A-Za-z0-9_-]+:\n)/);
+      const credentialSteps = stepBlocks.filter((block) =>
+        block.includes("ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN"),
+      );
+      const credentialJobs = jobBlocks.filter((block) =>
+        block.includes("ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN"),
+      );
+      const authorizeJob = jobBlocks.find((block) =>
+        block.startsWith("  authorize:\n"),
+      );
 
       expect(workflow).not.toMatch(/ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN/);
-      expect(workflow).toMatch(
-        /VERCEL_TOKEN: \$\{\{ secrets\.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN \}\}/,
-      );
-      expect(workflow).toMatch(
-        /VERCEL_TEAM_ID: \$\{\{ vars\.ITEM74H_PREVIEW_VERCEL_TEAM_ID \}\}/,
-      );
-      expect(workflow).toMatch(
-        /VERCEL_PROJECT_ID: \$\{\{ vars\.ITEM74H_PREVIEW_VERCEL_PROJECT_ID \}\}/,
-      );
+      expect(authorizeJob).toBeDefined();
+      expect(authorizeJob).not.toMatch(/secrets\.|ITEM74H_PREVIEW_VERCEL_/);
+      expect(credentialSteps).toHaveLength(expectedCredentialSteps);
+      expect(credentialJobs).toHaveLength(expectedCredentialJobs);
+      expect(
+        workflow.match(/ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN/g),
+      ).toHaveLength(expectedCredentialSteps);
+
+      for (const block of credentialJobs) {
+        expect(block).toMatch(/needs: authorize/);
+        expect(block.indexOf("needs: authorize")).toBeLessThan(
+          block.indexOf("steps:"),
+        );
+        expect(block).toMatch(/environment:/);
+      }
+
+      for (const block of credentialSteps) {
+        expect(block).toMatch(
+          /VERCEL_TOKEN: \$\{\{ secrets\.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN \}\}/,
+        );
+        expect(block).toMatch(
+          /VERCEL_TEAM_ID: \$\{\{ vars\.ITEM74H_PREVIEW_VERCEL_TEAM_ID \}\}/,
+        );
+        expect(block).toMatch(
+          /VERCEL_PROJECT_ID: \$\{\{ vars\.ITEM74H_PREVIEW_VERCEL_PROJECT_ID \}\}/,
+        );
+        expect(block).toMatch(
+          /run: npm run(?: --silent)? accept:item74h-(?:private-blob-preview|clamav-preview)/,
+        );
+        expect(block).not.toMatch(/DATABASE_URL|STRIPE_TEST_SECRET_KEY/);
+      }
     }
   });
 
@@ -83,38 +128,24 @@ describe("Item 74H Sandbox authentication", () => {
       ".github/workflows/item78c-byron-kempsey-acceptance.yml",
       "utf8",
     );
-    const checkNames = [
-      "protected_preview",
-      "paid_source",
-      "exact_scope",
-      "single_pack",
-      "evidence_boundaries",
-      "evidence_regeneration",
-      "single_use_credit",
-      "cross_scope_denial",
-      "working_outputs",
-      "replay_safety",
-      "production_disabled",
-      "zero_residue",
-    ];
+    for (const council of ["byron", "kempsey"]) {
+      const rawPath = `item78c-${council}-bridge-raw.json`;
+      const safePath = `item78c-${council}-bridge.json`;
 
-    expect(workflow).toContain("item78c-byron-bridge-raw.json");
-    expect(workflow).toContain("item78c-kempsey-bridge-raw.json");
-    expect(workflow).not.toMatch(
-      /summary=\$\(cat item78c-(?:byron|kempsey)-bridge-raw\.json\)/,
-    );
-    expect(workflow).toContain(
-      'echo "summary=$(cat item78c-byron-bridge.json)" >> "$GITHUB_OUTPUT"',
-    );
-    expect(workflow).toContain(
-      'echo "summary=$(cat item78c-kempsey-bridge.json)" >> "$GITHUB_OUTPUT"',
-    );
-    expect(workflow.match(/const checks=Object\.fromEntries/g)).toHaveLength(2);
-    expect(workflow.match(/containsSensitiveValues:s\.containsSensitiveValues/g)).toHaveLength(
-      2,
-    );
-    for (const checkName of checkNames) {
-      expect(workflow.match(new RegExp(`'${checkName}'`, "g"))).toHaveLength(2);
+      expect(workflow.split(rawPath)).toHaveLength(3);
+      expect(workflow).toContain(
+        `node ./scripts/item78c-sanitize-bridge-summary.mjs ${rawPath} ${safePath}`,
+      );
+      expect(workflow).toContain(
+        `echo "summary=$(cat ${safePath})" >> "$GITHUB_OUTPUT"`,
+      );
+      expect(workflow).not.toContain(`cat ${rawPath}`);
+      expect(workflow).not.toMatch(
+        new RegExp(`(?:echo|printf).*${rawPath}.*GITHUB_OUTPUT`),
+      );
     }
+    expect(
+      workflow.match(/node \.\/scripts\/item78c-sanitize-bridge-summary\.mjs/g),
+    ).toHaveLength(2);
   });
 });
