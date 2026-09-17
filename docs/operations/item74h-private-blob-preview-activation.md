@@ -190,3 +190,34 @@ private gate reported `SKIPPED_FEATURE_DISABLED` and Production checkout false.
 This acceptance proves the private Blob and isolated Sandbox lifecycle. It does
 not prove a current malware-signature `CLEAN` result, operator evidence review,
 real-document intake, evidence-confirmed proposal or paid-output eligibility.
+
+## Item 78C cleanup regression checkpoint (2026-09-17)
+
+The earlier accepted private lifecycle record above remains historical
+evidence, but it does not override the current result.
+
+Item 78C protected runs
+[35198419868](https://github.com/RobbieTall/Plannera-ab/actions/runs/35198419868),
+[35199387775](https://github.com/RobbieTall/Plannera-ab/actions/runs/35199387775)
+and
+[35200070708](https://github.com/RobbieTall/Plannera-ab/actions/runs/35200070708)
+failed closed at private Blob cleanup. The latest runner tried the exact private
+URL returned by Vercel and the exact opaque pathname. It reconciled ambiguous
+responses against a fresh exact listing and still found the synthetic object.
+The result is therefore a genuine zero-residue failure, not a logging or
+council-fixture failure.
+
+Until repaired:
+
+- stop additional stateful Item 78C dispatches;
+- keep evidence upload and Production checkout disabled;
+- do not process real documents;
+- delete and reconcile all failed-run synthetic objects in the approved
+  Preview-only store;
+- preserve privacy-minimal diagnostics; and
+- do not substitute manual deletion for the automated zero-residue acceptance
+  proof.
+
+The next accepted flight must pass automated deletion and report zero residual
+objects for both independent council jobs before Sandbox/ClamAV, durable
+commercial bridge, consultant handoff or release readiness can be accepted.
