@@ -444,3 +444,27 @@ PR #397 merged the reviewed authentication and ownership correction to `main` as
 The former immutable acceptance SHA `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8` remains preserved but is superseded and must not be dispatched because it predates the correction. The next protected run requires an explicitly approved new immutable branch/commit from corrected `main`, both council environments re-pinned to it, independent paid Stripe test sessions, the Kempsey consultant fixture and representative DOCX/PDF inspection.
 
 No `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision has been produced. Production checkout remains disabled, and no Production data/schema mutation or customer launch is authorized.
+
+## Item 78C protected-run checkpoint - 2026-09-17
+
+Current decision: **HOLD**.
+
+The latest protected run is
+[Item 78C run 35200070708](https://github.com/RobbieTall/Plannera-ab/actions/runs/35200070708)
+at exact commit `580b474c5bd5738299e5b10ac2a5ef4bb3c9762e`.
+Authorization passed for both branch-restricted council environments and the
+canonical SEE compiler/DOCX/PDF rendering contract passed. Both independent
+council jobs failed closed at private Blob cleanup before their durable
+commercial bridge could run. The workflow correctly skipped consultant
+handoff and the combined release decision.
+
+Operational rule: do not rerun this stateful workflow merely to seek a green
+result. First correct the provider delete path, remove all synthetic residue
+from failed Preview runs, and prove an exact zero count. Any correction must
+retain URL/pathname target validation, private access, test-only inputs,
+independent council fixtures and the zero-residue assertion. Only a later
+fully green run may produce `READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
+
+Production checkout remains disabled. This checkpoint authorizes no Production
+database/schema change, deployment promotion, live payment or customer file
+processing.

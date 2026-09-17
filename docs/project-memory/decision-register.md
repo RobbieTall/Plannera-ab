@@ -1403,3 +1403,32 @@ Evidence:
 - exact-head Vercel Preview: Ready;
 - independent exact-commit review: no blocking findings, merge recommended;
 - Item 78C workflow decision: not yet produced; `HOLD`.
+
+### 2026-09-17 - Item 78C remains HOLD on private Blob zero-residue
+
+**Decision:** Keep Item 78C at `HOLD`; do not claim
+`READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
+
+**Evidence:** Protected run
+[35200070708](https://github.com/RobbieTall/Plannera-ab/actions/runs/35200070708)
+at exact commit `580b474c5bd5738299e5b10ac2a5ef4bb3c9762e`
+passed credential-free authorization for Byron and Kempsey and passed the
+canonical SEE/DOCX/PDF compiler job. Each independent council job failed at the
+same private Blob cleanup boundary. The runner tried both the provider-returned
+private URL and the exact pathname, accepted no ambiguous response, and
+confirmed by exact listing that residue remained. Downstream consultant and
+release-decision jobs were skipped.
+
+**Rationale:** A paid evidence workflow cannot be accepted while its protected
+synthetic proof leaves private objects behind. Treating an SDK error as success
+or weakening the residue check would create a false green.
+
+**Required reversal evidence:** provider deletion succeeds, all failed-run
+synthetic residue is removed, both councils pass independently, consultant
+handoff passes, representative rendered outputs are inspected, and the
+privacy-minimal decision artifact states
+`READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
+
+**Boundary:** Production checkout is disabled. No Production database/schema
+mutation, live charge, customer document, or Production activation is
+authorized by this decision.
