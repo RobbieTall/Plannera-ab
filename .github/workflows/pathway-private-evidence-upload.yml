@@ -12,6 +12,12 @@ on:
       - "src/lib/pathway-private-evidence-blob-acceptance.ts"
       - "src/lib/pathway-private-evidence-blob-acceptance.test.ts"
       - "scripts/item74h-private-blob-preview-acceptance.ts"
+      - "scripts/item78c-sanitize-bridge-summary.mjs"
+      - "tests/item78c-bridge-summary-sanitizer.test.mjs"
+      - "src/lib/item74h-sandbox-auth.ts"
+      - "src/lib/item74h-sandbox-auth.test.ts"
+      - ".github/workflows/item74h-stateful-preview-acceptance.yml"
+      - ".github/workflows/item78c-byron-kempsey-acceptance.yml"
       - "package.json"
       - "package-lock.json"
       - "docs/operations/item74h-private-evidence-upload.md"
@@ -45,8 +51,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Verify private evidence policy, quarantine and review
-        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts
+      - name: Verify private evidence policy, authentication, quarantine and review
+        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts src/lib/item74h-sandbox-auth.test.ts
+
+      - name: Verify privacy-minimal Item 78C bridge evidence
+        run: node --test tests/item78c-bridge-summary-sanitizer.test.mjs
 
       - name: Confirm activation and Production checkout remain disabled
         run: |

@@ -139,13 +139,17 @@ jobs:
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
-          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
         run: npm run --silent accept:item74h-private-blob-preview
       - name: Prove private Sandbox and ClamAV cleanup
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
-          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
         run: npm run --silent accept:item74h-clamav-preview
       - name: Prove BYRON durable commercial bridge
         id: bridge
@@ -167,8 +171,8 @@ jobs:
           PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
-          npm run --silent accept:item78a-durable-commercial-bridge > item78c-byron-bridge.json
-          node -e "const s=require('./item78c-byron-bridge.json'); if(s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||Object.values(s.checks||{}).some(v=>v!==true)) process.exit(1)"
+          npm run --silent accept:item78a-durable-commercial-bridge > item78c-byron-bridge-raw.json
+          node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-byron-bridge-raw.json item78c-byron-bridge.json
           echo "summary=$(cat item78c-byron-bridge.json)" >> "$GITHUB_OUTPUT"
 
   kempsey:
@@ -233,13 +237,17 @@ jobs:
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
-          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
         run: npm run --silent accept:item74h-private-blob-preview
       - name: Prove private Sandbox and ClamAV cleanup
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
-          VERCEL_OIDC_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_OIDC_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
         run: npm run --silent accept:item74h-clamav-preview
       - name: Prove KEMPSEY durable commercial bridge
         id: bridge
@@ -261,8 +269,8 @@ jobs:
           PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
-          npm run --silent accept:item78a-durable-commercial-bridge > item78c-kempsey-bridge.json
-          node -e "const s=require('./item78c-kempsey-bridge.json'); if(s.passed!==true||s.failedCheck!==null||s.containsSensitiveValues!==false||s.productionCheckoutEnabled!==false||s.productionMutationPerformed!==false||Object.values(s.checks||{}).some(v=>v!==true)) process.exit(1)"
+          npm run --silent accept:item78a-durable-commercial-bridge > item78c-kempsey-bridge-raw.json
+          node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-kempsey-bridge-raw.json item78c-kempsey-bridge.json
           echo "summary=$(cat item78c-kempsey-bridge.json)" >> "$GITHUB_OUTPUT"
 
   see-compiler:
