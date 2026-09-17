@@ -7,6 +7,7 @@ import {
   PATHWAY_PRIVATE_EVIDENCE_SCAN_VERSION,
   type PathwayPrivateEvidenceScannerObservation,
 } from "../src/lib/pathway-private-evidence-scan";
+import { resolveItem74hSandboxAuth } from "../src/lib/item74h-sandbox-auth";
 
 const ACCEPTANCE_ENABLED =
   process.env.ITEM74H_CLAMAV_ACCEPTANCE_ENABLED === "true";
@@ -76,6 +77,8 @@ const runAcceptance = async () => {
     throw new Error("preview safety boundary rejected");
   }
 
+  const sandboxAuth = resolveItem74hSandboxAuth();
+
   const runToken = randomBytes(8).toString("hex");
   const sandboxNamePrefix = `item74h-clamav-${runToken}`;
   const evidenceRef = `evidence_${randomBytes(12).toString("hex")}`;
@@ -97,6 +100,7 @@ const runAcceptance = async () => {
 
   try {
     preparationSandbox = await Sandbox.create({
+      ...sandboxAuth,
       name: `${sandboxNamePrefix}-prep`,
       runtime: "node24",
       timeout: 600_000,
@@ -143,6 +147,7 @@ const runAcceptance = async () => {
 
     stage = "CREATE_SCANNER_SANDBOX";
     scannerSandbox = await Sandbox.create({
+      ...sandboxAuth,
       name: `${sandboxNamePrefix}-scan`,
       source: { type: "snapshot", snapshotId },
       timeout: 300_000,
@@ -250,6 +255,7 @@ const runAcceptance = async () => {
     if (createdSnapshotId) {
       try {
         const createdSnapshot = await Snapshot.get({
+          ...sandboxAuth,
           snapshotId: createdSnapshotId,
         });
         await createdSnapshot.delete();
@@ -319,7 +325,11 @@ const runAcceptance = async () => {
     `${sandboxNamePrefix}-scan`,
   ]) {
     try {
-      if (!(await waitForResourceAbsence(() => Sandbox.get({ name })))) {
+      if (
+        !(await waitForResourceAbsence(() =>
+          Sandbox.get({ ...sandboxAuth, name }),
+        ))
+      ) {
         residualSandboxCount += 1;
       }
     } catch {
@@ -331,7 +341,11 @@ const runAcceptance = async () => {
     try {
       if (
         !(await waitForResourceAbsence(
-          () => Snapshot.get({ snapshotId: createdSnapshotId! }),
+          () =>
+            Snapshot.get({
+              ...sandboxAuth,
+              snapshotId: createdSnapshotId!,
+            }),
           true,
         ))
       ) {

@@ -4,6 +4,7 @@ import { del, get, list, put } from "@vercel/blob";
 import { Sandbox } from "@vercel/sandbox";
 
 import { resolveItem74hPrivateBlobAuth } from "../src/lib/item74h-private-blob-auth";
+import { resolveItem74hSandboxAuth } from "../src/lib/item74h-sandbox-auth";
 
 import {
   runPathwayPrivateBlobAcceptance,
@@ -36,6 +37,7 @@ if (
 }
 
 const blobAuth = resolveItem74hPrivateBlobAuth();
+const sandboxAuth = resolveItem74hSandboxAuth();
 
 const objectRef = `ev_${randomUUID().replaceAll("-", "")}`;
 const bytes = new TextEncoder().encode(
@@ -91,6 +93,7 @@ const deps: PathwayPrivateBlobAcceptanceDependencies = {
   },
   runIsolatedHashCheck: async ({ bytes: body, contentHash }) => {
     const sandbox = await Sandbox.create({
+      ...sandboxAuth,
       runtime: "node22",
       persistent: false,
       timeout: 60_000,
