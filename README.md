@@ -255,3 +255,27 @@ The release decision is **HOLD** until the workflow produces `READY_FOR_NON_PROD
 - The preserved acceptance branch `accept/item-78c-byron-kempsey-20260911` and SHA `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8` predate this correction. They are **superseded and must not be dispatched or reported as current acceptance evidence**.
 - Item 78C remains **HOLD**. The exact blocker is approval and creation of a new immutable non-production acceptance snapshot from corrected `main`, followed by re-pinning both protected council environments and completing the independent paid test journeys and rendered-output review.
 - Production checkout remains disabled. No Production data or schema mutation is authorized.
+
+## Item 78C execution checkpoint (2026-09-17)
+
+Status: **HOLD / PROTECTED PREVIEW ACCEPTANCE NOT COMPLETE**.
+
+The protected Byron/Kempsey workflow was run at exact commit
+`580b474c5bd5738299e5b10ac2a5ef4bb3c9762e` in
+[run #8](https://github.com/RobbieTall/Plannera-ab/actions/runs/35200070708).
+Credential-free exact-commit and target authorization passed for both
+independent council environments. The canonical SEE compiler and its DOCX/PDF
+rendering contract also passed.
+
+Both council jobs failed closed at the shared private Blob cleanup gate. The
+synthetic private write, replay, authenticated read and deny-all Sandbox hash
+path reached cleanup, but Vercel Blob rejected deletion by both the
+provider-returned private URL and the exact pathname, and a fresh exact listing
+confirmed residue. The consultant handoff and combined release-decision jobs
+therefore did not run. No `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision
+exists.
+
+Do not dispatch Item 78C again until the provider delete path is corrected and
+all residual synthetic acceptance objects are removed and reconciled to zero.
+Do not weaken the zero-residue requirement. Production checkout remains
+disabled; no Production database/schema or customer-document action was taken.
