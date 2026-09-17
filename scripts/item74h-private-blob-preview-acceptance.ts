@@ -8,6 +8,7 @@ import {
   type Item74hPrivateBlobAcceptanceStage,
 } from "../src/lib/item74h-private-blob-acceptance-diagnostics";
 import { resolveItem74hPrivateBlobAuth } from "../src/lib/item74h-private-blob-auth";
+import { deletePrivateBlobWithReconciliation } from "../src/lib/item74h-private-blob-delete-reconciliation";
 import { resolveItem74hSandboxAuth } from "../src/lib/item74h-sandbox-auth";
 
 import {
@@ -146,8 +147,16 @@ const main = async () => {
     },
     deleteObject: async ({ objectRef: ref }) => {
       currentStage = "BLOB_CLEANUP";
-      const privateUrl = privateUrls.get(ref);
-      await del(privateUrl ?? ref, { ...blobAuth });
+      await deletePrivateBlobWithReconciliation(
+        {
+          primaryTarget: privateUrls.get(ref) ?? ref,
+          fallbackTarget: ref,
+        },
+        {
+          deleteTarget: async (target) => del(target, { ...blobAuth }),
+          countExactObjects: async () => (await findExact(ref)).length,
+        },
+      );
       privateUrls.delete(ref);
     },
   };
