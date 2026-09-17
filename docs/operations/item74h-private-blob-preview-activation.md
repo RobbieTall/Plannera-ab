@@ -2,7 +2,7 @@
 
 Status: **PRIVATE PREVIEW LIFECYCLE ACCEPTED / CLEAN STATE DISABLED**
 
-Last updated: 2026-08-28 (Australia/Sydney)
+Last updated: 2026-09-17 (Australia/Sydney)
 
 ## Purpose
 
@@ -76,16 +76,21 @@ All of the following must be true before resource creation:
 4. Prefer Vercel OIDC for server-side private reads where supported.
 5. If a static Blob credential is necessary, keep it Sensitive and
    Preview/branch scoped; never copy or print its value.
-6. Upgrade `@vercel/blob` to the private-storage-capable current SDK and add the
+6. When the protected proof runs in GitHub Actions, configure the owning
+   GitHub environment with secret `ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN` and
+   variables `ITEM74H_PREVIEW_VERCEL_TEAM_ID` and
+   `ITEM74H_PREVIEW_VERCEL_PROJECT_ID`. The token must be scoped to the owning
+   Vercel team. Do not persist a short-lived Vercel OIDC token in GitHub.
+7. Upgrade `@vercel/blob` to the private-storage-capable current SDK and add the
    current `@vercel/sandbox` SDK through the locked dependency workflow.
-7. Implement the injected private quarantine adapter behind
+8. Implement the injected private quarantine adapter behind
    `intakePathwayPrivateEvidence`.
-8. Keep `ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED=false`. The one-flight build
+9. Keep `ITEM74H_PRIVATE_EVIDENCE_UPLOAD_ENABLED=false`. The one-flight build
    gate uses the separate
    `ITEM74H_PRIVATE_EVIDENCE_ACCEPTANCE_ENABLED=true` switch.
-9. Enable the acceptance switch only for Preview and
+10. Enable the acceptance switch only for Preview and
    `agent/item74h-pathway-check`, then remove it after the accepted flight.
-10. Do not add a public upload endpoint until owner authentication, size/type
+11. Do not add a public upload endpoint until owner authentication, size/type
     enforcement, quarantine persistence and cleanup are all server-authoritative.
 
 ## Synthetic quarantine flight
