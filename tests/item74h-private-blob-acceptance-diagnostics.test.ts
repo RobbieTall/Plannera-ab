@@ -66,6 +66,31 @@ test("normalizes error categories without reading raw error details", () => {
   }
 });
 
+test("classifies SDK errors by constructor without emitting their messages", () => {
+  class BlobAccessError extends Error {}
+  class BlobStoreSuspendedError extends Error {}
+  class BlobServiceNotAvailable extends Error {}
+  class BlobUnknownError extends Error {}
+  class BlobError extends Error {}
+
+  const cases = [
+    [new BlobAccessError("sensitive"), "BLOB_ACCESS_DENIED"],
+    [new BlobStoreSuspendedError("sensitive"), "BLOB_STORE_SUSPENDED"],
+    [new BlobServiceNotAvailable("sensitive"), "BLOB_SERVICE_UNAVAILABLE"],
+    [new BlobUnknownError("sensitive"), "BLOB_PROVIDER_UNKNOWN"],
+    [new BlobError("sensitive"), "BLOB_REQUEST_REJECTED"],
+  ] as const;
+
+  for (const [error, expected] of cases) {
+    const diagnostic = createItem74hPrivateBlobFailureDiagnostic(
+      "BLOB_CLEANUP",
+      error,
+    );
+    assert.equal(diagnostic.errorCategory, expected);
+    assert.equal(JSON.stringify(diagnostic).includes(error.message), false);
+  }
+});
+
 test("fails closed to a fixed stage when supplied an unexpected value", () => {
   const diagnostic = createItem74hPrivateBlobFailureDiagnostic(
     "ev_user_controlled_stage",
