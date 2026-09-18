@@ -116,7 +116,7 @@ describe("Item 74H Sandbox authentication", () => {
           /VERCEL_PROJECT_ID: \$\{\{ vars\.ITEM74H_PREVIEW_VERCEL_PROJECT_ID \}\}/,
         );
         expect(block).toMatch(
-          /run: (?:npm run(?: --silent)? accept:item74h-clamav-preview|node \.\/node_modules\/tsx\/dist\/cli\.mjs scripts\/run-item74h-private-blob-with-preview-oidc\.ts)/,
+          /run: (?:npm run(?: --silent)? accept:item74h-(?:private-blob-preview|clamav-preview)|node \.\/node_modules\/tsx\/dist\/cli\.mjs scripts\/run-item74h-private-blob-with-preview-oidc\.ts)/,
         );
         expect(block).not.toMatch(/DATABASE_URL|STRIPE_TEST_SECRET_KEY/);
       }
