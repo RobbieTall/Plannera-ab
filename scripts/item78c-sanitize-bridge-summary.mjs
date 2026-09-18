@@ -35,6 +35,9 @@ export const ITEM78C_BRIDGE_FAILURE_STAGES = Object.freeze([
   "unhandled",
 ]);
 export const ITEM78C_STRIPE_FAILURE_REASONS = Object.freeze([
+  "acceptance_unhandled_failure",
+  "application_contract_invalid",
+  "application_request_failed",
   "checkout_replay_failed",
   "configuration_invalid",
   "dpp_gate_failed",
@@ -42,10 +45,12 @@ export const ITEM78C_STRIPE_FAILURE_REASONS = Object.freeze([
   "live_mode_denied",
   "pagination_uncertain",
   "phase_mismatch",
+  "provider_contract_invalid",
   "provider_request_failed",
   "refund_mismatch",
   "scope_mismatch",
   "target_denied",
+  "terms_mismatch",
 ]);
 const isRecord = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
