@@ -12,6 +12,10 @@ on:
       - "src/lib/pathway-private-evidence-blob-acceptance.ts"
       - "src/lib/pathway-private-evidence-blob-acceptance.test.ts"
       - "scripts/item74h-private-blob-preview-acceptance.ts"
+      - "scripts/run-item74h-private-blob-with-preview-oidc.ts"
+      - "src/lib/vercel-preview-oidc.ts"
+      - "tests/vercel-preview-oidc.test.ts"
+      - "tests/item78c-whole-funnel-workflow.test.ts"
       - "scripts/item78c-sanitize-bridge-summary.mjs"
       - "tests/item78c-bridge-summary-sanitizer.test.mjs"
       - "src/lib/item74h-sandbox-auth.ts"
@@ -52,7 +56,9 @@ jobs:
         run: npm ci
 
       - name: Verify private evidence policy, authentication, quarantine and review
-        run: npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts src/lib/item74h-sandbox-auth.test.ts
+        run: |
+          npx vitest run src/lib/pathway-private-evidence-upload.test.ts src/lib/pathway-private-evidence-intake.test.ts src/lib/pathway-private-evidence-review.test.ts src/lib/pathway-private-evidence-blob-acceptance.test.ts src/lib/item74h-sandbox-auth.test.ts
+          npx tsx --test tests/vercel-preview-oidc.test.ts tests/item78c-whole-funnel-workflow.test.ts
 
       - name: Verify privacy-minimal Item 78C bridge evidence
         run: node --test tests/item78c-bridge-summary-sanitizer.test.mjs
