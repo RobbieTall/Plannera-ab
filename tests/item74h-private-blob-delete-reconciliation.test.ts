@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deletePrivateBlobWithReconciliation } from "../src/lib/item74h-private-blob-delete-reconciliation";
+import {
+  deletePrivateBlobWithReconciliation,
+  PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS,
+} from "../src/lib/item74h-private-blob-delete-reconciliation";
 
 test("deletes by the provider-returned private URL first", async () => {
   const attempts: string[] = [];
@@ -146,6 +149,46 @@ test("waits for exact absence after a provider reports successful deletion", asy
   );
 
   assert.deepEqual(observedDelays, [25, 50]);
+});
+
+test("continues polling after fallback rejection until exact absence is proven", async () => {
+  const attempts: string[] = [];
+  const observedDelays: number[] = [];
+  const counts = [1, 1, 1, 0];
+
+  await deletePrivateBlobWithReconciliation(
+    {
+      primaryTarget: "private-url",
+      fallbackTarget: "opaque-pathname",
+      verificationDelaysMs: [0, 25, 50, 100],
+      fallbackAfterVerificationCount: 2,
+    },
+    {
+      deleteTarget: async (target) => {
+        attempts.push(target);
+        if (target === "opaque-pathname") {
+          throw new Error("fallback form rejected");
+        }
+      },
+      countExactObjects: async () => counts.shift() ?? 0,
+      wait: async (delayMs) => {
+        observedDelays.push(delayMs);
+      },
+    },
+  );
+
+  assert.deepEqual(attempts, ["private-url", "opaque-pathname"]);
+  assert.deepEqual(observedDelays, [25, 50, 100]);
+});
+
+test("uses a five-minute default reconciliation budget", () => {
+  assert.equal(
+    PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS.reduce(
+      (total, delayMs) => total + delayMs,
+      0,
+    ),
+    300_000,
+  );
 });
 
 test("fails closed when exact residue survives the bounded verification window", async () => {
