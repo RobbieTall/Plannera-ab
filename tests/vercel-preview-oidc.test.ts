@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  classifyVercelPreviewOidcFailure,
   fetchVercelPreviewOidcToken,
   resolveVercelPreviewOidcRequest,
 } from "../src/lib/vercel-preview-oidc";
@@ -99,6 +100,10 @@ test("rejects malformed credentials without exposing provider response data", as
       assert.ok(error instanceof Error);
       assert.match(error.message, /status 403/);
       assert.doesNotMatch(error.message, new RegExp(secretProviderDetail));
+      assert.equal(
+        classifyVercelPreviewOidcFailure(error),
+        "REQUEST_REJECTED_403",
+      );
       return true;
     },
   );
@@ -109,6 +114,13 @@ test("rejects malformed credentials without exposing provider response data", as
       status: 200,
       json: async () => ({ env: { VERCEL_OIDC_TOKEN: "not-a-jwt" } }),
     })),
-    /did not issue a valid Preview OIDC credential/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(
+        classifyVercelPreviewOidcFailure(error),
+        "OIDC_CREDENTIAL_MISSING_OR_INVALID",
+      );
+      return true;
+    },
   );
 });
