@@ -131,7 +131,18 @@ describe("Item 74H Sandbox authentication", () => {
     for (const council of ["byron", "kempsey"]) {
       const rawPath = `item78c-${council}-bridge-raw.json`;
       const safePath = `item78c-${council}-bridge.json`;
+      const commandBlock = [
+        "          set +e",
+        `          npm run --silent accept:item78a-durable-commercial-bridge > ${rawPath}`,
+        "          bridge_status=$?",
+        "          set -e",
+        `          node ./scripts/item78c-sanitize-bridge-summary.mjs ${rawPath} ${safePath}`,
+        `          echo "summary=$(cat ${safePath})" >> "$GITHUB_OUTPUT"`,
+        `          cat ${safePath}`,
+        '          exit "$bridge_status"',
+      ].join("\n");
 
+      expect(workflow).toContain(commandBlock);
       expect(workflow.split(rawPath)).toHaveLength(3);
       expect(workflow).toContain(
         `node ./scripts/item78c-sanitize-bridge-summary.mjs ${rawPath} ${safePath}`,
