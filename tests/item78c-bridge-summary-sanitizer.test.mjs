@@ -116,6 +116,16 @@ test("publishes only an allowlisted Stripe failure reason", () => {
       }),
     /failed validation/,
   );
+
+  for (const failureReason of ITEM78C_STRIPE_FAILURE_REASONS) {
+    assert.equal(
+      sanitizeItem78cBridgeSummary({
+        ...source,
+        failureReason,
+      }).failureReason,
+      failureReason,
+    );
+  }
 });
 test("fails closed for unproven, incomplete or sensitive summaries", () => {
   const failedCheck = acceptedSummary();
