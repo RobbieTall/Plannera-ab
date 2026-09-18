@@ -12,7 +12,22 @@ export type PrivateBlobDeletionReconciliationInput = {
 };
 
 export const PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS = [
-  0, 250, 750, 2_000, 4_000, 8_000, 10_000, 12_000, 12_000, 12_000,
+  0,
+  250,
+  750,
+  2_000,
+  4_000,
+  8_000,
+  15_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
 ] as const;
 
 export const PRIVATE_BLOB_FALLBACK_AFTER_VERIFICATION_COUNT = 3;
