@@ -52,6 +52,48 @@ const isOidcToken = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
 
+export const classifyVercelPreviewOidcFailure = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : "";
+  const rejectedStatus = message.match(
+    /^Preview OIDC request was rejected \(status ([1-5][0-9]{2})\)$/,
+  );
+  if (rejectedStatus) return `REQUEST_REJECTED_${rejectedStatus[1]}`;
+  if (message === "Preview OIDC request failed before a response") {
+    return "REQUEST_TRANSPORT_FAILED";
+  }
+  if (message === "Preview OIDC response was not valid JSON") {
+    return "RESPONSE_JSON_INVALID";
+  }
+  if (message === "Vercel did not issue a valid Preview OIDC credential") {
+    return "OIDC_CREDENTIAL_MISSING_OR_INVALID";
+  }
+  if (message.includes("branch evidence is invalid")) {
+    return "BRANCH_EVIDENCE_INVALID";
+  }
+  if (message.includes("commit evidence is invalid")) {
+    return "COMMIT_EVIDENCE_INVALID";
+  }
+  if (message.includes("checkout to remain disabled")) {
+    return "CHECKOUT_GUARD_FAILED";
+  }
+  if (message.includes("restricted to the Preview environment")) {
+    return "PREVIEW_GUARD_FAILED";
+  }
+  if (message.includes("project identifier is invalid")) {
+    return "PROJECT_ID_INVALID";
+  }
+  if (message.includes("team identifier is invalid")) {
+    return "TEAM_ID_INVALID";
+  }
+  if (message.includes("access credential is unavailable")) {
+    return "ACCESS_CREDENTIAL_UNAVAILABLE";
+  }
+  if (message.includes("acceptance child was interrupted")) {
+    return "ACCEPTANCE_CHILD_INTERRUPTED";
+  }
+  return "UNKNOWN_SAFE_FAILURE";
+};
+
 export const resolveVercelPreviewOidcRequest = (
   environment: VercelPreviewOidcEnvironment,
 ) => {
