@@ -181,13 +181,13 @@ test("continues polling after fallback rejection until exact absence is proven",
   assert.deepEqual(observedDelays, [25, 50, 100]);
 });
 
-test("uses a five-minute default reconciliation budget", () => {
+test("uses a ten-minute default reconciliation budget", () => {
   assert.equal(
     PRIVATE_BLOB_DELETION_VERIFICATION_DELAYS_MS.reduce(
       (total, delayMs) => total + delayMs,
       0,
     ),
-    300_000,
+    600_000,
   );
 });
 
