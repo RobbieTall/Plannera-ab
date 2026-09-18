@@ -21,7 +21,7 @@ const main = async () => {
   // GitHub masks the short-lived credential before any child process starts.
   process.stdout.write(`::add-mask::${oidcToken}\n`);
 
-  const childEnvironment = {
+  const childEnvironment: NodeJS.ProcessEnv = {
     ...process.env,
     VERCEL_OIDC_TOKEN: oidcToken,
   };
