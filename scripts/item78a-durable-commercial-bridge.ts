@@ -76,7 +76,10 @@ type Stage =
   | "unhandled";
 
 class BridgeFailure extends Error {
-  constructor(readonly stage: Stage) {
+  constructor(
+    readonly stage: Stage,
+    readonly failureReason: string | null = null,
+  ) {
     super(stage);
   }
 }
@@ -482,10 +485,9 @@ async function runBridge(prisma: PrismaClient) {
 
   stage = "stripe_paid_source";
   const stripeAcceptance = await runStripeTestAcceptance(process.env, fetch);
-  assert(
-    stripeAcceptance.exitCode === 0 && stripeAcceptance.summary.passed,
-    stage,
-  );
+  if (!(stripeAcceptance.exitCode === 0 && stripeAcceptance.summary.passed)) {
+    throw new BridgeFailure(stage, stripeAcceptance.summary.reason);
+  }
 
   stage = "paid_scope";
   const project = await prisma.project.findFirst({
@@ -1280,11 +1282,14 @@ async function main() {
   } catch (error) {
     const failedStage =
       error instanceof BridgeFailure ? error.stage : "unhandled";
+    const failureReason =
+      error instanceof BridgeFailure ? error.failureReason : null;
     process.stdout.write(
       `${JSON.stringify({
         runnerVersion: ITEM78A_DURABLE_COMMERCIAL_BRIDGE_VERSION,
         passed: false,
         failedStage,
+        failureReason,
         productionCheckoutEnabled: false,
         productionMutationPerformed: false,
         containsSensitiveValues: false,

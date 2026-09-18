@@ -5,6 +5,7 @@ import {
   ITEM78C_BRIDGE_CHECK_NAMES,
   ITEM78C_BRIDGE_FAILURE_STAGES,
   ITEM78C_BRIDGE_RUNNER_VERSION,
+  ITEM78C_STRIPE_FAILURE_REASONS,
   sanitizeItem78cBridgeSummary,
 } from "../scripts/item78c-sanitize-bridge-summary.mjs";
 
@@ -48,6 +49,7 @@ test("publishes only an allowlisted privacy-minimal failure stage", () => {
     runnerVersion: ITEM78C_BRIDGE_RUNNER_VERSION,
     passed: false,
     failedStage: "working_see",
+    failureReason: null,
     productionCheckoutEnabled: false,
     productionMutationPerformed: false,
     containsSensitiveValues: false,
@@ -61,6 +63,7 @@ test("publishes only an allowlisted privacy-minimal failure stage", () => {
     runnerVersion: ITEM78C_BRIDGE_RUNNER_VERSION,
     passed: false,
     failedStage: "working_see",
+    failureReason: null,
     productionCheckoutEnabled: false,
     productionMutationPerformed: false,
     containsSensitiveValues: false,
@@ -73,6 +76,43 @@ test("publishes only an allowlisted privacy-minimal failure stage", () => {
       sanitizeItem78cBridgeSummary({
         ...source,
         failedStage: "not-allowlisted",
+      }),
+    /failed validation/,
+  );
+});
+
+test("publishes only an allowlisted Stripe failure reason", () => {
+  const source = {
+    runnerVersion: ITEM78C_BRIDGE_RUNNER_VERSION,
+    passed: false,
+    failedStage: "stripe_paid_source",
+    failureReason: "phase_mismatch",
+    productionCheckoutEnabled: false,
+    productionMutationPerformed: false,
+    containsSensitiveValues: false,
+    checkoutSessionId: "must-not-escape",
+    providerPayload: "must-not-escape",
+  };
+
+  const safe = sanitizeItem78cBridgeSummary(source);
+
+  assert.deepEqual(safe, {
+    runnerVersion: ITEM78C_BRIDGE_RUNNER_VERSION,
+    passed: false,
+    failedStage: "stripe_paid_source",
+    failureReason: "phase_mismatch",
+    productionCheckoutEnabled: false,
+    productionMutationPerformed: false,
+    containsSensitiveValues: false,
+  });
+  assert.ok(ITEM78C_STRIPE_FAILURE_REASONS.includes(safe.failureReason));
+  assert.equal(JSON.stringify(safe).includes("must-not-escape"), false);
+
+  assert.throws(
+    () =>
+      sanitizeItem78cBridgeSummary({
+        ...source,
+        failureReason: "cs_test_must_not_escape",
       }),
     /failed validation/,
   );

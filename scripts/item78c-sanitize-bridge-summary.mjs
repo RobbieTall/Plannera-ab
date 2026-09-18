@@ -34,6 +34,19 @@ export const ITEM78C_BRIDGE_FAILURE_STAGES = Object.freeze([
   "cleanup",
   "unhandled",
 ]);
+export const ITEM78C_STRIPE_FAILURE_REASONS = Object.freeze([
+  "checkout_replay_failed",
+  "configuration_invalid",
+  "dpp_gate_failed",
+  "duplicate_checkout",
+  "live_mode_denied",
+  "pagination_uncertain",
+  "phase_mismatch",
+  "provider_request_failed",
+  "refund_mismatch",
+  "scope_mismatch",
+  "target_denied",
+]);
 const isRecord = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -52,10 +65,23 @@ export function sanitizeItem78cBridgeSummary(source) {
     if (!ITEM78C_BRIDGE_FAILURE_STAGES.includes(source.failedStage)) {
       throw new Error("Item 78C bridge summary failed validation.");
     }
+    const failureReason =
+      source.failedStage === "stripe_paid_source"
+        ? source.failureReason
+        : null;
+    if (
+      (source.failedStage === "stripe_paid_source" &&
+        !ITEM78C_STRIPE_FAILURE_REASONS.includes(failureReason)) ||
+      (source.failedStage !== "stripe_paid_source" &&
+        source.failureReason !== null)
+    ) {
+      throw new Error("Item 78C bridge summary failed validation.");
+    }
     return {
       runnerVersion: source.runnerVersion,
       passed: false,
       failedStage: source.failedStage,
+      failureReason,
       productionCheckoutEnabled: false,
       productionMutationPerformed: false,
       containsSensitiveValues: false,
