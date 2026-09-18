@@ -137,12 +137,11 @@ jobs:
         run: node ./scripts/prisma-generate.js
       - name: Prove private Blob persistence and cleanup
         env:
-          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
           VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
           VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
-        run: npm run --silent accept:item74h-private-blob-preview
+        run: node ./node_modules/tsx/dist/cli.mjs scripts/run-item74h-private-blob-with-preview-oidc.ts
       - name: Prove private Sandbox and ClamAV cleanup
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
@@ -235,12 +234,11 @@ jobs:
         run: node ./scripts/prisma-generate.js
       - name: Prove private Blob persistence and cleanup
         env:
-          ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
           ITEM74H_PRIVATE_BLOB_STORE_ID: ${{ secrets.ITEM74H_PRIVATE_BLOB_STORE_ID }}
           VERCEL_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
           VERCEL_TEAM_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.ITEM74H_PREVIEW_VERCEL_PROJECT_ID }}
-        run: npm run --silent accept:item74h-private-blob-preview
+        run: node ./node_modules/tsx/dist/cli.mjs scripts/run-item74h-private-blob-with-preview-oidc.ts
       - name: Prove private Sandbox and ClamAV cleanup
         env:
           ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN: ${{ secrets.ITEM74H_PRIVATE_BLOB_READ_WRITE_TOKEN }}
