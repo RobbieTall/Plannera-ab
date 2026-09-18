@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 
-import { fetchVercelPreviewOidcToken } from "../src/lib/vercel-preview-oidc";
+import {
+  classifyVercelPreviewOidcFailure,
+  fetchVercelPreviewOidcToken,
+} from "../src/lib/vercel-preview-oidc";
 
 const main = async () => {
   const oidcToken = await fetchVercelPreviewOidcToken({
@@ -51,11 +54,12 @@ const main = async () => {
   if (exitCode !== 0) process.exitCode = exitCode;
 };
 
-void main().catch(() => {
+void main().catch((error: unknown) => {
   console.error(
     JSON.stringify({
       gate: "item74h-preview-oidc-bootstrap",
       status: "FAIL",
+      failureCategory: classifyVercelPreviewOidcFailure(error),
       productionCheckoutEnabled: false,
       secretValueIncluded: false,
       errorDetailIncluded: false,
