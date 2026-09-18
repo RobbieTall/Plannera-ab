@@ -154,7 +154,13 @@ const main = async () => {
         },
         {
           deleteTarget: async (target) => del(target, { ...blobAuth }),
-          countExactObjects: async () => (await findExact(ref)).length,
+          countExactObjects: async () => {
+            const directRead = await get(ref, {
+              access: "private",
+              ...blobAuth,
+            });
+            return directRead === null ? 0 : 1;
+          },
         },
       );
       privateUrls.delete(ref);
