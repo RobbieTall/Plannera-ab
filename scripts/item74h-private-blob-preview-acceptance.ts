@@ -157,6 +157,7 @@ const main = async () => {
           countExactObjects: async () => {
             const directRead = await get(ref, {
               access: "private",
+              useCache: false,
               ...blobAuth,
             });
             return directRead === null ? 0 : 1;
