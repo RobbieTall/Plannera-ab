@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { del, get, list, put } from "@vercel/blob";
+import { BlobNotFoundError, del, get, head, list, put } from "@vercel/blob";
 import { Sandbox } from "@vercel/sandbox";
 
 import {
@@ -9,6 +9,7 @@ import {
 } from "../src/lib/item74h-private-blob-acceptance-diagnostics";
 import { resolveItem74hPrivateBlobAuth } from "../src/lib/item74h-private-blob-auth";
 import { deletePrivateBlobWithReconciliation } from "../src/lib/item74h-private-blob-delete-reconciliation";
+import { countExactPrivateBlobObjectsByMetadata } from "../src/lib/item74h-private-blob-metadata";
 import { resolveItem74hSandboxAuth } from "../src/lib/item74h-sandbox-auth";
 
 import {
@@ -154,14 +155,11 @@ const main = async () => {
         },
         {
           deleteTarget: async (target) => del(target, { ...blobAuth }),
-          countExactObjects: async () => {
-            const directRead = await get(ref, {
-              access: "private",
-              useCache: false,
-              ...blobAuth,
-            });
-            return directRead === null ? 0 : 1;
-          },
+          countExactObjects: async () =>
+            countExactPrivateBlobObjectsByMetadata(ref, {
+              headObject: async (target) => head(target, { ...blobAuth }),
+              isNotFoundError: (error) => error instanceof BlobNotFoundError,
+            }),
         },
       );
       privateUrls.delete(ref);
