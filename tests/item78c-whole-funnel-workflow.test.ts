@@ -54,7 +54,7 @@ test("Item 78C Blob acceptance uses branch-scoped ephemeral Preview OIDC", () =>
 
 test("Item 78C publishes only the sanitized decision and never targets Production", () => {
   assert.match(workflow, /item78c-whole-funnel-decision/);
-  assert.match(workflow, /containsSensitiveValues: false/);
+  assert.match(workflow, /s\.containsSensitiveValues!==false/);
   assert.doesNotMatch(workflow, /environment:\s+production/i);
   assert.doesNotMatch(workflow, /PLANNING_PACK_CHECKOUT_ENABLED:\s*["']?true/i);
   assert.doesNotMatch(workflow, /SUBMISSION_SEE_CHECKOUT_ENABLED:\s*["']?true/i);
