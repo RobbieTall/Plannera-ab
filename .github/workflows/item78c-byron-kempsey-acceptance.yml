@@ -170,9 +170,14 @@ jobs:
           PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
+          set +e
           npm run --silent accept:item78a-durable-commercial-bridge > item78c-byron-bridge-raw.json
+          bridge_status=$?
+          set -e
           node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-byron-bridge-raw.json item78c-byron-bridge.json
           echo "summary=$(cat item78c-byron-bridge.json)" >> "$GITHUB_OUTPUT"
+          cat item78c-byron-bridge.json
+          exit "$bridge_status"
 
   kempsey:
     name: KEMPSEY paid project, evidence and working SEE
@@ -267,9 +272,14 @@ jobs:
           PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
         run: |
+          set +e
           npm run --silent accept:item78a-durable-commercial-bridge > item78c-kempsey-bridge-raw.json
+          bridge_status=$?
+          set -e
           node ./scripts/item78c-sanitize-bridge-summary.mjs item78c-kempsey-bridge-raw.json item78c-kempsey-bridge.json
           echo "summary=$(cat item78c-kempsey-bridge.json)" >> "$GITHUB_OUTPUT"
+          cat item78c-kempsey-bridge.json
+          exit "$bridge_status"
 
   see-compiler:
     name: Canonical SEE compiler and rendered outputs
