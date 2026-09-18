@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import { BlobNotFoundError, del, get, head, list, put } from "@vercel/blob";
 import { Sandbox } from "@vercel/sandbox";
 
@@ -8,6 +6,7 @@ import {
   type Item74hPrivateBlobAcceptanceStage,
 } from "../src/lib/item74h-private-blob-acceptance-diagnostics";
 import { resolveItem74hPrivateBlobAuth } from "../src/lib/item74h-private-blob-auth";
+import { createItem74hPrivateBlobObjectRef } from "../src/lib/item74h-private-blob-object-ref";
 import { deletePrivateBlobWithReconciliation } from "../src/lib/item74h-private-blob-delete-reconciliation";
 import { countExactPrivateBlobObjectsByMetadata } from "../src/lib/item74h-private-blob-metadata";
 import { resolveItem74hSandboxAuth } from "../src/lib/item74h-sandbox-auth";
@@ -49,7 +48,7 @@ const main = async () => {
   const blobAuth = resolveItem74hPrivateBlobAuth();
   const sandboxAuth = resolveItem74hSandboxAuth();
 
-  const objectRef = `ev_${randomUUID().replaceAll("-", "")}`;
+  const objectRef = createItem74hPrivateBlobObjectRef();
   const bytes = new TextEncoder().encode(
     JSON.stringify({ schema: "item74h-synthetic.v1", synthetic: true }),
   );
