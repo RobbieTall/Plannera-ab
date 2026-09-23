@@ -61,6 +61,7 @@ export function LgaCoverageStatusPanel({ lgaCode, lgaDisplayName }: LgaCoverageS
     const date = new Date(serviceTargetAt);
     if (!Number.isFinite(date.getTime())) return null;
     return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Sydney",
       day: "numeric",
       month: "short",
       year: "numeric",
