@@ -80,6 +80,21 @@ describe("Item 74H private evidence intake", () => {
     expect(serialized).not.toContain("https://");
   });
 
+  it("quarantines a consultant report and queues the same security scan", async () => {
+    const input = validInput();
+    input.document.role = "CONSULTANT_REPORT";
+    const deps = dependencies();
+
+    const result = await intakePathwayPrivateEvidence(input, deps);
+
+    expect(result.status).toBe("QUARANTINED");
+    expect(result.redactedSummary.role).toBe("CONSULTANT_REPORT");
+    expect(result.redactedSummary.securityScanStatus).toBe("PENDING");
+    expect(result.redactedSummary.evidenceReviewStatus).toBe("NOT_STARTED");
+    expect(deps.putQuarantined).toHaveBeenCalledOnce();
+    expect(deps.enqueueSecurityScan).toHaveBeenCalledOnce();
+  });
+
   it("denies Production before any storage action", async () => {
     const input = validInput();
     input.environment = "production";
