@@ -82,6 +82,24 @@ A report cannot progress before the referral was actually delivered. Quarantined
 
 Those are later slices and must reuse the existing Item 74H private-evidence boundary. Do not route consultant reports through the existing general workspace upload endpoint.
 
+### CI evidence for tested code head `021cc69e2075b7733fc8c9cd5bc006286b115af0`
+
+All eleven observed PR gates completed successfully:
+
+- Soft launch smoke enforcement — run 35934897958
+- Pathway Private Evidence Scanner Contract — run 35934897936
+- Item 74H Candidate Spatial Policy — run 35934897948
+- Item 74H Candidate Evidence Policy — run 35934897935
+- Pathway Private Evidence Upload Policy — run 35934898022
+- Pathway Private Evidence Operator Review — run 35934898061
+- Item 74H Working SEE Preview Gate — run 35934897956
+- Pathway Private Evidence Package Assembly — run 35934898074
+- Whole-LGA source matrix enforcement — run 35934898262
+- Submission SEE Credit Contract — run 35934897953
+- Commercial Funnel Golden Gate — run 35934897964
+
+The Commercial Funnel Golden Gate executed 191 node tests with zero failures and 82 Vitest checks with zero failures. The private-evidence upload policy directly exercised `CONSULTANT_REPORT` quarantine/review behaviour. These are deterministic PR/contract results, not hosted private-upload acceptance or Production evidence.
+
 ## Safety boundaries
 
 - No Production deployment, Production DB/schema mutation or checkout enablement.
