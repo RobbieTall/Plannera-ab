@@ -30,6 +30,18 @@ export function LgaCoverageStatusPanel({ lgaCode, lgaDisplayName }: LgaCoverageS
 
   const lgaLabel = useMemo(() => lgaDisplayName?.trim() || lgaCode?.trim() || "this LGA", [lgaCode, lgaDisplayName]);
 
+  const serviceTargetLabel = useMemo(() => {
+    if (!serviceTargetAt) return null;
+    const date = new Date(serviceTargetAt);
+    if (!Number.isFinite(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Sydney",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }, [serviceTargetAt]);
+
   if (!maturity || maturity === "NOT_STARTED" || maturity === "VERIFIED" || dismissed || autoHidden) {
     return null;
   }
@@ -55,18 +67,6 @@ export function LgaCoverageStatusPanel({ lgaCode, lgaDisplayName }: LgaCoverageS
     : isReady
       ? "text-green-700 hover:bg-green-100 hover:text-green-950 dark:text-green-100 dark:hover:bg-green-400/20"
       : "text-blue-700 hover:bg-blue-100 hover:text-blue-950 dark:text-blue-100 dark:hover:bg-blue-400/20";
-
-  const serviceTargetLabel = useMemo(() => {
-    if (!serviceTargetAt) return null;
-    const date = new Date(serviceTargetAt);
-    if (!Number.isFinite(date.getTime())) return null;
-    return new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Sydney",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(date);
-  }, [serviceTargetAt]);
 
   const targetCopy = serviceTargetLabel
     ? ` Service target: within 2 business days (current weekday target ${serviceTargetLabel}).`
