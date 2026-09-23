@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "fix/item78c-session-preflight-20260923": false
+    }
+  },
   "functions": {
     "src/app/api/**/*.ts": {
       "includeFiles": "src/lib/legislation/fixtures/**"
