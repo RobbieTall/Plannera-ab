@@ -1,3 +1,8 @@
+
+Current implementation checkpoint — 24 September 2026
+
+The consultant referral queue is implemented, but returned-report intake is only partially implemented. Issue #421 / branch `feat/consultant-returned-report-intake-20260924` adds the fail-closed contract that binds a returned `CONSULTANT_REPORT` to the exact delivered referral and existing private-evidence review pipeline. It does **not** create a public upload route, private storage adapter, scanner integration or Production flow. A returned report remains quarantined until the existing private evidence contract reports it ready, and even then it still requires evidence applicability review before final SEE use.
+
 Plannera — Commercialisation Layer Workflows
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
