@@ -15,6 +15,7 @@ const referral: ConsultantReturnedReportReferralRecord = {
   scopeKey: "scope_123456",
   packageDigest: "a".repeat(64),
   status: "CONSULTANT_ACKNOWLEDGED",
+  eventStatuses: ["SUBMITTED", "ACKNOWLEDGED", "ASSIGNED", "CONSULTANT_ACKNOWLEDGED"],
   requestedDisciplineIds: ["traffic_transport", "town_planning"],
 };
 
@@ -157,7 +158,7 @@ test("rejects content-hash substitution and non-consultant evidence roles", asyn
 
 test("does not accept returned reports before a referral has actually been delivered to a consultant", async () => {
   const { deps, persisted } = makeDeps({
-    referral: { ...referral, status: "ACKNOWLEDGED" },
+    referral: { ...referral, status: "ACKNOWLEDGED", eventStatuses: ["SUBMITTED", "ACKNOWLEDGED"] },
   });
 
   const result = await intakeConsultantReturnedReport(request, deps);
@@ -188,4 +189,44 @@ test("rejected private evidence stays rejected and never advances the referral e
   assert.equal(result.status, "REJECTED");
   assert.deepEqual(result.blockers, ["PRIVATE_EVIDENCE_REJECTED"]);
   assert.equal(persisted.length, 0);
+});
+
+
+test("allows a needs-information state only when the append-only history proves prior consultant delivery", async () => {
+  const delivered = makeDeps({
+    referral: {
+      ...referral,
+      status: "NEEDS_INFORMATION",
+      eventStatuses: ["SUBMITTED", "ACKNOWLEDGED", "ASSIGNED", "NEEDS_INFORMATION"],
+    },
+  });
+  const deliveredResult = await intakeConsultantReturnedReport(request, delivered.deps);
+  assert.equal(deliveredResult.status, "READY_FOR_EVIDENCE_PACKAGE");
+
+  const neverDelivered = makeDeps({
+    referral: {
+      ...referral,
+      status: "NEEDS_INFORMATION",
+      eventStatuses: ["SUBMITTED", "NEEDS_INFORMATION"],
+    },
+  });
+  const deniedResult = await intakeConsultantReturnedReport(request, neverDelivered.deps);
+  assert.equal(deniedResult.status, "DENIED");
+  assert.deepEqual(deniedResult.blockers, ["REFERRAL_NOT_DELIVERED"]);
+});
+
+test("rejects untrusted binding records with extra fields or mismatched evidence references", async () => {
+  const extraField = makeDeps({
+    binding: { ...binding, unexpected: "do-not-trust" } as any,
+  });
+  const extraResult = await intakeConsultantReturnedReport(request, extraField.deps);
+  assert.equal(extraResult.status, "DENIED");
+  assert.deepEqual(extraResult.blockers, ["RETURN_BINDING_NOT_FOUND"]);
+
+  const wrongRef = makeDeps({
+    binding: { ...binding, evidenceRef: "ev_wrong_reference_123" },
+  });
+  const refResult = await intakeConsultantReturnedReport(request, wrongRef.deps);
+  assert.equal(refResult.status, "DENIED");
+  assert.deepEqual(refResult.blockers, ["RETURN_BINDING_NOT_FOUND"]);
 });
