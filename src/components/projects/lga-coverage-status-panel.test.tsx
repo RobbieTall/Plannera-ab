@@ -9,12 +9,13 @@ vi.mock("@/hooks/use-lga-coverage-status", () => ({
   useLgaCoverageStatus: vi.fn(),
 }));
 
-const mockCoverageStatus = (maturity: string | null) => {
+const mockCoverageStatus = (maturity: string | null, serviceTargetAt: string | null = null) => {
   vi.mocked(useLgaCoverageStatus).mockReturnValue({
     maturity: maturity as ReturnType<typeof useLgaCoverageStatus>["maturity"],
     errorMessage: null,
     isLoading: false,
     isPolling: false,
+    serviceTargetAt,
   });
 };
 
@@ -35,6 +36,19 @@ describe("LgaCoverageStatusPanel", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("keeps hook order stable when async coverage changes from null to queued", () => {
+    mockCoverageStatus(null);
+    const { rerender } = render(
+      <LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />,
+    );
+
+    mockCoverageStatus("QUEUED", "2026-09-29T03:00:00.000Z");
+    expect(() =>
+      rerender(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />),
+    ).not.toThrow();
+    expect(screen.getByText(/within 2 business days/)).toBeInTheDocument();
+  });
+
   it("renders nothing when maturity is NOT_STARTED", () => {
     mockCoverageStatus("NOT_STARTED");
 
@@ -48,7 +62,16 @@ describe("LgaCoverageStatusPanel", () => {
 
     render(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />);
 
-    expect(screen.getByText("Reviewing local planning controls for Byron Shire. This usually takes a few minutes.")).toBeInTheDocument();
+    expect(screen.getByText("Reviewing local planning controls for Byron Shire. Service target: within 2 business days.")).toBeInTheDocument();
+  });
+
+  it("shows the current weekday service target when available", () => {
+    mockCoverageStatus("QUEUED", "2026-09-29T03:00:00.000Z");
+
+    render(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />);
+
+    expect(screen.getByText(/within 2 business days/)).toBeInTheDocument();
+    expect(screen.getByText(/29 Sept 2026|29 Sep 2026/)).toBeInTheDocument();
   });
 
   it("renders spinner copy when PROCESSING", () => {
@@ -56,7 +79,7 @@ describe("LgaCoverageStatusPanel", () => {
 
     render(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />);
 
-    expect(screen.getByText("Processing Byron Shire planning data. Guidance will improve as local controls are indexed.")).toBeInTheDocument();
+    expect(screen.getByText("Processing Byron Shire planning data. Guidance will improve as local controls are indexed. Service target: within 2 business days.")).toBeInTheDocument();
     expect(document.querySelector("svg.animate-spin")).toBeInTheDocument();
   });
 
@@ -73,7 +96,8 @@ describe("LgaCoverageStatusPanel", () => {
 
     render(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />);
 
-    expect(screen.getByText("Local data review needed for Byron Shire. Standard guidance is still available.")).toBeInTheDocument();
+    expect(screen.getByText(/Local controls preparation for Byron Shire needs operator review/)).toBeInTheDocument();
+    expect(screen.getByText(/refund is only complete after payment-provider confirmation/)).toBeInTheDocument();
   });
 
   it("dismiss button hides the panel", () => {

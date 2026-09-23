@@ -1,5 +1,16 @@
 # Decision Register
 
+## DR-078E — LGA preparation service target and refund truth — 24 September 2026
+
+Decision: the user-facing Just-in-Time LGA preparation promise is **within 2 business days**, replacing the earlier “few minutes” language. The system may show a deterministic weekday target, but must not imply that weekends/public-holiday treatment is more precise than the implemented calendar.
+
+Failed or overdue preparation requires an operator resolution path. A failed preparation with no persisted promised Planning Controls Pack may require refund review, but the customer state cannot become `REFUNDED` until authoritative payment-provider confirmation exists. A truthful persisted pack that identifies unresolved controls is delivered value and routes to expert review rather than automatic refund.
+
+Raw worker exceptions are not exposed through the workspace coverage API. Production, checkout and refund execution remain unchanged.
+
+Tracking: Issue #423; branch `feat/lga-preparation-service-resolution-20260924`.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

@@ -12,6 +12,9 @@ const coverageResponse = (state: string) =>
         lgaCode: "BYRON",
         state,
         activeJobId: null,
+        activeJobStatus: null,
+        serviceTargetAt: null,
+        preparationResolution: null,
         lastUpdatedAt: null,
       }),
   } as Response);
@@ -45,6 +48,27 @@ describe("useLgaCoverageStatus", () => {
     });
     expect(result.current.maturity).toBe("NOT_STARTED");
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it("surfaces service target and server resolution message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        lgaCode: "BYRON",
+        state: "QUEUED",
+        activeJobId: "job-1",
+        activeJobStatus: "QUEUED",
+        serviceTargetAt: "2026-09-29T03:00:00.000Z",
+        preparationResolution: null,
+        lastUpdatedAt: null,
+      }),
+    } as Response);
+
+    const { result } = renderHook(() => useLgaCoverageStatus("BYRON"));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.serviceTargetAt).toBe("2026-09-29T03:00:00.000Z");
+    expect(result.current.errorMessage).toBeNull();
   });
 
   it("polls while maturity is QUEUED", async () => {

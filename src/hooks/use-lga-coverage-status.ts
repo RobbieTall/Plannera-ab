@@ -11,6 +11,9 @@ type LgaCoverageResponse = {
   lgaCode: string;
   state: LgaCoverageMaturity;
   activeJobId: string | null;
+  activeJobStatus: string | null;
+  serviceTargetAt: string | null;
+  preparationResolution: "OPERATOR_REVIEW_REQUIRED" | null;
   lastUpdatedAt: string | null;
 };
 
@@ -19,6 +22,7 @@ type LgaCoverageStatus = {
   errorMessage: string | null;
   isLoading: boolean;
   isPolling: boolean;
+  serviceTargetAt: string | null;
 };
 
 export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCoverageStatus {
@@ -26,6 +30,7 @@ export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCov
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const [serviceTargetAt, setServiceTargetAt] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearPolling = useCallback(() => {
@@ -47,6 +52,7 @@ export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCov
 
       const data = (await response.json()) as LgaCoverageResponse;
       setMaturity(data.state);
+      setServiceTargetAt(data.serviceTargetAt);
       setErrorMessage(null);
       return data.state;
     } catch (error) {
@@ -64,6 +70,7 @@ export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCov
     if (!lgaCode) {
       setMaturity(null);
       setErrorMessage(null);
+      setServiceTargetAt(null);
       setIsLoading(false);
       return;
     }
@@ -95,5 +102,5 @@ export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCov
     };
   }, [clearPolling, fetchCoverage, lgaCode]);
 
-  return { maturity, errorMessage, isLoading, isPolling };
+  return { maturity, errorMessage, isLoading, isPolling, serviceTargetAt };
 }

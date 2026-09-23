@@ -1,5 +1,10 @@
 # Plannera
 
+## September 24 daytime build — LGA preparation service truth
+
+Issue #423 / `feat/lga-preparation-service-resolution-20260924` aligns the existing Just-in-Time LGA workflow with the approved Planning Controls Pack service promise: **within 2 business days**, with explicit operator review for failed/overdue preparation and no claim that a refund is complete before provider confirmation. This is non-production contract/UI work only; no refund, checkout or Production action is included.
+
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features
