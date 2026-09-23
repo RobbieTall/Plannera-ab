@@ -12,7 +12,7 @@ interface LgaCoverageStatusPanelProps {
 const SEARCHABLE_READY_AUTO_HIDE_MS = 8_000;
 
 export function LgaCoverageStatusPanel({ lgaCode, lgaDisplayName }: LgaCoverageStatusPanelProps) {
-  const { maturity } = useLgaCoverageStatus(lgaCode);
+  const { maturity, serviceTargetAt } = useLgaCoverageStatus(lgaCode);
   const [dismissed, setDismissed] = useState(false);
   const [autoHidden, setAutoHidden] = useState(false);
 
@@ -56,12 +56,27 @@ export function LgaCoverageStatusPanel({ lgaCode, lgaDisplayName }: LgaCoverageS
       ? "text-green-700 hover:bg-green-100 hover:text-green-950 dark:text-green-100 dark:hover:bg-green-400/20"
       : "text-blue-700 hover:bg-blue-100 hover:text-blue-950 dark:text-blue-100 dark:hover:bg-blue-400/20";
 
+  const serviceTargetLabel = useMemo(() => {
+    if (!serviceTargetAt) return null;
+    const date = new Date(serviceTargetAt);
+    if (!Number.isFinite(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  }, [serviceTargetAt]);
+
+  const targetCopy = serviceTargetLabel
+    ? ` Service target: within 2 business days (current weekday target ${serviceTargetLabel}).`
+    : " Service target: within 2 business days.";
+
   const message = (() => {
-    if (maturity === "QUEUED") return `Reviewing local planning controls for ${lgaLabel}. This usually takes a few minutes.`;
-    if (maturity === "PROCESSING") return `Processing ${lgaLabel} planning data. Guidance will improve as local controls are indexed.`;
+    if (maturity === "QUEUED") return `Reviewing local planning controls for ${lgaLabel}.${targetCopy}`;
+    if (maturity === "PROCESSING") return `Processing ${lgaLabel} planning data. Guidance will improve as local controls are indexed.${targetCopy}`;
     if (maturity === "SEARCHABLE_READY") return `Local planning controls for ${lgaLabel} are now searchable. Your workspace has been updated.`;
     if (maturity === "STRUCTURED_PARTIAL") return `Structured planning data for ${lgaLabel} is available. Controls inventory is active.`;
-    return `Local data review needed for ${lgaLabel}. Standard guidance is still available.`;
+    return `Local controls preparation for ${lgaLabel} needs operator review. Standard guidance is still available. If a paid Planning Controls Pack cannot be delivered, Plannera will resolve it under the project purchase terms; a refund is only complete after payment-provider confirmation.`;
   })();
 
   return (
