@@ -5,7 +5,8 @@ export type PathwayPrivateEvidenceRole =
   | "ROAD_CLASSIFICATION"
   | "REGISTERED_CADASTRAL_PLAN"
   | "CADASTRAL_SURVEY"
-  | "PROPOSED_SHED_LAYOUT";
+  | "PROPOSED_SHED_LAYOUT"
+  | "CONSULTANT_REPORT";
 
 export type PathwayPrivateEvidenceUploadBlocker =
   | "PREVIEW_ONLY"
@@ -110,6 +111,7 @@ const ALLOWED_ROLES: PathwayPrivateEvidenceRole[] = [
   "REGISTERED_CADASTRAL_PLAN",
   "CADASTRAL_SURVEY",
   "PROPOSED_SHED_LAYOUT",
+  "CONSULTANT_REPORT",
 ];
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
