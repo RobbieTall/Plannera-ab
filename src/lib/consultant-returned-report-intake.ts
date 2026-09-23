@@ -36,6 +36,7 @@ export type ConsultantReturnedReportReferralRecord = {
   scopeKey: string;
   packageDigest: string;
   status: ConsultantReferralStatus;
+  eventStatuses: ConsultantReferralStatus[];
   requestedDisciplineIds: string[];
 };
 
@@ -111,8 +112,33 @@ const DISCIPLINE_ID = /^[a-z0-9_]{2,80}$/;
 const DELIVERED_REFERRAL_STATES = new Set<ConsultantReferralStatus>([
   "ASSIGNED",
   "CONSULTANT_ACKNOWLEDGED",
-  "NEEDS_INFORMATION",
 ]);
+
+const REQUEST_KEYS = new Set([
+  "version",
+  "environment",
+  "featureEnabled",
+  "referralId",
+  "evidenceRef",
+]);
+const BINDING_KEYS = new Set([
+  "recordSource",
+  "evidenceRef",
+  "referralId",
+  "projectId",
+  "referralScopeKey",
+  "packageDigest",
+  "disciplineId",
+  "contentHash",
+  "receivedAt",
+]);
+const EVIDENCE_KEYS = new Set(["evidenceRef", "role", "contentHash", "status"]);
+
+const hasOnlyKeys = (value: unknown, allowed: Set<string>) =>
+  Boolean(value) &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  Object.keys(value as Record<string, unknown>).every((key) => allowed.has(key));
 
 const unique = <T,>(values: T[]) => Array.from(new Set(values));
 
@@ -145,6 +171,7 @@ const baseResult = (
 });
 
 const validRequest = (request: ConsultantReturnedReportIntakeRequest) =>
+  hasOnlyKeys(request, REQUEST_KEYS) &&
   request.version === CONSULTANT_RETURNED_REPORT_INTAKE_VERSION &&
   OPAQUE_REF.test(request.referralId) &&
   OPAQUE_REF.test(request.evidenceRef);
@@ -168,13 +195,24 @@ export async function intakeConsultantReturnedReport(
     return baseResult("DENIED", ["REFERRAL_NOT_FOUND"]);
   }
 
-  const referralDelivered = DELIVERED_REFERRAL_STATES.has(referral.status);
+  const referralDelivered = referral.eventStatuses.some((status) =>
+    DELIVERED_REFERRAL_STATES.has(status),
+  );
   if (!referralDelivered) {
     return baseResult("DENIED", ["REFERRAL_NOT_DELIVERED"]);
   }
 
   const binding = await deps.loadReturnBinding(request.evidenceRef);
-  if (!binding) {
+  if (!binding || !hasOnlyKeys(binding, BINDING_KEYS)) {
+    return baseResult("DENIED", ["RETURN_BINDING_NOT_FOUND"], {
+      referralDelivered,
+    });
+  }
+
+  const bindingReferenceMatched = binding.evidenceRef === request.evidenceRef;
+  const bindingSourceValid = binding.recordSource === "SERVER_CONSULTANT_REPORT_BINDING";
+  const receivedAtValid = Number.isFinite(Date.parse(binding.receivedAt));
+  if (!bindingReferenceMatched || !bindingSourceValid || !receivedAtValid) {
     return baseResult("DENIED", ["RETURN_BINDING_NOT_FOUND"], {
       referralDelivered,
     });
@@ -206,7 +244,7 @@ export async function intakeConsultantReturnedReport(
   }
 
   const evidence = await deps.loadPrivateEvidence(request.evidenceRef);
-  if (!evidence) {
+  if (!evidence || !hasOnlyKeys(evidence, EVIDENCE_KEYS) || evidence.evidenceRef !== request.evidenceRef) {
     return baseResult("DENIED", ["PRIVATE_EVIDENCE_NOT_FOUND"], {
       referralDelivered,
       exactProjectScopeMatched,
