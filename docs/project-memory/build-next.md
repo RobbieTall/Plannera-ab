@@ -1,5 +1,31 @@
 # Build Next (Execution Queue)
 
+## Current Item 78C handover - 24 September 2026
+
+**HOLD: Preview whole-funnel acceptance is not complete; not a commercial-launch approval.**
+
+This section supersedes older Item 78C operational status, branch/pin and next-action checkpoints below. Older product requirements and historical evidence are retained, not erased. Start with [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395), [PR #420](https://github.com/RobbieTall/Plannera-ab/pull/420), and the current `docs/project-memory/item78c-current-handover.md` **from PR #420's head branch**, not an old copy on main.
+
+- Acceptance branch: `accept/item-78c-byron-kempsey-20260914`, still at `1cc7d2950077f145862a36174c0cc141a9161043`. The September 11 SHA is historical, not the current authorised target.
+- Latest examined whole-funnel run [#21](https://github.com/RobbieTall/Plannera-ab/actions/runs/35859336870) failed both council bridges at `stripe_paid_source`; hosted payment-status requests returned HTTP 404. Login/project ownership or hosted/runner database alignment remains unproven. Do not assume a bad Stripe key.
+- PR #420 remains draft/unmerged. Diagnostic code at `ddead58a7014db1b8e1f68a399b8688d1d4ae88a` received separate read-only AI review with no blocking diagnostic-code defect. Follow-up `e5374f939c586445e2a83c5b0a10852d3d8625ad` adds exact acceptance-branch Git-deployment suppression and clarifies history; all three examined PR checks passed at that SHA.
+- Both Preview environments already have RobbieTall as required reviewer, administrator bypass off and the exact acceptance-branch rule. Preserve saved secrets, independent council fixtures and current pins; do not ask Robbie to repeat setup without evidence.
+- The current request is documentation/handoff only. The next bounded merge/repin/read-only-diagnostic package was proposed, not executed or unambiguously approved by this handoff request.
+- Production is untouched by this work. Checkout must remain disabled; its live value was not freshly audited in this documentation task. No Production data/schema mutation or activation is authorised.
+
+The documentation-only follow-up SHA is recorded in Issue #395 and PR #420 after publication. Do not attribute prior CI results to a newer SHA. Diagnostic success would only establish a saved-session/project match in the selected database, not final Item 78C acceptance.
+
+### Active queue (supersedes historical next-action lists)
+
+1. Read current Issue #395 and PR #420; establish exact head/base and review/check status without changing them.
+2. Obtain explicit approval for the proposed bounded package: merge PR420 into the acceptance branch, retain both deployment-disable rules, record the resulting non-main SHA, repin only the two existing Preview environments and dispatch only the read-only saved-login diagnostic.
+3. Use the registered Item 77 protected commercial journey with `diagnostic_only=true`, `expected_commit=<approved resulting full SHA>`, `confirmation=READ ONLY PREVIEW LOGIN CHECK`. Do not dispatch the new standalone workflow from the draft or substitute the full stateful Item78C run.
+4. Interpret the safe per-council reasons. A match does not prove the hosted app uses the same database/auth identity. Fix only the evidenced cause within approved scope.
+5. Separately authorise and complete independent whole-funnel acceptance, paid replay idempotency, private evidence, DPP/SEE output, consultant handoff and representative DOCX/PDF inspection.
+6. Require the actual final decision `READY_FOR_NON_PRODUCTION_ACCEPTANCE`; stop there. Production activation is a separate future approval.
+7. Record every meaningful change/result/blocker in Issue #395 and update handover/queue/decisions before handing back to desktop.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅

@@ -18,16 +18,31 @@ on:
       - "src/lib/submission-see-renderer.test.ts"
       - "scripts/item74h-working-see-preview-acceptance.ts"
   workflow_dispatch:
+    inputs:
+      diagnostic_only:
+        description: Run only the protected read-only Item 78C saved-login diagnostic
+        type: boolean
+        required: false
+        default: false
+      expected_commit:
+        description: Required for diagnostic mode; exact reviewed non-main commit
+        type: string
+        required: false
+      confirmation:
+        description: Diagnostic mode requires READ ONLY PREVIEW LOGIN CHECK
+        type: string
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: item77-protected-commercial-journey-${{ github.ref }}
-  cancel-in-progress: true
+  group: item77-protected-commercial-journey-${{ github.ref }}-${{ inputs.diagnostic_only && 'diagnostic' || 'contracts' }}
+  cancel-in-progress: ${{ !inputs.diagnostic_only }}
 
 jobs:
   commercial-journey:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.diagnostic_only }}
     name: Exact scope, credit, evidence, outputs and UI
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -53,3 +68,14 @@ jobs:
           tests/see-document-panel.test.tsx
       - name: Verify qualified working DOCX/PDF regeneration
         run: npm run --silent accept:item74h-working-see-preview
+
+  session-diagnostic:
+    name: Protected read-only Item 78C saved-login diagnostic
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/item78c-session-preflight.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
+      confirmation: ${{ inputs.confirmation }}

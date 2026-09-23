@@ -1,5 +1,27 @@
 # Decision Register
 
+## Current Item 78C handover - 24 September 2026
+
+**HOLD: Preview whole-funnel acceptance is not complete; not a commercial-launch approval.**
+
+This section supersedes older Item 78C operational status, branch/pin and next-action checkpoints below. Older product requirements and historical evidence are retained, not erased. Start with [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395), [PR #420](https://github.com/RobbieTall/Plannera-ab/pull/420), and the current `docs/project-memory/item78c-current-handover.md` **from PR #420's head branch**, not an old copy on main.
+
+- Acceptance branch: `accept/item-78c-byron-kempsey-20260914`, still at `1cc7d2950077f145862a36174c0cc141a9161043`. The September 11 SHA is historical, not the current authorised target.
+- Latest examined whole-funnel run [#21](https://github.com/RobbieTall/Plannera-ab/actions/runs/35859336870) failed both council bridges at `stripe_paid_source`; hosted payment-status requests returned HTTP 404. Login/project ownership or hosted/runner database alignment remains unproven. Do not assume a bad Stripe key.
+- PR #420 remains draft/unmerged. Diagnostic code at `ddead58a7014db1b8e1f68a399b8688d1d4ae88a` received separate read-only AI review with no blocking diagnostic-code defect. Follow-up `e5374f939c586445e2a83c5b0a10852d3d8625ad` adds exact acceptance-branch Git-deployment suppression and clarifies history; all three examined PR checks passed at that SHA.
+- Both Preview environments already have RobbieTall as required reviewer, administrator bypass off and the exact acceptance-branch rule. Preserve saved secrets, independent council fixtures and current pins; do not ask Robbie to repeat setup without evidence.
+- The current request is documentation/handoff only. The next bounded merge/repin/read-only-diagnostic package was proposed, not executed or unambiguously approved by this handoff request.
+- Production is untouched by this work. Checkout must remain disabled; its live value was not freshly audited in this documentation task. No Production data/schema mutation or activation is authorised.
+
+The documentation-only follow-up SHA is recorded in Issue #395 and PR #420 after publication. Do not attribute prior CI results to a newer SHA. Diagnostic success would only establish a saved-session/project match in the selected database, not final Item 78C acceptance.
+
+### Decision: continuity, approval and evidence boundaries
+
+Robbie approved the independent read-only reviewer and then the exact acceptance-branch automatic Git deployment suppression plus handover clarification. These are completed on the PR branch. They are not permission to merge, repin or execute the diagnostic. No required protections may be bypassed. Separate AI review is not human reviewer approval; self-review remains allowed in the saved GitHub environment settings.
+
+No secret values, cookies, connection strings, signed private URLs or personal evidence belong in handovers. Existing cloud configuration is the source of truth; inspect metadata before asking for repeated entry. The source-control deployment block applies only to Git-triggered deployments and only once present on the relevant branch. It is not a manual-deployment barrier or dependency-process isolation.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

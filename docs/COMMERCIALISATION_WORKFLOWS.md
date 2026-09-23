@@ -1,4 +1,24 @@
 Plannera — Commercialisation Layer Workflows
+
+## Current Item 78C handover - 24 September 2026
+
+**HOLD: Preview whole-funnel acceptance is not complete; not a commercial-launch approval.**
+
+This section supersedes older Item 78C operational status, branch/pin and next-action checkpoints below. Older product requirements and historical evidence are retained, not erased. Start with [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395), [PR #420](https://github.com/RobbieTall/Plannera-ab/pull/420), and the current `docs/project-memory/item78c-current-handover.md` **from PR #420's head branch**, not an old copy on main.
+
+- Acceptance branch: `accept/item-78c-byron-kempsey-20260914`, still at `1cc7d2950077f145862a36174c0cc141a9161043`. The September 11 SHA is historical, not the current authorised target.
+- Latest examined whole-funnel run [#21](https://github.com/RobbieTall/Plannera-ab/actions/runs/35859336870) failed both council bridges at `stripe_paid_source`; hosted payment-status requests returned HTTP 404. Login/project ownership or hosted/runner database alignment remains unproven. Do not assume a bad Stripe key.
+- PR #420 remains draft/unmerged. Diagnostic code at `ddead58a7014db1b8e1f68a399b8688d1d4ae88a` received separate read-only AI review with no blocking diagnostic-code defect. Follow-up `e5374f939c586445e2a83c5b0a10852d3d8625ad` adds exact acceptance-branch Git-deployment suppression and clarifies history; all three examined PR checks passed at that SHA.
+- Both Preview environments already have RobbieTall as required reviewer, administrator bypass off and the exact acceptance-branch rule. Preserve saved secrets, independent council fixtures and current pins; do not ask Robbie to repeat setup without evidence.
+- The current request is documentation/handoff only. The next bounded merge/repin/read-only-diagnostic package was proposed, not executed or unambiguously approved by this handoff request.
+- Production is untouched by this work. Checkout must remain disabled; its live value was not freshly audited in this documentation task. No Production data/schema mutation or activation is authorised.
+
+The documentation-only follow-up SHA is recorded in Issue #395 and PR #420 after publication. Do not attribute prior CI results to a newer SHA. Diagnostic success would only establish a saved-session/project match in the selected database, not final Item 78C acceptance.
+
+### Release evidence boundary
+
+Run #21 passed authorisation/target checks, private Blob persistence and cleanup, Sandbox/ClamAV cleanup and compiler/rendered-output contract checks. Both paid-source bridges failed; consultant handoff and final decision were skipped. These partial passes do not prove a real customer journey. Prior test payments must not be repeated merely because a downstream ownership/status request returned 404. Agent distribution, CAD/sketch work and unrelated feature expansion remain deferred.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
