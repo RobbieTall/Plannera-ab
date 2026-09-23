@@ -66,6 +66,7 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: "job-123",
       activeJobStatus: "PROCESSING",
       serviceTargetAt: "2026-06-04T00:00:00.000Z",
+      preparationResolution: null,
       lastUpdatedAt: "2026-06-02T00:00:00.000Z",
     });
   });
@@ -83,6 +84,7 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: null,
       activeJobStatus: null,
       serviceTargetAt: null,
+      preparationResolution: null,
       lastUpdatedAt: null,
     });
   });
@@ -114,6 +116,7 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: "job-456",
       activeJobStatus: "QUEUED",
       serviceTargetAt: "2026-06-04T01:00:00.000Z",
+      preparationResolution: null,
       lastUpdatedAt: "2026-06-02T01:00:00.000Z",
     });
   });
