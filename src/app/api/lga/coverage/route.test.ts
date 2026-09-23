@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { lgaCoverageFindUniqueMock, lgaPreparationFindUniqueMock } = vi.hoisted(() => ({
+const { lgaCoverageFindUniqueMock, lgaPreparationFindUniqueMock, lgaPreparationFindFirstMock } = vi.hoisted(() => ({
   lgaCoverageFindUniqueMock: vi.fn(),
   lgaPreparationFindUniqueMock: vi.fn(),
+  lgaPreparationFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -12,6 +13,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     lgaPreparationJob: {
       findUnique: lgaPreparationFindUniqueMock,
+      findFirst: lgaPreparationFindFirstMock,
     },
   },
 }));
@@ -34,6 +36,7 @@ describe("GET /api/lga/coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lgaPreparationFindUniqueMock.mockResolvedValue(null);
+    lgaPreparationFindFirstMock.mockResolvedValue(null);
   });
 
   it("returns the stored coverage state for an LGA", async () => {
@@ -47,7 +50,6 @@ describe("GET /api/lga/coverage", () => {
     lgaPreparationFindUniqueMock.mockResolvedValue({
       createdAt: new Date("2026-06-02T00:00:00.000Z"),
       status: "PROCESSING",
-      errorMessage: null,
     });
 
     const response = await GET(new Request("http://localhost/api/lga/coverage?lgaCode=parramatta"));
@@ -64,7 +66,6 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: "job-123",
       activeJobStatus: "PROCESSING",
       serviceTargetAt: "2026-06-04T00:00:00.000Z",
-      errorMessage: null,
       lastUpdatedAt: "2026-06-02T00:00:00.000Z",
     });
   });
@@ -82,7 +83,6 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: null,
       activeJobStatus: null,
       serviceTargetAt: null,
-      errorMessage: null,
       lastUpdatedAt: null,
     });
   });
@@ -98,7 +98,6 @@ describe("GET /api/lga/coverage", () => {
     lgaPreparationFindUniqueMock.mockResolvedValue({
       createdAt: new Date("2026-06-02T01:00:00.000Z"),
       status: "QUEUED",
-      errorMessage: null,
     });
 
     const response = await GET(new Request("http://localhost/api/lga/coverage?lga=byron"));
@@ -115,7 +114,6 @@ describe("GET /api/lga/coverage", () => {
       activeJobId: "job-456",
       activeJobStatus: "QUEUED",
       serviceTargetAt: "2026-06-04T01:00:00.000Z",
-      errorMessage: null,
       lastUpdatedAt: "2026-06-02T01:00:00.000Z",
     });
   });
@@ -124,20 +122,26 @@ describe("GET /api/lga/coverage", () => {
     lgaCoverageFindUniqueMock.mockResolvedValue({
       lgaCode: "BYRON",
       state: "FAILED_REVIEW_NEEDED",
-      activePreparationId: "job-failed",
+      activePreparationId: null,
       updatedAt: new Date("2026-06-05T01:00:00.000Z"),
     });
-    lgaPreparationFindUniqueMock.mockResolvedValue({
+    lgaPreparationFindFirstMock.mockResolvedValue({
       createdAt: new Date("2026-06-02T01:00:00.000Z"),
       status: "FAILED",
-      errorMessage: "source retrieval failed",
     });
 
     const response = await GET(new Request("http://localhost/api/lga/coverage?lga=byron"));
     const payload = await response.json();
 
-    expect(payload.errorMessage).toBe("source retrieval failed");
+    expect(payload.preparationResolution).toBe("OPERATOR_REVIEW_REQUIRED");
     expect(payload.activeJobStatus).toBe("FAILED");
+    expect(payload.serviceTargetAt).toBe("2026-06-04T01:00:00.000Z");
+    expect(payload).not.toHaveProperty("errorMessage");
+    expect(lgaPreparationFindFirstMock).toHaveBeenCalledWith({
+      where: { lgaCode: "BYRON", status: "FAILED" },
+      orderBy: { finishedAt: "desc" },
+      select: { createdAt: true, status: true },
+    });
   });
 
   it("rejects missing LGA codes", async () => {
