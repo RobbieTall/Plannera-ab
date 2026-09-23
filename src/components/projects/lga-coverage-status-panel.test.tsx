@@ -36,6 +36,19 @@ describe("LgaCoverageStatusPanel", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("keeps hook order stable when async coverage changes from null to queued", () => {
+    mockCoverageStatus(null);
+    const { rerender } = render(
+      <LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />,
+    );
+
+    mockCoverageStatus("QUEUED", "2026-09-29T03:00:00.000Z");
+    expect(() =>
+      rerender(<LgaCoverageStatusPanel lgaCode="BYRON" lgaDisplayName="Byron Shire" />),
+    ).not.toThrow();
+    expect(screen.getByText(/within 2 business days/)).toBeInTheDocument();
+  });
+
   it("renders nothing when maturity is NOT_STARTED", () => {
     mockCoverageStatus("NOT_STARTED");
 
