@@ -37,6 +37,17 @@ export type LgaPreparationResolutionResult = {
 const isValidDate = (date: Date) =>
   date instanceof Date && Number.isFinite(date.getTime());
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SYDNEY_WEEKDAY = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Sydney",
+  weekday: "short",
+});
+
+const isSydneyBusinessDay = (date: Date) => {
+  const weekday = SYDNEY_WEEKDAY.format(date);
+  return weekday !== "Sat" && weekday !== "Sun";
+};
+
 export function addWeekdayBusinessDays(
   start: Date,
   businessDays: number,
@@ -52,9 +63,8 @@ export function addWeekdayBusinessDays(
   let remaining = businessDays;
 
   while (remaining > 0) {
-    result.setUTCDate(result.getUTCDate() + 1);
-    const day = result.getUTCDay();
-    if (day !== 0 && day !== 6) {
+    result.setTime(result.getTime() + DAY_MS);
+    if (isSydneyBusinessDay(result)) {
       remaining -= 1;
     }
   }
