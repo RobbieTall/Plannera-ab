@@ -57,6 +57,19 @@ describe("Item 74H private evidence upload policy", () => {
     expect(JSON.stringify(result.redactedSummary)).not.toContain("ev_opaque");
   });
 
+  it("accepts CONSULTANT_REPORT as the same private reviewed evidence class", () => {
+    const input = validInput();
+    input.document.role = "CONSULTANT_REPORT";
+
+    const result = evaluatePathwayPrivateEvidenceUpload(input);
+
+    expect(result.privateUploadAuthorized).toBe(true);
+    expect(result.evidenceAccepted).toBe(true);
+    expect(result.redactedSummary.role).toBe("CONSULTANT_REPORT");
+    expect(result.redactedSummary.paidEligibilityUnlocked).toBe(false);
+    expect(result.redactedSummary.productionCheckoutEnabled).toBe(false);
+  });
+
   it("authorizes private quarantine while scan or evidence review is pending", () => {
     const input = validInput();
     input.document.securityScanStatus = "PENDING";
