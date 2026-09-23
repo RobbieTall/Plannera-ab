@@ -1,6 +1,14 @@
 name: Item 78C read-only saved-login diagnostic
 
 on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        type: string
+        required: true
+      confirmation:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       expected_commit:
@@ -42,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/item78c-session-preflight-authorize.mjs credential-free
       - name: Synthetic diagnostic regression tests
-        run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs
+        run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs tests/item78c-session-preflight-wiring.test.mjs
 
   diagnose:
     name: Read-only ${{ matrix.council }} login check

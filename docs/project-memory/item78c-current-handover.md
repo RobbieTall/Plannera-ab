@@ -51,16 +51,16 @@ Local package directory on Robbie's Mac: `item78c-session-preflight/` inside the
 
 The prepared diagnostic uses a parameterised SELECT after SET TRANSACTION READ ONLY, with fixed independent council/project/Preview endpoint pairs. It checks session presence/expiry and ownership and emits only fixed codes and booleans. It does not call hosted auth endpoints, refresh sessions, create Stripe sessions, generate paid documents or upload evidence. Infrastructure can still log database connections and statements. Never claim complete absence of infrastructure side effects.
 
-## Saved protection configuration: confirmed gap
+## Saved protection configuration: gap corrected
 
-Read-only GitHub settings inspection found BOTH council environments configured as follows:
-- Required reviewers: OFF.
-- Administrator bypass: ON.
-- Exactly one allowed branch, no tags: `accept/item-78c-byron-kempsey-20260914`.
+On 23 September 2026 Robbie explicitly approved strengthening both existing Preview environments. Both were saved and reloaded:
+- Required reviewers: ON, RobbieTall selected.
+- Administrator bypass: OFF.
+- Prevent self-review: OFF; required approval does not mean independent review.
+- Exactly one allowed branch, zero tags: `accept/item-78c-byron-kempsey-20260914`.
+- Existing secrets, target variables and acceptance commit pins unchanged.
 
-The existing branch restriction is real, but required-reviewer protection was not enabled. Earlier shorthand describing these environments as protected must not be read as confirmation of that missing gate. These settings were not changed during inspection. This is a separate safety gap, not a proven cause of the 404.
-
-The draft manual workflow deliberately refuses to proceed until required reviewers are configured, administrator bypass is disabled, and the exact branch-only rule remains. It checks Git evidence and both environment metadata sets before application credentials, then rechecks the existing approved commit/target variables inside the selected environment. The built-in GitHub token needs contents:read and actions:read. Metadata errors fail closed. Do not broaden branch rules or weaken checks to make the diagnostic run.
+The diagnostic still checks actual metadata before application credentials and rechecks approved commit/target variables inside each environment. GitHub metadata access errors fail closed. No Production settings changed.
 
 ## Publication safety
 
@@ -99,4 +99,10 @@ The diagnostic source, tests, manual workflow and runbooks are now proposed in d
 - [Commercial Funnel Golden Gate](https://github.com/RobbieTall/Plannera-ab/actions/runs/35866925281): PASS at that same implementation commit.
 - Post-publication Vercel query from 23 September 2026 12:55 UTC returned no deployments at observation time.
 - GitHub connector refused the manual-workflow metadata URL; this is not evidence that the workflow is absent or dispatchable. Registration still needs an authorised supported UI/API check.
-- Required reviewers and administrator-bypass configuration are unchanged. No merge, pin change, database diagnostic or stateful rerun has occurred. Independent review has not been obtained; do not describe this draft as independently reviewed.
+- At the earlier CI checkpoint protection settings were unchanged; the later approved correction is recorded above. No merge, pin change, database diagnostic or stateful rerun has occurred. Independent review has not been obtained; do not describe this draft as independently reviewed.
+
+## Approved dispatch-wiring correction
+
+Robbie approved using the already registered Item 77 protected commercial journey instead of assuming the new standalone manual workflow was registered. Its original main and acceptance blob was confirmed identical (20a32d8aed4e1dda7886b0144f42eb4386e381c9). Draft PR #420 now proposes optional diagnostic_only=true forwarding to a same-commit reusable workflow, with no caller application secrets. Original PR/default manual test steps are retained. The new wiring regression tests supplement the original 19 synthetic tests. All 25 synthetic tests passed locally with no live credentials or network, including six new dispatch-wiring regressions. The first shell invocation lacked node on PATH and performed no tests; rerunning with the existing /usr/local/bin/node succeeded. GitHub CI and live dispatch for this correction remain to be observed.
+
+Both reviewer safeguards are completed. Remaining sequence: validate/review this correction, establish merge-to-acceptance deployment safety, approve the exact replacement commit/pins, then run the bounded read-only diagnostic. No merge, repin, live diagnostic, stateful rerun or Production action has occurred. Main remains untouched. The 404 cause and Item 78C readiness remain unproven.
