@@ -76,6 +76,9 @@ filename, address, storage URL, report text or page contents.
 
 Implemented on `feat/consultant-returned-report-intake-20260924`:
 
+- durable `ConsultantReturnedReportBinding` schema + migration, storing only referral/project/scope/digest/discipline/opaque evidence reference/content hash/timestamps;
+- idempotent internal persistence service that derives requested disciplines from the immutable referral snapshot and requires append-only delivery history before accepting a binding;
+
 - private evidence role `CONSULTANT_REPORT`;
 - fail-closed exact-referral binding contract;
 - scope/digest/discipline/hash continuity checks;
