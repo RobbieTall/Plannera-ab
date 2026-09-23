@@ -1,5 +1,12 @@
 # Item 78C diagnostic publication boundary
 
+## Handoff checkpoint - 24 September 2026
+
+Current decision: HOLD. Read `../project-memory/item78c-current-handover.md` from PR420's current head and Issue #395 before acting. Configuration candidate e5374f939c586445e2a83c5b0a10852d3d8625ad passed all three examined PR checks; the live diagnostic has not run. A later documentation-only head must not be confused with that tested SHA.
+
+Robbie's latest request is to update documentation and prepare mobile continuity, not an unambiguous merge/repin/execution approval. The proposed next approval package and exact manual inputs are in the handover. Existing reviewer protections, credentials and council fixtures must be preserved. No Production, main, database/schema or checkout action is authorised. Mobile tools may differ from desktop; report access limitations instead of requesting credentials in chat or claiming unsaved work is complete.
+
+
 Draft PR #420 targets the existing acceptance branch, not main. The draft branch is fix/item78c-session-preflight-20260923. After Robbie's approval on 24 September 2026, its vercel.json disables Git deployments for that exact draft branch AND accept/item-78c-byron-kempsey-20260914. The second rule is intended to suppress the acceptance branch's automatic Git deployment when an approved integration includes it. The target branch is not changed merely by publishing this draft. Existing application functions and cron configuration is retained. Main, the active acceptance branch and existing authorised pins are unchanged by publication.
 
 The deployment-disable rule follows https://vercel.com/docs/project-configuration/git-configuration . The initial complete Git tree/commit existed before the branch reference was created, so there was no intermediate new-branch commit without the rule. The inherited workflow push triggers were inspected at the base acceptance SHA; they target other named branches. A post-initial-publication Vercel list query returned zero deployments for the examined time window. This is a point-in-time observation, not protection against a later manual deployment or merging into a differently configured branch.

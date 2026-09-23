@@ -4,7 +4,7 @@ Updated: 24 September 2026 (Australia/Sydney). Operational owner: RobbieTall. Ro
 
 ## Read this first
 
-This checkpoint supersedes older Item 78C status and approval-pending notes. It does not certify commercial readiness. Older README, build-next, decision-register and commercialisation/runbook checkpoints have not all been reconciled; do not treat them as proof of completed acceptance. Their existing content is preserved.
+This checkpoint supersedes older Item 78C status and approval-pending notes. It does not certify commercial readiness. README, build-next, decision-register, commercialisation workflows and the two diagnostic runbooks now carry matching current Item78C status/handoff boundaries on this PR branch. Older sections remain historical; this update is not a full audit of every product claim. Main and the acceptance branch have not received these unmerged documentation updates.
 
 **Decision: HOLD.** The required READY_FOR_NON_PRODUCTION_ACCEPTANCE result is not proven. Production checkout must remain disabled; no Production data/schema mutation is authorised by this work.
 
@@ -19,6 +19,40 @@ This checkpoint supersedes older Item 78C status and approval-pending notes. It 
 - No merge, replacement acceptance pin, live diagnostic, stateful rerun or Production action is authorised by this follow-up. Acceptance remains `1cc7d2950077f145862a36174c0cc141a9161043`.
 
 Historical sections below record earlier checkpoints, not additional current blockers or current review results.
+
+## Mobile agent: start here
+
+This is a documentation handoff, not authority to merge or run anything. Read the latest Issue #395 comments, PR #420 metadata/review and this file from its current head branch `fix/item78c-session-preflight-20260923`. Do not assume the mobile app has the desktop's connectors, Chrome tabs, local files or credentials. Confirm available GitHub access first. If a write cannot be made, provide a labelled draft for Robbie; never claim it was saved.
+
+### Evidence at handoff
+
+- Whole-funnel decision: HOLD; run #21 failed and is terminal. Do not blindly rerun it.
+- Diagnostic code reviewed: `ddead58a7014db1b8e1f68a399b8688d1d4ae88a`.
+- Latest tested configuration candidate before this docs-only update: `e5374f939c586445e2a83c5b0a10852d3d8625ad`.
+- All three candidate checks passed: [diagnostic contract](https://github.com/RobbieTall/Plannera-ab/actions/runs/35923603434), [preserved commercial journey](https://github.com/RobbieTall/Plannera-ab/actions/runs/35923603701), [golden gate](https://github.com/RobbieTall/Plannera-ab/actions/runs/35923603404). Protected live diagnostic skipped on PR as intended.
+- PR420 remains draft, base acceptance1cc7; no merge, repin, live diagnostic, stateful rerun or Production action.
+- The documentation-only update creates a new head; discover its exact SHA from current PR metadata, and distinguish those checks from the earlier candidate's checks.
+
+### Read order
+
+1. Issue #395 latest comments and PR #420 current head/base, review and check evidence.
+2. This handover, README current-status notice, build-next current queue, decision-register current decisions and COMMERCIALISATION_WORKFLOWS current release boundary.
+3. `docs/operations/item78c-session-preflight.md` and `docs/operations/item78c-session-preflight-publication.md`.
+4. Exact workflow/scripts at the approved candidate only when needed. Do not use stale local copies or earlier branch/SHA instructions.
+
+### Next permitted work and next approval
+
+Safe now: read current state, reconcile documents, explain blockers, and prepare an exact action proposal. The next proposed package needs explicit approval: merge PR420 into the acceptance branch (not main) with both exact deployment-disable rules retained; record actual merge SHA; repin only `ITEM74H_WORKFLOW_AUTHORIZED_COMMIT` in both existing Preview environments; run only the read-only saved-login diagnostic. Do not invent an anticipated merge SHA or reuse the old pin.
+
+After that approval and verified prerequisites, use the registered `Item 77 protected commercial journey`, not the full Item78C acceptance. Select acceptance branch, diagnostic_only=true, expected_commit=actual approved resulting full SHA, confirmation=READ ONLY PREVIEW LOGIN CHECK. Required GitHub environment approvals still apply. No secret copying should be needed for this diagnostic. If tools cannot perform a step, state the exact limitation and leave it pending for desktop.
+
+The safe script checks the saved session's presence, expiry and project ownership independently in each selected Preview database. Match is not proof of hosted database/auth alignment; mismatch is not permission to change ownership, fabricate data or replace keys blindly. Record only allowlisted results. Stateful acceptance remains a later separately scoped step.
+
+### Return-to-desktop handback
+
+Before ending a mobile session, write a privacy-minimal Issue395 checkpoint and update this handover/queue/decisions if state changed. Include exact current branch/head/base/pins and PR status; every action actually taken; all run URLs, attempt numbers and terminal or in-progress results; approvals consumed and still needed; exact blocker; one next permitted action. Identify any live run so desktop polls it rather than starting duplicates. Link the saved documentation commit. If nothing changed, say so.
+
+Then give Robbie a short pasteable handback. Never include credentials, cookies, connection strings, private signed URLs or personal evidence. Never claim a test, save, merge or deployment occurred without actual tool evidence. The agent owns continuity; Robbie should not reconstruct the history from approvals.
 
 ## Current authoritative identity
 

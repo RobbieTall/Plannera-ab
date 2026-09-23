@@ -1,5 +1,12 @@
 # Item 78C saved-login diagnostic
 
+## Handoff checkpoint - 24 September 2026
+
+Current decision: HOLD. Read `../project-memory/item78c-current-handover.md` from PR420's current head and Issue #395 before acting. Configuration candidate e5374f939c586445e2a83c5b0a10852d3d8625ad passed all three examined PR checks; the live diagnostic has not run. A later documentation-only head must not be confused with that tested SHA.
+
+Robbie's latest request is to update documentation and prepare mobile continuity, not an unambiguous merge/repin/execution approval. The proposed next approval package and exact manual inputs are in the handover. Existing reviewer protections, credentials and council fixtures must be preserved. No Production, main, database/schema or checkout action is authorised. Mobile tools may differ from desktop; report access limitations instead of requesting credentials in chat or claiming unsaved work is complete.
+
+
 Status: proposed in draft PR #420; not approved for cloud execution. See ../project-memory/item78c-current-handover.md and Issue #395 for the current acceptance decision.
 
 ## Purpose
