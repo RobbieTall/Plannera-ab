@@ -19,24 +19,30 @@ export async function GET(request: Request) {
     select: { lgaCode: true, state: true, activePreparationId: true, updatedAt: true },
   });
 
-  const activeJob = coverage?.activePreparationId
+  const preparationJob = coverage?.activePreparationId
     ? await prisma.lgaPreparationJob.findUnique({
         where: { id: coverage.activePreparationId },
-        select: { createdAt: true, status: true, errorMessage: true },
+        select: { createdAt: true, status: true },
       })
-    : null;
+    : coverage?.state === LgaCoverageMaturity.FAILED_REVIEW_NEEDED
+      ? await prisma.lgaPreparationJob.findFirst({
+          where: { lgaCode, status: "FAILED" },
+          orderBy: { finishedAt: "desc" },
+          select: { createdAt: true, status: true },
+        })
+      : null;
 
   return NextResponse.json({
     lgaCode,
     state: coverage?.state ?? LgaCoverageMaturity.NOT_STARTED,
     activeJobId: coverage?.activePreparationId ?? null,
-    activeJobStatus: activeJob?.status ?? null,
-    serviceTargetAt: activeJob
-      ? getLgaPreparationServiceTarget(activeJob.createdAt).toISOString()
+    activeJobStatus: preparationJob?.status ?? null,
+    serviceTargetAt: preparationJob
+      ? getLgaPreparationServiceTarget(preparationJob.createdAt).toISOString()
       : null,
-    errorMessage:
+    preparationResolution:
       coverage?.state === LgaCoverageMaturity.FAILED_REVIEW_NEEDED
-        ? activeJob?.errorMessage ?? null
+        ? "OPERATOR_REVIEW_REQUIRED"
         : null,
     lastUpdatedAt: coverage?.updatedAt?.toISOString() ?? null,
   });
