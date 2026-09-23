@@ -36,7 +36,7 @@ The existing secret NAMES needed by the diagnostic are `ITEM74H_PREVIEW_DATABASE
 
 Robbie approved the safe Preview troubleshooting check after a plain-English explanation. The diagnostic package was prepared in an isolated local directory, leaving other working copies intact.
 
-Local files, NOT included in this documentation checkpoint commit:
+Prepared files, now included in the diagnostic draft (not merged, deployed or executed):
 - `scripts/item78c-session-preflight.mjs`
 - `scripts/item78c-session-preflight-authorize.mjs`
 - `tests/item78c-session-preflight.test.mjs`
@@ -45,7 +45,7 @@ Local files, NOT included in this documentation checkpoint commit:
 - `docs/operations/item78c-session-preflight.md`
 - `docs/operations/item78c-session-preflight-publication.md`
 
-Local package directory on Robbie's Mac: `item78c-session-preflight/` inside the current Codex workspace. These files are not yet retrievable from this repository checkpoint. A mobile agent must not assume they were published.
+Local package directory on Robbie's Mac: `item78c-session-preflight/` inside the current Codex workspace. The draft now contains these files, plus a credential-free PR contract workflow. A mobile agent can inspect them from this branch; do not mistake publication for approval or successful cloud execution.
 
 **19 synthetic tests passed, 0 failed.** Command: `node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs`. No live credentials, network or database were used in those tests. Tests exercise injected database/Git/metadata fakes, not actual GitHub workflow execution. Workflow integration review is outstanding.
 
@@ -60,7 +60,7 @@ Read-only GitHub settings inspection found BOTH council environments configured 
 
 The existing branch restriction is real, but required-reviewer protection was not enabled. Earlier shorthand describing these environments as protected must not be read as confirmation of that missing gate. These settings were not changed during inspection. This is a separate safety gap, not a proven cause of the 404.
 
-The proposed manual workflow deliberately refuses to proceed until required reviewers are configured, administrator bypass is disabled, and the exact branch-only rule remains. It checks Git evidence and both environment metadata sets before application credentials, then rechecks the existing approved commit/target variables inside the selected environment. The built-in GitHub token needs contents:read and actions:read. Metadata errors fail closed. Do not broaden branch rules or weaken checks to make the diagnostic run.
+The draft manual workflow deliberately refuses to proceed until required reviewers are configured, administrator bypass is disabled, and the exact branch-only rule remains. It checks Git evidence and both environment metadata sets before application credentials, then rechecks the existing approved commit/target variables inside the selected environment. The built-in GitHub token needs contents:read and actions:read. Metadata errors fail closed. Do not broaden branch rules or weaken checks to make the diagnostic run.
 
 ## Publication safety
 
@@ -88,3 +88,7 @@ Record every meaningful action in GitHub before moving on: approval scope; exact
 Never include keys, cookies, connection strings, signed private URLs or personal evidence. Do not request repeated key entry without verifying existing saved state. Do not bypass browser security or the observed blocked session-endpoint navigation. Do not invoke local keyring tooling that triggers the earlier macOS warning.
 
 The assistant owns this continuity obligation; Robbie is not expected to reconstruct technical history from approvals.
+
+## Diagnostic publication update
+
+The diagnostic source, tests, manual workflow and runbooks are now proposed in draft PR #420. A separate PR-only synthetic contract workflow runs without dependencies or application credentials. Existing whole-funnel workflow files are unchanged. Local 19-test results are recorded above; await the published-commit CI result before claiming that CI passed. Review, dispatch-registration availability, reviewer safeguards, replacement-pin approval and live diagnostic execution remain outstanding. No new acceptance result has been produced.

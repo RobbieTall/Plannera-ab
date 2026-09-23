@@ -1,0 +1,98 @@
+name: Item 78C read-only saved-login diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Exact reviewed non-main commit containing this diagnostic
+        type: string
+        required: true
+      confirmation:
+        description: Read-only Preview login/project matching only; not whole-funnel acceptance
+        type: choice
+        required: true
+        options:
+          - READ ONLY PREVIEW LOGIN CHECK
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: item78c-session-preflight
+  cancel-in-progress: false
+
+env:
+  ITEM78C_DIAGNOSTIC_EXPECTED_SHA: ${{ inputs.expected_commit }}
+  ITEM78C_DIAGNOSTIC_CONFIRMATION: ${{ inputs.confirmation }}
+
+jobs:
+  authorize:
+    name: Authorize without application credentials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify commit evidence and both environments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-session-preflight-authorize.mjs credential-free
+      - name: Synthetic diagnostic regression tests
+        run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs
+
+  diagnose:
+    name: Read-only ${{ matrix.council }} login check
+    needs: authorize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - council: BYRON
+            environment: item78c-byron-preview
+          - council: KEMPSEY
+            environment: item78c-kempsey-preview
+    environment: ${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protections and environment commit pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ITEM78C_DIAGNOSTIC_COUNCIL: ${{ matrix.council }}
+          ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+          ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+        run: node scripts/item78c-session-preflight-authorize.mjs protected
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install without lifecycle scripts or application credentials
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client with synthetic configuration
+        env:
+          DATABASE_URL: postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic
+        run: ./node_modules/.bin/prisma generate
+      - name: Read session/project match
+        id: diagnostic
+        continue-on-error: true
+        env:
+          ITEM78C_DIAGNOSTIC_COUNCIL: ${{ matrix.council }}
+          ITEM74H_PREVIEW_DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          DEBUG: ''
+        run: node scripts/item78c-session-preflight.mjs > item78c-session-preflight.json 2> item78c-session-preflight.stderr
+      - name: Emit allowlisted result only
+        if: ${{ !cancelled() && steps.diagnostic.outcome != 'skipped' }}
+        run: node scripts/item78c-session-preflight-authorize.mjs summary
+      - name: Remove temporary output without uploading it
+        if: ${{ always() }}
+        run: rm -f -- item78c-session-preflight.json item78c-session-preflight.stderr
