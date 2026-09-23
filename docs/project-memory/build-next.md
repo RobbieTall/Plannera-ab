@@ -1,5 +1,20 @@
 # Build Next (Execution Queue)
 
+## Daytime commercialisation slice — Issue #423
+
+The existing Just-in-Time LGA engine already queues and processes council preparation, but the customer surface said “a few minutes” while the approved A$49 Planning Controls Pack contract promises **within 2 business days** and requires truthful failure resolution.
+
+Branch `feat/lga-preparation-service-resolution-20260924` now adds:
+- deterministic two-weekday service target calculation;
+- read-only target/status fields through `/api/lga/coverage`;
+- workspace copy aligned to the 2-business-day promise;
+- privacy-minimal `OPERATOR_REVIEW_REQUIRED` failure status instead of raw worker exceptions;
+- a commercial resolution contract that separates overdue review, delivery with unresolved controls, refund review, refund pending provider confirmation and provider-confirmed refund;
+- regression coverage wired into the Commercial Funnel Golden Gate.
+
+No refund execution, Stripe call, checkout activation or Production change is part of this slice. The exact weekday target does not model NSW public holidays and is labelled accordingly. See Issue #423 and `docs/operations/lga-preparation-service-resolution.md`.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅
