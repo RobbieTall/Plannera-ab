@@ -19,6 +19,8 @@ Implemented on the feature branch:
 - operations runbook at `docs/operations/consultant-returned-report-intake.md`;
 - durable privacy-minimal `ConsultantReturnedReportBinding` schema/migration plus replay-safe internal persistence service.
 
+Tested code head `021cc69e2075b7733fc8c9cd5bc006286b115af0` passed all 11 observed PR gates, including the private-evidence upload policy and Commercial Funnel Golden Gate. The golden gate reported 191 node tests and 82 Vitest checks with zero failures. This is contract/CI evidence only, not hosted private-upload acceptance.
+
 Still deliberately unconnected: private upload endpoint/adapters, durable returned-report binding persistence, real scanner/review UI, evidence applicability review, workspace returned-report UI and hosted protected acceptance. Do not describe this slice as a complete customer upload flow until those adapters and acceptance steps exist.
 
 
