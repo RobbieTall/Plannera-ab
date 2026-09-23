@@ -55,6 +55,8 @@ The consultant referral queue exists and can truthfully track delivery, but retu
 - Added `src/lib/consultant-returned-report-intake.ts`.
 - Added node tests at `tests/consultant-returned-report-intake.test.ts`.
 - Added operations runbook `docs/operations/consultant-returned-report-intake.md`.
+- Added durable `ConsultantReturnedReportBinding` schema/migration and an internal idempotent binding service; the row contains no consultant identity, filename, report text, address or URL.
+- Added binding-service tests for exact-scope persistence, replay, undelivered referrals, wrong discipline, closed referrals, cross-scope evidence reuse and idempotent evidence-package marking.
 - Updated build-next, decision register and commercialisation workflow docs.
 
 The contract is server-authoritative and privacy-minimal. It requires exact:
