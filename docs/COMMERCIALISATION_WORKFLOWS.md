@@ -1,4 +1,9 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026
+
+Issue #423 aligns the Just-in-Time LGA customer status surface with this commercial contract. The feature branch `feat/lga-preparation-service-resolution-20260924` replaces “a few minutes” with the approved 2-business-day service target, exposes a privacy-minimal preparation target/status through the read-only coverage API, and defines deterministic failure/refund-resolution states. It does not issue refunds or activate Production. A refund is never complete until authoritative provider confirmation exists.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
