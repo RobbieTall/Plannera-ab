@@ -103,6 +103,7 @@ model Project {
   purchases              Purchase[]
   entitlements           Entitlement[]
   consultantReferrals    ConsultantReferral[]
+  consultantReturnedReports ConsultantReturnedReportBinding[]
   spatialEvidence        SpatialEvidence[]
   siteContext            SiteContext?
   pathwayAssessments     PathwayAssessment[]
@@ -354,10 +355,33 @@ model ConsultantReferral {
   closedAt                DateTime?
   deleteAfter             DateTime?
   events                  ConsultantReferralEvent[]
+  returnedReports         ConsultantReturnedReportBinding[]
 
   @@index([projectId, submittedAt])
   @@index([status, submittedAt])
   @@index([deleteAfter])
+}
+
+
+model ConsultantReturnedReportBinding {
+  id               String             @id @default(cuid())
+  referralId       String
+  referral         ConsultantReferral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  projectId        String
+  project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  evidenceRef      String             @unique
+  disciplineId     String
+  contentHash      String
+  referralScopeKey String
+  packageDigest    String
+  receivedAt       DateTime
+  evidencePackageBoundAt DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([referralId, evidenceRef])
+  @@index([projectId, createdAt])
+  @@index([referralId, createdAt])
 }
 
 model ConsultantReferralEvent {
