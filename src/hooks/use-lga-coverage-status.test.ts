@@ -14,7 +14,7 @@ const coverageResponse = (state: string) =>
         activeJobId: null,
         activeJobStatus: null,
         serviceTargetAt: null,
-        errorMessage: null,
+        preparationResolution: null,
         lastUpdatedAt: null,
       }),
   } as Response);
@@ -59,7 +59,7 @@ describe("useLgaCoverageStatus", () => {
         activeJobId: "job-1",
         activeJobStatus: "QUEUED",
         serviceTargetAt: "2026-09-29T03:00:00.000Z",
-        errorMessage: null,
+        preparationResolution: null,
         lastUpdatedAt: null,
       }),
     } as Response);
