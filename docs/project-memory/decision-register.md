@@ -6,6 +6,7 @@ Decision: consultant reports returned through the referral loop must **not** use
 
 Issue #421 establishes the first implementation slice on `feat/consultant-returned-report-intake-20260924`:
 - `CONSULTANT_REPORT` is a private-evidence role;
+- durable returned-report bindings persist only opaque evidence metadata and exact referral scope, never report text/contact/file URLs;
 - server-authoritative binding requires the exact referral, project, referral scope key, immutable referral package digest, requested discipline and content hash;
 - only a report already promoted by the existing private-evidence malware/operator-review contract may enter the project evidence package;
 - entry to the evidence package does not independently unlock the A$49 Planning Controls Pack, A$749 SEE, submission readiness or Production checkout.
