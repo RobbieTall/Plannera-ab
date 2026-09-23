@@ -1,5 +1,18 @@
 # Decision Register
 
+## DR-078D — Returned consultant reports reuse the private evidence pipeline — 24 September 2026
+
+Decision: consultant reports returned through the referral loop must **not** use the normal guest/public workspace upload path and must never become accepted evidence merely because a referral was delivered or closed.
+
+Issue #421 establishes the first implementation slice on `feat/consultant-returned-report-intake-20260924`:
+- `CONSULTANT_REPORT` is a private-evidence role;
+- server-authoritative binding requires the exact referral, project, referral scope key, immutable referral package digest, requested discipline and content hash;
+- only a report already promoted by the existing private-evidence malware/operator-review contract may enter the project evidence package;
+- entry to the evidence package does not independently unlock the A$49 Planning Controls Pack, A$749 SEE, submission readiness or Production checkout.
+
+Item 78C continuity remains separate: PR #420 integrated into the non-main acceptance branch at `2793aef38433fdb41341c096f7b027689450f525`; Preview repin/read-only diagnostic remain pending on desktop-capable tooling. Production/main remain untouched by that acceptance integration.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.
