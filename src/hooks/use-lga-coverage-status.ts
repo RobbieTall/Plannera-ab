@@ -13,7 +13,7 @@ type LgaCoverageResponse = {
   activeJobId: string | null;
   activeJobStatus: string | null;
   serviceTargetAt: string | null;
-  errorMessage: string | null;
+  preparationResolution: "OPERATOR_REVIEW_REQUIRED" | null;
   lastUpdatedAt: string | null;
 };
 
@@ -53,7 +53,7 @@ export function useLgaCoverageStatus(lgaCode: string | null | undefined): LgaCov
       const data = (await response.json()) as LgaCoverageResponse;
       setMaturity(data.state);
       setServiceTargetAt(data.serviceTargetAt);
-      setErrorMessage(data.errorMessage);
+      setErrorMessage(null);
       return data.state;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to load LGA coverage status";
