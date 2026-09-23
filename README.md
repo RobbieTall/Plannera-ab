@@ -80,6 +80,10 @@ Then trigger the council DCP ingest via the admin API for Byron and Kempsey:
 `POST /api/admin/ingest-council-dcp?lga=BYRON&secret=INGEST_ADMIN_SECRET`
 `POST /api/admin/ingest-council-dcp?lga=KEMPSEY&secret=INGEST_ADMIN_SECRET`
 
+## Consultant Network direction
+
+The proposed post-MVP [Consultant Network and council-employed planner pathway](docs/project-memory/consultant-network-pathway.md) extends the existing exact-scope referral flow. Council-employed planners require employer permission and per-job conflict screening, with their employing LGA excluded by default. The current human-operated queue does not verify credentials or automatically match professionals; production transmission and future matching remain separately gated.
+
 ## Plannera Check boundary
 
 Plannera Check is Plannera’s mobile-first acquisition surface inside this same Next.js app. It reuses the existing session/requester project, SiteContext, Quick Site Check, Detailed Planning Pack, SEE, referral, evidence, and artefact services; it is not a separate product, subscription, repository, database, or duplicated backend. A free check can live in a session-owned project as an ephemeral technical container, then the user-facing promotion is to create or save that same evidence snapshot as a Plannera project before any later exact project/site/QSC/proposal-bound Planning Controls Pack offer. Provider-neutral purchase/entitlement records and a disabled-by-default human-operated referral-queue foundation now exist. Production pack checkout, SEE checkout/credit consumption, quotas, auth-policy changes, PWA/native work, production entitlement gating, and production consultant delivery remain unavailable until their documented launch decisions and gates are approved.
