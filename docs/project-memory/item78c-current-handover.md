@@ -1,12 +1,24 @@
 # Item 78C current desktop/mobile handover
 
-Updated: 23 September 2026. Operational owner: RobbieTall. Rolling evidence: [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395).
+Updated: 24 September 2026 (Australia/Sydney). Operational owner: RobbieTall. Rolling evidence: [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395).
 
 ## Read this first
 
 This checkpoint supersedes older Item 78C status and approval-pending notes. It does not certify commercial readiness. Older README, build-next, decision-register and commercialisation/runbook checkpoints have not all been reconciled; do not treat them as proof of completed acceptance. Their existing content is preserved.
 
 **Decision: HOLD.** The required READY_FOR_NON_PRODUCTION_ACCEPTANCE result is not proven. Production checkout must remain disabled; no Production data/schema mutation is authorised by this work.
+
+## Current status summary (24 September 2026)
+
+- Decision remains HOLD; no new whole-funnel acceptance result.
+- Diagnostic code reviewed at exact commit `ddead58a7014db1b8e1f68a399b8688d1d4ae88a`: separate read-only AI review found no blocking diagnostic-code defect, not a human approval or safety guarantee.
+- At that commit, 25 local synthetic tests and GitHub runs [35868963262](https://github.com/RobbieTall/Plannera-ab/actions/runs/35868963262), [35868964063](https://github.com/RobbieTall/Plannera-ab/actions/runs/35868964063) and [35868963288](https://github.com/RobbieTall/Plannera-ab/actions/runs/35868963288) passed. The protected diagnostic correctly skipped on the PR event.
+- Robbie approved adding an exact acceptance-branch Git deployment block and clarifying this handover. This follow-up changes only `vercel.json` and documentation; the reviewed diagnostic code is unchanged.
+- The new publication SHA and any new CI results belong in Issue #395 / PR #420. Previous green checks do not certify the follow-up commit.
+- Deployment suppression is configured in the draft for both the draft and exact acceptance branch. It is not installed on the acceptance branch until an approved integration includes it. Manual deployments are not blocked by this setting.
+- No merge, replacement acceptance pin, live diagnostic, stateful rerun or Production action is authorised by this follow-up. Acceptance remains `1cc7d2950077f145862a36174c0cc141a9161043`.
+
+Historical sections below record earlier checkpoints, not additional current blockers or current review results.
 
 ## Current authoritative identity
 
@@ -32,7 +44,7 @@ Both council QSC identifiers were corrected. Byron's encrypted Preview database 
 
 The existing secret NAMES needed by the diagnostic are `ITEM74H_PREVIEW_DATABASE_URL` and `PLANNERA_STRIPE_TEST_SESSION_COOKIE`. It needs no Stripe, Vercel or Blob access key, no replacement payment, and no new customer document.
 
-## Approved work and local preparation
+## Historical checkpoint: original local preparation
 
 Robbie approved the safe Preview troubleshooting check after a plain-English explanation. The diagnostic package was prepared in an isolated local directory, leaving other working copies intact.
 
@@ -64,17 +76,17 @@ The diagnostic still checks actual metadata before application credentials and r
 
 ## Publication safety
 
-Vercel is Git-connected with Automatic ignored-build behavior and no custom build/install override. A normal new branch commit could deploy. This checkpoint therefore adds `git.deploymentEnabled["fix/item78c-session-preflight-20260923"] = false` in vercel.json, retaining the existing functions and cron entries unchanged.
+Vercel is Git-connected with Automatic ignored-build behavior and no custom build/install override. A normal new branch commit could deploy. The draft now sets `git.deploymentEnabled` to false for exactly `fix/item78c-session-preflight-20260923` and `accept/item-78c-byron-kempsey-20260914`, retaining the existing functions and cron entries unchanged.
 
-This rule applies only to the draft branch, not main or the acceptance branch. It follows [Vercel's documented branch-specific configuration](https://vercel.com/docs/project-configuration/git-configuration). The complete tree/commit is created before the branch reference, so there is no intermediate new branch commit missing that rule. Inspected automatic push workflows target main or agent/item74h-pathway-check, not this draft branch. Manual deployment remains a separate action and is not authorised merely by this checkpoint.
+The original rule covered only the draft branch. Following the independent review and Robbie's 24 September approval, the draft also contains an exact acceptance-branch rule, to suppress its Git-triggered deployment when an approved integration includes this configuration. Neither rule changes main or Production deployment selection. It follows [Vercel's documented branch-specific configuration](https://vercel.com/docs/project-configuration/git-configuration). The complete tree/commit is created before the branch reference, so there is no intermediate new branch commit missing that rule. Inspected automatic push workflows target main or agent/item74h-pathway-check, not this draft branch. Manual deployment remains a separate action and is not authorised merely by this checkpoint.
 
 Do not merge this branch into acceptance until publication/workflow review, final commit approval and execution prerequisites are recorded. A new workflow's dispatch availability must be established; do not assume a file present only on a non-default branch is dispatchable. No acceptance rerun or automatic promotion follows from publishing documentation.
 
 ## Next steps in order
 
-1. Publish and review the prepared diagnostic code and workflow without triggering an application deployment. Preserve all existing acceptance coverage.
+1. Complete the approved deployment-containment follow-up and record its exact candidate SHA and CI results. The diagnostic code at ddead58a7014db1b8e1f68a399b8688d1d4ae88a has received separate read-only review; preserve all acceptance coverage.
 2. Reconcile the canonical README, project-memory queue/decision register and operational runbooks using preserved full contents. Link this checkpoint; do not overwrite historical decisions or claim unexecuted work passed.
-3. Establish manual-workflow dispatch availability and required environment protections. Record actual saved settings, not intent.
+3. Confirm the registered manual launch path on the approved integrated commit. Required reviewer safeguards are already saved; do not recreate them. Before integration, record deployment containment and retain its exact branch-only scope.
 4. Approve the exact reviewed replacement commit and repin both environments. Keep council fixtures independent.
 5. Run the read-only saved-login diagnostic; interpret its safe result before modifying any session, ownership or database configuration.
 6. Correct the genuine cause, then rerun the complete protected Item 78C acceptance.
@@ -89,11 +101,11 @@ Never include keys, cookies, connection strings, signed private URLs or personal
 
 The assistant owns this continuity obligation; Robbie is not expected to reconstruct technical history from approvals.
 
-## Diagnostic publication update
+## Historical checkpoint: original diagnostic publication
 
-The diagnostic source, tests, manual workflow and runbooks are now proposed in draft PR #420. A separate PR-only synthetic contract workflow runs without dependencies or application credentials. Existing whole-funnel workflow files are unchanged. Local 19-test results are recorded above. At implementation commit `997461dbda07ba0302ae2515e70211640d9c5215`, GitHub's diagnostic synthetic contract passed (run 35866925459) and the existing Commercial Funnel Golden Gate passed (run 35866925281). These are synthetic/contract results, not the protected live diagnostic or full council acceptance. Review, dispatch-registration availability, reviewer safeguards, replacement-pin approval and live diagnostic execution remain outstanding. No new acceptance result has been produced.
+The diagnostic source, tests, manual workflow and runbooks are now proposed in draft PR #420. A separate PR-only synthetic contract workflow runs without dependencies or application credentials. At that original publication checkpoint, existing whole-funnel workflow files were unchanged. The subsequent registered Item 77 caller correction is recorded below. Local 19-test results are recorded above. At implementation commit `997461dbda07ba0302ae2515e70211640d9c5215`, GitHub's diagnostic synthetic contract passed (run 35866925459) and the existing Commercial Funnel Golden Gate passed (run 35866925281). These are synthetic/contract results, not the protected live diagnostic or full council acceptance. Review, dispatch-registration availability, reviewer safeguards, replacement-pin approval and live diagnostic execution remain outstanding. No new acceptance result has been produced.
 
-## Published-code CI checkpoint
+## Historical checkpoint: original published-code CI
 
 - [Diagnostic synthetic contract](https://github.com/RobbieTall/Plannera-ab/actions/runs/35866925459): PASS, including the test execution step, at `997461dbda07ba0302ae2515e70211640d9c5215`.
 - [Commercial Funnel Golden Gate](https://github.com/RobbieTall/Plannera-ab/actions/runs/35866925281): PASS at that same implementation commit.
@@ -101,7 +113,7 @@ The diagnostic source, tests, manual workflow and runbooks are now proposed in d
 - GitHub connector refused the manual-workflow metadata URL; this is not evidence that the workflow is absent or dispatchable. Registration still needs an authorised supported UI/API check.
 - At the earlier CI checkpoint protection settings were unchanged; the later approved correction is recorded above. No merge, pin change, database diagnostic or stateful rerun has occurred. Independent review has not been obtained; do not describe this draft as independently reviewed.
 
-## Approved dispatch-wiring correction
+## Historical checkpoint: approved dispatch-wiring correction
 
 Robbie approved using the already registered Item 77 protected commercial journey instead of assuming the new standalone manual workflow was registered. Its original main and acceptance blob was confirmed identical (20a32d8aed4e1dda7886b0144f42eb4386e381c9). Draft PR #420 now proposes optional diagnostic_only=true forwarding to a same-commit reusable workflow, with no caller application secrets. Original PR/default manual test steps are retained. The new wiring regression tests supplement the original 19 synthetic tests. All 25 synthetic tests passed locally with no live credentials or network, including six new dispatch-wiring regressions. The first shell invocation lacked node on PATH and performed no tests; rerunning with the existing /usr/local/bin/node succeeded. GitHub CI and live dispatch for this correction remain to be observed.
 

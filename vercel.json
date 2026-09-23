@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "fix/item78c-session-preflight-20260923": false
+      "fix/item78c-session-preflight-20260923": false,
+      "accept/item-78c-byron-kempsey-20260914": false
     }
   },
   "functions": {
