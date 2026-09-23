@@ -1,5 +1,15 @@
 # Plannera
 
+## September 24 daytime continuity checkpoint
+
+Two independent non-production lanes are active:
+
+- **Item 78C acceptance diagnostic:** PR #420 is integrated only into `accept/item-78c-byron-kempsey-20260914` at `2793aef38433fdb41341c096f7b027689450f525`. The two protected Preview pins and read-only Item 77 diagnostic remain pending on desktop-capable GitHub tooling. Item 78C remains HOLD; Production and checkout are untouched.
+- **Consultant returned-report intake:** Issue #421 / `feat/consultant-returned-report-intake-20260924` adds a fail-closed contract that routes returned `CONSULTANT_REPORT` evidence through the existing private quarantine, malware-scan and operator-review boundary. This is not yet an upload endpoint or complete customer flow.
+
+Desktop/browser continuation starts at `docs/project-memory/daytime-continuity-2026-09-24.md`. Do not rely only on `main` while these lanes remain unmerged.
+
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features
