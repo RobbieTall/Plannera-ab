@@ -16,7 +16,8 @@ Implemented on the feature branch:
 - exact referral/project/scope/package-digest/discipline/content-hash continuity checks;
 - quarantine/rejection/persistence states that preserve malware scanning and operator review as separate gates;
 - tests covering accepted, pending-review, cross-scope, wrong-discipline, hash/role mismatch, undelivered-referral, rejected-evidence and persistence-failure cases;
-- operations runbook at `docs/operations/consultant-returned-report-intake.md`.
+- operations runbook at `docs/operations/consultant-returned-report-intake.md`;
+- durable privacy-minimal `ConsultantReturnedReportBinding` schema/migration plus replay-safe internal persistence service.
 
 Still deliberately unconnected: private upload endpoint/adapters, durable returned-report binding persistence, real scanner/review UI, evidence applicability review, workspace returned-report UI and hosted protected acceptance. Do not describe this slice as a complete customer upload flow until those adapters and acceptance steps exist.
 
