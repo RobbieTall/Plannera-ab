@@ -99,7 +99,7 @@ export function resolveLgaPreparationCommercialOutcome(
   const serviceTargetAt = getLgaPreparationServiceTarget(input.requestedAt);
   const targetOverdue =
     input.evaluatedAt.getTime() > serviceTargetAt.getTime() &&
-    input.preparationStatus !== "COMPLETED";
+    !input.promisedPackPersisted;
 
   if (input.promisedPackPersisted) {
     if (input.promisedPackHasUnresolvedControls) {
