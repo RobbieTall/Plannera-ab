@@ -44,6 +44,22 @@ describe("LGA preparation service contract", () => {
     expect(result.refundComplete).toBe(false);
   });
 
+  it("treats worker completion without a persisted promised pack as overdue delivery work", () => {
+    const result = resolveLgaPreparationCommercialOutcome({
+      preparationStatus: "COMPLETED",
+      requestedAt: new Date("2026-09-21T00:00:00.000Z"),
+      evaluatedAt: new Date("2026-09-24T00:00:01.000Z"),
+      promisedPackPersisted: false,
+      promisedPackHasUnresolvedControls: false,
+      refundRequested: false,
+      providerRefundConfirmed: false,
+    });
+
+    expect(result.resolution).toBe("OVERDUE_REVIEW_REQUIRED");
+    expect(result.targetOverdue).toBe(true);
+    expect(result.refundComplete).toBe(false);
+  });
+
   it("requires refund review when preparation failed and no promised pack exists", () => {
     const result = resolveLgaPreparationCommercialOutcome({
       preparationStatus: "FAILED",
