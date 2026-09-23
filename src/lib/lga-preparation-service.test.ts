@@ -14,6 +14,14 @@ describe("LGA preparation service contract", () => {
     );
   });
 
+  it("uses Australia/Sydney weekdays when UTC is still on the prior day", () => {
+    const saturdaySydney = new Date("2026-09-25T15:30:00.000Z");
+
+    expect(addWeekdayBusinessDays(saturdaySydney, 2).toISOString()).toBe(
+      "2026-09-28T15:30:00.000Z",
+    );
+  });
+
   it("keeps weekday arithmetic deterministic", () => {
     const monday = new Date("2026-09-21T03:00:00.000Z");
     expect(addWeekdayBusinessDays(monday, 0).toISOString()).toBe(monday.toISOString());
