@@ -1,5 +1,26 @@
 # Build Next (Execution Queue)
 
+## Daytime continuity checkpoint — 24 September 2026
+
+**Item 78C remains HOLD for acceptance evidence, but its diagnostic safeguards are now integrated into the non-main acceptance branch.** PR #420 was merged only into `accept/item-78c-byron-kempsey-20260914`; exact merge SHA: `2793aef38433fdb41341c096f7b027689450f525`. The two protected Preview environment pins and the read-only Item 77 diagnostic are still pending because the mobile connector cannot write GitHub Environment variables or dispatch workflows. Production/main/checkout remain untouched by that acceptance action. See Issue #395 for the exact desktop continuation.
+
+While that lane is blocked on desktop-only controls, daytime work continues independently under Issue #421 on `feat/consultant-returned-report-intake-20260924`.
+
+### Active independent launch slice — consultant returned-report intake
+
+Goal: close the consultant-input loop without using the unsafe guest/public workspace upload path.
+
+Implemented on the feature branch:
+- private-evidence role `CONSULTANT_REPORT`;
+- fail-closed `consultant-returned-report-intake.v1` server contract;
+- exact referral/project/scope/package-digest/discipline/content-hash continuity checks;
+- quarantine/rejection/persistence states that preserve malware scanning and operator review as separate gates;
+- tests covering accepted, pending-review, cross-scope, wrong-discipline, hash/role mismatch, undelivered-referral, rejected-evidence and persistence-failure cases;
+- operations runbook at `docs/operations/consultant-returned-report-intake.md`.
+
+Still deliberately unconnected: private upload endpoint/adapters, durable returned-report binding persistence, real scanner/review UI, evidence applicability review, workspace returned-report UI and hosted protected acceptance. Do not describe this slice as a complete customer upload flow until those adapters and acceptance steps exist.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅
