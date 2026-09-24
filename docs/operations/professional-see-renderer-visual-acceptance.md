@@ -7,24 +7,29 @@ Updated: 24 September 2026 (Australia/Sydney). Tracking: Issue #432.
 
 ## Accepted evidence — 24 September 2026
 
-Verified code/test head: `c9a9624ef085287765a17ee0443a2319d8552282`.
+Reviewed renderer head: `c9a9624ef085287765a17ee0443a2319d8552282`.
+Current code/test head: `5d10df08507597859a10d1c91a23d4754bfe75e9` (test-hardening only; renderer bytes unchanged).
 
-All exact-head gates passed:
-- Soft launch smoke — run `35970394852`;
-- Whole-LGA source matrix — run `35970395451`;
-- Commercial Funnel Golden Gate — run `35970394840`;
-- Submission SEE Output Rendering — run `35970394893`;
-- Item 74H Working SEE Preview Gate — run `35970394846`;
-- Item 77 protected commercial journey — run `35970394863`;
-- Submission SEE Synthetic Artefacts — run `35970394851`.
+All current code/test-head gates passed:
+- Soft launch smoke — run `35971164696`;
+- Whole-LGA source matrix — run `35971164676`;
+- Commercial Funnel Golden Gate — run `35971164589`;
+- Submission SEE Output Rendering — run `35971164669`;
+- Item 74H Working SEE Preview Gate — run `35971164659`;
+- Item 77 protected commercial journey — run `35971164557`;
+- Submission SEE Synthetic Artefacts — run `35971164538`.
 
-Exact-head artifact ID: `10796395242`.
+Current-head artifact ID: `10795398958`.
 
 Deterministic output hashes:
 - DOCX: `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`;
 - PDF: `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
 
-Both exact-head files rendered to 14 A4 pages. Every page was inspected against the approved benchmark qualities. No clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was found. Separate read-only review `#5301256836` found no blocking issue.
+The current-head artifact reproduces the exact accepted DOCX/PDF hashes:
+- DOCX `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`;
+- PDF `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
+
+These bytes are identical to the already rendered and inspected 14-page A4 outputs. No clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was found. Separate read-only review `#5301256836` found no blocking renderer issue.
 
 The key visual defect found during this task was collapsed DOCX pagination. Root cause was a missing OOXML document relationship to `word/styles.xml`. The renderer now emits that relationship and unit coverage requires it. No finality or evidence gate was weakened to solve the layout defect.
 
