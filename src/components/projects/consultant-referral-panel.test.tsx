@@ -40,6 +40,15 @@ describe("ConsultantReferralPanel", () => {
     expect(submit).toBeDisabled();
     expect(screen.getByText(/human-operated queue/i)).toBeInTheDocument();
     expect(screen.getByText(/does not promise matching/i)).toBeInTheDocument();
+    expect(screen.getByRole("note", { name: "Consultant credential disclosure" })).toHaveTextContent(
+      "Consultants self-report their qualifications and regions of service.",
+    );
+    expect(screen.getByRole("note", { name: "Consultant credential disclosure" })).toHaveTextContent(
+      "Plannera does not verify professional credentials or memberships.",
+    );
+    expect(screen.getByRole("note", { name: "Consultant credential disclosure" })).toHaveTextContent(
+      "Users should confirm relevant licences directly with consultants before engaging.",
+    );
 
     await user.type(screen.getByLabelText("Contact name"), "Alex Owner");
     await user.type(screen.getByLabelText("Contact email"), "alex@example.com");

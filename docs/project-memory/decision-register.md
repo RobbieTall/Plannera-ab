@@ -1,5 +1,14 @@
 # Decision Register
 
+## DR-078F — Consultant credentials remain self-reported unless explicitly verified — 24 September 2026
+
+Decision: the current consultant referral/network product must clearly state that consultant qualifications and service regions are self-reported, Plannera does not verify professional credentials or memberships, and users should confirm relevant licences directly before engagement.
+
+The current product has no live consultant directory/RFQ marketplace. Therefore Issue #425 implements the disclosure on the real customer-facing referral submission surface and exports it as a reusable component/string for future directory, profile and RFQ surfaces. Do not create a fake directory merely to satisfy this disclosure requirement.
+
+This disclosure does not collect credentials, verify a consultant, change referral matching/delivery, or alter Production/billing state.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

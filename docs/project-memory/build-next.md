@@ -1,5 +1,17 @@
 # Build Next (Execution Queue)
 
+## Daytime continuity checkpoint — 24 September 2026
+
+Four non-production lanes are active and must remain distinct:
+
+1. **Item 78C acceptance diagnostic** — Issue #395. PR #420 was integrated only into `accept/item-78c-byron-kempsey-20260914` at `2793aef38433fdb41341c096f7b027689450f525`. The two protected Preview pin updates and read-only Item 77 diagnostic remain pending on desktop-capable GitHub tooling. Item 78C remains HOLD.
+2. **Returned consultant reports** — Issue #421 / PR #422. Current PR head `70b99ba3da799d2139134b8132c245f9457a5e82`; open, mergeable, separately reviewed with no blocking finding, and all final-head observed CI gates passed. Not merged.
+3. **Paid LGA preparation service truth** — Issue #423 / PR #424. Current feature work replaces the misleading “few minutes” wording with the approved 2-business-day service target, adds Sydney-time target handling, privacy-minimal failed-preparation status and deterministic refund-resolution semantics. The branch is under CI/review and must not be reported as merged until GitHub says so.
+4. **Consultant credential disclosure** — Issue #425 / `feat/consultant-credential-disclosure-20260924`. The approved self-report/non-verification disclosure is now rendered before the current referral submission form through a reusable component for future directory/RFQ reuse.
+
+Production, checkout and protected environment settings remain untouched by lanes 2–4. No daytime standing permission authorises merges to `main`.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅
