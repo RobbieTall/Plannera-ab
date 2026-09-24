@@ -184,12 +184,12 @@ This is representative deterministic expansion only, not every-zone/live-address
 
 Tracking: Issue #432.  
 PR: #434.  
-Reviewed renderer head: `c9a9624ef085287765a17ee0443a2319d8552282`.  
-Current tested code/test head: `5d10df08507597859a10d1c91a23d4754bfe75e9`.  
-State before this documentation update: **open, mergeable, not merged**.
+Current live final head: `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`.  
+Reviewed renderer implementation head: `c9a9624ef085287765a17ee0443a2319d8552282`.  
+State: **open, mergeable, not merged**.
 
 Goal:
-Close the deterministic synthetic professional-presentation gap while preserving `see-builder-standard.v1`, evidence finality, working/final distinction and all existing commercial/safety gates.
+Close the deterministic synthetic professional-presentation gap while preserving `see-builder-standard.v1`, evidence finality, the working/final distinction and all existing commercial/safety gates.
 
 Implemented:
 - shared deterministic DOCX/PDF presentation model;
@@ -210,39 +210,41 @@ Approved benchmark qualities came from project library `SEE Various Examples.pdf
 - Ardill Payne — formal planning-report/statutory hierarchy;
 - Planners North — polished cover/executive-summary/page-furniture treatment.
 
-Important defects found/fixed:
-1. Initial Vercel safety checks correctly rejected the new runtime presentation-module import until it was explicitly added to the reviewed transitive dependency fingerprint.
-2. Early renderer tests contained over-specific fixture/layout string assertions; these were corrected without changing rendering/finality logic.
-3. The first DOCX visual artifact collapsed intended pagination. Root cause was a missing OOXML styles relationship, not a planning or finality defect. Adding the relationship produced the intended 14-page DOCX and is now regression-tested.
-4. Final PDF source assertions were hardened to verify source identity independent of line wrapping rather than coupling safety to one exact presentation line.
+Important defects found and fixed:
+1. Vercel build safety correctly rejected the new presentation-module dependency until it was added to the reviewed transitive dependency fingerprint.
+2. Early renderer assertions were too coupled to fixture text/layout wrapping; they were corrected without weakening renderer/finality behaviour.
+3. The first DOCX visual artifact collapsed pagination. Root cause was a missing OOXML relationship to `word/styles.xml`; adding that relationship produced the intended 14-page DOCX and is now regression-tested.
+4. Later red SEE-family runs were brittle PDF source-line assertions only; the actual working-SEE acceptance remained green. Tests now verify source identity independently of PDF line wrapping.
 
-Current tested code/test-head CI — all PASS:
-- Soft launch smoke — run `35971164696`
-- Whole-LGA source matrix — run `35971164676`
-- Commercial Funnel Golden Gate — run `35971164589`
-- Submission SEE Output Rendering — run `35971164669`
-- Item 74H Working SEE Preview — run `35971164659`
-- Item 77 protected commercial journey — run `35971164557`
-- Submission SEE Synthetic Artefacts — run `35971164538`.
+Final documentation-head CI — **all PASS**:
+- Soft launch smoke — run `35971674147`
+- Whole-LGA source matrix — run `35971674102`
+- Commercial Funnel Golden Gate — run `35971674128`
+- Submission SEE Output Rendering — run `35971674117`
+- Item 74H Working SEE Preview — run `35971674094`
+- Item 77 protected commercial journey — run `35971674086`
+- Submission SEE Synthetic Artefacts — run `35971674072`.
 
-Current tested-head artifact: `10795398958`.
+Final-head artifact: `10796531837`.
 
-Accepted deterministic hashes:
+Deterministic member hashes:
 - DOCX `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`
 - PDF `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
 
-The current tested-head artifact reproduces those exact hashes byte-for-byte. These exact bytes were already rendered through the project QA workflow:
+Those exact bytes are identical to the visually accepted outputs:
 - DOCX: 14 A4 pages;
 - PDF: 14 A4 pages.
 
-Every page was visually inspected against the approved benchmark qualities. No clipping, overlapping content, broken table layout, missing glyphs or inconsistent page furniture was identified.
+Every page was rendered and visually inspected against the approved benchmark qualities. No clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was identified.
 
-Separate renderer review `#5301256836` found no blocking implementation issue on the reviewed renderer head. The only changes after that reviewed renderer head are continuity/documentation plus the line-wrap-independent renderer-test hardening described above; renderer bytes did not change.
+Reviews:
+- renderer implementation review `#5301256836` — no blocker;
+- final continuity review `#5301418641` at head `8e145e4...` — no blocker.
 
 Runbook: `docs/operations/professional-see-renderer-visual-acceptance.md`.
 
 Boundary:
-This proves the deterministic synthetic presentation/layout system only. It does not replace real-project rendered acceptance, Item 78C protected whole-funnel acceptance or Production activation. No billing, checkout, schema, environment or Production action was performed.
+This closes the deterministic synthetic presentation/layout gap only. It does **not** replace real-project rendered acceptance, Item 78C protected whole-funnel acceptance or Production activation. No billing, checkout, schema, environment or Production action was performed.
 
 ## Integration warning — five open main-target PRs
 
