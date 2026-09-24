@@ -192,6 +192,9 @@ describe("submission SEE rendering", () => {
     expect(document).toContain("Environmental Impacts");
     expect(document).toContain("<w:tbl>");
     expect(document).not.toContain("Project: synthetic-render-review");
+    expect(entries.get("word/_rels/document.xml.rels")!.toString("utf8")).toContain(
+      "relationships/styles",
+    );
     expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("PLANNERA");
     expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Confirmed acceptance site");
     expect(document).not.toContain("Update this field in Word");
