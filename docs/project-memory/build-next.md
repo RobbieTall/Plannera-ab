@@ -1338,7 +1338,11 @@ Implementation checkpoint — evidence extraction and provenance foundation (`fe
 - The workspace Sources panel exposes `Ready`, `Partially readable`, `Image only`, or `Needs review` and the review/indexing reason. A stored upload is no longer labelled generically as synced.
 - Regression coverage proves hashing/text extraction, PDF page provenance, image-only/legacy/parser-failure demotion, successful indexing and visible indexing failure. On 3 August 2026, Commercial Funnel Golden Gate run `30776099344` passed on head `7313eba` (155 Node tests and 77 Vitest tests, zero failures) and the Vercel Preview deployment completed successfully with the additive Prisma migration and full application build.
 
-Remaining before 74A is complete: add an asynchronous OCR/provider path with operator-visible retry/review; model map/plan source, layer/legend, dates, site identity, observation and limitation; add proposal/statutory reconciliation and conflict/freshness gates; and make SEE section readiness consume only readable, successfully indexed, accepted evidence.
+Item 74A daytime checkpoint — Issue #437 / `feat/upload-ocr-review-lifecycle-20260924` now adds the provider-neutral OCR lifecycle foundation for image-only/scanned evidence: append-only source-hash-bound attempts, active dedupe, explicit retry, provider processing/result integrity, mandatory visual review before promotion, normal indexing only after approved review, and privacy-safe OCR status in the Sources panel. No live OCR provider is connected and no Production file is processed.
+
+Repository review also confirmed that the older roadmap line saying map/plan provenance still needed to be modeled is partly stale: structured map snapshots already carry source, capture/effective date, layer/legend, confirmed observation, limitation and final-SEE blocking for legacy/unproven snapshots. Do not rebuild that foundation.
+
+Remaining before 74A is complete: connect an approved asynchronous OCR worker/provider with cost/privacy controls; add any still-missing proposal/statutory conflict/freshness reconciliation beyond the existing applicability/date/expiry gates; and prove real protected evidence flows. SEE finality continues to require readable, successfully indexed and exact-scope accepted evidence.
 
 ### 74B — Professional SEE compiler and paid entitlement
 - Replace the current pre-SEE `.txt` memo as the commercial endpoint with a versioned living SEE that becomes final only when all required inputs are resolved or explicitly routed to professional review.
