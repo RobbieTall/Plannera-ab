@@ -206,7 +206,8 @@ describe("submission SEE rendering", () => {
     expect(pdf).toContain("Document Control");
     expect(pdf).toContain("Revision History");
     expect(pdf).toContain("Supporting Evidence Schedule");
-    expect(pdf).toContain("Current generated issue");
+    expect(pdf).toContain("(Current generated)");
+    expect(pdf).toContain("(issue)");
     expect(pdf).toContain("proposal-plan.pdf");
     expect(pdf).toContain("Contents");
     expect(pdf).toContain("Executive Summary");
