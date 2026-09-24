@@ -1,4 +1,9 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — professional SEE presentation, 24 September 2026
+
+Issue #432 / PR #434 has passed deterministic professional DOCX/PDF presentation and visual acceptance on code/test head `c9a9624ef085287765a17ee0443a2319d8552282`. The existing `see-builder-standard.v1`, evidence-finality and working/final acceptance rules were preserved. Exact-head synthetic DOCX/PDF outputs render as 14-page professional Plannera reports with document control, numbered contents/sections, evidence schedules, source register, limitations and consistent page furniture. This closes the synthetic presentation/layout gap only; real-project rendered acceptance, Item 78C whole-funnel acceptance and Production activation remain open.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
@@ -145,7 +150,7 @@ Separate LEP-based interim response from DCP-enhanced response in the UI
 
 2. Submission-Oriented SEE
 Roadmap status
-Commercial product contract, exact-scope Preview binding, credit foundation, private synthetic Blob/Sandbox lifecycle, malware-scan boundary, immutable operator review and exact four-document package assembly are implemented and proven in protected Preview. The four roles are current road classification, registered cadastral plan, detail survey reconciled to the registered-plan hash, and proposed layout bound to the detail-survey hash. The registered plan controls parcel area where sources differ, while road, side and rear setbacks must be survey-derived. Fixture evidence still cannot bind a paid artefact, and Production checkout remains disabled. Real registered-plan execution, complete DOCX/PDF submission acceptance and Production activation remain unfinished.
+Commercial product contract, exact-scope Preview binding, credit foundation, private synthetic Blob/Sandbox lifecycle, malware-scan boundary, immutable operator review and exact four-document package assembly are implemented and proven in protected Preview. The four roles are current road classification, registered cadastral plan, detail survey reconciled to the registered-plan hash, and proposed layout bound to the detail-survey hash. The registered plan controls parcel area where sources differ, while road, side and rear setbacks must be survey-derived. The deterministic professional DOCX/PDF presentation layer has also passed synthetic visual acceptance under Issue #432 / PR #434. Fixture evidence still cannot bind a paid artefact, and Production checkout remains disabled. Real registered-plan execution, real-project rendered document acceptance, Item 78C whole-funnel acceptance and Production activation remain unfinished.
 
 Price and credit
 The SEE list price is A$749 before credits. One settled, unrefunded and unconsumed A$49 Planning Controls Pack for the same requester, owned project, current-site QSC and normalized proposal may be consumed once, leaving A$700 payable. The credit is non-transferable, not cash-redeemable and cannot be reused across another site, project, QSC or materially changed proposal. Checkout must derive and itemise price, credit, balance and applicable GST on the server.
