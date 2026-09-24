@@ -669,7 +669,7 @@ test("Kempsey evidence gap creates a qualified working SEE and unresolved-pack r
   assert.ok("referralEligibility" in audit);
   assert.equal(audit.quickSiteCheck.state, "ready");
   assert.equal(audit.detailedPlanningPack.state, "needs_expert_review");
-  assert.equal(audit.see.state, "missing");
+  assert.equal(audit.see.state, "working_needs_evidence");
   assert.equal(audit.referralEligibility, "unresolved_pack_referral");
   assert.equal(
     audit.nextAction.code,
@@ -793,7 +793,7 @@ const runRepresentativeUnresolvedJourney = async (fixture: GoldenFixture) => {
   });
   assert.equal(audit.site.zoneCode, fixture.zoneCode);
   assert.equal(audit.detailedPlanningPack.state, "needs_expert_review");
-  assert.equal(audit.see.state, "working_needs_evidence");
+  assert.equal(audit.see.state, "missing");
   assert.equal(audit.referralEligibility, "unresolved_pack_referral");
   assert.equal(audit.nextAction.code, "refer_unresolved_pack_for_expert_review");
 
