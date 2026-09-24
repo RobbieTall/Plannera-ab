@@ -6,6 +6,11 @@ import {
   type SubmissionSeeIssueCode,
   type SubmissionSeeOutput,
 } from "./submission-see-acceptance";
+import {
+  buildSubmissionSeePresentation,
+  type SubmissionSeePresentationModel,
+  type SubmissionSeePresentationRow,
+} from "./submission-see-presentation";
 
 export type SubmissionSeeRenderedOutputs = {
   docx: Buffer;
@@ -84,13 +89,6 @@ const safeFilePart = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "confirmed-site";
-
-const titleCase = (value: string) =>
-  value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 
 const crcTable = (() => {
   const table = new Uint32Array(256);
@@ -193,16 +191,74 @@ const wordParagraph = (
 ) => {
   const properties = [
     `<w:pStyle w:val="${style}"/>`,
-    options.pageBreakBefore ? "<w:pageBreakBefore/>" : "",
     options.keepNext ? "<w:keepNext/>" : "",
   ].join("");
-  return `<w:p><w:pPr>${properties}</w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(
+  const pageBreak = options.pageBreakBefore
+    ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+    : "";
+  return `${pageBreak}<w:p><w:pPr>${properties}</w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(
     text,
   )}</w:t></w:r></w:p>`;
 };
 
+type WordCellSpec = {
+  text: string;
+  width?: number;
+  fill?: string;
+  color?: string;
+  bold?: boolean;
+  fontSize?: number;
+};
+
+const wordCell = (cell: WordCellSpec) => {
+  const width = cell.width
+    ? `<w:tcW w:w="${cell.width}" w:type="dxa"/>`
+    : "";
+  const fill = cell.fill ? `<w:shd w:fill="${cell.fill}"/>` : "";
+  const runProperties = [
+    cell.bold ? "<w:b/>" : "",
+    cell.color ? `<w:color w:val="${cell.color}"/>` : "",
+    cell.fontSize ? `<w:sz w:val="${cell.fontSize}"/>` : "",
+  ].join("");
+  return `<w:tc><w:tcPr>${width}${fill}<w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:spacing w:before="70" w:after="70" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr>${runProperties}</w:rPr><w:t xml:space="preserve">${xmlEscape(
+    cell.text,
+  )}</w:t></w:r></w:p></w:tc>`;
+};
+
+const wordTable = (rows: WordCellSpec[][], widths: number[]) => {
+  const grid = widths.map((width) => `<w:gridCol w:w="${width}"/>`).join("");
+  const renderedRows = rows
+    .map(
+      (row) =>
+        `<w:tr>${row
+          .map((cell, index) =>
+            wordCell({ ...cell, width: cell.width ?? widths[index] }),
+          )
+          .join("")}</w:tr>`,
+    )
+    .join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D5DEE1"/><w:left w:val="single" w:sz="4" w:color="D5DEE1"/><w:bottom w:val="single" w:sz="4" w:color="D5DEE1"/><w:right w:val="single" w:sz="4" w:color="D5DEE1"/><w:insideH w:val="single" w:sz="3" w:color="E1E7E9"/><w:insideV w:val="single" w:sz="3" w:color="E1E7E9"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${renderedRows}</w:tbl>`;
+};
+
+const wordCallout = (title: string, text: string, fill = "F2F7F7") =>
+  wordTable(
+    [
+      [
+        {
+          text: title,
+          fill: "D9E8E8",
+          color: "0B5860",
+          bold: true,
+          fontSize: 18,
+        },
+      ],
+      [{ text, fill, color: "304047", fontSize: 19 }],
+    ],
+    [9360],
+  );
+
 const wordToc = (
-  candidate: SubmissionSeeCandidate,
+  model: SubmissionSeePresentationModel,
   presentation: RenderPresentation,
 ) =>
   [
@@ -210,22 +266,20 @@ const wordToc = (
       pageBreakBefore: true,
       keepNext: true,
     }),
-    ...candidate.sections.map((section) =>
+    ...model.contents.map((section) =>
       wordParagraph(
-        titleCase(section.title || section.id),
+        `${section.number}. ${section.title}`,
         "TocEntry",
       ),
     ),
-    ...(presentation.workingContext
-      ? [
-          wordParagraph("Document Status", "TocEntry"),
-          ...(presentation.workingContext.outstandingEvidence.length > 0
-            ? [wordParagraph("Outstanding Evidence", "TocEntry")]
-            : []),
-        ]
+    ...(presentation.workingContext?.outstandingEvidence.length
+      ? [wordParagraph("Outstanding Evidence", "TocEntry")]
+      : []),
+    ...(model.evidenceSchedule.length > 0
+      ? [wordParagraph("Supporting Evidence Schedule", "TocEntry")]
       : []),
     wordParagraph("Source Register", "TocEntry"),
-    ...(candidate.limitations.length > 0
+    ...(model.limitations.length > 0
       ? [wordParagraph("Limitations", "TocEntry")]
       : []),
   ].join("");
@@ -234,40 +288,56 @@ const renderDocx = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
 ) => {
-  const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
+  const model = buildSubmissionSeePresentation({
+    candidate,
+    workingContext: presentation.workingContext,
+  });
   const generated = new Date(candidate.generatedAt).toISOString();
   const body: string[] = [
-    wordParagraph(presentation.documentTitle, "Title"),
-    wordParagraph(candidate.site.label, "Subtitle"),
-    wordParagraph(
-      `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
-      "Subtitle",
+    wordTable(
+      [[
+        {
+          text: model.brand,
+          fill: "0B5860",
+          color: "FFFFFF",
+          bold: true,
+          fontSize: 20,
+        },
+      ]],
+      [9360],
     ),
-    wordParagraph(`Project: ${candidate.projectId}`, "Metadata"),
-    wordParagraph(`Generated: ${generated}`, "Metadata"),
-    wordParagraph(
-      `Operator checklist: ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
-      "Metadata",
+    wordParagraph(model.statusLabel, "CoverStatus"),
+    wordParagraph(model.documentTitle, "Title"),
+    wordParagraph(model.siteLabel, "CoverSite"),
+    wordParagraph(model.locationLine, "Subtitle"),
+    wordParagraph("PROPOSAL", "CoverLabel"),
+    wordParagraph(model.proposalSummary, "CoverSummary"),
+    wordParagraph(`Prepared ${model.generatedDate}`, "CoverMeta"),
+    wordParagraph("Document Control", "Heading1", {
+      pageBreakBefore: true,
+      keepNext: true,
+    }),
+    wordTable(
+      model.documentControl.map((row) => [
+        {
+          text: row.label,
+          fill: "E5EEEE",
+          color: "0B5860",
+          bold: true,
+          fontSize: 18,
+        },
+        { text: row.value, color: "304047", fontSize: 19 },
+      ]),
+      [2200, 7160],
     ),
-    ...(presentation.workingContext
-      ? [
-          wordParagraph("WORKING SEE - NOT SUBMISSION READY", "Subtitle"),
-          wordParagraph(
-            `Evidence status: ${presentation.workingContext.documentReadiness.evidenceStatus}`,
-            "Metadata",
-          ),
-        ]
-      : []),
-    wordToc(candidate, presentation),
+    wordParagraph("Proposal Summary", "Heading2", { keepNext: true }),
+    wordParagraph(model.proposalSummary, "Normal"),
+    wordCallout("Document Status", model.statusDetail),
   ];
 
   const working = presentation.workingContext;
   if (working) {
     body.push(
-      wordParagraph("Document Status", "Heading1", {
-        keepNext: true,
-      }),
-      wordParagraph(working.documentReadiness.customerMessage, "Normal"),
       wordParagraph(
         `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
         "Metadata",
@@ -281,62 +351,185 @@ const renderDocx = (
           ]
         : []),
     );
-    if (working.outstandingEvidence.length > 0) {
-      body.push(
-        wordParagraph("Outstanding Evidence", "Heading1", { keepNext: true }),
-      );
-      for (const item of working.outstandingEvidence) {
-        body.push(
-          wordParagraph(
-            `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
-            "Normal",
-          ),
-        );
-      }
-    }
   }
 
-  candidate.sections.forEach((section, index) => {
+  body.push(wordToc(model, presentation));
+
+  if (working?.outstandingEvidence.length) {
     body.push(
-      wordParagraph(
-        titleCase(section.title || section.id),
-        "Heading1",
-        { pageBreakBefore: index > 0, keepNext: true },
+      wordParagraph("Outstanding Evidence", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordCallout(
+        "Why this document is still working",
+        working.documentReadiness.customerMessage,
+        "FFF6E8",
+      ),
+      wordTable(
+        [
+          [
+            {
+              text: "Matter",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Required evidence",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Effect on assessment",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+          ],
+          ...working.outstandingEvidence.map((item) => [
+            { text: item.topic, fontSize: 17 },
+            { text: item.recommendedEvidence, fontSize: 17 },
+            { text: item.effect, fontSize: 17 },
+          ]),
+        ],
+        [2500, 3300, 3560],
       ),
     );
-    body.push(wordParagraph(section.narrative, "Normal"));
-    const citations = section.sourceIds
-      .map((sourceId) => {
-        const source = sourceById.get(sourceId);
-        return source ? `${source.id}: ${source.title}` : sourceId;
-      })
+  }
+
+  for (const section of model.sections) {
+    body.push(
+      wordParagraph(
+        `${section.number}. ${section.title}`,
+        "Heading1",
+        { pageBreakBefore: true, keepNext: true },
+      ),
+      wordParagraph(section.narrative, "Normal"),
+    );
+    const evidenceText = section.sources
+      .map((source) => `${source.id} - ${source.title}`)
       .join("; ");
-    body.push(wordParagraph(`Sources: ${citations}`, "Citation"));
-  });
+    body.push(wordCallout("Evidence used", evidenceText));
+  }
+
+  if (model.evidenceSchedule.length > 0) {
+    body.push(
+      wordParagraph("Supporting Evidence Schedule", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordTable(
+        [
+          [
+            {
+              text: "Document",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Type",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Review status",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Used in",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+          ],
+          ...model.evidenceSchedule.map((item) => [
+            { text: item.name, fontSize: 16 },
+            { text: item.kind, fontSize: 16 },
+            { text: item.status, fontSize: 16 },
+            { text: item.usedIn || "Not assigned", fontSize: 16 },
+          ]),
+        ],
+        [2800, 1700, 2000, 2860],
+      ),
+    );
+  }
 
   body.push(
     wordParagraph("Source Register", "Heading1", {
       pageBreakBefore: true,
       keepNext: true,
     }),
+    wordTable(
+      [
+        [
+          {
+            text: "Ref",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Type",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Source",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Provenance / checked",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+        ],
+        ...model.sourceRegister.map((source) => [
+          { text: source.id, fontSize: 15 },
+          { text: source.type, fontSize: 15 },
+          { text: source.title, fontSize: 15 },
+          {
+            text: `${source.provenance} | ${source.checkedAt}`,
+            fontSize: 14,
+          },
+        ]),
+      ],
+      [1050, 1100, 2850, 4360],
+    ),
   );
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
+
+  if (model.limitations.length > 0) {
     body.push(
-      wordParagraph(
-        `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-        "SourceRegister",
+      wordParagraph("Limitations", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordCallout(
+        "Read with the current project evidence",
+        model.limitations.map((item) => `- ${item}`).join("\n"),
+        "FFF7EB",
       ),
     );
-  }
-
-  if (candidate.limitations.length > 0) {
-    body.push(wordParagraph("Limitations", "Heading1", { keepNext: true }));
-    for (const limitation of candidate.limitations) {
-      body.push(wordParagraph(`• ${limitation}`, "Normal"));
-    }
   }
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -345,8 +538,9 @@ const renderDocx = (
     ${body.join("\n")}
     <w:sectPr>
       <w:pgSz w:w="11906" w:h="16838"/>
-      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/>
-      <w:footerReference w:type="default" r:id="rId1"/>
+      <w:pgMar w:top="1050" w:right="1275" w:bottom="1050" w:left="1275" w:header="520" w:footer="520" w:gutter="0"/>
+      <w:headerReference w:type="default" r:id="rId1"/>
+      <w:footerReference w:type="default" r:id="rId2"/>
     </w:sectPr>
   </w:body>
 </w:document>`;
@@ -354,22 +548,32 @@ const renderDocx = (
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
-    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="22"/><w:color w:val="24313A"/></w:rPr></w:rPrDefault>
-    <w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/><w:color w:val="24313A"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="150" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
   </w:docDefaults>
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
-  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Subtitle"/><w:pPr><w:spacing w:before="2400" w:after="240"/><w:jc w:val="left"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="54"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:color w:val="4D6670"/><w:sz w:val="28"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="18"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="180"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="34"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Citation"><w:name w:val="Citation"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:before="80" w:after="240"/></w:pPr><w:rPr><w:i/><w:color w:val="536A73"/><w:sz w:val="18"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="SourceRegister"><w:name w:val="Source Register"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/></w:pPr><w:rPr><w:sz w:val="18"/><w:color w:val="425A63"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Brand"><w:name w:val="Brand"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="620" w:after="150"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="28"/><w:spacing w:val="80"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverStatus"><w:name w:val="Cover Status"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="2150" w:after="120"/></w:pPr><w:rPr><w:b/><w:color w:val="9A5A17"/><w:sz w:val="18"/><w:spacing w:val="45"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="CoverSite"/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="18363B"/><w:sz w:val="52"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverSite"><w:name w:val="Cover Site"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="60" w:after="100"/></w:pPr><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="28"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="420"/></w:pPr><w:rPr><w:color w:val="4D6670"/><w:sz w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverLabel"><w:name w:val="Cover Label"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="300" w:after="70"/></w:pPr><w:rPr><w:b/><w:color w:val="78888E"/><w:sz w:val="16"/><w:spacing w:val="35"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverSummary"><w:name w:val="Cover Summary"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="420"/></w:pPr><w:rPr><w:color w:val="304047"/><w:sz w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverMeta"><w:name w:val="Cover Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="1200" w:after="80"/></w:pPr><w:rPr><w:color w:val="718087"/><w:sz w:val="17"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="70"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="16"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="300" w:after="170"/><w:outlineLvl w:val="0"/><w:pBdr><w:bottom w:val="single" w:sz="10" w:space="5" w:color="0B5860"/></w:pBdr></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="18363B"/><w:sz w:val="32"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="280" w:after="110"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="24"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="240"/><w:spacing w:after="95"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
 </w:styles>`;
+
+  const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9300"/></w:tabs><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="5" w:color="D5DEE1"/></w:pBdr></w:pPr><w:r><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="16"/></w:rPr><w:t>PLANNERA</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>${xmlEscape(model.siteLabel)}</w:t></w:r></w:p>
+</w:hdr>`;
 
   const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="16"/></w:rPr><w:t>Plannera | ${xmlEscape(presentation.footerLabel)} | </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+  <w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9300"/></w:tabs><w:pBdr><w:top w:val="single" w:sz="4" w:space="5" w:color="D5DEE1"/></w:pBdr></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>Plannera | ${xmlEscape(presentation.footerLabel)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>Page </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
 </w:ftr>`;
 
   const entries: ZipEntry[] = [
@@ -381,6 +585,7 @@ const renderDocx = (
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
   <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -397,12 +602,15 @@ const renderDocx = (
     },
     { name: "word/document.xml", data: Buffer.from(documentXml, "utf8") },
     { name: "word/styles.xml", data: Buffer.from(stylesXml, "utf8") },
+    { name: "word/header1.xml", data: Buffer.from(headerXml, "utf8") },
     { name: "word/footer1.xml", data: Buffer.from(footerXml, "utf8") },
     {
       name: "word/_rels/document.xml.rels",
       data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`, "utf8"),
     },
     {
@@ -429,14 +637,40 @@ const renderDocx = (
   return createStoredZip(entries, candidate.generatedAt);
 };
 
-type PdfLine = {
+type PdfColor = [number, number, number];
+
+type PdfTextPrimitive = {
+  kind: "text";
   text: string;
   font: "regular" | "bold";
   size: number;
   x: number;
   y: number;
-  color: [number, number, number];
+  color: PdfColor;
 };
+
+type PdfRectPrimitive = {
+  kind: "rect";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill?: PdfColor;
+  stroke?: PdfColor;
+  lineWidth?: number;
+};
+
+type PdfRulePrimitive = {
+  kind: "line";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: PdfColor;
+  lineWidth: number;
+};
+
+type PdfPrimitive = PdfTextPrimitive | PdfRectPrimitive | PdfRulePrimitive;
 
 const pdfSafe = (value: string) =>
   value
@@ -476,35 +710,107 @@ const wrapText = (value: string, maxCharacters: number) => {
 };
 
 type PdfTextOptions = {
-  font?: PdfLine["font"];
+  font?: "regular" | "bold";
   size?: number;
-  color?: PdfLine["color"];
+  color?: PdfColor;
   before?: number;
   after?: number;
   indent?: number;
+  x?: number;
+  width?: number;
 };
 
 const layoutPdf = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
 ) => {
-  const pages: PdfLine[][] = [[]];
+  const model = buildSubmissionSeePresentation({
+    candidate,
+    workingContext: presentation.workingContext,
+  });
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 54;
+  const contentWidth = 487;
+  const bodyTop = 760;
+  const bottomLimit = 62;
+  const pages: PdfPrimitive[][] = [[]];
   let pageIndex = 0;
   let y = 790;
-  const margin = 54;
+
+  const page = () => pages[pageIndex]!;
+
+  const pushText = (
+    text: string,
+    x: number,
+    baseline: number,
+    size: number,
+    font: "regular" | "bold" = "regular",
+    color: PdfColor = [0.14, 0.19, 0.23],
+  ) => {
+    page().push({
+      kind: "text",
+      text,
+      font,
+      size,
+      x,
+      y: baseline,
+      color,
+    });
+  };
+
+  const pushRect = (
+    x: number,
+    bottom: number,
+    width: number,
+    height: number,
+    options: {
+      fill?: PdfColor;
+      stroke?: PdfColor;
+      lineWidth?: number;
+    } = {},
+  ) => {
+    page().push({
+      kind: "rect",
+      x,
+      y: bottom,
+      width,
+      height,
+      fill: options.fill,
+      stroke: options.stroke,
+      lineWidth: options.lineWidth,
+    });
+  };
+
+  const pushRule = (
+    x1: number,
+    baseline: number,
+    x2: number,
+    color: PdfColor = [0.78, 0.83, 0.84],
+    lineWidth = 0.6,
+  ) => {
+    page().push({
+      kind: "line",
+      x1,
+      y1: baseline,
+      x2,
+      y2: baseline,
+      color,
+      lineWidth,
+    });
+  };
 
   const newPage = () => {
     pages.push([]);
     pageIndex += 1;
-    y = 790;
+    y = bodyTop;
   };
 
   const textLayout = (text: string, options: PdfTextOptions = {}) => {
     const size = options.size ?? 10.5;
-    const maxCharacters = Math.max(
-      25,
-      Math.floor((487 - (options.indent ?? 0)) / (size * 0.52)),
-    );
+    const width =
+      options.width ?? Math.max(80, contentWidth - (options.indent ?? 0));
+    const maxCharacters = Math.max(12, Math.floor(width / (size * 0.52)));
     const lines = wrapText(text, maxCharacters);
     const before = options.before ?? 0;
     const after = options.after ?? 8;
@@ -513,198 +819,392 @@ const layoutPdf = (
       lines,
       before,
       after,
+      lineHeight: size * 1.45,
       height: before + lines.length * size * 1.45 + after,
     };
   };
 
   const ensureSpace = (requiredHeight: number) => {
-    const availablePageHeight = 790 - 64;
-    if (requiredHeight <= availablePageHeight && y - requiredHeight < 64) {
+    if (requiredHeight <= bodyTop - bottomLimit && y - requiredHeight < bottomLimit) {
       newPage();
     }
   };
 
-  const addText = (
-    text: string,
-    options: PdfTextOptions = {},
-  ) => {
+  const addText = (text: string, options: PdfTextOptions = {}) => {
     const font = options.font ?? "regular";
-    const color = options.color ?? ([0.14, 0.19, 0.23] as const);
+    const color = options.color ?? ([0.14, 0.19, 0.23] as PdfColor);
     const layout = textLayout(text, options);
     y -= layout.before;
+    const x = options.x ?? margin + (options.indent ?? 0);
     for (const line of layout.lines) {
-      if (y < 64) newPage();
-      pages[pageIndex]!.push({
-        text: line,
-        font,
-        size: layout.size,
-        x: margin + (options.indent ?? 0),
-        y,
-        color: [color[0], color[1], color[2]],
-      });
-      y -= layout.size * 1.45;
+      if (y < bottomLimit) newPage();
+      pushText(line, x, y, layout.size, font, color);
+      y -= layout.lineHeight;
     }
     y -= layout.after;
   };
 
-  presentation.pdfTitleLines.forEach((line, index) => {
-    const isLast = index === presentation.pdfTitleLines.length - 1;
-    const isWorking = presentation.workingContext !== null;
-    addText(line, {
+  const addSectionTitle = (number: string, title: string) => {
+    addText(`SECTION ${number}`, {
       font: "bold",
-      size: isLast ? (isWorking ? 23 : 27) : 15,
-      color: [0.04, 0.35, 0.38],
-      before: index === 0 ? 95 : 0,
-      after: isLast ? 28 : 0,
+      size: 8.5,
+      color: [0.42, 0.52, 0.55],
+      after: 5,
     });
-  });
-  addText(candidate.site.label, {
-    font: "bold",
-    size: 16,
-    color: [0.2, 0.31, 0.34],
-    after: 12,
-  });
-  addText(
-    `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
-    { size: 12, color: [0.31, 0.4, 0.43], after: 24 },
-  );
-  addText(`Project ${candidate.projectId}`, { size: 9.5, after: 4 });
-  addText(`Generated ${new Date(candidate.generatedAt).toISOString()}`, {
-    size: 9.5,
-    after: 4,
-  });
-  addText(
-    `Operator checklist ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
-    { size: 9.5 },
-  );
+    addText(`${number}. ${title}`, {
+      font: "bold",
+      size: 19,
+      color: [0.09, 0.21, 0.23],
+      after: 8,
+    });
+    pushRule(margin, y + 3, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+    y -= 14;
+  };
 
-  if (presentation.workingContext) {
-    addText("WORKING SEE - NOT SUBMISSION READY", {
-      font: "bold",
-      size: 10,
-      color: [0.68, 0.28, 0.08],
-      before: 10,
-      after: 0,
+  const addKeyValueRow = (row: SubmissionSeePresentationRow) => {
+    const labelWidth = 128;
+    const valueWidth = contentWidth - labelWidth;
+    const labelLayout = textLayout(row.label, { size: 9, width: labelWidth - 16 });
+    const valueLayout = textLayout(row.value, { size: 9.5, width: valueWidth - 18 });
+    const lineHeight = Math.max(labelLayout.lineHeight, valueLayout.lineHeight);
+    const rowHeight =
+      Math.max(labelLayout.lines.length, valueLayout.lines.length) * lineHeight + 16;
+    ensureSpace(rowHeight + 3);
+    const top = y;
+    const bottom = top - rowHeight;
+    pushRect(margin, bottom, contentWidth, rowHeight, {
+      fill: [1, 1, 1],
+      stroke: [0.82, 0.86, 0.87],
+      lineWidth: 0.5,
     });
+    pushRect(margin, bottom, labelWidth, rowHeight, {
+      fill: [0.91, 0.95, 0.95],
+    });
+    labelLayout.lines.forEach((line, index) =>
+      pushText(
+        line,
+        margin + 8,
+        top - 13 - index * labelLayout.lineHeight,
+        9,
+        "bold",
+        [0.04, 0.35, 0.38],
+      ),
+    );
+    valueLayout.lines.forEach((line, index) =>
+      pushText(
+        line,
+        margin + labelWidth + 9,
+        top - 13 - index * valueLayout.lineHeight,
+        9.5,
+        "regular",
+        [0.18, 0.25, 0.28],
+      ),
+    );
+    y = bottom - 3;
+  };
+
+  const addCallout = (
+    title: string,
+    text: string,
+    options: {
+      fill?: PdfColor;
+      accent?: PdfColor;
+    } = {},
+  ) => {
+    const fill = options.fill ?? ([0.95, 0.97, 0.97] as PdfColor);
+    const accent = options.accent ?? ([0.04, 0.35, 0.38] as PdfColor);
+    const titleLayout = textLayout(title, { size: 9, width: contentWidth - 30 });
+    const bodyLayout = textLayout(text, { size: 9.5, width: contentWidth - 30 });
+    const boxHeight = titleLayout.height + bodyLayout.height + 12;
+    ensureSpace(boxHeight + 6);
+    const top = y;
+    const bottom = top - boxHeight;
+    pushRect(margin, bottom, contentWidth, boxHeight, {
+      fill,
+      stroke: [0.83, 0.87, 0.88],
+      lineWidth: 0.5,
+    });
+    pushRect(margin, bottom, 5, boxHeight, { fill: accent });
+    let localY = top - 15;
+    titleLayout.lines.forEach((line) => {
+      pushText(line, margin + 15, localY, 9, "bold", accent);
+      localY -= titleLayout.lineHeight;
+    });
+    localY -= 3;
+    bodyLayout.lines.forEach((line) => {
+      pushText(line, margin + 15, localY, 9.5, "regular", [0.19, 0.25, 0.28]);
+      localY -= bodyLayout.lineHeight;
+    });
+    y = bottom - 8;
+  };
+
+  const addCard = (
+    heading: string,
+    subheading: string,
+    detail: string,
+  ) => {
+    const headingLayout = textLayout(heading, { size: 10.2, width: contentWidth - 24 });
+    const subLayout = textLayout(subheading, { size: 8.5, width: contentWidth - 24 });
+    const detailLayout = textLayout(detail, { size: 8.2, width: contentWidth - 24 });
+    const height = headingLayout.height + subLayout.height + detailLayout.height + 8;
+    ensureSpace(height + 6);
+    const top = y;
+    const bottom = top - height;
+    pushRect(margin, bottom, contentWidth, height, {
+      fill: [0.985, 0.99, 0.99],
+      stroke: [0.85, 0.88, 0.89],
+      lineWidth: 0.5,
+    });
+    let localY = top - 14;
+    headingLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 10.2, "bold", [0.09, 0.21, 0.23]);
+      localY -= headingLayout.lineHeight;
+    });
+    subLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 8.5, "bold", [0.04, 0.35, 0.38]);
+      localY -= subLayout.lineHeight;
+    });
+    detailLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 8.2, "regular", [0.33, 0.4, 0.43]);
+      localY -= detailLayout.lineHeight;
+    });
+    y = bottom - 7;
+  };
+
+  // Cover
+  pushRect(0, pageHeight - 82, pageWidth, 82, {
+    fill: [0.04, 0.35, 0.38],
+  });
+  pushText(model.brand, margin, pageHeight - 48, 15, "bold", [1, 1, 1]);
+  y = 705;
+  addText(model.statusLabel, {
+    font: "bold",
+    size: 9,
+    color: presentation.workingContext
+      ? [0.67, 0.34, 0.08]
+      : [0.04, 0.35, 0.38],
+    after: 9,
+  });
+  addText(model.documentTitle, {
+    font: "bold",
+    size: 29,
+    color: [0.09, 0.21, 0.23],
+    width: 430,
+    after: 18,
+  });
+  addText(model.siteLabel, {
+    font: "bold",
+    size: 15.5,
+    color: [0.04, 0.35, 0.38],
+    width: 440,
+    after: 6,
+  });
+  addText(model.locationLine, {
+    size: 10.5,
+    color: [0.35, 0.43, 0.46],
+    after: 24,
+  });
+  addCallout("PROPOSAL", model.proposalSummary, {
+    fill: [0.95, 0.97, 0.97],
+    accent: [0.04, 0.35, 0.38],
+  });
+  pushText(`Prepared ${model.generatedDate}`, margin, 62, 9, "regular", [0.42, 0.49, 0.52]);
+  pushText("Plannera", margin, 42, 8.5, "bold", [0.04, 0.35, 0.38]);
+
+  // Document control
+  newPage();
+  addText("DOCUMENT CONTROL", {
+    font: "bold",
+    size: 19,
+    color: [0.09, 0.21, 0.23],
+    after: 7,
+  });
+  pushRule(margin, y + 4, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+  y -= 14;
+  for (const row of model.documentControl) addKeyValueRow(row);
+  y -= 8;
+  addText("Proposal Summary", {
+    font: "bold",
+    size: 14,
+    color: [0.04, 0.35, 0.38],
+    after: 7,
+  });
+  addText(model.proposalSummary, { size: 10.2, after: 10 });
+  addCallout("Document Status", model.statusDetail, {
+    fill: presentation.workingContext
+      ? [1, 0.97, 0.91]
+      : [0.95, 0.97, 0.97],
+    accent: presentation.workingContext
+      ? [0.67, 0.34, 0.08]
+      : [0.04, 0.35, 0.38],
+  });
+  if (presentation.workingContext) {
+    addText(
+      `Source DPP: ${presentation.workingContext.sourceDetailedPlanningPackArtefactId}`,
+      { size: 8.5, color: [0.42, 0.49, 0.52], after: 3 },
+    );
+    if (presentation.workingContext.predecessorDetailedPlanningPackArtefactId) {
+      addText(
+        `Strengthens DPP: ${presentation.workingContext.predecessorDetailedPlanningPackArtefactId}`,
+        { size: 8.5, color: [0.42, 0.49, 0.52], after: 3 },
+      );
+    }
+  }
+
+  // Contents
+  newPage();
+  addText("CONTENTS", {
+    font: "bold",
+    size: 19,
+    color: [0.09, 0.21, 0.23],
+    after: 7,
+  });
+  pushRule(margin, y + 4, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+  y -= 15;
+  for (const section of model.contents) {
+    ensureSpace(29);
+    pushText(section.number, margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText(section.title, margin + 34, y, 10, "regular", [0.18, 0.25, 0.28]);
+    pushRule(margin + 34, y - 8, margin + contentWidth, [0.9, 0.92, 0.93], 0.4);
+    y -= 28;
+  }
+  if (model.outstandingEvidence.length > 0) {
+    pushText("A", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Outstanding Evidence", margin + 34, y, 10, "regular");
+    y -= 28;
+  }
+  if (model.evidenceSchedule.length > 0) {
+    pushText("B", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Supporting Evidence Schedule", margin + 34, y, 10, "regular");
+    y -= 28;
+  }
+  pushText("C", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+  pushText("Source Register", margin + 34, y, 10, "regular");
+  y -= 28;
+  if (model.limitations.length > 0) {
+    pushText("D", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Limitations", margin + 34, y, 10, "regular");
+  }
+
+  if (model.outstandingEvidence.length > 0) {
+    newPage();
+    addSectionTitle("A", "Outstanding Evidence");
+    addCallout("Working document", model.statusDetail, {
+      fill: [1, 0.97, 0.91],
+      accent: [0.67, 0.34, 0.08],
+    });
+    for (const item of model.outstandingEvidence) {
+      addCard(
+        item.topic,
+        `Required evidence: ${item.recommendedEvidence}`,
+        `Effect: ${item.effect}`,
+      );
+    }
+  }
+
+  for (const section of model.sections) {
+    newPage();
+    addSectionTitle(section.number, section.title);
+    addText(section.narrative, { size: 10.4, after: 12 });
+    addCallout(
+      "Evidence used",
+      section.sources.map((source) => `${source.id} - ${source.title}`).join("; "),
+    );
+  }
+
+  if (model.evidenceSchedule.length > 0) {
+    newPage();
+    addSectionTitle("B", "Supporting Evidence Schedule");
+    addText(
+      "Reviewed project evidence used by the current Statement of Environmental Effects is listed below. Readability and indexing status remain evidence facts, not planning conclusions.",
+      { size: 9.7, after: 12 },
+    );
+    for (const item of model.evidenceSchedule) {
+      addCard(
+        item.name,
+        `${item.kind} | ${item.status}`,
+        `Used in: ${item.usedIn || "Not assigned"}`,
+      );
+    }
   }
 
   newPage();
-  const working = presentation.workingContext;
-  if (working) {
-    addText("Document Status", {
-      font: "bold",
-      size: 17,
-      color: [0.04, 0.35, 0.38],
-      after: 10,
-    });
-    addText(working.documentReadiness.customerMessage, { size: 10.5 });
-    addText(
-      `Evidence status: ${working.documentReadiness.evidenceStatus}`,
-      { size: 9.5, after: 4 },
+  addSectionTitle("C", "Source Register");
+  for (const source of model.sourceRegister) {
+    addCard(
+      `${source.id} - ${source.title}`,
+      source.type,
+      `${source.provenance} | Checked ${source.checkedAt}`,
     );
-    addText(
-      `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
-      { size: 9.5, after: 4 },
-    );
-    if (working.predecessorDetailedPlanningPackArtefactId) {
-      addText(
-        `Strengthens DPP: ${working.predecessorDetailedPlanningPackArtefactId}`,
-        { size: 9.5, after: 10 },
-      );
-    }
-    if (working.outstandingEvidence.length > 0) {
-      addText("Outstanding Evidence", {
-        font: "bold",
-        size: 15,
-        color: [0.04, 0.35, 0.38],
-        before: 8,
-        after: 8,
+  }
+
+  if (model.limitations.length > 0) {
+    newPage();
+    addSectionTitle("D", "Limitations");
+    for (const limitation of model.limitations) {
+      addCallout("Limitation", limitation, {
+        fill: [1, 0.97, 0.91],
+        accent: [0.67, 0.34, 0.08],
       });
-      for (const item of working.outstandingEvidence) {
-        addText(
-          `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
-          { size: 9.5, indent: 10, after: 6 },
-        );
-      }
     }
   }
 
-  const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
-  const sectionHeadingOptions: PdfTextOptions = {
-    font: "bold",
-    size: 17,
-    color: [0.04, 0.35, 0.38],
-    before: 8,
-    after: 10,
-  };
-  const sectionNarrativeOptions: PdfTextOptions = {
-    size: 10.5,
-    after: 7,
-  };
-  const sectionCitationOptions: PdfTextOptions = {
-    size: 8.5,
-    color: [0.31, 0.4, 0.43],
-    indent: 12,
-    after: 15,
-  };
-
-  for (const section of candidate.sections) {
-    const heading = titleCase(section.title || section.id);
-    const citations = section.sourceIds
-      .map((sourceId) => {
-        const source = sourceById.get(sourceId);
-        return source ? source.id + ": " + source.title : sourceId;
-      })
-      .join("; ");
-    const citationText = "Sources: " + citations;
-
-    ensureSpace(
-      textLayout(heading, sectionHeadingOptions).height +
-        textLayout(section.narrative, sectionNarrativeOptions).height +
-        textLayout(citationText, sectionCitationOptions).height,
-    );
-    addText(heading, sectionHeadingOptions);
-    addText(section.narrative, sectionNarrativeOptions);
-    addText(citationText, sectionCitationOptions);
-  }
-
-  addText("Source Register", {
-    font: "bold",
-    size: 17,
-    color: [0.04, 0.35, 0.38],
-    before: 12,
-    after: 10,
-  });
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
-    addText(
-      `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-      { size: 8.5, after: 5 },
-    );
-  }
-
-  if (candidate.limitations.length > 0) {
-    addText("Limitations", {
-      font: "bold",
-      size: 17,
-      color: [0.04, 0.35, 0.38],
-      before: 12,
-      after: 10,
+  // Page furniture is added after pagination is final.
+  pages.forEach((primitives, index) => {
+    if (index > 0) {
+      primitives.push({
+        kind: "line",
+        x1: margin,
+        y1: 800,
+        x2: pageWidth - margin,
+        y2: 800,
+        color: [0.82, 0.86, 0.87],
+        lineWidth: 0.5,
+      });
+      primitives.push({
+        kind: "text",
+        text: "PLANNERA",
+        font: "bold",
+        size: 8,
+        x: margin,
+        y: 814,
+        color: [0.04, 0.35, 0.38],
+      });
+      primitives.push({
+        kind: "text",
+        text: model.siteLabel,
+        font: "regular",
+        size: 7.5,
+        x: margin + 75,
+        y: 814,
+        color: [0.42, 0.49, 0.52],
+      });
+    }
+    primitives.push({
+      kind: "line",
+      x1: margin,
+      y1: 39,
+      x2: pageWidth - margin,
+      y2: 39,
+      color: [0.84, 0.87, 0.88],
+      lineWidth: 0.5,
     });
-    for (const limitation of candidate.limitations) {
-      addText(`- ${limitation}`, { size: 9.5, indent: 10, after: 5 });
-    }
-  }
-
-  pages.forEach((page, index) => {
-    page.push({
-      text: `Plannera | ${presentation.footerLabel} | ${index + 1} of ${pages.length}`,
+    primitives.push({
+      kind: "text",
+      text: `Plannera | ${presentation.footerLabel}`,
       font: "regular",
-      size: 8,
-      x: 54,
-      y: 30,
+      size: 7.5,
+      x: margin,
+      y: 23,
+      color: [0.42, 0.49, 0.52],
+    });
+    primitives.push({
+      kind: "text",
+      text: `${index + 1} / ${pages.length}`,
+      font: "regular",
+      size: 7.5,
+      x: pageWidth - margin - 34,
+      y: 23,
       color: [0.42, 0.49, 0.52],
     });
   });
@@ -743,14 +1243,54 @@ const renderPdf = (
     const pageId = 5 + index * 2;
     const contentId = pageId + 1;
     const commands = page
-      .map((line) => {
-        const font = line.font === "bold" ? "F2" : "F1";
-        const [red, green, blue] = line.color;
-        return `BT /${font} ${line.size.toFixed(2)} Tf ${red.toFixed(
-          3,
-        )} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${line.x.toFixed(
-          2,
-        )} ${line.y.toFixed(2)} Tm (${pdfSafe(line.text)}) Tj ET`;
+      .map((primitive) => {
+        if (primitive.kind === "text") {
+          const font = primitive.font === "bold" ? "F2" : "F1";
+          const [red, green, blue] = primitive.color;
+          return `BT /${font} ${primitive.size.toFixed(2)} Tf ${red.toFixed(
+            3,
+          )} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${primitive.x.toFixed(
+            2,
+          )} ${primitive.y.toFixed(2)} Tm (${pdfSafe(primitive.text)}) Tj ET`;
+        }
+        if (primitive.kind === "line") {
+          const [red, green, blue] = primitive.color;
+          return `q ${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(
+            3,
+          )} RG ${primitive.lineWidth.toFixed(2)} w ${primitive.x1.toFixed(
+            2,
+          )} ${primitive.y1.toFixed(2)} m ${primitive.x2.toFixed(
+            2,
+          )} ${primitive.y2.toFixed(2)} l S Q`;
+        }
+        const operations: string[] = ["q"];
+        if (primitive.fill) {
+          const [red, green, blue] = primitive.fill;
+          operations.push(
+            `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} rg`,
+          );
+        }
+        if (primitive.stroke) {
+          const [red, green, blue] = primitive.stroke;
+          operations.push(
+            `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} RG`,
+            `${(primitive.lineWidth ?? 0.5).toFixed(2)} w`,
+          );
+        }
+        operations.push(
+          `${primitive.x.toFixed(2)} ${primitive.y.toFixed(
+            2,
+          )} ${primitive.width.toFixed(2)} ${primitive.height.toFixed(2)} re`,
+        );
+        operations.push(
+          primitive.fill && primitive.stroke
+            ? "B"
+            : primitive.fill
+              ? "f"
+              : "S",
+          "Q",
+        );
+        return operations.join(" ");
       })
       .join("\n");
     const commandBuffer = Buffer.from(commands, "latin1");

@@ -1,5 +1,10 @@
 # Plannera
 
+## September 24 daytime build — professional SEE output
+
+Issue #432 / PR #434 upgrades the deterministic submission/working SEE renderer to a professional Plannera report system while preserving the existing `see-builder-standard.v1` evidence/finality gates. Reviewed renderer implementation head `c9a9624ef085287765a17ee0443a2319d8552282` established the accepted 14-page DOCX/PDF presentation; final verified documentation head `8e145e4a60548693aca7fb4bc9dd280b5192b4fa` passed all seven observed gates and artifact `10796531837` reproduced the accepted output hashes byte-for-byte. PR #434 remains open/unmerged; real-project rendered acceptance, Item 78C protected acceptance and Production activation remain separate work.
+
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features
