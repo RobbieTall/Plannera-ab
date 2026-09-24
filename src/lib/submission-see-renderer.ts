@@ -201,6 +201,12 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
+const wordTocFieldStart = () =>
+  `<w:p><w:pPr><w:pStyle w:val="TocField"/></w:pPr><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-1" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>`;
+
+const wordTocFieldEnd = () =>
+  `<w:p><w:pPr><w:pStyle w:val="TocField"/></w:pPr><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>`;
+
 const wordToc = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
@@ -210,12 +216,7 @@ const wordToc = (
       pageBreakBefore: true,
       keepNext: true,
     }),
-    ...candidate.sections.map((section) =>
-      wordParagraph(
-        titleCase(section.title || section.id),
-        "TocEntry",
-      ),
-    ),
+    wordTocFieldStart(),
     ...(presentation.workingContext
       ? [
           wordParagraph("Document Status", "TocEntry"),
@@ -224,10 +225,17 @@ const wordToc = (
             : []),
         ]
       : []),
+    ...candidate.sections.map((section) =>
+      wordParagraph(
+        titleCase(section.title || section.id),
+        "TocEntry",
+      ),
+    ),
     wordParagraph("Source Register", "TocEntry"),
     ...(candidate.limitations.length > 0
       ? [wordParagraph("Limitations", "TocEntry")]
       : []),
+    wordTocFieldEnd(),
   ].join("");
 
 const renderDocx = (
@@ -301,7 +309,7 @@ const renderDocx = (
       wordParagraph(
         titleCase(section.title || section.id),
         "Heading1",
-        { pageBreakBefore: index > 0, keepNext: true },
+        { pageBreakBefore: true, keepNext: true },
       ),
     );
     body.push(wordParagraph(section.narrative, "Normal"));
@@ -363,6 +371,7 @@ const renderDocx = (
   <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="180"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Citation"><w:name w:val="Citation"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:before="80" w:after="240"/></w:pPr><w:rPr><w:i/><w:color w:val="536A73"/><w:sz w:val="18"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TocField"><w:name w:val="Contents Field"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="SourceRegister"><w:name w:val="Source Register"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/></w:pPr><w:rPr><w:sz w:val="18"/><w:color w:val="425A63"/></w:rPr></w:style>
 </w:styles>`;
@@ -382,6 +391,7 @@ const renderDocx = (
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`, "utf8"),
@@ -397,12 +407,20 @@ const renderDocx = (
     },
     { name: "word/document.xml", data: Buffer.from(documentXml, "utf8") },
     { name: "word/styles.xml", data: Buffer.from(stylesXml, "utf8") },
+    {
+      name: "word/settings.xml",
+      data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:updateFields w:val="true"/>
+</w:settings>`, "utf8"),
+    },
     { name: "word/footer1.xml", data: Buffer.from(footerXml, "utf8") },
     {
       name: "word/_rels/document.xml.rels",
       data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
 </Relationships>`, "utf8"),
     },
     {
