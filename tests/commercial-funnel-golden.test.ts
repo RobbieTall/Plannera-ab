@@ -90,8 +90,8 @@ const BYRON_R2: GoldenFixture = {
   height: "9m",
   fsr: "0.4:1",
   permittedWithConsent: ["Dwelling houses"],
-  permittedWithoutConsent: ["Home occupations"],
-  prohibited: ["Industries"],
+  permittedWithoutConsent: [],
+  prohibited: [],
   zoneObjectives: [
     "To provide for the housing needs of the community within a low density residential environment.",
     "To enable other land uses that provide facilities or services to meet the day to day needs of residents.",
@@ -840,6 +840,11 @@ test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commerc
       error instanceof ArtefactValidationError &&
       /quality-valid Quick Site Check with cited LEP evidence/.test(error.message),
   );
+  assert.equal(
+    prisma.artefacts.filter((artefact) => artefact.type === "detailed_planning_pack").length,
+    0,
+  );
+
 
   const audit = await auditCommercialFunnel(KEMPSEY_SP2.publicId, {
     prisma: prisma as any,
