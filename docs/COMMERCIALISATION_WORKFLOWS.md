@@ -1,4 +1,13 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026 — professional SEE structure
+
+Issue #430 / PR #433 advances the professional DOCX/PDF launch requirement without claiming visual approval that has not been performed. The renderer now adds evidence-derived Document Control, one current generated Revision History row, a reviewed-upload Supporting Evidence Schedule, tabular Source Register, real OOXML tables and a deterministic PDF Contents/table layout. Final/working readiness rules remain unchanged; working files remain visibly not submission-ready.
+
+The renderer/test head `e50fb37500fa836ec4f4fb1eea959f361ff73e3e` passed the dedicated renderer, Working SEE, Item 77, Commercial Funnel, Whole-LGA and Soft launch gates. The Vercel transitive fingerprint was re-pinned to the exact reviewed renderer hash rather than bypassed.
+
+This does **not** close the open item “Build and visually verify professional DOCX/PDF SEE output against an approved example template.” The approved benchmark PDF was unavailable to the mobile daytime session. Representative DOCX/PDF must still be generated and visually compared page-by-page against the approved SEE examples on desktop, including office/PDF renderer inspection, before template-quality acceptance is recorded.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026

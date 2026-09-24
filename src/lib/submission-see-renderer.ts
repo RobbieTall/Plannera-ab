@@ -92,6 +92,88 @@ const titleCase = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+
+const renderStatusLabel = (presentation: RenderPresentation) =>
+  presentation.workingContext
+    ? "Working - Not Submission Ready"
+    : "Final - Operator Reviewed";
+
+const operatorReviewLabel = (candidate: SubmissionSeeCandidate) => {
+  const status = titleCase(candidate.operatorReview.status);
+  const reviewedAt =
+    candidate.operatorReview.reviewedAt &&
+    Number.isFinite(Date.parse(candidate.operatorReview.reviewedAt))
+      ? new Date(candidate.operatorReview.reviewedAt).toISOString()
+      : null;
+  return reviewedAt ? `${status} at ${reviewedAt}` : status;
+};
+
+const documentControlRows = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+): string[][] => [
+  ["Document", presentation.documentTitle],
+  ["Site", candidate.site.label],
+  [
+    "Planning area",
+    `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
+  ],
+  ["Project", candidate.projectId],
+  ["Generated", new Date(candidate.generatedAt).toISOString()],
+  ["Status", renderStatusLabel(presentation)],
+  ["Operator review", operatorReviewLabel(candidate)],
+  [
+    "Operator checklist",
+    candidate.operatorReview.checklistVersion ?? "Not recorded",
+  ],
+  ["Source DPP", candidate.sourceDetailedPlanningPack.artefactId],
+  [
+    "Source Quick Site Check",
+    candidate.sourceDetailedPlanningPack.sourceQuickSiteCheckArtefactId,
+  ],
+  [
+    "Spatial provenance",
+    `${titleCase(candidate.site.spatialProvenance.status)} | authoritative: ${
+      candidate.site.spatialProvenance.authoritative ? "yes" : "no"
+    }`,
+  ],
+];
+
+const revisionHistoryRows = (
+  candidate: SubmissionSeeCandidate,
+  presentation: RenderPresentation,
+): string[][] => [
+  [
+    "Current generated issue",
+    new Date(candidate.generatedAt).toISOString(),
+    renderStatusLabel(presentation),
+    presentation.workingContext?.predecessorDetailedPlanningPackArtefactId
+      ? `Strengthens DPP ${presentation.workingContext.predecessorDetailedPlanningPackArtefactId}`
+      : `Source DPP ${candidate.sourceDetailedPlanningPack.artefactId}`,
+  ],
+];
+
+const supportingEvidenceRows = (candidate: SubmissionSeeCandidate): string[][] =>
+  candidate.uploadEvidence.uploads.map((upload) => [
+    upload.name,
+    titleCase(upload.kind),
+    titleCase(upload.evidenceStatus),
+    titleCase(upload.indexingStatus),
+    upload.usedInSections.map(titleCase).join(", ") || "Not assigned",
+  ]);
+
+const sourceRegisterRows = (candidate: SubmissionSeeCandidate): string[][] =>
+  candidate.sources.map((source) => [
+    source.id,
+    source.type,
+    source.title,
+    source.officialUrl ??
+      (source.contentHash
+        ? `SHA-256 ${source.contentHash}`
+        : "No provenance recorded"),
+    new Date(source.retrievedAt).toISOString(),
+  ]);
+
 const crcTable = (() => {
   const table = new Uint32Array(256);
   for (let index = 0; index < 256; index += 1) {
@@ -201,6 +283,74 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
+
+const wordTableCell = (
+  text: string,
+  width: number,
+  header: boolean,
+) => `<w:tc>
+  <w:tcPr>
+    <w:tcW w:w="${width}" w:type="dxa"/>
+    <w:vAlign w:val="top"/>
+    ${header ? '<w:shd w:val="clear" w:color="auto" w:fill="E7F0F1"/>' : ""}
+  </w:tcPr>
+  <w:p>
+    <w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr>
+    <w:r>
+      <w:rPr>
+        ${header ? "<w:b/>" : ""}
+        <w:color w:val="${header ? "0B5860" : "24313A"}"/>
+        <w:sz w:val="${header ? "18" : "17"}"/>
+      </w:rPr>
+      <w:t xml:space="preserve">${xmlEscape(text)}</w:t>
+    </w:r>
+  </w:p>
+</w:tc>`;
+
+const wordTable = (
+  headers: string[],
+  rows: string[][],
+  widths: number[],
+) => {
+  if (headers.length !== widths.length) {
+    throw new Error("DOCX table header/width mismatch");
+  }
+  const renderRow = (cells: string[], header = false) => {
+    if (cells.length !== headers.length) {
+      throw new Error("DOCX table row width mismatch");
+    }
+    return `<w:tr>
+      ${header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}
+      ${cells
+        .map((cell, index) => wordTableCell(cell, widths[index]!, header))
+        .join("")}
+    </w:tr>`;
+  };
+
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="${widths.reduce((sum, width) => sum + width, 0)}" w:type="dxa"/>
+      <w:tblLayout w:type="fixed"/>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="C7D3D7"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="C7D3D7"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="C7D3D7"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="C7D3D7"/>
+        <w:insideH w:val="single" w:sz="3" w:space="0" w:color="D9E2E5"/>
+        <w:insideV w:val="single" w:sz="3" w:space="0" w:color="D9E2E5"/>
+      </w:tblBorders>
+      <w:tblCellMar>
+        <w:top w:w="80" w:type="dxa"/>
+        <w:left w:w="100" w:type="dxa"/>
+        <w:bottom w:w="80" w:type="dxa"/>
+        <w:right w:w="100" w:type="dxa"/>
+      </w:tblCellMar>
+    </w:tblPr>
+    ${renderRow(headers, true)}
+    ${rows.map((row) => renderRow(row)).join("")}
+  </w:tbl>`;
+};
+
 const wordToc = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
@@ -236,6 +386,10 @@ const renderDocx = (
 ) => {
   const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
   const generated = new Date(candidate.generatedAt).toISOString();
+  const controlRows = documentControlRows(candidate, presentation);
+  const revisionRows = revisionHistoryRows(candidate, presentation);
+  const evidenceRows = supportingEvidenceRows(candidate);
+  const sourceRows = sourceRegisterRows(candidate);
   const body: string[] = [
     wordParagraph(presentation.documentTitle, "Title"),
     wordParagraph(candidate.site.label, "Subtitle"),
@@ -255,6 +409,33 @@ const renderDocx = (
           wordParagraph(
             `Evidence status: ${presentation.workingContext.documentReadiness.evidenceStatus}`,
             "Metadata",
+          ),
+        ]
+      : []),
+    wordParagraph("Document Control", "Heading1", {
+      pageBreakBefore: true,
+      keepNext: true,
+    }),
+    wordTable(["Field", "Value"], controlRows, [2400, 7200]),
+    wordParagraph("Revision History", "Heading1", { keepNext: true }),
+    wordParagraph(
+      "Only the current generated issue is shown. Prior versions are not inferred by the renderer.",
+      "Metadata",
+    ),
+    wordTable(
+      ["Issue", "Generated", "Status", "Basis"],
+      revisionRows,
+      [2100, 2300, 2300, 2900],
+    ),
+    ...(evidenceRows.length > 0
+      ? [
+          wordParagraph("Supporting Evidence Schedule", "Heading1", {
+            keepNext: true,
+          }),
+          wordTable(
+            ["Evidence", "Type", "Evidence status", "Indexing", "Used in"],
+            evidenceRows,
+            [2300, 1500, 1700, 1500, 2600],
           ),
         ]
       : []),
@@ -319,18 +500,12 @@ const renderDocx = (
       pageBreakBefore: true,
       keepNext: true,
     }),
+    wordTable(
+      ["Ref", "Type", "Source", "Provenance", "Checked"],
+      sourceRows,
+      [900, 900, 2400, 3500, 1900],
+    ),
   );
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
-    body.push(
-      wordParagraph(
-        `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-        "SourceRegister",
-      ),
-    );
-  }
 
   if (candidate.limitations.length > 0) {
     body.push(wordParagraph("Limitations", "Heading1", { keepNext: true }));
@@ -547,6 +722,61 @@ const layoutPdf = (
     y -= layout.after;
   };
 
+
+  const addTable = (
+    headers: string[],
+    rows: string[][],
+    columnWidths: number[],
+  ) => {
+    if (
+      headers.length !== columnWidths.length ||
+      rows.some((row) => row.length !== headers.length)
+    ) {
+      throw new Error("PDF table column mismatch");
+    }
+    const fontSize = 8.25;
+    const lineHeight = fontSize * 1.35;
+    const renderRow = (cells: string[], header = false) => {
+      const wrapped = cells.map((cell, index) =>
+        wrapText(
+          cell,
+          Math.max(
+            8,
+            Math.floor((columnWidths[index]! - 8) / (fontSize * 0.52)),
+          ),
+        ),
+      );
+      const lineCount = Math.max(...wrapped.map((lines) => lines.length), 1);
+      const rowHeight = lineCount * lineHeight + (header ? 9 : 7);
+      ensureSpace(rowHeight);
+      const startY = y - (header ? 2 : 0);
+      for (let lineIndex = 0; lineIndex < lineCount; lineIndex += 1) {
+        let x = margin;
+        for (let columnIndex = 0; columnIndex < cells.length; columnIndex += 1) {
+          const text = wrapped[columnIndex]?.[lineIndex] ?? "";
+          if (text) {
+            pages[pageIndex]!.push({
+              text,
+              font: header ? "bold" : "regular",
+              size: fontSize,
+              x,
+              y: startY - lineIndex * lineHeight,
+              color: header
+                ? [0.04, 0.35, 0.38]
+                : [0.14, 0.19, 0.23],
+            });
+          }
+          x += columnWidths[columnIndex]!;
+        }
+      }
+      y -= rowHeight;
+    };
+
+    renderRow(headers, true);
+    for (const row of rows) renderRow(row);
+    y -= 5;
+  };
+
   presentation.pdfTitleLines.forEach((line, index) => {
     const isLast = index === presentation.pdfTitleLines.length - 1;
     const isWorking = presentation.workingContext !== null;
@@ -586,6 +816,75 @@ const layoutPdf = (
       before: 10,
       after: 0,
     });
+  }
+
+  const controlRows = documentControlRows(candidate, presentation);
+  const revisionRows = revisionHistoryRows(candidate, presentation);
+  const evidenceRows = supportingEvidenceRows(candidate);
+  const sourceRows = sourceRegisterRows(candidate);
+
+  newPage();
+  addText("Document Control", {
+    font: "bold",
+    size: 17,
+    color: [0.04, 0.35, 0.38],
+    after: 10,
+  });
+  addTable(["Field", "Value"], controlRows, [125, 362]);
+  addText("Revision History", {
+    font: "bold",
+    size: 15,
+    color: [0.04, 0.35, 0.38],
+    before: 8,
+    after: 7,
+  });
+  addText(
+    "Only the current generated issue is shown. Prior versions are not inferred by the renderer.",
+    { size: 8.5, color: [0.31, 0.4, 0.43], after: 6 },
+  );
+  addTable(
+    ["Issue", "Generated", "Status", "Basis"],
+    revisionRows,
+    [105, 120, 120, 142],
+  );
+  if (evidenceRows.length > 0) {
+    addText("Supporting Evidence Schedule", {
+      font: "bold",
+      size: 15,
+      color: [0.04, 0.35, 0.38],
+      before: 8,
+      after: 7,
+    });
+    addTable(
+      ["Evidence", "Type", "Evidence", "Indexing", "Used in"],
+      evidenceRows,
+      [130, 75, 85, 75, 122],
+    );
+  }
+
+  newPage();
+  addText("Contents", {
+    font: "bold",
+    size: 17,
+    color: [0.04, 0.35, 0.38],
+    after: 10,
+  });
+  if (presentation.workingContext) {
+    addText("Document Status", { size: 10, after: 4, indent: 10 });
+    if (presentation.workingContext.outstandingEvidence.length > 0) {
+      addText("Outstanding Evidence", { size: 10, after: 4, indent: 10 });
+    }
+  }
+  for (const section of candidate.sections) {
+    addText(titleCase(section.title || section.id), {
+      size: 10,
+      after: 4,
+      indent: 10,
+    });
+  }
+  addText("Source Register", { size: 10, after: 4, indent: 10 });
+  if (candidate.limitations.length > 0) {
+    addText("Limitations", { size: 10, after: 4, indent: 10 });
   }
 
   newPage();
@@ -675,15 +974,11 @@ const layoutPdf = (
     before: 12,
     after: 10,
   });
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
-    addText(
-      `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-      { size: 8.5, after: 5 },
-    );
-  }
+  addTable(
+    ["Ref", "Type", "Source", "Provenance", "Checked"],
+    sourceRows,
+    [45, 50, 130, 165, 97],
+  );
 
   if (candidate.limitations.length > 0) {
     addText("Limitations", {
