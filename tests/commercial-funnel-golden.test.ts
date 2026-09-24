@@ -19,14 +19,18 @@ type GoldenFixture = {
   address: string;
   lgaName: string;
   lgaCode: "BYRON" | "KEMPSEY";
-  zoneCode: "SP3" | "E2";
+  zoneCode: "SP3" | "E2" | "R2" | "SP2";
   zoneName: string;
   zoneLabel: string;
   instrumentName: string;
   instrumentCode: string;
   proposalBrief: string;
-  height: string;
+  height: string | null;
   fsr: string | null;
+  permittedWithConsent: string[];
+  permittedWithoutConsent?: string[];
+  prohibited?: string[];
+  zoneObjectives?: string[];
 };
 
 const BYRON: GoldenFixture = {
@@ -44,6 +48,9 @@ const BYRON: GoldenFixture = {
     "Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.",
   height: "9m",
   fsr: null,
+  permittedWithoutConsent: ["Environmental protection works"],
+  permittedWithConsent: ["Tourist and visitor accommodation"],
+  prohibited: ["Heavy industrial uses"],
 };
 
 const KEMPSEY: GoldenFixture = {
@@ -61,6 +68,55 @@ const KEMPSEY: GoldenFixture = {
     "Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.",
   height: "11m",
   fsr: "2:1",
+  permittedWithoutConsent: ["Environmental protection works"],
+  permittedWithConsent: ["Commercial premises"],
+  prohibited: ["Heavy industrial uses"],
+};
+
+
+const BYRON_R2: GoldenFixture = {
+  id: "golden-byron-r2",
+  publicId: "proj-golden-byron-r2",
+  address: "33 Lorikeet Lane, Mullumbimby NSW 2482",
+  lgaName: "Byron Shire",
+  lgaCode: "BYRON",
+  zoneCode: "R2",
+  zoneName: "Low Density Residential",
+  zoneLabel: "R2 - Low Density Residential",
+  instrumentName: "Byron LEP 2014",
+  instrumentCode: "byron-lep-2014",
+  proposalBrief:
+    "Existing dwelling with a 24 sqm storage shed ancillary to the reviewed residential use.",
+  height: "9m",
+  fsr: "0.4:1",
+  permittedWithConsent: ["Dwelling houses"],
+  permittedWithoutConsent: [],
+  prohibited: [],
+  zoneObjectives: [
+    "To provide for the housing needs of the community within a low density residential environment.",
+    "To enable other land uses that provide facilities or services to meet the day to day needs of residents.",
+  ],
+};
+
+const KEMPSEY_SP2: GoldenFixture = {
+  id: "golden-kempsey-sp2",
+  publicId: "proj-golden-kempsey-sp2",
+  address: "32 Smith St, Kempsey NSW 2440",
+  lgaName: "Kempsey Shire",
+  lgaCode: "KEMPSEY",
+  zoneCode: "SP2",
+  zoneName: "Infrastructure",
+  zoneLabel: "SP2 - Infrastructure",
+  instrumentName: "Kempsey LEP 2013",
+  instrumentCode: "kempsey-lep-2013",
+  proposalBrief:
+    "Review the existing infrastructure-zoned site and identify what further planning evidence is required before any development pathway is relied on.",
+  height: null,
+  fsr: null,
+  permittedWithConsent: [],
+  permittedWithoutConsent: [],
+  prohibited: [],
+  zoneObjectives: [],
 };
 
 const USER_ID = "golden-test-user";
@@ -212,11 +268,13 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
       instrumentName: fixture.instrumentName,
       instrumentCode: fixture.instrumentCode,
       clauses: [
-        {
-          ref: "4.3",
-          title: "Height of buildings",
-          text: `The height of a building must not exceed ${fixture.height}.`,
-        },
+        ...(fixture.height
+          ? [{
+              ref: "4.3",
+              title: "Height of buildings",
+              text: `The height of a building must not exceed ${fixture.height}.`,
+            }]
+          : []),
         ...(fixture.fsr
           ? [{
               ref: "4.4",
@@ -230,7 +288,7 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
     normalisedLga: fixture.lgaCode,
     instruments: [],
     chosenInstrumentId: fixture.instrumentCode,
-    lepClauseCount: fixture.fsr ? 2 : 1,
+    lepClauseCount: (fixture.height ? 1 : 0) + (fixture.fsr ? 1 : 0),
     usedFallback: false,
   }),
   buildQuickSiteCheckLep: async () => ({
@@ -239,41 +297,41 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
     lga: fixture.lgaName,
     lepName: fixture.instrumentName,
     zone: fixture.zoneCode,
-    objectives: [
-      `Support development compatible with the ${fixture.zoneName} zone.`,
-      "Ensure development responds to local character and amenity.",
-    ],
+    objectives:
+      fixture.zoneObjectives ?? [
+        `Support development compatible with the ${fixture.zoneName} zone.`,
+        "Ensure development responds to local character and amenity.",
+      ],
     controls: {
-      heightOfBuilding: {
-        value: fixture.height,
-        clauseRef: "4.3",
-        confidence: "Cited",
-      },
+      heightOfBuilding: fixture.height
+        ? {
+            value: fixture.height,
+            clauseRef: "4.3",
+            confidence: "Cited",
+          }
+        : null,
       fsr: fixture.fsr
         ? { value: fixture.fsr, clauseRef: "4.4", confidence: "Cited" }
         : null,
       minLotSize: null,
-      zoneObjectives: [
-        `Support development compatible with the ${fixture.zoneName} zone.`,
-        "Ensure development responds to local character and amenity.",
-      ],
+      zoneObjectives:
+        fixture.zoneObjectives ?? [
+          `Support development compatible with the ${fixture.zoneName} zone.`,
+          "Ensure development responds to local character and amenity.",
+        ],
     },
     permissibility: {
-      permittedWithoutConsent: ["Environmental protection works"],
-      permittedWithConsent:
-        fixture.zoneCode === "SP3"
-          ? ["Tourist and visitor accommodation"]
-          : ["Commercial premises"],
-      prohibited: ["Heavy industrial uses"],
+      permittedWithoutConsent:
+        fixture.permittedWithoutConsent ?? ["Environmental protection works"],
+      permittedWithConsent: fixture.permittedWithConsent,
+      prohibited: fixture.prohibited ?? ["Heavy industrial uses"],
     },
     dataSource: "db_clauses",
     landUse: {
-      withoutConsent: ["Environmental protection works"],
-      withConsent:
-        fixture.zoneCode === "SP3"
-          ? ["Tourist and visitor accommodation"]
-          : ["Commercial premises"],
-      prohibited: ["Heavy industrial uses"],
+      withoutConsent:
+        fixture.permittedWithoutConsent ?? ["Environmental protection works"],
+      withConsent: fixture.permittedWithConsent,
+      prohibited: fixture.prohibited ?? ["Heavy industrial uses"],
     },
     part4: [],
     part5: [],
@@ -327,7 +385,7 @@ const dcpResolver = (
   unresolvedTopicId?: string,
 ) => async (lgaCode: string, query: string) => {
   const topic = dcpTopic(query);
-  if (topic.id === unresolvedTopicId) return [];
+  if (unresolvedTopicId === "__all__" || topic.id === unresolvedTopicId) return [];
 
   const sourceDocument =
     fixture.lgaCode === "BYRON" ? "Byron DCP 2014" : "Kempsey DCP 2026";
@@ -662,6 +720,147 @@ test("generic current-zone Part B evidence cannot populate unrelated DPP topics"
     ),
   );
   assert.equal(detailedPlanningPack.content.unresolvedTopics.length, 5);
+});
+
+
+const runRepresentativeUnresolvedJourney = async (fixture: GoldenFixture) => {
+  const prisma = new GoldenPrisma(fixture);
+  const quickSiteCheck = await saveQuickSiteCheck(prisma, fixture);
+  const qsc = quickSiteCheck.payload as QuickSiteCheckReport;
+
+  assert.equal(qsc.site.address, fixture.address);
+  assert.equal(qsc.site.zoneCode, fixture.zoneCode);
+  assert.notEqual(qsc.site.zoneCode, fixture === KEMPSEY_SP2 ? "E2" : "SP3");
+
+  const deps = serviceDependencies(prisma, fixture, "__all__");
+  const detailedPlanningPack = await createDetailedPlanningPackArtefact({
+    body: {
+      projectId: fixture.publicId,
+      proposalBrief: fixture.proposalBrief,
+      site: { address: "forged client address", zoneCode: "E2" },
+      commercialReady: true,
+    },
+    userId: USER_ID,
+    deps: deps as any,
+  });
+
+  assert.equal(detailedPlanningPack.content.site.address, fixture.address);
+  assert.equal(detailedPlanningPack.content.site.zoneCode, fixture.zoneCode);
+  assert.equal(detailedPlanningPack.content.proposalBrief, fixture.proposalBrief);
+  assert.equal(detailedPlanningPack.content.commercialReady, false);
+  assert.equal(detailedPlanningPack.content.dcpEvidence.length, 5);
+  assert.ok(
+    detailedPlanningPack.content.dcpEvidence.every(
+      (topic) => topic.status === "Unavailable" && topic.citations.length === 0,
+    ),
+  );
+  assert.equal(detailedPlanningPack.content.unresolvedTopics.length, 5);
+
+  await assert.rejects(
+    () => createPreSeePlanningMemoArtefact({
+      body: {
+        projectId: fixture.publicId,
+        sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
+        expectedProposalBrief: fixture.proposalBrief,
+        proposedWorksSummary: "forged client proposal",
+      },
+      userId: USER_ID,
+      deps: deps as any,
+    }),
+    (error) =>
+      error instanceof ArtefactValidationError &&
+      /no applicable cited DCP evidence/.test(error.message),
+  );
+
+  const review = await createExpertReviewRequestArtefact(
+    {
+      body: {
+        projectId: fixture.publicId,
+        sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
+        expectedProposalBrief: fixture.proposalBrief,
+      },
+      userId: USER_ID,
+    },
+    { prisma: prisma as any },
+  );
+
+  assert.equal(review.content.detailedPlanningPack?.artefactId, detailedPlanningPack.artefact.id);
+  assert.equal(review.content.sourceSeeMemo ?? null, null);
+  assert.ok((review.content.confidenceGaps?.length ?? 0) > 0);
+
+  const audit = await auditCommercialFunnel(fixture.publicId, {
+    prisma: prisma as any,
+  });
+  assert.equal(audit.site.zoneCode, fixture.zoneCode);
+  assert.equal(audit.detailedPlanningPack.state, "needs_expert_review");
+  assert.equal(audit.see.state, "missing");
+  assert.equal(audit.referralEligibility, "unresolved_pack_referral");
+  assert.equal(audit.nextAction.code, "refer_unresolved_pack_for_expert_review");
+
+  return { quickSiteCheck, detailedPlanningPack, review, audit };
+};
+
+test("Byron R2 representative journey preserves the reviewed 33 Lorikeet Lane shed scope and refuses unsupported readiness", async () => {
+  const result = await runRepresentativeUnresolvedJourney(BYRON_R2);
+  assert.equal(result.audit.site.address, "33 Lorikeet Lane, Mullumbimby NSW 2482");
+  assert.equal(result.audit.site.zoneCode, "R2");
+  assert.equal(
+    (result.quickSiteCheck.payload as QuickSiteCheckReport).permissibility?.permittedWithConsent.includes("Dwelling houses"),
+    true,
+  );
+  assert.match(result.detailedPlanningPack.content.proposalBrief, /24 sqm storage shed/);
+});
+
+test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commercial path and stops before a paid pack without cited LEP evidence", async () => {
+  const prisma = new GoldenPrisma(KEMPSEY_SP2);
+  const quickSiteCheck = await saveQuickSiteCheck(prisma, KEMPSEY_SP2);
+  const qsc = quickSiteCheck.payload as QuickSiteCheckReport;
+
+  assert.equal(qsc.site.address, "32 Smith St, Kempsey NSW 2440");
+  assert.equal(qsc.site.zoneCode, "SP2");
+  assert.equal(qsc.site.zoneName, "Infrastructure");
+  assert.deepEqual(qsc.objectives ?? [], []);
+  assert.deepEqual(qsc.permissibility?.permittedWithoutConsent ?? [], []);
+  assert.deepEqual(qsc.permissibility?.permittedWithConsent ?? [], []);
+  assert.deepEqual(qsc.permissibility?.prohibited ?? [], []);
+  assert.notEqual(qsc.lepEvidenceSummary?.label, "Cited");
+
+  await assert.rejects(
+    () => createDetailedPlanningPackArtefact({
+      body: {
+        projectId: KEMPSEY_SP2.publicId,
+        proposalBrief: KEMPSEY_SP2.proposalBrief,
+        site: { address: "forged client address", zoneCode: "E2" },
+        commercialReady: true,
+      },
+      userId: USER_ID,
+      deps: serviceDependencies(prisma, KEMPSEY_SP2, "__all__") as any,
+    }),
+    (error) =>
+      error instanceof ArtefactValidationError &&
+      /quality-valid Quick Site Check with cited LEP evidence/.test(error.message),
+  );
+  assert.equal(
+    prisma.artefacts.filter((artefact) => artefact.type === "detailed_planning_pack").length,
+    0,
+  );
+
+
+  const audit = await auditCommercialFunnel(KEMPSEY_SP2.publicId, {
+    prisma: prisma as any,
+  });
+
+  assert.equal(audit.site.address, "32 Smith St, Kempsey NSW 2440");
+  assert.equal(audit.site.zoneCode, "SP2");
+  assert.equal(audit.quickSiteCheck.state, "unresolved");
+  assert.equal(audit.detailedPlanningPack.state, "missing");
+  assert.equal(audit.see.state, "missing");
+  assert.equal(audit.referralEligibility, "none");
+  assert.equal(audit.nextAction.code, "generate_or_refresh_required_chain");
+  assert.doesNotMatch(
+    JSON.stringify({ qsc, audit }),
+    /E2 - Commercial Centre|Commercial premises|Kempsey DCP 2026 > E2/i,
+  );
 });
 
 test("Part B evidence qualifies only when its heading or body matches the requested topic", async () => {

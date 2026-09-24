@@ -1,4 +1,9 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026
+
+Issue #427 expands the Byron/Kempsey deterministic golden coverage without changing production logic. Existing SP3/E2 quality-chain journeys remain intact. The Byron R2 case reaches an unresolved DPP, rejects SEE generation when proposal-specific DCP evidence is absent, and routes to expert review. The Kempsey SP2 case is stricter: repository evidence proves the 32 Smith St SP2 identity but this deterministic fixture has no cited SP2 LEP evidence, so the existing quality-valid-QSC gate must refuse paid-pack generation. A green test must never be achieved by inventing local controls or bypassing an earlier evidence gate.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026

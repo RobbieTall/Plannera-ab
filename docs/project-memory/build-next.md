@@ -1,5 +1,16 @@
 # Build Next (Execution Queue)
 
+## Daytime representative golden expansion — Issue #427
+
+The existing deterministic commercial funnel already persists full Byron SP3 and Kempsey E2 journeys. The whole-LGA source matrix separately proves source/projection coverage across all current Byron/Kempsey zones, but explicitly does not prove representative address/proposal behavior beyond those two commercial fixtures.
+
+Issue #427 / `test/representative-address-proposal-golden-20260924` adds test-only representative journeys using existing repository-proven truth cases:
+- Byron R2: `33 Lorikeet Lane, Mullumbimby NSW 2482`, reviewed 24 sqm storage-shed case;
+- Kempsey SP2: `32 Smith St, Kempsey NSW 2440`, retained strictly as an SP2 Infrastructure truth case and never treated as E2.
+
+The Byron R2 journey intentionally withholds proposal-specific DCP evidence so SEE generation must fail closed; it remains `needs_expert_review` / SEE `missing` / `unresolved_pack_referral`. Kempsey SP2 is stricter: with no cited LEP evidence asserted by this fixture, the existing quality-valid-QSC gate must block paid-pack generation entirely. Both cases prove exact site/zone handling without fabricating readiness. No production code, billing, schema, environment or external data changes are part of this slice. Tested head `faea1f343a5a9283725483ccb0f0813dbb2b9479` passed Soft launch, Whole-LGA and Commercial Funnel Golden Gate; the commercial node suite reported 177/177 passing. PR #429 remains open and unmerged.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅
