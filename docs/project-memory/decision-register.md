@@ -1,5 +1,18 @@
 # Decision Register
 
+## DR-078H — Professional SEE structure is evidence-derived; visual parity requires separate rendered review — 24 September 2026
+
+Decision: the Submission SEE renderer may improve document presentation only from data already present in the accepted final/working candidate. Professional document structure must not invent revisions, historical issues, consultants, reports, appendices, evidence, planning conclusions or readiness.
+
+PR #433 therefore adds evidence-derived Document Control, one current generated Revision History row, Supporting Evidence Schedule when reviewed uploads exist, tabular Source Register, and deterministic DOCX/PDF contents/table layout. Final and working acceptance semantics remain unchanged.
+
+The renderer is a reviewed transitive Vercel build dependency. Its build-safety fingerprint must be updated only to an independently reviewed exact SHA-256 when renderer source changes; removing or weakening that fingerprint gate is not an acceptable shortcut.
+
+Structural CI does not equal approved-template visual acceptance. The approved SEE benchmark library was unavailable in the mobile daytime toolset. Before this launch item is closed, desktop acceptance must render representative DOCX/PDF outputs page-by-page, compare them visually against the approved benchmark, inspect real office/PDF rendering, and record any corrective design pass.
+
+Tracking: Issue #430 / PR #433. Verified renderer/test head: `e50fb37500fa836ec4f4fb1eea959f361ff73e3e`.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.
