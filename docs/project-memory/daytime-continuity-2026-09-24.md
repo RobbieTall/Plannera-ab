@@ -111,7 +111,10 @@ No merge was authorised during daytime.
 ## Lane 4 — consultant credential disclosure
 
 Tracking: Issue #425.
+PR: #426.
 Branch: `feat/consultant-credential-disclosure-20260924`.
+Corrected code head: `a819d06605de82a9d8f440b6df66ed9ebb1fcc12`.
+State at daytime checkpoint: **open, mergeable, not merged**.
 Base: current main at branch creation `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`.
 
 Approved disclosure:
@@ -119,7 +122,7 @@ Approved disclosure:
 
 Repository inspection confirmed there is no live consultant directory/RFQ marketplace. The real customer-facing consultant surface is the existing human-operated referral panel.
 
-Implemented so far:
+Implemented:
 - reusable `ConsultantCredentialDisclosure` component and canonical disclosure string;
 - disclosure rendered before contact/consent fields on the live referral submission form;
 - existing queue copy still separately states no promise of matching, availability, quotes or response times;
@@ -127,14 +130,13 @@ Implemented so far:
 - operations runbook `docs/operations/consultant-credential-disclosure.md`;
 - queue/decision/commercialisation/README docs updated.
 
-Next:
-- open the PR;
-- run/inspect exact-head CI;
-- static review;
-- fix any failures;
-- record terminal result in Issue #425 and this handover source.
+Verification history:
+- initial PR head `214c168ae3d0210a396e0aa401a426367e694a99` failed Commercial Funnel Golden Gate run 35964376937 because the new TSX component omitted an explicit React import; node commercial tests had already reported 175 passing / 0 failing and the failure was isolated to the referral-panel Vitest render;
+- minimal fix commit `a819d06605de82a9d8f440b6df66ed9ebb1fcc12` added the required React import only;
+- corrected exact head passed Soft launch smoke run 35964503590, Whole-LGA run 35964503671 and Commercial Funnel Golden Gate run 35964503542;
+- separate read-only PR review #5300627238 found no remaining blocking issue.
 
-No referral logic, database schema, billing, Production or environment behaviour changed.
+No referral logic, database schema, billing, Production or environment behaviour changed. No merge was authorised during daytime.
 
 ## Safety / continuity rules for desktop
 
