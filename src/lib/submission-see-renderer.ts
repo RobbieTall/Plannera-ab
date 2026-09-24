@@ -192,9 +192,11 @@ const wordParagraph = (
   const properties = [
     `<w:pStyle w:val="${style}"/>`,
     options.keepNext ? "<w:keepNext/>" : "",
-    options.pageBreakBefore ? "<w:pageBreakBefore/>" : "",
   ].join("");
-  return `<w:p><w:pPr>${properties}</w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(
+  const pageBreak = options.pageBreakBefore
+    ? '<w:r><w:br w:type="page"/></w:r>'
+    : "";
+  return `<w:p><w:pPr>${properties}</w:pPr>${pageBreak}<w:r><w:t xml:space="preserve">${xmlEscape(
     text,
   )}</w:t></w:r></w:p>`;
 };
