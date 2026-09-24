@@ -7,34 +7,33 @@ Updated: 24 September 2026 (Australia/Sydney). Tracking: Issue #432.
 
 ## Accepted evidence — 24 September 2026
 
-Reviewed renderer head: `c9a9624ef085287765a17ee0443a2319d8552282`.
-Current code/test head: `5d10df08507597859a10d1c91a23d4754bfe75e9` (test-hardening only; renderer bytes unchanged).
+Reviewed renderer implementation head: `c9a9624ef085287765a17ee0443a2319d8552282`.  
+Final verified documentation head: `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`.
 
-All current code/test-head gates passed:
-- Soft launch smoke — run `35971164696`;
-- Whole-LGA source matrix — run `35971164676`;
-- Commercial Funnel Golden Gate — run `35971164589`;
-- Submission SEE Output Rendering — run `35971164669`;
-- Item 74H Working SEE Preview Gate — run `35971164659`;
-- Item 77 protected commercial journey — run `35971164557`;
-- Submission SEE Synthetic Artefacts — run `35971164538`.
+Final-head CI — all PASS:
+- Soft launch smoke — run `35971674147`;
+- Whole-LGA source matrix — run `35971674102`;
+- Commercial Funnel Golden Gate — run `35971674128`;
+- Submission SEE Output Rendering — run `35971674117`;
+- Item 74H Working SEE Preview Gate — run `35971674094`;
+- Item 77 protected commercial journey — run `35971674086`;
+- Submission SEE Synthetic Artefacts — run `35971674072`.
 
-Current-head artifact ID: `10795398958`.
+Final-head artifact ID: `10796531837`.
 
 Deterministic output hashes:
 - DOCX: `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`;
 - PDF: `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
 
-The current-head artifact reproduces the exact accepted DOCX/PDF hashes:
-- DOCX `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`;
-- PDF `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
+The final-head artifact reproduces those accepted bytes exactly. Both files render to 14 A4 pages. Every page was inspected against the approved benchmark qualities; no clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was found.
 
-These bytes are identical to the already rendered and inspected 14-page A4 outputs. No clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was found. Separate read-only review `#5301256836` found no blocking renderer issue.
+The key visual defect found during this task was collapsed DOCX pagination. Root cause was a missing OOXML document relationship to `word/styles.xml`. The renderer now emits that relationship and unit coverage requires it.
 
-The key visual defect found during this task was collapsed DOCX pagination. Root cause was a missing OOXML document relationship to `word/styles.xml`. The renderer now emits that relationship and unit coverage requires it. No finality or evidence gate was weakened to solve the layout defect.
+Reviews:
+- renderer implementation review `#5301256836` — no blocker;
+- final continuity review `#5301418641` — no blocker on final head `8e145e4...`.
 
-This proves the deterministic synthetic presentation system. It does not replace real-project evidence acceptance, real-project rendered review, Item 78C whole-funnel acceptance or Production activation.
-
+Later continuity/documentation updates do not change the renderer bytes. This proves the deterministic synthetic presentation system only. It does not replace real-project evidence acceptance, real-project rendered review, Item 78C whole-funnel acceptance or Production activation.
 
 ## Approved benchmark library
 
