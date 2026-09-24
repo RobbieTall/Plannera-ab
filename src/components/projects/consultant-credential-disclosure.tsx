@@ -1,3 +1,5 @@
+import React from "react";
+
 export const CONSULTANT_CREDENTIAL_DISCLOSURE =
   "Consultants self-report their qualifications and regions of service. Plannera does not verify professional credentials or memberships. Users should confirm relevant licences directly with consultants before engaging.";
 
