@@ -216,6 +216,10 @@ describe("submission SEE rendering", () => {
     const contentStreams = [
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
+    expect(contentStreams[0]).toContain("(STATEMENT OF)");
+    expect(contentStreams[1]).toContain("(Contents)");
+    expect(contentStreams[1]).toMatch(/\(Executive Summary \\?\.{3,} 3\)/);
+    expect(contentStreams[2]).toContain("(Executive Summary)");
     const impactsStream = contentStreams.find((stream) =>
       stream.includes("(Environmental Impacts)"),
     );
@@ -296,9 +300,17 @@ describe("submission SEE rendering", () => {
     expect(entries.get("word/footer1.xml")!.toString("utf8")).toContain(
       "WORKING SEE - NOT SUBMISSION READY",
     );
-    expect(rendered.pdf.toString("latin1")).toContain(
+    const workingPdf = rendered.pdf.toString("latin1");
+    expect(workingPdf).toContain(
       "WORKING SEE - NOT SUBMISSION READY",
     );
+    const workingStreams = [
+      ...workingPdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
+    ].map((match) => match[1] ?? "");
+    expect(workingStreams[1]).toContain("(Contents)");
+    expect(workingStreams[1]).toContain("(Document Status");
+    expect(workingStreams[1]).toContain("(Outstanding Evidence");
+    expect(workingStreams[1]).toContain("(Executive Summary");
 
     const acceptance = assessSubmissionSee({
       ...candidate,
