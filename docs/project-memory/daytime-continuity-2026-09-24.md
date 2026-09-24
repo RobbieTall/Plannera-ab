@@ -166,12 +166,15 @@ Implemented so far:
 
 Production code, billing, checkout, schema, environments and external data are untouched.
 
-Next:
-- open PR and run exact-head Commercial Funnel Golden Gate;
-- inspect failures and correct tests to the existing product contract rather than weakening product behavior;
-- static review;
-- update Issue #427 and this handover with terminal evidence.
-- Do not claim every-zone acceptance: this is representative expansion only.
+Verification:
+- first attempt proved zero cited DCP evidence correctly blocks SEE generation;
+- second attempt proved uncited SP2 QSC evidence correctly blocks paid-pack generation;
+- tests were corrected to require those existing gates; production code was not weakened;
+- final tested head passed Soft launch smoke run 35965978466, Whole-LGA run 35965978410 and Commercial Funnel Golden Gate run 35965978518;
+- commercial node suite: 177 tests / 177 passed / 0 failed;
+- separate read-only review #5300780748 found no blocking issue.
+
+No merge was authorised during daytime. Do not claim every-zone acceptance: this is representative expansion only.
 
 ## Safety / continuity rules for desktop
 
