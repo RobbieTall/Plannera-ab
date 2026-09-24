@@ -141,7 +141,10 @@ No referral logic, database schema, billing, Production or environment behaviour
 ## Lane 5 — representative Byron/Kempsey address-and-proposal golden journeys
 
 Tracking: Issue #427.
+PR: #429.
 Branch: `test/representative-address-proposal-golden-20260924`.
+Tested code/docs head: `faea1f343a5a9283725483ccb0f0813dbb2b9479`.
+State at checkpoint: **open, mergeable, not merged**.
 Base: `main` at branch creation `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`.
 
 Purpose:
