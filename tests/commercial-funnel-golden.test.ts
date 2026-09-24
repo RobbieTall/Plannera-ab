@@ -28,6 +28,8 @@ type GoldenFixture = {
   height: string | null;
   fsr: string | null;
   permittedWithConsent: string[];
+  permittedWithoutConsent?: string[];
+  prohibited?: string[];
 };
 
 const BYRON: GoldenFixture = {
@@ -83,6 +85,8 @@ const BYRON_R2: GoldenFixture = {
   height: "9m",
   fsr: "0.4:1",
   permittedWithConsent: ["Dwelling houses"],
+  permittedWithoutConsent: ["Home occupations"],
+  prohibited: ["Industries"],
 };
 
 const KEMPSEY_SP2: GoldenFixture = {
@@ -101,6 +105,8 @@ const KEMPSEY_SP2: GoldenFixture = {
   height: null,
   fsr: null,
   permittedWithConsent: [],
+  permittedWithoutConsent: [],
+  prohibited: [],
 };
 
 const USER_ID = "golden-test-user";
@@ -303,15 +309,17 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
       ],
     },
     permissibility: {
-      permittedWithoutConsent: ["Environmental protection works"],
+      permittedWithoutConsent:
+        fixture.permittedWithoutConsent ?? ["Environmental protection works"],
       permittedWithConsent: fixture.permittedWithConsent,
-      prohibited: ["Heavy industrial uses"],
+      prohibited: fixture.prohibited ?? ["Heavy industrial uses"],
     },
     dataSource: "db_clauses",
     landUse: {
-      withoutConsent: ["Environmental protection works"],
+      withoutConsent:
+        fixture.permittedWithoutConsent ?? ["Environmental protection works"],
       withConsent: fixture.permittedWithConsent,
-      prohibited: ["Heavy industrial uses"],
+      prohibited: fixture.prohibited ?? ["Heavy industrial uses"],
     },
     part4: [],
     part5: [],
@@ -801,7 +809,9 @@ test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commerc
   assert.equal(result.audit.site.address, "32 Smith St, Kempsey NSW 2440");
   assert.equal(result.audit.site.zoneCode, "SP2");
   assert.equal(qsc.site.zoneName, "Infrastructure");
+  assert.deepEqual(qsc.permissibility?.permittedWithoutConsent ?? [], []);
   assert.deepEqual(qsc.permissibility?.permittedWithConsent ?? [], []);
+  assert.deepEqual(qsc.permissibility?.prohibited ?? [], []);
   assert.doesNotMatch(
     JSON.stringify({
       qsc,
