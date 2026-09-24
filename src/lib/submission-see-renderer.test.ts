@@ -218,10 +218,10 @@ describe("submission SEE rendering", () => {
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
     const impactsStream = contentStreams.find((stream) =>
-      stream.includes("(Environmental Impacts)"),
+      stream.includes("(6. Environmental Impacts)"),
     );
     expect(impactsStream).toBeDefined();
-    const impactsOffset = impactsStream!.indexOf("(Environmental Impacts)");
+    const impactsOffset = impactsStream!.indexOf("(6. Environmental Impacts)");
     expect(impactsStream!.slice(impactsOffset)).toContain("(Evidence used)");
     expect(impactsStream!.slice(impactsOffset)).toContain("(lep - Byron Local Environmental Plan 2014)");
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
