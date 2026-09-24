@@ -7,6 +7,8 @@ on:
       - ".github/workflows/submission-see-render-artifact.yml"
       - "docs/operations/item74e-submission-see-render-artifact.md"
       - "src/lib/submission-see-renderer.ts"
+      - "src/lib/submission-see-presentation.ts"
+      - "src/lib/submission-see-renderer.test.ts"
   workflow_dispatch:
 
 permissions:
