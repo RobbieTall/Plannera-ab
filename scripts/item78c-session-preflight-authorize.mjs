@@ -61,7 +61,8 @@ export async function authorize(env, protectedPhase, run = git, request = fetch)
 export function safeSummary(summary) {
   const keys = ['checks', 'council', 'matched', 'reason', 'version'];
   const checks = ['projectPresent', 'projectUsesDevBypassOwner', 'sessionOwnsProject', 'sessionPresent', 'sessionUnexpired'];
-  const reasons = ['configuration_invalid', 'nextauth_cookie_missing', 'database_contract_invalid', 'project_missing',
+  const configurationReasons = ["configuration_council_invalid","configuration_confirmation_invalid","configuration_branch_invalid","configuration_commit_invalid","database_url_missing","database_url_invalid","database_protocol_invalid","database_target_mismatch","database_port_invalid","database_name_invalid","database_credentials_missing","database_fragment_forbidden","database_tls_invalid","database_options_invalid","session_cookie_missing","session_cookie_format_invalid","session_cookie_duplicate","session_cookie_value_invalid","session_cookie_conflict"];
+  const reasons = [...configurationReasons, 'configuration_invalid', 'nextauth_cookie_missing', 'database_contract_invalid', 'project_missing',
     'session_missing', 'session_expired', 'session_owner_mismatch', 'session_project_match',
     'database_authentication_failed', 'database_unreachable', 'database_timeout', 'database_check_failed'];
   requireSafe(summary && JSON.stringify(Object.keys(summary).sort()) === JSON.stringify(keys));
@@ -71,6 +72,7 @@ export function safeSummary(summary) {
   requireSafe(summary.matched === (summary.reason === 'session_project_match'));
   requireSafe(summary.checks === null || (JSON.stringify(Object.keys(summary.checks).sort()) === JSON.stringify(checks)
     && Object.values(summary.checks).every(v => typeof v === 'boolean')));
+  if (configurationReasons.includes(summary.reason)) requireSafe(summary.council === null && summary.checks === null && !summary.matched);
   if (summary.matched) requireSafe(summary.checks?.sessionPresent && summary.checks.sessionUnexpired
     && summary.checks.projectPresent && summary.checks.sessionOwnsProject);
   return summary;

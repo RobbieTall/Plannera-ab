@@ -7,40 +7,55 @@ const TARGETS = Object.freeze({
 });
 const CHECKS = ['sessionPresent', 'sessionUnexpired', 'projectPresent', 'sessionOwnsProject', 'projectUsesDevBypassOwner'];
 
+// Only errors created here may become public configuration reasons.
+class ConfigurationFailure extends Error {
+  constructor(reason) { super(reason); this.reason = reason; }
+}
+function configurationFailure(reason) { throw new ConfigurationFailure(reason); }
+
 export function configuration(env) {
+  if (!Object.hasOwn(TARGETS, env.ITEM78C_DIAGNOSTIC_COUNCIL)) configurationFailure('configuration_council_invalid');
   const target = TARGETS[env.ITEM78C_DIAGNOSTIC_COUNCIL];
-  if (!target || env.ITEM78C_DIAGNOSTIC_CONFIRMATION !== 'READ ONLY PREVIEW LOGIN CHECK'
-    || env.GITHUB_REF !== BRANCH || !/^[a-f0-9]{40}$/.test(env.ITEM78C_DIAGNOSTIC_EXPECTED_SHA || '')
-    || env.GITHUB_SHA !== env.ITEM78C_DIAGNOSTIC_EXPECTED_SHA) throw new Error('configuration_invalid');
-  const url = new URL(env.ITEM74H_PREVIEW_DATABASE_URL);
+  if (env.ITEM78C_DIAGNOSTIC_CONFIRMATION !== 'READ ONLY PREVIEW LOGIN CHECK') configurationFailure('configuration_confirmation_invalid');
+  if (env.GITHUB_REF !== BRANCH) configurationFailure('configuration_branch_invalid');
+  if (!/^[a-f0-9]{40}$/.test(env.ITEM78C_DIAGNOSTIC_EXPECTED_SHA || '')
+    || env.GITHUB_SHA !== env.ITEM78C_DIAGNOSTIC_EXPECTED_SHA) configurationFailure('configuration_commit_invalid');
+  if (typeof env.ITEM74H_PREVIEW_DATABASE_URL !== 'string' || !env.ITEM74H_PREVIEW_DATABASE_URL) configurationFailure('database_url_missing');
+  let url;
+  try { url = new URL(env.ITEM74H_PREVIEW_DATABASE_URL); }
+  catch { configurationFailure('database_url_invalid'); }
   const host = new RegExp(`^${target.endpoint}(-pooler)?\\.[a-z0-9.-]+\\.neon\\.tech$`);
-  if (!['postgres:', 'postgresql:'].includes(url.protocol) || !host.test(url.hostname)
-    || (url.port && url.port !== '5432') || url.pathname !== '/neondb'
-    || !url.username || !url.password || url.hash
-    || !['require', 'verify-full'].includes(url.searchParams.get('sslmode'))) throw new Error('configuration_invalid');
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) configurationFailure('database_protocol_invalid');
+  if (!host.test(url.hostname)) configurationFailure('database_target_mismatch');
+  if (url.port && url.port !== '5432') configurationFailure('database_port_invalid');
+  if (url.pathname !== '/neondb') configurationFailure('database_name_invalid');
+  if (!url.username || !url.password) configurationFailure('database_credentials_missing');
+  if (url.hash) configurationFailure('database_fragment_forbidden');
+  if (!['require', 'verify-full'].includes(url.searchParams.get('sslmode'))) configurationFailure('database_tls_invalid');
   // Keep connection options bounded; never accept an embedded alternate host or startup command.
   for (const key of url.searchParams.keys()) {
     if (!['sslmode', 'channel_binding', 'connect_timeout', 'pool_timeout', 'connection_limit', 'pgbouncer'].includes(key)
-      || url.searchParams.getAll(key).length !== 1) throw new Error('configuration_invalid');
+      || url.searchParams.getAll(key).length !== 1) configurationFailure('database_options_invalid');
   }
   const cookie = env.PLANNERA_STRIPE_TEST_SESSION_COOKIE;
-  if (typeof cookie !== 'string' || cookie.length > 16384 || /[\r\n\x00]/.test(cookie)) throw new Error('configuration_invalid');
+  if (typeof cookie !== 'string' || !cookie) configurationFailure('session_cookie_missing');
+  if (cookie.length > 16384 || /[\r\n\x00]/.test(cookie)) configurationFailure('session_cookie_format_invalid');
   const names = ['__Secure-next-auth.session-token', 'next-auth.session-token'];
   const tokens = [];
   const seen = new Set();
   for (const part of cookie.split(';')) {
     const i = part.indexOf('=');
-    if (i < 1) throw new Error('configuration_invalid');
+    if (i < 1) configurationFailure('session_cookie_format_invalid');
     const name = part.slice(0, i).trim();
     if (!names.includes(name)) continue;
-    if (seen.has(name)) throw new Error('configuration_invalid');
+    if (seen.has(name)) configurationFailure('session_cookie_duplicate');
     seen.add(name);
     const value = part.slice(i + 1).trim();
-    if (!/^[A-Za-z0-9._~-]{1,512}$/.test(value)) throw new Error('configuration_invalid');
+    if (!/^[A-Za-z0-9._~-]{1,512}$/.test(value)) configurationFailure('session_cookie_value_invalid');
     tokens.push(value);
   }
   if (tokens.length === 0) return { council: env.ITEM78C_DIAGNOSTIC_COUNCIL, missingCookie: true };
-  if (new Set(tokens).size !== 1) throw new Error('configuration_invalid');
+  if (new Set(tokens).size !== 1) configurationFailure('session_cookie_conflict');
   return { council: env.ITEM78C_DIAGNOSTIC_COUNCIL, url: url.href, token: tokens[0], project: target.project };
 }
 
@@ -71,7 +86,10 @@ async function database(config) {
 export async function diagnose(env, read = database) {
   const summary = { version: 'item78c_session_preflight.v1', council: null, matched: false, reason: 'configuration_invalid', checks: null };
   let config;
-  try { config = configuration(env); } catch { return summary; }
+  try { config = configuration(env); } catch (error) {
+    if (error instanceof ConfigurationFailure) summary.reason = error.reason;
+    return summary;
+  }
   summary.council = config.council;
   if (config.missingCookie) return { ...summary, reason: 'nextauth_cookie_missing' };
   try {
