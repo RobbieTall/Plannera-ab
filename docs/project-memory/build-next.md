@@ -2,23 +2,36 @@
 
 ## Daytime launch slice — professional SEE DOCX/PDF presentation — Issue #432 / PR #434
 
-The deterministic submission/working SEE renderer passed professional presentation and visual acceptance on reviewed renderer head `c9a9624ef085287765a17ee0443a2319d8552282`. The current PR code/test head `5d10df08507597859a10d1c91a23d4754bfe75e9` is one test-hardening commit beyond the previous documentation checkpoint; renderer bytes are unchanged.
+PR #434 current live head: `206c3d15bc2dec72a745f3ae12ba128111ae8a12` (documentation-only handover update after final verified head `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`). The renderer implementation itself was separately reviewed at `c9a9624ef085287765a17ee0443a2319d8552282`.
 
 Implemented without changing planning logic or finality:
-- shared DOCX/PDF presentation model;
+- shared deterministic DOCX/PDF presentation model;
 - Plannera cover, document control, numbered contents and section hierarchy;
 - section evidence callouts;
 - supporting-evidence schedule;
 - source register;
 - limitations;
 - restrained headers/footers/page numbering;
-- prominent working-SEE qualification and outstanding-evidence treatment.
+- prominent working-SEE qualification and outstanding-evidence treatment;
+- explicit DOCX `styles.xml` relationship required by regression coverage.
 
-Current code/test-head CI passed: Soft launch `35971164696`, Whole-LGA `35971164676`, Commercial Funnel `35971164589`, Submission SEE Output Rendering `35971164669`, Item 74H Working SEE Preview `35971164659`, Item 77 protected commercial journey `35971164557`, and Synthetic Artefacts `35971164538`.
+Final verified documentation head `8e145e4...` passed all seven observed gates:
+- Soft launch `35971674147`
+- Whole-LGA `35971674102`
+- Commercial Funnel `35971674128`
+- Submission SEE Output Rendering `35971674117`
+- Item 74H Working SEE Preview `35971674094`
+- Item 77 protected commercial journey `35971674086`
+- Synthetic Artefacts `35971674072`.
 
-Current-head artifact `10795398958` produced deterministic outputs with the same accepted hashes as the reviewed visual artifact: DOCX SHA-256 `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`; PDF SHA-256 `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`. Both exact-head files were visually inspected against the approved SEE benchmark qualities with no clipping, overlap, broken table layout or missing glyphs. Separate review `#5301256836` found no blocker.
+Final-head artifact `10796531837` reproduced the visually accepted deterministic output hashes:
+- DOCX SHA-256 `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`
+- PDF SHA-256 `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
 
-Important: this closes the synthetic deterministic **presentation/layout** gap only. Real-project rendered review, Item 78C protected acceptance and Production activation remain open/separate. PR #434 is not merged.
+Both exact files render to 14 A4 pages and were inspected page-by-page against the approved SEE benchmark qualities with no clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture. Reviews `#5301256836` and `#5301418641` found no blocker.
+
+Important boundary: this closes the deterministic synthetic **presentation/layout** gap only. Real-project rendered review, Item 78C protected acceptance and Production activation remain open/separate. PR #434 is still open/unmerged.
+
 
 
 This is the active sequence for what to build next so direction is never lost.
