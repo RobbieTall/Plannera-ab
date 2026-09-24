@@ -8,7 +8,7 @@ PR #434 implements one shared deterministic presentation model for DOCX and PDF.
 
 Visual acceptance uses the approved `SEE Various Examples.pdf` benchmark qualities: ELKN-style document discipline, Ardill Payne-style planning-report hierarchy and Planners North-style professional presentation. Plannera retains its own branding and layout system.
 
-Exact code/test head `c9a9624ef085287765a17ee0443a2319d8552282` passed all observed renderer/commercial/safety gates and artifact `10796395242` produced visually accepted 14-page DOCX and PDF outputs. Review `#5301256836` found no blocker.
+Reviewed renderer head `c9a9624ef085287765a17ee0443a2319d8552282` passed all renderer/commercial/safety gates and produced visually accepted 14-page DOCX/PDF outputs. Current PR code/test head `5d10df08507597859a10d1c91a23d4754bfe75e9` changes only renderer-test assertions to be line-wrap independent; all seven current-head gates passed and artifact `10795398958` reproduces the same accepted DOCX/PDF hashes. Review `#5301256836` found no blocker in the renderer implementation.
 
 A missing OOXML relationship to `word/styles.xml` was proven to collapse DOCX pagination despite valid-looking XML. Styles relationships are therefore part of the renderer contract and regression coverage.
 
