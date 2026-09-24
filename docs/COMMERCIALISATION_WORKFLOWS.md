@@ -1,4 +1,11 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026
+
+Issue #431 closes an objective front-matter/contents gap in the deterministic SEE renderer using recurring conventions from the approved SEE benchmark library without copying consultant branding. DOCX gains a real updateable Word TOC and clean separation before substantive assessment; PDF gains a deterministic Contents page with page references derived from the actual layout pass. The evidence, citation, working/final and commercial acceptance rules are unchanged.
+
+This does **not** complete the launch item requiring professional DOCX/PDF visual verification. Real customer output, Word/PDF inspection, maps/tables/figures, final branding and operator sign-off remain open.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
