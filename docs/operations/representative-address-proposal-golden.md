@@ -15,17 +15,14 @@ This slice adds two representative address-and-proposal truth cases already esta
 
 ## Test contract
 
-The representative cases intentionally do **not** inject proposal-specific DCP evidence.
+The representative cases intentionally do **not** inject unsupported evidence.
 
 They must prove:
 
-- exact saved site address and zone survive QSC → DPP → expert-review/audit;
 - caller-supplied forged site/proposal fields cannot replace the server-authoritative saved scope;
-- missing DCP evidence leaves all five DPP topics `Unavailable`;
-- the pack remains `needs_expert_review`;
-- SEE generation fails closed because there is no applicable cited DCP evidence, so the review package proceeds without a source SEE;
-- audit returns `unresolved_pack_referral` with `refer_unresolved_pack_for_expert_review`;
-- Kempsey 32 Smith St remains SP2 Infrastructure and does not inherit E2/Commercial premises evidence.
+- Byron R2 preserves the reviewed address/zone, reaches an unresolved DPP with all five DCP topics `Unavailable`, blocks SEE generation for lack of applicable cited DCP evidence, and routes to expert review;
+- Kempsey SP2 preserves 32 Smith St as Infrastructure with empty statutory land-use buckets in this fixture, is not labelled `Cited`, and is stopped before paid-pack generation by the existing quality-valid-QSC gate;
+- Kempsey 32 Smith St never inherits E2/Commercial premises evidence.
 
 For Byron R2, the Quick Site Check fixture may use the repository-established Zone R2 statutory term `Dwelling houses` as permitted with consent. The storage shed proposal remains framed as ancillary to the reviewed residential case; this deterministic test does not independently re-determine that Council approval.
 
