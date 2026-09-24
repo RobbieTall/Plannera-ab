@@ -90,13 +90,6 @@ const safeFilePart = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "confirmed-site";
 
-const titleCase = (value: string) =>
-  value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
 const crcTable = (() => {
   const table = new Uint32Array(256);
   for (let index = 0; index < 256; index += 1) {
