@@ -193,7 +193,7 @@ describe("submission SEE rendering", () => {
     expect(document).toContain("<w:tbl>");
     expect(document).not.toContain("Project: synthetic-render-review");
     expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("PLANNERA");
-    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Synthetic Byron acceptance site");
+    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Confirmed acceptance site");
     expect(document).not.toContain("Update this field in Word");
     expect(document).not.toContain('<w:br w:type="page"/>');
     expect(document).not.toContain(' TOC \\o "1-2" ');
@@ -204,7 +204,7 @@ describe("submission SEE rendering", () => {
     const pdf = rendered.pdf.toString("latin1");
 
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
-    expect(pdf).toContain("STATEMENT OF ENVIRONMENTAL EFFECTS");
+    expect(pdf).toContain("Statement of Environmental Effects");
     expect(pdf).toContain("DOCUMENT CONTROL");
     expect(pdf).toContain("CONTENTS");
     expect(pdf).toContain("1. Executive Summary");
