@@ -1,5 +1,25 @@
 # Decision Register
 
+## DR-078H — SEE professional front matter follows approved benchmark conventions — 24 September 2026
+
+Decision: Plannera’s deterministic SEE renderer may adopt recurring professional document conventions identified in the user-approved `SEE Various Examples.pdf` benchmark library, but must not copy consultant branding, proprietary layouts or visual identity.
+
+The renderer contract now requires:
+- dedicated cover/front matter;
+- a real updateable Word TOC field with deterministic fallback entries;
+- the first substantive DOCX section to start on a clean new page after Contents;
+- a deterministic PDF Contents page immediately after the cover;
+- PDF section/page references derived from the actual layout pass;
+- working-document front matter to expose Document Status and Outstanding Evidence where applicable;
+- existing source register, limitations and page-number footers to remain intact.
+
+This presentation work does not change planning evidence, section acceptance, citation requirements, product price, commercial readiness, working/final qualification or Production state. A working SEE must remain visibly non-submission-ready.
+
+Reference-informed front matter is not the same as final visual acceptance. Real Byron/Kempsey customer rendering, Microsoft Word/PDF visual inspection, maps/tables/figures, final branding and operator sign-off remain open launch gates.
+
+Tracking: Issue #431; branch `feat/see-presentation-contract-20260924`; runbook `docs/operations/see-presentation-benchmark.md`.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

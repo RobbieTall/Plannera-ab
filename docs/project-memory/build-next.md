@@ -1,5 +1,19 @@
 # Build Next (Execution Queue)
 
+## Daytime launch slice — Issue #431: professional SEE front matter and contents
+
+The approved SEE benchmark library was reviewed before this slice. Recurring presentation conventions across the ELKN, Ardill Payne, Planners North and concise residential examples are being applied without copying consultant branding: dedicated front matter, a usable contents page, clean separation before substantive assessment, disciplined section hierarchy and proportionate reporting.
+
+Issue #431 / `feat/see-presentation-contract-20260924` fixes objective renderer gaps:
+- DOCX now carries a real updateable Word TOC field plus deterministic fallback entries and `updateFields=true`;
+- Executive Summary / the first substantive DOCX section begins on a clean new page after Contents;
+- PDF now inserts a deterministic Contents page after the cover with page references derived from the actual layout pass;
+- working PDF contents also exposes Document Status and Outstanding Evidence where applicable;
+- existing acceptance, evidence, citations, Source Register, limitations and working/final safety boundaries remain unchanged.
+
+This does **not** close the launch item requiring professional DOCX/PDF visual verification. Real customer rendering, Word/PDF visual inspection, maps/tables/figures, final branding and operator sign-off remain open. See `docs/operations/see-presentation-benchmark.md`.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅

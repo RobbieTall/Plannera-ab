@@ -1,6 +1,6 @@
 # Item 74E submission SEE output rendering
 
-Status: **DETERMINISTIC RENDERER IMPLEMENTED / HOSTED AND VISUAL ACCEPTANCE NOT EXECUTED**
+Status: **DETERMINISTIC RENDERER + REFERENCE-INFORMED FRONT MATTER IMPLEMENTED / HOSTED VISUAL ACCEPTANCE NOT EXECUTED**
 
 ## Purpose
 
@@ -32,8 +32,10 @@ The DOCX renderer creates an OOXML ZIP package containing:
 
 - content types and relationships;
 - core and application properties;
-- styled cover page;
-- updateable table of contents field;
+- styled cover/front matter;
+- a real Word TOC field marked dirty for refresh on open, with deterministic fallback entries;
+- Word update-fields settings plus a dedicated contents page;
+- a page break before the first substantive section;
 - page-sized section layout;
 - headings and body text;
 - per-section source summaries;
@@ -50,6 +52,7 @@ The PDF renderer creates:
 
 - A4 paginated pages;
 - styled cover page;
+- a deterministic contents page with section/page references derived from the actual layout pass;
 - section headings and wrapped body text;
 - per-section source summaries;
 - source register;
@@ -75,11 +78,19 @@ For each file the renderer returns:
 The tests feed that metadata back into the submission acceptance gate and
 require the candidate to become ready.
 
+## Presentation benchmark
+
+Issue #431 aligns front matter with recurring conventions in the user-approved
+SEE reference library without copying consultant branding or proprietary layout.
+See `docs/operations/see-presentation-benchmark.md`.
+
 ## Current limitations
 
 This slice does not persist files, expose a download route, render a real
-customer project, verify the files in Microsoft Word/Adobe Reader, or complete
-operator acceptance. Those require protected hosted Preview and visual review.
+customer project, verify final pagination/TOC refresh in Microsoft Word or PDF
+appearance in Adobe Reader/Preview, lay out real maps/tables/figures, or complete
+operator acceptance. Those require protected hosted Preview generation and
+human visual review against the approved reference library.
 
 ## Safety
 

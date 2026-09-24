@@ -175,6 +175,7 @@ describe("submission SEE rendering", () => {
         "_rels/.rels",
         "word/document.xml",
         "word/styles.xml",
+        "word/settings.xml",
         "word/footer1.xml",
         "word/_rels/document.xml.rels",
         "docProps/core.xml",
@@ -185,9 +186,22 @@ describe("submission SEE rendering", () => {
     expect(document).toContain("Statement of Environmental Effects");
     expect(document).toContain("Source Register");
     expect(document).toContain("Environmental Impacts");
-    expect(document).not.toContain("Update this field in Word");
+    expect(document).toContain('<w:fldChar w:fldCharType="begin" w:dirty="true"/>');
+    expect(document).toContain(' TOC \\o "1-1" \\h \\z \\u ');
+    expect(document).toContain('<w:fldChar w:fldCharType="separate"/>');
+    expect(document).toContain('<w:fldChar w:fldCharType="end"/>');
+    expect(document).toMatch(
+      /<w:pPr><w:pStyle w:val="Heading1"\/><w:pageBreakBefore\/><w:keepNext\/><\/w:pPr><w:r><w:t xml:space="preserve">Executive Summary<\/w:t>/,
+    );
+    const settings = entries.get("word/settings.xml")!.toString("utf8");
+    expect(settings).toContain('<w:updateFields w:val="true"/>');
+    const relationships = entries
+      .get("word/_rels/document.xml.rels")!
+      .toString("utf8");
+    expect(relationships).toContain(
+      'relationships/settings" Target="settings.xml"',
+    );
     expect(document).not.toContain('<w:br w:type="page"/>');
-    expect(document).not.toContain(' TOC \\o "1-2" ');
   });
 
   it("creates a paginated PDF with a valid cross-reference location", () => {
@@ -202,6 +216,10 @@ describe("submission SEE rendering", () => {
     const contentStreams = [
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
+    expect(contentStreams[0]).toContain("(STATEMENT OF)");
+    expect(contentStreams[1]).toContain("(Contents)");
+    expect(contentStreams[1]).toMatch(/\(Executive Summary \.{3,} 3\)/);
+    expect(contentStreams[2]).toContain("(Executive Summary)");
     const impactsStream = contentStreams.find((stream) =>
       stream.includes("(Environmental Impacts)"),
     );
@@ -282,9 +300,17 @@ describe("submission SEE rendering", () => {
     expect(entries.get("word/footer1.xml")!.toString("utf8")).toContain(
       "WORKING SEE - NOT SUBMISSION READY",
     );
-    expect(rendered.pdf.toString("latin1")).toContain(
+    const workingPdf = rendered.pdf.toString("latin1");
+    expect(workingPdf).toContain(
       "WORKING SEE - NOT SUBMISSION READY",
     );
+    const workingStreams = [
+      ...workingPdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
+    ].map((match) => match[1] ?? "");
+    expect(workingStreams[1]).toContain("(Contents)");
+    expect(workingStreams[1]).toContain("(Document Status");
+    expect(workingStreams[1]).toContain("(Outstanding Evidence");
+    expect(workingStreams[1]).toContain("(Executive Summary");
 
     const acceptance = assessSubmissionSee({
       ...candidate,

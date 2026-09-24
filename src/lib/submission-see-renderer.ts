@@ -201,6 +201,12 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
+const wordTocFieldStart = () =>
+  `<w:p><w:pPr><w:pStyle w:val="TocField"/></w:pPr><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-1" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>`;
+
+const wordTocFieldEnd = () =>
+  `<w:p><w:pPr><w:pStyle w:val="TocField"/></w:pPr><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>`;
+
 const wordToc = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
@@ -210,12 +216,7 @@ const wordToc = (
       pageBreakBefore: true,
       keepNext: true,
     }),
-    ...candidate.sections.map((section) =>
-      wordParagraph(
-        titleCase(section.title || section.id),
-        "TocEntry",
-      ),
-    ),
+    wordTocFieldStart(),
     ...(presentation.workingContext
       ? [
           wordParagraph("Document Status", "TocEntry"),
@@ -224,10 +225,17 @@ const wordToc = (
             : []),
         ]
       : []),
+    ...candidate.sections.map((section) =>
+      wordParagraph(
+        titleCase(section.title || section.id),
+        "TocEntry",
+      ),
+    ),
     wordParagraph("Source Register", "TocEntry"),
     ...(candidate.limitations.length > 0
       ? [wordParagraph("Limitations", "TocEntry")]
       : []),
+    wordTocFieldEnd(),
   ].join("");
 
 const renderDocx = (
@@ -301,7 +309,7 @@ const renderDocx = (
       wordParagraph(
         titleCase(section.title || section.id),
         "Heading1",
-        { pageBreakBefore: index > 0, keepNext: true },
+        { pageBreakBefore: true, keepNext: true },
       ),
     );
     body.push(wordParagraph(section.narrative, "Normal"));
@@ -363,6 +371,7 @@ const renderDocx = (
   <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="180"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Citation"><w:name w:val="Citation"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:before="80" w:after="240"/></w:pPr><w:rPr><w:i/><w:color w:val="536A73"/><w:sz w:val="18"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TocField"><w:name w:val="Contents Field"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="SourceRegister"><w:name w:val="Source Register"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/></w:pPr><w:rPr><w:sz w:val="18"/><w:color w:val="425A63"/></w:rPr></w:style>
 </w:styles>`;
@@ -382,6 +391,7 @@ const renderDocx = (
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`, "utf8"),
@@ -397,12 +407,20 @@ const renderDocx = (
     },
     { name: "word/document.xml", data: Buffer.from(documentXml, "utf8") },
     { name: "word/styles.xml", data: Buffer.from(stylesXml, "utf8") },
+    {
+      name: "word/settings.xml",
+      data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:updateFields w:val="true"/>
+</w:settings>`, "utf8"),
+    },
     { name: "word/footer1.xml", data: Buffer.from(footerXml, "utf8") },
     {
       name: "word/_rels/document.xml.rels",
       data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
 </Relationships>`, "utf8"),
     },
     {
@@ -492,6 +510,7 @@ const layoutPdf = (
   let pageIndex = 0;
   let y = 790;
   const margin = 54;
+  const tocEntries: { title: string; pageIndex: number }[] = [];
 
   const newPage = () => {
     pages.push([]);
@@ -591,6 +610,7 @@ const layoutPdf = (
   newPage();
   const working = presentation.workingContext;
   if (working) {
+    tocEntries.push({ title: "Document Status", pageIndex });
     addText("Document Status", {
       font: "bold",
       size: 17,
@@ -613,6 +633,7 @@ const layoutPdf = (
       );
     }
     if (working.outstandingEvidence.length > 0) {
+      tocEntries.push({ title: "Outstanding Evidence", pageIndex });
       addText("Outstanding Evidence", {
         font: "bold",
         size: 15,
@@ -663,18 +684,29 @@ const layoutPdf = (
         textLayout(section.narrative, sectionNarrativeOptions).height +
         textLayout(citationText, sectionCitationOptions).height,
     );
+    ensureSpace(
+      textLayout(heading, sectionHeadingOptions).height +
+        textLayout("Assessment", sectionNarrativeOptions).height,
+    );
+    tocEntries.push({ title: heading, pageIndex });
     addText(heading, sectionHeadingOptions);
     addText(section.narrative, sectionNarrativeOptions);
     addText(citationText, sectionCitationOptions);
   }
 
-  addText("Source Register", {
+  const sourceRegisterOptions: PdfTextOptions = {
     font: "bold",
     size: 17,
     color: [0.04, 0.35, 0.38],
     before: 12,
     after: 10,
-  });
+  };
+  ensureSpace(
+    textLayout("Source Register", sourceRegisterOptions).height +
+      textLayout("Source", { size: 8.5, after: 5 }).height,
+  );
+  tocEntries.push({ title: "Source Register", pageIndex });
+  addText("Source Register", sourceRegisterOptions);
   for (const source of candidate.sources) {
     const provenance =
       source.officialUrl ??
@@ -686,17 +718,63 @@ const layoutPdf = (
   }
 
   if (candidate.limitations.length > 0) {
-    addText("Limitations", {
+    const limitationsHeadingOptions: PdfTextOptions = {
       font: "bold",
       size: 17,
       color: [0.04, 0.35, 0.38],
       before: 12,
       after: 10,
-    });
+    };
+    ensureSpace(
+      textLayout("Limitations", limitationsHeadingOptions).height +
+        textLayout("- Limitation", { size: 9.5, indent: 10, after: 5 }).height,
+    );
+    tocEntries.push({ title: "Limitations", pageIndex });
+    addText("Limitations", limitationsHeadingOptions);
     for (const limitation of candidate.limitations) {
       addText(`- ${limitation}`, { size: 9.5, indent: 10, after: 5 });
     }
   }
+
+  const contentsPage: PdfLine[] = [];
+  let contentsY = 756;
+  const addContentsText = (
+    text: string,
+    options: {
+      font?: PdfLine["font"];
+      size?: number;
+      color?: PdfLine["color"];
+      after?: number;
+    } = {},
+  ) => {
+    const size = options.size ?? 10;
+    contentsPage.push({
+      text,
+      font: options.font ?? "regular",
+      size,
+      x: margin,
+      y: contentsY,
+      color: options.color ?? [0.14, 0.19, 0.23],
+    });
+    contentsY -= size * 1.5 + (options.after ?? 6);
+  };
+
+  addContentsText("Contents", {
+    font: "bold",
+    size: 20,
+    color: [0.04, 0.35, 0.38],
+    after: 18,
+  });
+  for (const entry of tocEntries) {
+    const pageNumber = String(entry.pageIndex + 2);
+    const title = clean(entry.title);
+    const dotCount = Math.max(3, 66 - title.length - pageNumber.length);
+    addContentsText(
+      `${title} ${".".repeat(dotCount)} ${pageNumber}`,
+      { size: 9.5, color: [0.2, 0.31, 0.34], after: 4 },
+    );
+  }
+  pages.splice(1, 0, contentsPage);
 
   pages.forEach((page, index) => {
     page.push({
