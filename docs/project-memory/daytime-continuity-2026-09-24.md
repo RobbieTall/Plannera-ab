@@ -184,9 +184,9 @@ This is representative deterministic expansion only, not every-zone/live-address
 
 Tracking: Issue #432.  
 PR: #434.  
-Current live final head: `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`.  
+Last fully verified documentation head: `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`.  
 Reviewed renderer implementation head: `c9a9624ef085287765a17ee0443a2319d8552282`.  
-State: **open, mergeable, not merged**.
+State at handover: **open, mergeable, not merged**. Later handover/runbook reconciliation commits after `8e145e4...` are documentation-only; read live PR metadata before acting.
 
 Goal:
 Close the deterministic synthetic professional-presentation gap while preserving `see-builder-standard.v1`, evidence finality, the working/final distinction and all existing commercial/safety gates.
