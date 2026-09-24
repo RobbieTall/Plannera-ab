@@ -1,5 +1,16 @@
 # Decision Register
 
+## DR-078H — OCR text is extraction assistance until visual review — 24 September 2026
+
+Decision: OCR output from an image or scanned upload must never become planning evidence merely because a provider returned text.
+
+Issue #437 introduces a provider-neutral `WorkspaceUploadOcrAttempt` lifecycle. Every attempt is append-only, bound to the immutable upload SHA-256 and moves through `QUEUED` → `PROCESSING` → `REVIEW_REQUIRED` or `FAILED`. A failed/rejected attempt requires explicit retry. Provider success remains outside retrieval and leaves the original upload `IMAGE_ONLY` until visual review explicitly approves the exact page-numbered result. Promotion then records `ocr-reviewed-v1` extraction provenance and reuses the existing indexing pipeline; indexing remains an independent readiness fact.
+
+The uploads API/Sources panel may expose privacy-safe OCR state, attempt number and safe error code, but not OCR text. No live OCR provider, Production processing, automatic applicability acceptance, billing or checkout activation is authorised by this decision.
+
+Repository inspection also confirmed structured map/plan provenance is already substantially implemented; future Item 74A work should close remaining conflict/freshness and real-provider acceptance gaps rather than create a parallel map evidence model.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.
@@ -585,7 +596,7 @@ Implementation checkpoint — evidence extraction and provenance foundation (`fe
 - The workspace Sources panel exposes `Ready`, `Partially readable`, `Image only`, or `Needs review` and the review/indexing reason. A stored upload is no longer labelled generically as synced.
 - Regression coverage proves hashing/text extraction, PDF page provenance, image-only/legacy/parser-failure demotion, successful indexing and visible indexing failure. On 3 August 2026, Commercial Funnel Golden Gate run `30776099344` passed on head `7313eba` (155 Node tests and 77 Vitest tests, zero failures) and the Vercel Preview deployment completed successfully with the additive Prisma migration and full application build.
 
-Remaining before 74A is complete: add an asynchronous OCR/provider path with operator-visible retry/review; model map/plan source, layer/legend, dates, site identity, observation and limitation; add proposal/statutory reconciliation and conflict/freshness gates; and make SEE section readiness consume only readable, successfully indexed, accepted evidence.
+Issue #437 implements the provider-neutral OCR retry/review foundation. A live OCR worker/provider with cost/privacy controls remains open. Structured map/plan provenance is already substantially implemented; remaining 74A work is to close any residual proposal/statutory conflict/freshness gaps and prove protected real-evidence flows while retaining readable + indexed + accepted SEE finality.
 
 ### 74B — Professional SEE compiler and paid entitlement
 - Replace the current pre-SEE `.txt` memo as the commercial endpoint with a versioned living SEE that becomes final only when all required inputs are resolved or explicitly routed to professional review.
