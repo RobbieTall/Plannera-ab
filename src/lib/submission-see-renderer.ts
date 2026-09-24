@@ -630,14 +630,40 @@ const renderDocx = (
   return createStoredZip(entries, candidate.generatedAt);
 };
 
-type PdfLine = {
+type PdfColor = [number, number, number];
+
+type PdfTextPrimitive = {
+  kind: "text";
   text: string;
   font: "regular" | "bold";
   size: number;
   x: number;
   y: number;
-  color: [number, number, number];
+  color: PdfColor;
 };
+
+type PdfRectPrimitive = {
+  kind: "rect";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill?: PdfColor;
+  stroke?: PdfColor;
+  lineWidth?: number;
+};
+
+type PdfRulePrimitive = {
+  kind: "line";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: PdfColor;
+  lineWidth: number;
+};
+
+type PdfPrimitive = PdfTextPrimitive | PdfRectPrimitive | PdfRulePrimitive;
 
 const pdfSafe = (value: string) =>
   value
@@ -677,35 +703,107 @@ const wrapText = (value: string, maxCharacters: number) => {
 };
 
 type PdfTextOptions = {
-  font?: PdfLine["font"];
+  font?: "regular" | "bold";
   size?: number;
-  color?: PdfLine["color"];
+  color?: PdfColor;
   before?: number;
   after?: number;
   indent?: number;
+  x?: number;
+  width?: number;
 };
 
 const layoutPdf = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
 ) => {
-  const pages: PdfLine[][] = [[]];
+  const model = buildSubmissionSeePresentation({
+    candidate,
+    workingContext: presentation.workingContext,
+  });
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 54;
+  const contentWidth = 487;
+  const bodyTop = 760;
+  const bottomLimit = 62;
+  const pages: PdfPrimitive[][] = [[]];
   let pageIndex = 0;
   let y = 790;
-  const margin = 54;
+
+  const page = () => pages[pageIndex]!;
+
+  const pushText = (
+    text: string,
+    x: number,
+    baseline: number,
+    size: number,
+    font: "regular" | "bold" = "regular",
+    color: PdfColor = [0.14, 0.19, 0.23],
+  ) => {
+    page().push({
+      kind: "text",
+      text,
+      font,
+      size,
+      x,
+      y: baseline,
+      color,
+    });
+  };
+
+  const pushRect = (
+    x: number,
+    bottom: number,
+    width: number,
+    height: number,
+    options: {
+      fill?: PdfColor;
+      stroke?: PdfColor;
+      lineWidth?: number;
+    } = {},
+  ) => {
+    page().push({
+      kind: "rect",
+      x,
+      y: bottom,
+      width,
+      height,
+      fill: options.fill,
+      stroke: options.stroke,
+      lineWidth: options.lineWidth,
+    });
+  };
+
+  const pushRule = (
+    x1: number,
+    baseline: number,
+    x2: number,
+    color: PdfColor = [0.78, 0.83, 0.84],
+    lineWidth = 0.6,
+  ) => {
+    page().push({
+      kind: "line",
+      x1,
+      y1: baseline,
+      x2,
+      y2: baseline,
+      color,
+      lineWidth,
+    });
+  };
 
   const newPage = () => {
     pages.push([]);
     pageIndex += 1;
-    y = 790;
+    y = bodyTop;
   };
 
   const textLayout = (text: string, options: PdfTextOptions = {}) => {
     const size = options.size ?? 10.5;
-    const maxCharacters = Math.max(
-      25,
-      Math.floor((487 - (options.indent ?? 0)) / (size * 0.52)),
-    );
+    const width =
+      options.width ?? Math.max(80, contentWidth - (options.indent ?? 0));
+    const maxCharacters = Math.max(12, Math.floor(width / (size * 0.52)));
     const lines = wrapText(text, maxCharacters);
     const before = options.before ?? 0;
     const after = options.after ?? 8;
@@ -714,198 +812,392 @@ const layoutPdf = (
       lines,
       before,
       after,
+      lineHeight: size * 1.45,
       height: before + lines.length * size * 1.45 + after,
     };
   };
 
   const ensureSpace = (requiredHeight: number) => {
-    const availablePageHeight = 790 - 64;
-    if (requiredHeight <= availablePageHeight && y - requiredHeight < 64) {
+    if (requiredHeight <= bodyTop - bottomLimit && y - requiredHeight < bottomLimit) {
       newPage();
     }
   };
 
-  const addText = (
-    text: string,
-    options: PdfTextOptions = {},
-  ) => {
+  const addText = (text: string, options: PdfTextOptions = {}) => {
     const font = options.font ?? "regular";
-    const color = options.color ?? ([0.14, 0.19, 0.23] as const);
+    const color = options.color ?? ([0.14, 0.19, 0.23] as PdfColor);
     const layout = textLayout(text, options);
     y -= layout.before;
+    const x = options.x ?? margin + (options.indent ?? 0);
     for (const line of layout.lines) {
-      if (y < 64) newPage();
-      pages[pageIndex]!.push({
-        text: line,
-        font,
-        size: layout.size,
-        x: margin + (options.indent ?? 0),
-        y,
-        color: [color[0], color[1], color[2]],
-      });
-      y -= layout.size * 1.45;
+      if (y < bottomLimit) newPage();
+      pushText(line, x, y, layout.size, font, color);
+      y -= layout.lineHeight;
     }
     y -= layout.after;
   };
 
-  presentation.pdfTitleLines.forEach((line, index) => {
-    const isLast = index === presentation.pdfTitleLines.length - 1;
-    const isWorking = presentation.workingContext !== null;
-    addText(line, {
+  const addSectionTitle = (number: string, title: string) => {
+    addText(`SECTION ${number}`, {
       font: "bold",
-      size: isLast ? (isWorking ? 23 : 27) : 15,
-      color: [0.04, 0.35, 0.38],
-      before: index === 0 ? 95 : 0,
-      after: isLast ? 28 : 0,
+      size: 8.5,
+      color: [0.42, 0.52, 0.55],
+      after: 5,
     });
-  });
-  addText(candidate.site.label, {
-    font: "bold",
-    size: 16,
-    color: [0.2, 0.31, 0.34],
-    after: 12,
-  });
-  addText(
-    `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
-    { size: 12, color: [0.31, 0.4, 0.43], after: 24 },
-  );
-  addText(`Project ${candidate.projectId}`, { size: 9.5, after: 4 });
-  addText(`Generated ${new Date(candidate.generatedAt).toISOString()}`, {
-    size: 9.5,
-    after: 4,
-  });
-  addText(
-    `Operator checklist ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
-    { size: 9.5 },
-  );
+    addText(`${number}. ${title}`, {
+      font: "bold",
+      size: 19,
+      color: [0.09, 0.21, 0.23],
+      after: 8,
+    });
+    pushRule(margin, y + 3, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+    y -= 14;
+  };
 
-  if (presentation.workingContext) {
-    addText("WORKING SEE - NOT SUBMISSION READY", {
-      font: "bold",
-      size: 10,
-      color: [0.68, 0.28, 0.08],
-      before: 10,
-      after: 0,
+  const addKeyValueRow = (row: SubmissionSeePresentationRow) => {
+    const labelWidth = 128;
+    const valueWidth = contentWidth - labelWidth;
+    const labelLayout = textLayout(row.label, { size: 9, width: labelWidth - 16 });
+    const valueLayout = textLayout(row.value, { size: 9.5, width: valueWidth - 18 });
+    const lineHeight = Math.max(labelLayout.lineHeight, valueLayout.lineHeight);
+    const rowHeight =
+      Math.max(labelLayout.lines.length, valueLayout.lines.length) * lineHeight + 16;
+    ensureSpace(rowHeight + 3);
+    const top = y;
+    const bottom = top - rowHeight;
+    pushRect(margin, bottom, contentWidth, rowHeight, {
+      fill: [1, 1, 1],
+      stroke: [0.82, 0.86, 0.87],
+      lineWidth: 0.5,
     });
+    pushRect(margin, bottom, labelWidth, rowHeight, {
+      fill: [0.91, 0.95, 0.95],
+    });
+    labelLayout.lines.forEach((line, index) =>
+      pushText(
+        line,
+        margin + 8,
+        top - 13 - index * labelLayout.lineHeight,
+        9,
+        "bold",
+        [0.04, 0.35, 0.38],
+      ),
+    );
+    valueLayout.lines.forEach((line, index) =>
+      pushText(
+        line,
+        margin + labelWidth + 9,
+        top - 13 - index * valueLayout.lineHeight,
+        9.5,
+        "regular",
+        [0.18, 0.25, 0.28],
+      ),
+    );
+    y = bottom - 3;
+  };
+
+  const addCallout = (
+    title: string,
+    text: string,
+    options: {
+      fill?: PdfColor;
+      accent?: PdfColor;
+    } = {},
+  ) => {
+    const fill = options.fill ?? ([0.95, 0.97, 0.97] as PdfColor);
+    const accent = options.accent ?? ([0.04, 0.35, 0.38] as PdfColor);
+    const titleLayout = textLayout(title, { size: 9, width: contentWidth - 30 });
+    const bodyLayout = textLayout(text, { size: 9.5, width: contentWidth - 30 });
+    const boxHeight = titleLayout.height + bodyLayout.height + 12;
+    ensureSpace(boxHeight + 6);
+    const top = y;
+    const bottom = top - boxHeight;
+    pushRect(margin, bottom, contentWidth, boxHeight, {
+      fill,
+      stroke: [0.83, 0.87, 0.88],
+      lineWidth: 0.5,
+    });
+    pushRect(margin, bottom, 5, boxHeight, { fill: accent });
+    let localY = top - 15;
+    titleLayout.lines.forEach((line) => {
+      pushText(line, margin + 15, localY, 9, "bold", accent);
+      localY -= titleLayout.lineHeight;
+    });
+    localY -= 3;
+    bodyLayout.lines.forEach((line) => {
+      pushText(line, margin + 15, localY, 9.5, "regular", [0.19, 0.25, 0.28]);
+      localY -= bodyLayout.lineHeight;
+    });
+    y = bottom - 8;
+  };
+
+  const addCard = (
+    heading: string,
+    subheading: string,
+    detail: string,
+  ) => {
+    const headingLayout = textLayout(heading, { size: 10.2, width: contentWidth - 24 });
+    const subLayout = textLayout(subheading, { size: 8.5, width: contentWidth - 24 });
+    const detailLayout = textLayout(detail, { size: 8.2, width: contentWidth - 24 });
+    const height = headingLayout.height + subLayout.height + detailLayout.height + 8;
+    ensureSpace(height + 6);
+    const top = y;
+    const bottom = top - height;
+    pushRect(margin, bottom, contentWidth, height, {
+      fill: [0.985, 0.99, 0.99],
+      stroke: [0.85, 0.88, 0.89],
+      lineWidth: 0.5,
+    });
+    let localY = top - 14;
+    headingLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 10.2, "bold", [0.09, 0.21, 0.23]);
+      localY -= headingLayout.lineHeight;
+    });
+    subLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 8.5, "bold", [0.04, 0.35, 0.38]);
+      localY -= subLayout.lineHeight;
+    });
+    detailLayout.lines.forEach((line) => {
+      pushText(line, margin + 12, localY, 8.2, "regular", [0.33, 0.4, 0.43]);
+      localY -= detailLayout.lineHeight;
+    });
+    y = bottom - 7;
+  };
+
+  // Cover
+  pushRect(0, pageHeight - 82, pageWidth, 82, {
+    fill: [0.04, 0.35, 0.38],
+  });
+  pushText(model.brand, margin, pageHeight - 48, 15, "bold", [1, 1, 1]);
+  y = 705;
+  addText(model.statusLabel, {
+    font: "bold",
+    size: 9,
+    color: presentation.workingContext
+      ? [0.67, 0.34, 0.08]
+      : [0.04, 0.35, 0.38],
+    after: 9,
+  });
+  addText(model.documentTitle, {
+    font: "bold",
+    size: 29,
+    color: [0.09, 0.21, 0.23],
+    width: 430,
+    after: 18,
+  });
+  addText(model.siteLabel, {
+    font: "bold",
+    size: 15.5,
+    color: [0.04, 0.35, 0.38],
+    width: 440,
+    after: 6,
+  });
+  addText(model.locationLine, {
+    size: 10.5,
+    color: [0.35, 0.43, 0.46],
+    after: 24,
+  });
+  addCallout("PROPOSAL", model.proposalSummary, {
+    fill: [0.95, 0.97, 0.97],
+    accent: [0.04, 0.35, 0.38],
+  });
+  pushText(`Prepared ${model.generatedDate}`, margin, 62, 9, "regular", [0.42, 0.49, 0.52]);
+  pushText("Plannera", margin, 42, 8.5, "bold", [0.04, 0.35, 0.38]);
+
+  // Document control
+  newPage();
+  addText("DOCUMENT CONTROL", {
+    font: "bold",
+    size: 19,
+    color: [0.09, 0.21, 0.23],
+    after: 7,
+  });
+  pushRule(margin, y + 4, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+  y -= 14;
+  for (const row of model.documentControl) addKeyValueRow(row);
+  y -= 8;
+  addText("Proposal Summary", {
+    font: "bold",
+    size: 14,
+    color: [0.04, 0.35, 0.38],
+    after: 7,
+  });
+  addText(model.proposalSummary, { size: 10.2, after: 10 });
+  addCallout("Document Status", model.statusDetail, {
+    fill: presentation.workingContext
+      ? [1, 0.97, 0.91]
+      : [0.95, 0.97, 0.97],
+    accent: presentation.workingContext
+      ? [0.67, 0.34, 0.08]
+      : [0.04, 0.35, 0.38],
+  });
+  if (presentation.workingContext) {
+    addText(
+      `Source DPP: ${presentation.workingContext.sourceDetailedPlanningPackArtefactId}`,
+      { size: 8.5, color: [0.42, 0.49, 0.52], after: 3 },
+    );
+    if (presentation.workingContext.predecessorDetailedPlanningPackArtefactId) {
+      addText(
+        `Strengthens DPP: ${presentation.workingContext.predecessorDetailedPlanningPackArtefactId}`,
+        { size: 8.5, color: [0.42, 0.49, 0.52], after: 3 },
+      );
+    }
+  }
+
+  // Contents
+  newPage();
+  addText("CONTENTS", {
+    font: "bold",
+    size: 19,
+    color: [0.09, 0.21, 0.23],
+    after: 7,
+  });
+  pushRule(margin, y + 4, margin + contentWidth, [0.04, 0.35, 0.38], 1.2);
+  y -= 15;
+  for (const section of model.contents) {
+    ensureSpace(29);
+    pushText(section.number, margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText(section.title, margin + 34, y, 10, "regular", [0.18, 0.25, 0.28]);
+    pushRule(margin + 34, y - 8, margin + contentWidth, [0.9, 0.92, 0.93], 0.4);
+    y -= 28;
+  }
+  if (model.outstandingEvidence.length > 0) {
+    pushText("A", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Outstanding Evidence", margin + 34, y, 10, "regular");
+    y -= 28;
+  }
+  if (model.evidenceSchedule.length > 0) {
+    pushText("B", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Supporting Evidence Schedule", margin + 34, y, 10, "regular");
+    y -= 28;
+  }
+  pushText("C", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+  pushText("Source Register", margin + 34, y, 10, "regular");
+  y -= 28;
+  if (model.limitations.length > 0) {
+    pushText("D", margin, y, 10, "bold", [0.04, 0.35, 0.38]);
+    pushText("Limitations", margin + 34, y, 10, "regular");
+  }
+
+  if (model.outstandingEvidence.length > 0) {
+    newPage();
+    addSectionTitle("A", "Outstanding Evidence");
+    addCallout("Working document", model.statusDetail, {
+      fill: [1, 0.97, 0.91],
+      accent: [0.67, 0.34, 0.08],
+    });
+    for (const item of model.outstandingEvidence) {
+      addCard(
+        item.topic,
+        `Required evidence: ${item.recommendedEvidence}`,
+        `Effect: ${item.effect}`,
+      );
+    }
+  }
+
+  for (const section of model.sections) {
+    newPage();
+    addSectionTitle(section.number, section.title);
+    addText(section.narrative, { size: 10.4, after: 12 });
+    addCallout(
+      "Evidence used",
+      section.sources.map((source) => `${source.id} - ${source.title}`).join("; "),
+    );
+  }
+
+  if (model.evidenceSchedule.length > 0) {
+    newPage();
+    addSectionTitle("B", "Supporting Evidence Schedule");
+    addText(
+      "Reviewed project evidence used by the current Statement of Environmental Effects is listed below. Readability and indexing status remain evidence facts, not planning conclusions.",
+      { size: 9.7, after: 12 },
+    );
+    for (const item of model.evidenceSchedule) {
+      addCard(
+        item.name,
+        `${item.kind} | ${item.status}`,
+        `Used in: ${item.usedIn || "Not assigned"}`,
+      );
+    }
   }
 
   newPage();
-  const working = presentation.workingContext;
-  if (working) {
-    addText("Document Status", {
-      font: "bold",
-      size: 17,
-      color: [0.04, 0.35, 0.38],
-      after: 10,
-    });
-    addText(working.documentReadiness.customerMessage, { size: 10.5 });
-    addText(
-      `Evidence status: ${working.documentReadiness.evidenceStatus}`,
-      { size: 9.5, after: 4 },
+  addSectionTitle("C", "Source Register");
+  for (const source of model.sourceRegister) {
+    addCard(
+      `${source.id} - ${source.title}`,
+      source.type,
+      `${source.provenance} | Checked ${source.checkedAt}`,
     );
-    addText(
-      `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
-      { size: 9.5, after: 4 },
-    );
-    if (working.predecessorDetailedPlanningPackArtefactId) {
-      addText(
-        `Strengthens DPP: ${working.predecessorDetailedPlanningPackArtefactId}`,
-        { size: 9.5, after: 10 },
-      );
-    }
-    if (working.outstandingEvidence.length > 0) {
-      addText("Outstanding Evidence", {
-        font: "bold",
-        size: 15,
-        color: [0.04, 0.35, 0.38],
-        before: 8,
-        after: 8,
+  }
+
+  if (model.limitations.length > 0) {
+    newPage();
+    addSectionTitle("D", "Limitations");
+    for (const limitation of model.limitations) {
+      addCallout("Limitation", limitation, {
+        fill: [1, 0.97, 0.91],
+        accent: [0.67, 0.34, 0.08],
       });
-      for (const item of working.outstandingEvidence) {
-        addText(
-          `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
-          { size: 9.5, indent: 10, after: 6 },
-        );
-      }
     }
   }
 
-  const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
-  const sectionHeadingOptions: PdfTextOptions = {
-    font: "bold",
-    size: 17,
-    color: [0.04, 0.35, 0.38],
-    before: 8,
-    after: 10,
-  };
-  const sectionNarrativeOptions: PdfTextOptions = {
-    size: 10.5,
-    after: 7,
-  };
-  const sectionCitationOptions: PdfTextOptions = {
-    size: 8.5,
-    color: [0.31, 0.4, 0.43],
-    indent: 12,
-    after: 15,
-  };
-
-  for (const section of candidate.sections) {
-    const heading = titleCase(section.title || section.id);
-    const citations = section.sourceIds
-      .map((sourceId) => {
-        const source = sourceById.get(sourceId);
-        return source ? source.id + ": " + source.title : sourceId;
-      })
-      .join("; ");
-    const citationText = "Sources: " + citations;
-
-    ensureSpace(
-      textLayout(heading, sectionHeadingOptions).height +
-        textLayout(section.narrative, sectionNarrativeOptions).height +
-        textLayout(citationText, sectionCitationOptions).height,
-    );
-    addText(heading, sectionHeadingOptions);
-    addText(section.narrative, sectionNarrativeOptions);
-    addText(citationText, sectionCitationOptions);
-  }
-
-  addText("Source Register", {
-    font: "bold",
-    size: 17,
-    color: [0.04, 0.35, 0.38],
-    before: 12,
-    after: 10,
-  });
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
-    addText(
-      `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-      { size: 8.5, after: 5 },
-    );
-  }
-
-  if (candidate.limitations.length > 0) {
-    addText("Limitations", {
-      font: "bold",
-      size: 17,
-      color: [0.04, 0.35, 0.38],
-      before: 12,
-      after: 10,
+  // Page furniture is added after pagination is final.
+  pages.forEach((primitives, index) => {
+    if (index > 0) {
+      primitives.push({
+        kind: "line",
+        x1: margin,
+        y1: 800,
+        x2: pageWidth - margin,
+        y2: 800,
+        color: [0.82, 0.86, 0.87],
+        lineWidth: 0.5,
+      });
+      primitives.push({
+        kind: "text",
+        text: "PLANNERA",
+        font: "bold",
+        size: 8,
+        x: margin,
+        y: 814,
+        color: [0.04, 0.35, 0.38],
+      });
+      primitives.push({
+        kind: "text",
+        text: model.siteLabel,
+        font: "regular",
+        size: 7.5,
+        x: margin + 75,
+        y: 814,
+        color: [0.42, 0.49, 0.52],
+      });
+    }
+    primitives.push({
+      kind: "line",
+      x1: margin,
+      y1: 39,
+      x2: pageWidth - margin,
+      y2: 39,
+      color: [0.84, 0.87, 0.88],
+      lineWidth: 0.5,
     });
-    for (const limitation of candidate.limitations) {
-      addText(`- ${limitation}`, { size: 9.5, indent: 10, after: 5 });
-    }
-  }
-
-  pages.forEach((page, index) => {
-    page.push({
-      text: `Plannera | ${presentation.footerLabel} | ${index + 1} of ${pages.length}`,
+    primitives.push({
+      kind: "text",
+      text: `Plannera | ${presentation.footerLabel}`,
       font: "regular",
-      size: 8,
-      x: 54,
-      y: 30,
+      size: 7.5,
+      x: margin,
+      y: 23,
+      color: [0.42, 0.49, 0.52],
+    });
+    primitives.push({
+      kind: "text",
+      text: `${index + 1} / ${pages.length}`,
+      font: "regular",
+      size: 7.5,
+      x: pageWidth - margin - 34,
+      y: 23,
       color: [0.42, 0.49, 0.52],
     });
   });
@@ -944,14 +1236,54 @@ const renderPdf = (
     const pageId = 5 + index * 2;
     const contentId = pageId + 1;
     const commands = page
-      .map((line) => {
-        const font = line.font === "bold" ? "F2" : "F1";
-        const [red, green, blue] = line.color;
-        return `BT /${font} ${line.size.toFixed(2)} Tf ${red.toFixed(
-          3,
-        )} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${line.x.toFixed(
-          2,
-        )} ${line.y.toFixed(2)} Tm (${pdfSafe(line.text)}) Tj ET`;
+      .map((primitive) => {
+        if (primitive.kind === "text") {
+          const font = primitive.font === "bold" ? "F2" : "F1";
+          const [red, green, blue] = primitive.color;
+          return `BT /${font} ${primitive.size.toFixed(2)} Tf ${red.toFixed(
+            3,
+          )} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${primitive.x.toFixed(
+            2,
+          )} ${primitive.y.toFixed(2)} Tm (${pdfSafe(primitive.text)}) Tj ET`;
+        }
+        if (primitive.kind === "line") {
+          const [red, green, blue] = primitive.color;
+          return `q ${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(
+            3,
+          )} RG ${primitive.lineWidth.toFixed(2)} w ${primitive.x1.toFixed(
+            2,
+          )} ${primitive.y1.toFixed(2)} m ${primitive.x2.toFixed(
+            2,
+          )} ${primitive.y2.toFixed(2)} l S Q`;
+        }
+        const operations: string[] = ["q"];
+        if (primitive.fill) {
+          const [red, green, blue] = primitive.fill;
+          operations.push(
+            `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} rg`,
+          );
+        }
+        if (primitive.stroke) {
+          const [red, green, blue] = primitive.stroke;
+          operations.push(
+            `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} RG`,
+            `${(primitive.lineWidth ?? 0.5).toFixed(2)} w`,
+          );
+        }
+        operations.push(
+          `${primitive.x.toFixed(2)} ${primitive.y.toFixed(
+            2,
+          )} ${primitive.width.toFixed(2)} ${primitive.height.toFixed(2)} re`,
+        );
+        operations.push(
+          primitive.fill && primitive.stroke
+            ? "B"
+            : primitive.fill
+              ? "f"
+              : "S",
+          "Q",
+        );
+        return operations.join(" ");
       })
       .join("\n");
     const commandBuffer = Buffer.from(commands, "latin1");
