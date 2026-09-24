@@ -156,11 +156,8 @@ Implemented so far:
 - existing SP3/E2 fixtures retain their exact permitted-with-consent terms;
 - R2 uses the repository-established Zone R2 term `Dwelling houses` as permitted with consent;
 - SP2 asserts no permitted-with-consent term in this slice because inspected repository evidence establishes the zone identity but not a proposal-specific statutory use term;
-- both new journeys intentionally return no proposal-specific DCP evidence;
-- tests require exact QSC → DPP → expert-review/audit site/proposal binding;
-- forged caller site/proposal fields must be ignored;
-- all five DPP topics must remain `Unavailable`;
-- SEE generation is expected to fail closed with no applicable cited DCP evidence; audit must report `needs_expert_review` / SEE `missing` / `unresolved_pack_referral` with next action `refer_unresolved_pack_for_expert_review`;
+- Byron R2 intentionally returns no proposal-specific DCP evidence; it must preserve exact QSC → DPP → expert-review/audit scope, ignore forged caller site/proposal fields, keep all five DPP topics `Unavailable`, block SEE generation, and audit as `needs_expert_review` / SEE `missing` / `unresolved_pack_referral`;
+- Kempsey SP2 asserts no synthetic statutory land-use terms; QSC must remain uncited, paid-pack generation must be rejected by the quality-valid-QSC gate, and audit must remain QSC `unresolved` / DPP `missing` / SEE `missing` / referral `none`;
 - Kempsey SP2 output is checked for absence of E2/Commercial premises evidence;
 - runbook: `docs/operations/representative-address-proposal-golden.md`.
 
