@@ -1,4 +1,9 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026
+
+The approved consultant credential disclosure is now implemented on the current human-operated referral submission surface under Issue #425 / `feat/consultant-credential-disclosure-20260924`. There is no live directory/RFQ marketplace yet, so the same reusable disclosure component/string is reserved for those future surfaces rather than creating placeholder UI. The wording remains: consultants self-report qualifications and service regions; Plannera does not verify professional credentials or memberships; users should confirm relevant licences directly before engaging.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
