@@ -1,5 +1,39 @@
 # Item 78C current desktop/mobile handover
 
+## Current Item 78C checkpoint - 25 September 2026
+
+**HOLD. Neither Preview whole-funnel acceptance nor commercial launch is proven.**
+This checkpoint supersedes all older operational instructions and approval/pin status below; historical product requirements and evidence are preserved.
+
+- PR #420 was merged into `accept/item-78c-byron-kempsey-20260914` at `2793aef38433fdb41341c096f7b027689450f525`, not main. Both existing Preview environment commit pins were saved and confirmed at that SHA on 25 September.
+- The registered Item 77 diagnostic-only [run #65, attempt 1](https://github.com/RobbieTall/Plannera-ab/actions/runs/36069159099) completed. Credential-free and protected authorization passed. Both councils returned `configuration_invalid`, `council=null`, `checks=null`; they stopped before the diagnostic database query. Cleanup passed. This does not establish a login, ownership or database alignment result.
+- Robbie approved a bounded diagnostic refinement, synthetic tests, independent review and replacement Preview pin. This branch prepares fixed, non-disclosing failure categories without relaxing configuration checks. Its exact published/tested head and review outcome must be recorded in [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395); preparation is not merge, repin or successful execution.
+- The previous whole-funnel [run #21](https://github.com/RobbieTall/Plannera-ab/actions/runs/35859336870) remains failed at both paid-source bridges. Do not repeat payments or replace any key based on the generic diagnostic result.
+- Preserve council fixture independence, existing secrets, exact branch restrictions, required reviewers and disabled administrator bypass. No Production or main changes, database/schema mutation, stateful acceptance or deployment are part of this refinement. Production checkout must remain disabled; its live value was not freshly audited here.
+- Current handover: `docs/project-memory/item78c-current-handover.md` from this diagnostic-fix PR, together with the latest Issue #395 checkpoint. Mobile feature work remains separate in PRs #422, #424, #426, #429 and #434; their checks do not prove Item 78C or authorize bulk integration.
+
+### Desktop/mobile continuity
+
+Read Issue #395 first, then this file from the latest diagnostic-fix PR. Do not use an older main copy or treat historical approval-pending statements below as current. Run #65 is terminal; no process needs polling or a duplicate dispatch. Both last-confirmed environment pins are `2793aef38433fdb41341c096f7b027689450f525`.
+
+The exact blocker is that the existing safe diagnostic conflates configuration failures and did not establish which protected input failed. The approved refinement makes that category observable without exposing values. Until its reviewed replacement is integrated, pinned and executed, do not claim the invalid field, login status or original 404 cause is known.
+
+Every meaningful save, commit, review, merge, run and blocker must be recorded in Issue #395 with exact SHA/run/attempt, actual outcome, remaining uncertainty and one next action. Reconcile these canonical documents before handoff. Write configuration names only. State which documents are on a PR versus merged acceptance or main. Mobile agents must report unavailable tools rather than asking for credentials in chat or claiming unsaved work.
+
+The separate daytime feature handover is in [PR #434](https://github.com/RobbieTall/Plannera-ab/pull/434), `docs/project-memory/daytime-continuity-2026-09-24.md`. Preserve that work and PRs #422/#424/#426/#429; they are not part of this diagnostic fix.
+
+### Active queue
+
+1. Publish the narrowly scoped refinement only after trigger/deployment safety is established. Retain exact Git-deployment suppression for the new fix branch and the acceptance branch.
+2. Require synthetic regression success and independent review at the exact candidate commit; report any unrun checks honestly.
+3. Before integration, record the exact reviewed candidate and obtain any outstanding integration approval. Never invent a merge SHA. Repin only the two existing Preview commit variables to the actual approved acceptance commit.
+4. Dispatch the registered `Item 77 protected commercial journey` on the acceptance branch with `diagnostic_only=true`, `expected_commit=<actual approved full SHA>`, and `confirmation=READ ONLY PREVIEW LOGIN CHECK`. Preserve human environment review.
+5. Use only fixed reason codes to identify the failing category before asking for any secret entry. A format rejection is not proof that a key is wrong; do not weaken validation.
+6. After the evidenced cause is corrected within its approval scope, separately complete independent whole-funnel acceptance, payment replay idempotency, private evidence, DPP/SEE outputs, consultant handoff and representative DOCX/PDF inspection.
+7. Require the actual final `READY_FOR_NON_PRODUCTION_ACCEPTANCE` decision and stop. Production activation requires separate explicit approval.
+
+## Historical record below (superseded operational checkpoints)
+
 Updated: 24 September 2026 (Australia/Sydney). Operational owner: RobbieTall. Rolling evidence: [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395).
 
 ## Read this first

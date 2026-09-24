@@ -1,5 +1,27 @@
 # Item 78C diagnostic publication boundary
 
+## Current Item 78C checkpoint - 25 September 2026
+
+**HOLD. Neither Preview whole-funnel acceptance nor commercial launch is proven.**
+This checkpoint supersedes all older operational instructions and approval/pin status below; historical product requirements and evidence are preserved.
+
+- PR #420 was merged into `accept/item-78c-byron-kempsey-20260914` at `2793aef38433fdb41341c096f7b027689450f525`, not main. Both existing Preview environment commit pins were saved and confirmed at that SHA on 25 September.
+- The registered Item 77 diagnostic-only [run #65, attempt 1](https://github.com/RobbieTall/Plannera-ab/actions/runs/36069159099) completed. Credential-free and protected authorization passed. Both councils returned `configuration_invalid`, `council=null`, `checks=null`; they stopped before the diagnostic database query. Cleanup passed. This does not establish a login, ownership or database alignment result.
+- Robbie approved a bounded diagnostic refinement, synthetic tests, independent review and replacement Preview pin. This branch prepares fixed, non-disclosing failure categories without relaxing configuration checks. Its exact published/tested head and review outcome must be recorded in [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395); preparation is not merge, repin or successful execution.
+- The previous whole-funnel [run #21](https://github.com/RobbieTall/Plannera-ab/actions/runs/35859336870) remains failed at both paid-source bridges. Do not repeat payments or replace any key based on the generic diagnostic result.
+- Preserve council fixture independence, existing secrets, exact branch restrictions, required reviewers and disabled administrator bypass. No Production or main changes, database/schema mutation, stateful acceptance or deployment are part of this refinement. Production checkout must remain disabled; its live value was not freshly audited here.
+- Current handover: `docs/project-memory/item78c-current-handover.md` from this diagnostic-fix PR, together with the latest Issue #395 checkpoint. Mobile feature work remains separate in PRs #422, #424, #426, #429 and #434; their checks do not prove Item 78C or authorize bulk integration.
+
+### Publication and execution boundary for this refinement
+
+The new branch is `fix/item78c-config-reasons-20260925`, based exactly on acceptance `2793aef38433fdb41341c096f7b027689450f525`. Its initial complete commit must contain the new exact `git.deploymentEnabled=false` entry before the branch reference exists. Preserve the existing two exclusions and all functions/crons. No manual deployment is authorized.
+
+Repository trigger review and final-patch review are separate. Confirm the linked project's configuration and relevant external integrations before publication; repository settings cannot prove that arbitrary third-party automation is absent. Record that evidence and any limitation in Issue #395. This is Git-deployment containment, not a guarantee about dependency behavior, manual deploy hooks, infrastructure audit logs or process isolation. No new cloud setting, credential, environment or fixture is needed.
+
+The registered diagnostic dispatch path was proven to launch in run #65; the diagnostic's database query and saved-login/ownership outcome were not proven. Live diagnostic success would still not certify the deployed app's configuration or the full customer journey.
+
+## Historical record below (superseded operational checkpoints)
+
 ## Handoff checkpoint - 24 September 2026
 
 Current decision: HOLD. Read `../project-memory/item78c-current-handover.md` from PR420's current head and Issue #395 before acting. Configuration candidate e5374f939c586445e2a83c5b0a10852d3d8625ad passed all three examined PR checks; the live diagnostic has not run. A later documentation-only head must not be confused with that tested SHA.

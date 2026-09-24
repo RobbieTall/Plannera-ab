@@ -52,3 +52,16 @@ test('raw messages, extra fields and false success cannot be printed as summarie
   for (const patch of [{ error: 'synthetic-secret' }, { reason: 'synthetic-secret' }, { matched: true },
     { matched: true, reason: 'session_project_match' }]) assert.throws(() => safeSummary({ ...base, ...patch }));
 });
+
+const configurationReasons = ["configuration_council_invalid","configuration_confirmation_invalid","configuration_branch_invalid","configuration_commit_invalid","database_url_missing","database_url_invalid","database_protocol_invalid","database_target_mismatch","database_port_invalid","database_name_invalid","database_credentials_missing","database_fragment_forbidden","database_tls_invalid","database_options_invalid","session_cookie_missing","session_cookie_format_invalid","session_cookie_duplicate","session_cookie_value_invalid","session_cookie_conflict"];
+
+test('each configuration reason is failure-only with no checks or raw context', () => {
+  for (const reason of configurationReasons) {
+    const result = { version: 'item78c_session_preflight.v1', council: null, matched: false, reason, checks: null };
+    assert.deepEqual(safeSummary(result), result);
+    for (const patch of [
+      { matched: true }, { council: 'BYRON' }, { checks: {} }, { value: 'DO_NOT_EMIT' },
+      { reason: reason + ': DO_NOT_EMIT' }, { reason: 'database_url_invalid\nDO_NOT_EMIT' },
+    ]) assert.throws(() => safeSummary({ ...result, ...patch }));
+  }
+});
