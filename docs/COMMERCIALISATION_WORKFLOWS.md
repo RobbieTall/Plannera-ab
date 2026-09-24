@@ -1,4 +1,9 @@
 Plannera — Commercialisation Layer Workflows
+
+Implementation checkpoint — 24 September 2026
+
+Issue #427 begins the representative address-and-proposal expansion of the Byron/Kempsey golden matrix without changing production logic. Existing SP3/E2 quality-chain journeys remain intact; new Byron R2 and Kempsey SP2 truth cases are required to preserve exact site/proposal provenance and remain explicitly unresolved when proposal-specific DCP/permissibility evidence is not established. A green test must never be achieved by inventing local controls.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026
