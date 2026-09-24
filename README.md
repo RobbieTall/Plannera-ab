@@ -1,5 +1,10 @@
 # Plannera
 
+## September 24 daytime build — consultant credential disclosure
+
+Issue #425 / `feat/consultant-credential-disclosure-20260924` adds the approved consultant credential disclosure to the existing human-operated referral form and makes the wording reusable by future directory/RFQ pages. Plannera does not claim to verify consultant credentials, memberships, availability, quotes or response times. No referral, billing, Production or database behaviour changes.
+
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features
