@@ -23,7 +23,7 @@ They must prove:
 - caller-supplied forged site/proposal fields cannot replace the server-authoritative saved scope;
 - missing DCP evidence leaves all five DPP topics `Unavailable`;
 - the pack remains `needs_expert_review`;
-- the SEE remains `working_needs_evidence` and not submission-ready;
+- SEE generation fails closed because there is no applicable cited DCP evidence, so the review package proceeds without a source SEE;
 - audit returns `unresolved_pack_referral` with `refer_unresolved_pack_for_expert_review`;
 - Kempsey 32 Smith St remains SP2 Infrastructure and does not inherit E2/Commercial premises evidence.
 
