@@ -195,7 +195,9 @@ describe("submission SEE rendering", () => {
     expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("PLANNERA");
     expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Confirmed acceptance site");
     expect(document).not.toContain("Update this field in Word");
-    expect(document).not.toContain('<w:br w:type="page"/>');
+    expect(document.match(/<w:br w:type="page"\/>/g)?.length ?? 0).toBeGreaterThanOrEqual(
+      REQUIRED_SUBMISSION_SEE_SECTIONS.length + 3,
+    );
     expect(document).not.toContain(' TOC \\o "1-2" ');
   });
 
