@@ -191,8 +191,8 @@ const wordParagraph = (
 ) => {
   const properties = [
     `<w:pStyle w:val="${style}"/>`,
-    options.pageBreakBefore ? "<w:pageBreakBefore/>" : "",
     options.keepNext ? "<w:keepNext/>" : "",
+    options.pageBreakBefore ? "<w:pageBreakBefore/>" : "",
   ].join("");
   return `<w:p><w:pPr>${properties}</w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(
     text,
@@ -292,7 +292,18 @@ const renderDocx = (
   });
   const generated = new Date(candidate.generatedAt).toISOString();
   const body: string[] = [
-    wordParagraph(model.brand, "Brand"),
+    wordTable(
+      [[
+        {
+          text: model.brand,
+          fill: "0B5860",
+          color: "FFFFFF",
+          bold: true,
+          fontSize: 20,
+        },
+      ]],
+      [9360],
+    ),
     wordParagraph(model.statusLabel, "CoverStatus"),
     wordParagraph(model.documentTitle, "Title"),
     wordParagraph(model.siteLabel, "CoverSite"),
