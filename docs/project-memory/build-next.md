@@ -2,7 +2,7 @@
 
 ## Daytime launch slice — professional SEE DOCX/PDF presentation — Issue #432 / PR #434
 
-PR #434 current live head: `206c3d15bc2dec72a745f3ae12ba128111ae8a12` (documentation-only handover update after final verified head `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`). The renderer implementation itself was separately reviewed at `c9a9624ef085287765a17ee0443a2319d8552282`.
+PR #434 last fully verified documentation head is `8e145e4a60548693aca7fb4bc9dd280b5192b4fa`. Later commits on the same branch reconcile handover/runbook documentation only; live PR metadata is authoritative for the current documentation head. The renderer implementation itself was separately reviewed at `c9a9624ef085287765a17ee0443a2319d8552282`.
 
 Implemented without changing planning logic or finality:
 - shared deterministic DOCX/PDF presentation model;
