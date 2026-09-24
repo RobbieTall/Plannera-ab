@@ -7,12 +7,13 @@ This file is the canonical mobile-to-desktop handover for the current daytime bu
 1. Issue #395 — Item 78C acceptance/diagnostic.
 2. PR #422 + Issue #421 — consultant returned-report intake.
 3. PR #424 + Issue #423 — paid LGA preparation service target/resolution.
-4. PR for Issue #425 — consultant credential disclosure.
-5. This file.
-6. `docs/project-memory/build-next.md`.
-7. `docs/project-memory/decision-register.md`.
-8. `docs/COMMERCIALISATION_WORKFLOWS.md`.
-9. Relevant operations runbooks linked below.
+4. PR #426 + Issue #425 — consultant credential disclosure.
+5. PR #429 + Issue #427 — representative Byron/Kempsey address/proposal golden journeys.
+6. This file.
+7. `docs/project-memory/build-next.md`.
+8. `docs/project-memory/decision-register.md`.
+9. `docs/COMMERCIALISATION_WORKFLOWS.md`.
+10. Relevant operations runbooks linked below.
 
 ## Lane 1 — Item 78C acceptance diagnostic
 
@@ -143,38 +144,42 @@ No referral logic, database schema, billing, Production or environment behaviour
 Tracking: Issue #427.
 PR: #429.
 Branch: `test/representative-address-proposal-golden-20260924`.
-Tested code/docs head: `faea1f343a5a9283725483ccb0f0813dbb2b9479`.
+Verified code/docs head: `de01fd3e71e07d1c3598716d71c5d802d81cfde1`.
 State at checkpoint: **open, mergeable, not merged**.
 Base: `main` at branch creation `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`.
 
 Purpose:
-The existing commercial golden gate covers full persisted Byron SP3 and Kempsey E2 journeys. The whole-LGA source matrix covers source/projection inventory across all zones but explicitly does not prove representative address/proposal behavior outside those two fixtures.
+Extend the existing deterministic Byron SP3/Kempsey E2 commercial golden gate with representative truth cases already established in the repository, without changing production logic.
 
-Trusted cases selected from existing repository evidence:
-- Byron R2 — `33 Lorikeet Lane, Mullumbimby NSW 2482`, reviewed Item 74H case; parcel interior R2, approved 24 sqm storage shed ancillary to the residential case.
-- Kempsey SP2 — `32 Smith St, Kempsey NSW 2440`, existing SP2 Infrastructure truth case. It must never be treated as E2 Commercial Centre.
+Representative truth cases:
+- **Byron R2 — 33 Lorikeet Lane, Mullumbimby NSW 2482.** Repository-reviewed Item 74H case; parcel interior R2; approved 24 sqm storage shed ancillary to the residential case.
+- **Kempsey SP2 — 32 Smith St, Kempsey NSW 2440.** Repository-proven SP2 Infrastructure identity. It must never be treated as E2 Commercial Centre.
 
-Implemented so far:
-- widened the deterministic golden test harness to support R2/SP2 fixtures without changing production code;
-- existing SP3/E2 fixtures retain their exact permitted-with-consent terms;
-- R2 uses the repository-established Zone R2 term `Dwelling houses` as permitted with consent;
-- SP2 asserts no permitted-with-consent term in this slice because inspected repository evidence establishes the zone identity but not a proposal-specific statutory use term;
-- Byron R2 intentionally returns no proposal-specific DCP evidence; it must preserve exact QSC → DPP → expert-review/audit scope, ignore forged caller site/proposal fields, keep all five DPP topics `Unavailable`, block SEE generation, and audit as `needs_expert_review` / SEE `missing` / `unresolved_pack_referral`;
-- Kempsey SP2 asserts no synthetic statutory land-use terms; QSC must remain uncited, paid-pack generation must be rejected by the quality-valid-QSC gate, and audit must remain QSC `unresolved` / DPP `missing` / SEE `missing` / referral `none`;
-- Kempsey SP2 output is checked for absence of E2/Commercial premises evidence;
-- runbook: `docs/operations/representative-address-proposal-golden.md`.
+Implemented/test contract:
+- Existing Byron SP3 and Kempsey E2 quality-chain expectations are preserved.
+- Existing Kempsey E2 partial-evidence case remains a qualified `WORKING_SEE` and audits as `working_needs_evidence`.
+- Byron R2 uses only repository-backed evidence needed by the fixture, including the `Dwelling houses` permitted-with-consent term and R2 objectives already present in repo evidence.
+- Byron R2 intentionally supplies no proposal-specific DCP citations: DPP remains `needs_expert_review`, SEE generation fails closed for no applicable cited DCP evidence, and the expert-review/audit path becomes `unresolved_pack_referral`.
+- Kempsey SP2 contains no invented objectives or land-use permissions. The saved QSC proves the SP2 site identity but is not labelled `Cited`; the existing quality-valid-QSC gate rejects DPP generation.
+- The SP2 rejection is additionally required to leave zero persisted Detailed Planning Pack artefacts.
+- SP2 audit remains QSC `unresolved`, DPP/SEE `missing`, referral `none`, next action `generate_or_refresh_required_chain`.
+- SP2 output is checked for absence of E2/Commercial premises leakage.
+- No production source, schema, billing, checkout, environment, deployment or external data behavior changes.
 
-Production code, billing, checkout, schema, environments and external data are untouched.
+Verification history:
+1. First new-case attempt correctly exposed that zero cited DCP evidence cannot generate SEE.
+2. Second attempt correctly exposed that an uncited SP2 QSC cannot generate a paid DPP.
+3. Tests were corrected to assert those existing product gates; production code was never weakened.
+4. A previously staged accidental weakening of the existing Kempsey E2 partial-gap audit expectation was found and restored to `working_needs_evidence`.
+5. Final verified head `de01fd3e71e07d1c3598716d71c5d802d81cfde1` passed:
+   - Soft launch smoke — run `35966249365`
+   - Whole-LGA source matrix — run `35966249396`
+   - Commercial Funnel Golden Gate — run `35966249351`
+6. Separate read-only review `#5300803806` found no blocking issue on that exact head.
 
-Verification:
-- first attempt proved zero cited DCP evidence correctly blocks SEE generation;
-- second attempt proved uncited SP2 QSC evidence correctly blocks paid-pack generation;
-- tests were corrected to require those existing gates; production code was not weakened;
-- final tested head passed Soft launch smoke run 35965978466, Whole-LGA run 35965978410 and Commercial Funnel Golden Gate run 35965978518;
-- commercial node suite: 177 tests / 177 passed / 0 failed;
-- separate read-only review #5300780748 found no blocking issue.
+Runbook: `docs/operations/representative-address-proposal-golden.md`.
 
-No merge was authorised during daytime. Do not claim every-zone acceptance: this is representative expansion only.
+No merge was authorised during daytime. This is representative deterministic expansion only; it does not claim every-zone acceptance, live address resolution, rendered-document quality, payment acceptance or operator sign-off.
 
 ## Safety / continuity rules for desktop
 
