@@ -47,7 +47,9 @@ const BYRON: GoldenFixture = {
     "Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.",
   height: "9m",
   fsr: null,
+  permittedWithoutConsent: ["Environmental protection works"],
   permittedWithConsent: ["Tourist and visitor accommodation"],
+  prohibited: ["Heavy industrial uses"],
 };
 
 const KEMPSEY: GoldenFixture = {
@@ -65,7 +67,9 @@ const KEMPSEY: GoldenFixture = {
     "Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.",
   height: "11m",
   fsr: "2:1",
+  permittedWithoutConsent: ["Environmental protection works"],
   permittedWithConsent: ["Commercial premises"],
+  prohibited: ["Heavy industrial uses"],
 };
 
 
