@@ -175,6 +175,7 @@ describe("submission SEE rendering", () => {
         "_rels/.rels",
         "word/document.xml",
         "word/styles.xml",
+        "word/header1.xml",
         "word/footer1.xml",
         "word/_rels/document.xml.rels",
         "docProps/core.xml",
@@ -183,8 +184,16 @@ describe("submission SEE rendering", () => {
     );
     const document = entries.get("word/document.xml")!.toString("utf8");
     expect(document).toContain("Statement of Environmental Effects");
+    expect(document).toContain("Document Control");
+    expect(document).toContain("Proposal Summary");
+    expect(document).toContain("1. Executive Summary");
+    expect(document).toContain("Supporting Evidence Schedule");
     expect(document).toContain("Source Register");
     expect(document).toContain("Environmental Impacts");
+    expect(document).toContain("<w:tbl>");
+    expect(document).not.toContain("Project: synthetic-render-review");
+    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("PLANNERA");
+    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Synthetic Byron acceptance site");
     expect(document).not.toContain("Update this field in Word");
     expect(document).not.toContain('<w:br w:type="page"/>');
     expect(document).not.toContain(' TOC \\o "1-2" ');
@@ -195,10 +204,14 @@ describe("submission SEE rendering", () => {
     const pdf = rendered.pdf.toString("latin1");
 
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
-    expect(pdf).toContain("STATEMENT OF");
-    expect(pdf).toContain("ENVIRONMENTAL EFFECTS");
-    expect(pdf).toContain("Executive Summary");
+    expect(pdf).toContain("STATEMENT OF ENVIRONMENTAL EFFECTS");
+    expect(pdf).toContain("DOCUMENT CONTROL");
+    expect(pdf).toContain("CONTENTS");
+    expect(pdf).toContain("1. Executive Summary");
+    expect(pdf).toContain("Supporting Evidence Schedule");
     expect(pdf).toContain("Source Register");
+    expect(pdf).toContain("PLANNERA");
+    expect(pdf).not.toContain("Project synthetic-render-review");
     const contentStreams = [
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
@@ -207,7 +220,8 @@ describe("submission SEE rendering", () => {
     );
     expect(impactsStream).toBeDefined();
     const impactsOffset = impactsStream!.indexOf("(Environmental Impacts)");
-    expect(impactsStream!.slice(impactsOffset)).toContain("(Sources:");
+    expect(impactsStream!.slice(impactsOffset)).toContain("(Evidence used)");
+    expect(impactsStream!.slice(impactsOffset)).toContain("(lep - Byron Local Environmental Plan 2014)");
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
     const startXref = /startxref\n(\d+)\n%%EOF/.exec(pdf);
