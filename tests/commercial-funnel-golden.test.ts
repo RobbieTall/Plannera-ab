@@ -811,23 +811,49 @@ test("Byron R2 representative journey preserves the reviewed 33 Lorikeet Lane sh
   assert.match(result.detailedPlanningPack.content.proposalBrief, /24 sqm storage shed/);
 });
 
-test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commercial path and explicitly unresolved", async () => {
-  const result = await runRepresentativeUnresolvedJourney(KEMPSEY_SP2);
-  const qsc = result.quickSiteCheck.payload as QuickSiteCheckReport;
+test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commercial path and stops before a paid pack without cited LEP evidence", async () => {
+  const prisma = new GoldenPrisma(KEMPSEY_SP2);
+  const quickSiteCheck = await saveQuickSiteCheck(prisma, KEMPSEY_SP2);
+  const qsc = quickSiteCheck.payload as QuickSiteCheckReport;
 
-  assert.equal(result.audit.site.address, "32 Smith St, Kempsey NSW 2440");
-  assert.equal(result.audit.site.zoneCode, "SP2");
+  assert.equal(qsc.site.address, "32 Smith St, Kempsey NSW 2440");
+  assert.equal(qsc.site.zoneCode, "SP2");
   assert.equal(qsc.site.zoneName, "Infrastructure");
   assert.deepEqual(qsc.objectives ?? [], []);
   assert.deepEqual(qsc.permissibility?.permittedWithoutConsent ?? [], []);
   assert.deepEqual(qsc.permissibility?.permittedWithConsent ?? [], []);
   assert.deepEqual(qsc.permissibility?.prohibited ?? [], []);
-  assert.doesNotMatch(
-    JSON.stringify({
-      qsc,
-      dpp: result.detailedPlanningPack.content,
-      review: result.review.content,
+  assert.notEqual(qsc.lepEvidenceSummary?.label, "Cited");
+
+  await assert.rejects(
+    () => createDetailedPlanningPackArtefact({
+      body: {
+        projectId: KEMPSEY_SP2.publicId,
+        proposalBrief: KEMPSEY_SP2.proposalBrief,
+        site: { address: "forged client address", zoneCode: "E2" },
+        commercialReady: true,
+      },
+      userId: USER_ID,
+      deps: serviceDependencies(prisma, KEMPSEY_SP2, "__all__") as any,
     }),
+    (error) =>
+      error instanceof ArtefactValidationError &&
+      /quality-valid Quick Site Check with cited LEP evidence/.test(error.message),
+  );
+
+  const audit = await auditCommercialFunnel(KEMPSEY_SP2.publicId, {
+    prisma: prisma as any,
+  });
+
+  assert.equal(audit.site.address, "32 Smith St, Kempsey NSW 2440");
+  assert.equal(audit.site.zoneCode, "SP2");
+  assert.equal(audit.quickSiteCheck.state, "unresolved");
+  assert.equal(audit.detailedPlanningPack.state, "missing");
+  assert.equal(audit.see.state, "missing");
+  assert.equal(audit.referralEligibility, "none");
+  assert.equal(audit.nextAction.code, "generate_or_refresh_required_chain");
+  assert.doesNotMatch(
+    JSON.stringify({ qsc, audit }),
     /E2 - Commercial Centre|Commercial premises|Kempsey DCP 2026 > E2/i,
   );
 });
