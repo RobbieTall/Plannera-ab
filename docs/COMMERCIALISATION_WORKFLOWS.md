@@ -150,6 +150,12 @@ Commercial product contract, exact-scope Preview binding, credit foundation, pri
 Price and credit
 The SEE list price is A$749 before credits. One settled, unrefunded and unconsumed A$49 Planning Controls Pack for the same requester, owned project, current-site QSC and normalized proposal may be consumed once, leaving A$700 payable. The credit is non-transferable, not cash-redeemable and cannot be reused across another site, project, QSC or materially changed proposal. Checkout must derive and itemise price, credit, balance and applicable GST on the server.
 
+Implementation checkpoint — 24 September 2026
+
+Issue #437 adds the provider-neutral OCR retry/review foundation for image-only and scanned uploads. OCR provider success remains `REVIEW_REQUIRED`; no OCR text enters retrieval, applicability or final SEE evidence until visual review approves the exact source-hash-bound page result and promotion reuses the normal indexing pipeline. A live OCR provider is not connected by this slice.
+
+Repository review also confirmed that provenance-bearing map/plan evidence is already materially implemented in the workspace, including source, dates, layer/legend, observation and limitation. Remaining Item 74A work should close residual conflict/freshness and real-provider acceptance gaps rather than build a second map evidence path.
+
 Document workflow
 1. Start a living SEE draft from the exact QSC, Planning Controls Pack and Planning Feasibility and Delivery Plan.
 2. If no specialist input is identified from current evidence, complete the document subject to its quality gates and optional planner review.
