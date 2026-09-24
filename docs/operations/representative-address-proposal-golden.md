@@ -19,7 +19,7 @@ The representative cases intentionally do **not** inject proposal-specific DCP e
 
 They must prove:
 
-- exact saved site address and zone survive QSC → DPP → working SEE → expert-review/audit;
+- exact saved site address and zone survive QSC → DPP → expert-review/audit;
 - caller-supplied forged site/proposal fields cannot replace the server-authoritative saved scope;
 - missing DCP evidence leaves all five DPP topics `Unavailable`;
 - the pack remains `needs_expert_review`;
