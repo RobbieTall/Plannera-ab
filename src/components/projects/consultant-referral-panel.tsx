@@ -4,6 +4,7 @@ import React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Circle, Mail, Send } from "lucide-react";
 
+import { ConsultantCredentialDisclosure } from "@/components/projects/consultant-credential-disclosure";
 import { Button } from "@/components/ui/button";
 import type { ConsultantReferralSummary, ConsultantReferralStatus } from "@/types/consultant-referral";
 
@@ -159,6 +160,9 @@ export function ConsultantReferralPanel({ projectId, reviewRequestArtefactId }: 
             This sends the exact saved package to Plannera&apos;s human-operated queue. It does not promise matching, availability, quotes or response times.
           </p>
         </div>
+      </div>
+      <div className="mt-3">
+        <ConsultantCredentialDisclosure />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-medium text-slate-700 dark:text-slate-200">
