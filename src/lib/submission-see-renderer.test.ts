@@ -215,8 +215,10 @@ describe("submission SEE rendering", () => {
     const contentStreams = [
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
-    const impactsStream = contentStreams.find((stream) =>
-      stream.includes("(Environmental Impacts)"),
+    const impactsStream = contentStreams.find(
+      (stream) =>
+        stream.includes("(Environmental Impacts)") &&
+        stream.includes("(Sources:"),
     );
     expect(impactsStream).toBeDefined();
     const impactsOffset = impactsStream!.indexOf("(Environmental Impacts)");
