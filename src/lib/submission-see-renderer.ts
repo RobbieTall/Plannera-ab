@@ -6,6 +6,11 @@ import {
   type SubmissionSeeIssueCode,
   type SubmissionSeeOutput,
 } from "./submission-see-acceptance";
+import {
+  buildSubmissionSeePresentation,
+  type SubmissionSeePresentationModel,
+  type SubmissionSeePresentationRow,
+} from "./submission-see-presentation";
 
 export type SubmissionSeeRenderedOutputs = {
   docx: Buffer;
