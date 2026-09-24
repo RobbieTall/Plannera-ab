@@ -194,9 +194,9 @@ const wordParagraph = (
     options.keepNext ? "<w:keepNext/>" : "",
   ].join("");
   const pageBreak = options.pageBreakBefore
-    ? '<w:r><w:br w:type="page"/></w:r>'
+    ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
     : "";
-  return `<w:p><w:pPr>${properties}</w:pPr>${pageBreak}<w:r><w:t xml:space="preserve">${xmlEscape(
+  return `${pageBreak}<w:p><w:pPr>${properties}</w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(
     text,
   )}</w:t></w:r></w:p>`;
 };
