@@ -308,6 +308,10 @@ export type WorkspaceSource = {
   statusDetail?: string;
   evidenceStatus?: "READY" | "PARTIALLY_READABLE" | "IMAGE_ONLY" | "NEEDS_REVIEW";
   indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
+  ocrStatus?: "QUEUED" | "PROCESSING" | "REVIEW_REQUIRED" | "FAILED" | "REJECTED" | "PROMOTED";
+  ocrAttempt?: number;
+  ocrProviderKey?: string | null;
+  ocrErrorCode?: string | null;
   applicabilityStatus?:
     | "PENDING_REVIEW"
     | "ACCEPTED"
