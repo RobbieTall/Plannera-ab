@@ -160,7 +160,7 @@ Implemented so far:
 - tests require exact QSC → DPP → expert-review/audit site/proposal binding;
 - forged caller site/proposal fields must be ignored;
 - all five DPP topics must remain `Unavailable`;
-- expected audit terminal state is `needs_expert_review` / `working_needs_evidence` / `unresolved_pack_referral` with next action `refer_unresolved_pack_for_expert_review`;
+- SEE generation is expected to fail closed with no applicable cited DCP evidence; audit must report `needs_expert_review` / SEE `missing` / `unresolved_pack_referral` with next action `refer_unresolved_pack_for_expert_review`;
 - Kempsey SP2 output is checked for absence of E2/Commercial premises evidence;
 - runbook: `docs/operations/representative-address-proposal-golden.md`.
 
