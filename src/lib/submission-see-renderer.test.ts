@@ -183,8 +183,14 @@ describe("submission SEE rendering", () => {
     );
     const document = entries.get("word/document.xml")!.toString("utf8");
     expect(document).toContain("Statement of Environmental Effects");
+    expect(document).toContain("Document Control");
+    expect(document).toContain("Revision History");
+    expect(document).toContain("Supporting Evidence Schedule");
+    expect(document).toContain("Current generated issue");
+    expect(document).toContain("proposal-plan.pdf");
     expect(document).toContain("Source Register");
     expect(document).toContain("Environmental Impacts");
+    expect((document.match(/<w:tbl>/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(document).not.toContain("Update this field in Word");
     expect(document).not.toContain('<w:br w:type="page"/>');
     expect(document).not.toContain(' TOC \\o "1-2" ');
@@ -197,6 +203,12 @@ describe("submission SEE rendering", () => {
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
     expect(pdf).toContain("STATEMENT OF");
     expect(pdf).toContain("ENVIRONMENTAL EFFECTS");
+    expect(pdf).toContain("Document Control");
+    expect(pdf).toContain("Revision History");
+    expect(pdf).toContain("Supporting Evidence Schedule");
+    expect(pdf).toContain("Current generated issue");
+    expect(pdf).toContain("proposal-plan.pdf");
+    expect(pdf).toContain("Contents");
     expect(pdf).toContain("Executive Summary");
     expect(pdf).toContain("Source Register");
     const contentStreams = [
@@ -276,9 +288,11 @@ describe("submission SEE rendering", () => {
     );
 
     const entries = storedZipEntries(rendered.docx);
-    expect(entries.get("word/document.xml")!.toString("utf8")).toContain(
-      "WORKING SEE - NOT SUBMISSION READY",
-    );
+    const workingDocument = entries.get("word/document.xml")!.toString("utf8");
+    expect(workingDocument).toContain("WORKING SEE - NOT SUBMISSION READY");
+    expect(workingDocument).toContain("Document Control");
+    expect(workingDocument).toContain("Revision History");
+    expect(workingDocument).toContain("Working - Not Submission Ready");
     expect(entries.get("word/footer1.xml")!.toString("utf8")).toContain(
       "WORKING SEE - NOT SUBMISSION READY",
     );
