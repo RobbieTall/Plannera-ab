@@ -2,7 +2,7 @@ Plannera — Commercialisation Layer Workflows
 
 Implementation checkpoint — professional SEE presentation, 24 September 2026
 
-Issue #432 / PR #434 has passed deterministic professional DOCX/PDF presentation and visual acceptance on code/test head `c9a9624ef085287765a17ee0443a2319d8552282`. The existing `see-builder-standard.v1`, evidence-finality and working/final acceptance rules were preserved. Exact-head synthetic DOCX/PDF outputs render as 14-page professional Plannera reports with document control, numbered contents/sections, evidence schedules, source register, limitations and consistent page furniture. This closes the synthetic presentation/layout gap only; real-project rendered acceptance, Item 78C whole-funnel acceptance and Production activation remain open.
+Issue #432 / PR #434 has passed deterministic professional DOCX/PDF presentation and visual acceptance. Reviewed renderer head `c9a9624ef085287765a17ee0443a2319d8552282` established the visual system; current code/test head `5d10df08507597859a10d1c91a23d4754bfe75e9` is test-hardening only and leaves renderer bytes unchanged. All seven current-head gates pass, and artifact `10795398958` reproduces the accepted 14-page DOCX/PDF hashes. The existing `see-builder-standard.v1`, evidence-finality and working/final acceptance rules remain preserved. This closes the synthetic presentation/layout gap only; real-project rendered acceptance, Item 78C whole-funnel acceptance and Production activation remain open.
 
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
