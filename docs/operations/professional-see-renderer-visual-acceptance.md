@@ -1,8 +1,35 @@
 # Professional SEE renderer visual acceptance
 
-Status: **IMPLEMENTATION IN PROGRESS / VISUAL ARTIFACT REVIEW REQUIRED**
+Status: **CODE/TEST HEAD GREEN + VISUAL ACCEPTANCE PASSED / PR #434 OPEN UNMERGED**
 
 Updated: 24 September 2026 (Australia/Sydney). Tracking: Issue #432.
+
+
+## Accepted evidence — 24 September 2026
+
+Verified code/test head: `c9a9624ef085287765a17ee0443a2319d8552282`.
+
+All exact-head gates passed:
+- Soft launch smoke — run `35970394852`;
+- Whole-LGA source matrix — run `35970395451`;
+- Commercial Funnel Golden Gate — run `35970394840`;
+- Submission SEE Output Rendering — run `35970394893`;
+- Item 74H Working SEE Preview Gate — run `35970394846`;
+- Item 77 protected commercial journey — run `35970394863`;
+- Submission SEE Synthetic Artefacts — run `35970394851`.
+
+Exact-head artifact ID: `10796395242`.
+
+Deterministic output hashes:
+- DOCX: `71a50968f0b095227904606e87100692490e8e07fae1a01f87032d1bc9f690de`;
+- PDF: `2e0123c8349039b51ac3acf28577c73aac388f1c5ebb29f6d45aaf4f1062221b`.
+
+Both exact-head files rendered to 14 A4 pages. Every page was inspected against the approved benchmark qualities. No clipping, overlap, broken table layout, missing glyphs or inconsistent page furniture was found. Separate read-only review `#5301256836` found no blocking issue.
+
+The key visual defect found during this task was collapsed DOCX pagination. Root cause was a missing OOXML document relationship to `word/styles.xml`. The renderer now emits that relationship and unit coverage requires it. No finality or evidence gate was weakened to solve the layout defect.
+
+This proves the deterministic synthetic presentation system. It does not replace real-project evidence acceptance, real-project rendered review, Item 78C whole-funnel acceptance or Production activation.
+
 
 ## Approved benchmark library
 
