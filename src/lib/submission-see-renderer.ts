@@ -510,6 +510,7 @@ const layoutPdf = (
   let pageIndex = 0;
   let y = 790;
   const margin = 54;
+  const tocEntries: { title: string; pageIndex: number }[] = [];
 
   const newPage = () => {
     pages.push([]);
@@ -609,6 +610,7 @@ const layoutPdf = (
   newPage();
   const working = presentation.workingContext;
   if (working) {
+    tocEntries.push({ title: "Document Status", pageIndex });
     addText("Document Status", {
       font: "bold",
       size: 17,
@@ -631,6 +633,7 @@ const layoutPdf = (
       );
     }
     if (working.outstandingEvidence.length > 0) {
+      tocEntries.push({ title: "Outstanding Evidence", pageIndex });
       addText("Outstanding Evidence", {
         font: "bold",
         size: 15,
@@ -681,18 +684,29 @@ const layoutPdf = (
         textLayout(section.narrative, sectionNarrativeOptions).height +
         textLayout(citationText, sectionCitationOptions).height,
     );
+    ensureSpace(
+      textLayout(heading, sectionHeadingOptions).height +
+        textLayout("Assessment", sectionNarrativeOptions).height,
+    );
+    tocEntries.push({ title: heading, pageIndex });
     addText(heading, sectionHeadingOptions);
     addText(section.narrative, sectionNarrativeOptions);
     addText(citationText, sectionCitationOptions);
   }
 
-  addText("Source Register", {
+  const sourceRegisterOptions: PdfTextOptions = {
     font: "bold",
     size: 17,
     color: [0.04, 0.35, 0.38],
     before: 12,
     after: 10,
-  });
+  };
+  ensureSpace(
+    textLayout("Source Register", sourceRegisterOptions).height +
+      textLayout("Source", { size: 8.5, after: 5 }).height,
+  );
+  tocEntries.push({ title: "Source Register", pageIndex });
+  addText("Source Register", sourceRegisterOptions);
   for (const source of candidate.sources) {
     const provenance =
       source.officialUrl ??
@@ -704,17 +718,63 @@ const layoutPdf = (
   }
 
   if (candidate.limitations.length > 0) {
-    addText("Limitations", {
+    const limitationsHeadingOptions: PdfTextOptions = {
       font: "bold",
       size: 17,
       color: [0.04, 0.35, 0.38],
       before: 12,
       after: 10,
-    });
+    };
+    ensureSpace(
+      textLayout("Limitations", limitationsHeadingOptions).height +
+        textLayout("- Limitation", { size: 9.5, indent: 10, after: 5 }).height,
+    );
+    tocEntries.push({ title: "Limitations", pageIndex });
+    addText("Limitations", limitationsHeadingOptions);
     for (const limitation of candidate.limitations) {
       addText(`- ${limitation}`, { size: 9.5, indent: 10, after: 5 });
     }
   }
+
+  const contentsPage: PdfLine[] = [];
+  let contentsY = 756;
+  const addContentsText = (
+    text: string,
+    options: {
+      font?: PdfLine["font"];
+      size?: number;
+      color?: PdfLine["color"];
+      after?: number;
+    } = {},
+  ) => {
+    const size = options.size ?? 10;
+    contentsPage.push({
+      text,
+      font: options.font ?? "regular",
+      size,
+      x: margin,
+      y: contentsY,
+      color: options.color ?? [0.14, 0.19, 0.23],
+    });
+    contentsY -= size * 1.5 + (options.after ?? 6);
+  };
+
+  addContentsText("Contents", {
+    font: "bold",
+    size: 20,
+    color: [0.04, 0.35, 0.38],
+    after: 18,
+  });
+  for (const entry of tocEntries) {
+    const pageNumber = String(entry.pageIndex + 2);
+    const title = clean(entry.title);
+    const dotCount = Math.max(3, 66 - title.length - pageNumber.length);
+    addContentsText(
+      `${title} ${".".repeat(dotCount)} ${pageNumber}`,
+      { size: 9.5, color: [0.2, 0.31, 0.34], after: 4 },
+    );
+  }
+  pages.splice(1, 0, contentsPage);
 
   pages.forEach((page, index) => {
     page.push({
