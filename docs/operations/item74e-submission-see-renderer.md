@@ -1,6 +1,6 @@
 # Item 74E submission SEE output rendering
 
-Status: **DETERMINISTIC RENDERER IMPLEMENTED / HOSTED AND VISUAL ACCEPTANCE NOT EXECUTED**
+Status: **DETERMINISTIC RENDERER + PROFESSIONAL STRUCTURE VERIFIED / APPROVED-VISUAL BENCHMARK COMPARISON STILL OPEN**
 
 ## Purpose
 
@@ -33,11 +33,14 @@ The DOCX renderer creates an OOXML ZIP package containing:
 - content types and relationships;
 - core and application properties;
 - styled cover page;
-- updateable table of contents field;
+- deterministic contents list;
 - page-sized section layout;
 - headings and body text;
 - per-section source summaries;
-- source register;
+- document-control table;
+- current-issue revision-history table without invented prior versions;
+- supporting-evidence schedule derived from reviewed upload evidence when present;
+- tabular source register;
 - limitations; and
 - page-number footer.
 
@@ -50,9 +53,12 @@ The PDF renderer creates:
 
 - A4 paginated pages;
 - styled cover page;
+- document-control and current-issue revision tables;
+- supporting-evidence schedule derived from reviewed upload evidence when present;
+- deterministic contents page;
 - section headings and wrapped body text;
 - per-section source summaries;
-- source register;
+- aligned tabular source register;
 - limitations;
 - page numbers; and
 - a deterministic cross-reference table.
@@ -75,11 +81,45 @@ For each file the renderer returns:
 The tests feed that metadata back into the submission acceptance gate and
 require the candidate to become ready.
 
+## Professional-structure verification — 24 September 2026
+
+PR #433 adds the evidence-derived professional document structure without
+changing acceptance semantics. Exact renderer/test head
+`e50fb37500fa836ec4f4fb1eea959f361ff73e3e` passed:
+
+- Submission SEE Output Rendering — run `35967832168`;
+- Item 74H Working SEE Preview Gate — run `35967832129`;
+- Item 77 protected commercial journey — run `35967832146`;
+- Commercial Funnel Golden Gate — run `35967832074`;
+- Whole-LGA source matrix — run `35967832094`; and
+- Soft launch smoke — run `35967832115`.
+
+The Vercel build-safety contract initially failed as designed when this
+transitive renderer changed. It was re-pinned only after review to exact
+renderer SHA-256
+`9c6ace260c88c484509bd7d9f9e493d06fe9045afd66647a6d1b718cd809a73e`.
+
+The immediately preceding renderer-identical head also passed Submission SEE
+Synthetic Artefacts. Subsequent commits changed renderer-test selection only.
+
 ## Current limitations
 
-This slice does not persist files, expose a download route, render a real
-customer project, verify the files in Microsoft Word/Adobe Reader, or complete
-operator acceptance. Those require protected hosted Preview and visual review.
+Structural professionalism is verified, but the launch item is **not closed**.
+The approved SEE reference PDF/library was not accessible to the mobile
+daytime session. Desktop acceptance must still:
+
+1. generate representative final and working DOCX/PDF outputs from the approved
+   Preview/test fixtures;
+2. render every output page to images;
+3. compare cover, hierarchy, typography, spacing, tables, contents, source
+   register, page breaks and footer treatment against the approved SEE
+   benchmark library;
+4. inspect the DOCX in a real office renderer and the PDF in a real PDF
+   renderer for clipping, overflow, broken tables or glyph substitution; and
+5. record the visual acceptance result and any corrective design pass.
+
+This slice does not persist files, expose a Production download route, approve
+Production checkout, or claim approved-template visual parity.
 
 ## Safety
 
