@@ -206,8 +206,64 @@ const wordParagraph = (
   )}</w:t></w:r></w:p>`;
 };
 
+type WordCellSpec = {
+  text: string;
+  width?: number;
+  fill?: string;
+  color?: string;
+  bold?: boolean;
+  fontSize?: number;
+};
+
+const wordCell = (cell: WordCellSpec) => {
+  const width = cell.width
+    ? `<w:tcW w:w="${cell.width}" w:type="dxa"/>`
+    : "";
+  const fill = cell.fill ? `<w:shd w:fill="${cell.fill}"/>` : "";
+  const runProperties = [
+    cell.bold ? "<w:b/>" : "",
+    cell.color ? `<w:color w:val="${cell.color}"/>` : "",
+    cell.fontSize ? `<w:sz w:val="${cell.fontSize}"/>` : "",
+  ].join("");
+  return `<w:tc><w:tcPr>${width}${fill}<w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:spacing w:before="70" w:after="70" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr>${runProperties}</w:rPr><w:t xml:space="preserve">${xmlEscape(
+    cell.text,
+  )}</w:t></w:r></w:p></w:tc>`;
+};
+
+const wordTable = (rows: WordCellSpec[][], widths: number[]) => {
+  const grid = widths.map((width) => `<w:gridCol w:w="${width}"/>`).join("");
+  const renderedRows = rows
+    .map(
+      (row) =>
+        `<w:tr>${row
+          .map((cell, index) =>
+            wordCell({ ...cell, width: cell.width ?? widths[index] }),
+          )
+          .join("")}</w:tr>`,
+    )
+    .join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D5DEE1"/><w:left w:val="single" w:sz="4" w:color="D5DEE1"/><w:bottom w:val="single" w:sz="4" w:color="D5DEE1"/><w:right w:val="single" w:sz="4" w:color="D5DEE1"/><w:insideH w:val="single" w:sz="3" w:color="E1E7E9"/><w:insideV w:val="single" w:sz="3" w:color="E1E7E9"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${renderedRows}</w:tbl>`;
+};
+
+const wordCallout = (title: string, text: string, fill = "F2F7F7") =>
+  wordTable(
+    [
+      [
+        {
+          text: title,
+          fill: "D9E8E8",
+          color: "0B5860",
+          bold: true,
+          fontSize: 18,
+        },
+      ],
+      [{ text, fill, color: "304047", fontSize: 19 }],
+    ],
+    [9360],
+  );
+
 const wordToc = (
-  candidate: SubmissionSeeCandidate,
+  model: SubmissionSeePresentationModel,
   presentation: RenderPresentation,
 ) =>
   [
@@ -215,22 +271,20 @@ const wordToc = (
       pageBreakBefore: true,
       keepNext: true,
     }),
-    ...candidate.sections.map((section) =>
+    ...model.contents.map((section) =>
       wordParagraph(
-        titleCase(section.title || section.id),
+        `${section.number}. ${section.title}`,
         "TocEntry",
       ),
     ),
-    ...(presentation.workingContext
-      ? [
-          wordParagraph("Document Status", "TocEntry"),
-          ...(presentation.workingContext.outstandingEvidence.length > 0
-            ? [wordParagraph("Outstanding Evidence", "TocEntry")]
-            : []),
-        ]
+    ...(presentation.workingContext?.outstandingEvidence.length
+      ? [wordParagraph("Outstanding Evidence", "TocEntry")]
+      : []),
+    ...(model.evidenceSchedule.length > 0
+      ? [wordParagraph("Supporting Evidence Schedule", "TocEntry")]
       : []),
     wordParagraph("Source Register", "TocEntry"),
-    ...(candidate.limitations.length > 0
+    ...(model.limitations.length > 0
       ? [wordParagraph("Limitations", "TocEntry")]
       : []),
   ].join("");
@@ -239,40 +293,45 @@ const renderDocx = (
   candidate: SubmissionSeeCandidate,
   presentation: RenderPresentation,
 ) => {
-  const sourceById = new Map(candidate.sources.map((source) => [source.id, source]));
+  const model = buildSubmissionSeePresentation({
+    candidate,
+    workingContext: presentation.workingContext,
+  });
   const generated = new Date(candidate.generatedAt).toISOString();
   const body: string[] = [
-    wordParagraph(presentation.documentTitle, "Title"),
-    wordParagraph(candidate.site.label, "Subtitle"),
-    wordParagraph(
-      `${titleCase(candidate.site.lgaCode)} | Zone ${candidate.site.zoneCode}`,
-      "Subtitle",
+    wordParagraph(model.brand, "Brand"),
+    wordParagraph(model.statusLabel, "CoverStatus"),
+    wordParagraph(model.documentTitle, "Title"),
+    wordParagraph(model.siteLabel, "CoverSite"),
+    wordParagraph(model.locationLine, "Subtitle"),
+    wordParagraph("PROPOSAL", "CoverLabel"),
+    wordParagraph(model.proposalSummary, "CoverSummary"),
+    wordParagraph(`Prepared ${model.generatedDate}`, "CoverMeta"),
+    wordParagraph("Document Control", "Heading1", {
+      pageBreakBefore: true,
+      keepNext: true,
+    }),
+    wordTable(
+      model.documentControl.map((row) => [
+        {
+          text: row.label,
+          fill: "E5EEEE",
+          color: "0B5860",
+          bold: true,
+          fontSize: 18,
+        },
+        { text: row.value, color: "304047", fontSize: 19 },
+      ]),
+      [2200, 7160],
     ),
-    wordParagraph(`Project: ${candidate.projectId}`, "Metadata"),
-    wordParagraph(`Generated: ${generated}`, "Metadata"),
-    wordParagraph(
-      `Operator checklist: ${candidate.operatorReview.checklistVersion ?? "Not recorded"}`,
-      "Metadata",
-    ),
-    ...(presentation.workingContext
-      ? [
-          wordParagraph("WORKING SEE - NOT SUBMISSION READY", "Subtitle"),
-          wordParagraph(
-            `Evidence status: ${presentation.workingContext.documentReadiness.evidenceStatus}`,
-            "Metadata",
-          ),
-        ]
-      : []),
-    wordToc(candidate, presentation),
+    wordParagraph("Proposal Summary", "Heading2", { keepNext: true }),
+    wordParagraph(model.proposalSummary, "Normal"),
+    wordCallout("Document Status", model.statusDetail),
   ];
 
   const working = presentation.workingContext;
   if (working) {
     body.push(
-      wordParagraph("Document Status", "Heading1", {
-        keepNext: true,
-      }),
-      wordParagraph(working.documentReadiness.customerMessage, "Normal"),
       wordParagraph(
         `Source DPP: ${working.sourceDetailedPlanningPackArtefactId}`,
         "Metadata",
@@ -286,62 +345,185 @@ const renderDocx = (
           ]
         : []),
     );
-    if (working.outstandingEvidence.length > 0) {
-      body.push(
-        wordParagraph("Outstanding Evidence", "Heading1", { keepNext: true }),
-      );
-      for (const item of working.outstandingEvidence) {
-        body.push(
-          wordParagraph(
-            `${item.topic} | Required: ${item.recommendedEvidence} | Effect: ${item.effect}`,
-            "Normal",
-          ),
-        );
-      }
-    }
   }
 
-  candidate.sections.forEach((section, index) => {
+  body.push(wordToc(model, presentation));
+
+  if (working?.outstandingEvidence.length) {
     body.push(
-      wordParagraph(
-        titleCase(section.title || section.id),
-        "Heading1",
-        { pageBreakBefore: index > 0, keepNext: true },
+      wordParagraph("Outstanding Evidence", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordCallout(
+        "Why this document is still working",
+        working.documentReadiness.customerMessage,
+        "FFF6E8",
+      ),
+      wordTable(
+        [
+          [
+            {
+              text: "Matter",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Required evidence",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Effect on assessment",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+          ],
+          ...working.outstandingEvidence.map((item) => [
+            { text: item.topic, fontSize: 17 },
+            { text: item.recommendedEvidence, fontSize: 17 },
+            { text: item.effect, fontSize: 17 },
+          ]),
+        ],
+        [2500, 3300, 3560],
       ),
     );
-    body.push(wordParagraph(section.narrative, "Normal"));
-    const citations = section.sourceIds
-      .map((sourceId) => {
-        const source = sourceById.get(sourceId);
-        return source ? `${source.id}: ${source.title}` : sourceId;
-      })
+  }
+
+  for (const section of model.sections) {
+    body.push(
+      wordParagraph(
+        `${section.number}. ${section.title}`,
+        "Heading1",
+        { pageBreakBefore: true, keepNext: true },
+      ),
+      wordParagraph(section.narrative, "Normal"),
+    );
+    const evidenceText = section.sources
+      .map((source) => `${source.id} - ${source.title}`)
       .join("; ");
-    body.push(wordParagraph(`Sources: ${citations}`, "Citation"));
-  });
+    body.push(wordCallout("Evidence used", evidenceText));
+  }
+
+  if (model.evidenceSchedule.length > 0) {
+    body.push(
+      wordParagraph("Supporting Evidence Schedule", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordTable(
+        [
+          [
+            {
+              text: "Document",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Type",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Review status",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+            {
+              text: "Used in",
+              fill: "0B5860",
+              color: "FFFFFF",
+              bold: true,
+              fontSize: 17,
+            },
+          ],
+          ...model.evidenceSchedule.map((item) => [
+            { text: item.name, fontSize: 16 },
+            { text: item.kind, fontSize: 16 },
+            { text: item.status, fontSize: 16 },
+            { text: item.usedIn || "Not assigned", fontSize: 16 },
+          ]),
+        ],
+        [2800, 1700, 2000, 2860],
+      ),
+    );
+  }
 
   body.push(
     wordParagraph("Source Register", "Heading1", {
       pageBreakBefore: true,
       keepNext: true,
     }),
+    wordTable(
+      [
+        [
+          {
+            text: "Ref",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Type",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Source",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+          {
+            text: "Provenance / checked",
+            fill: "0B5860",
+            color: "FFFFFF",
+            bold: true,
+            fontSize: 17,
+          },
+        ],
+        ...model.sourceRegister.map((source) => [
+          { text: source.id, fontSize: 15 },
+          { text: source.type, fontSize: 15 },
+          { text: source.title, fontSize: 15 },
+          {
+            text: `${source.provenance} | ${source.checkedAt}`,
+            fontSize: 14,
+          },
+        ]),
+      ],
+      [1050, 1100, 2850, 4360],
+    ),
   );
-  for (const source of candidate.sources) {
-    const provenance =
-      source.officialUrl ??
-      (source.contentHash ? `SHA-256 ${source.contentHash}` : "No provenance recorded");
+
+  if (model.limitations.length > 0) {
     body.push(
-      wordParagraph(
-        `${source.id} | ${source.type} | ${source.title} | ${provenance} | checked ${source.retrievedAt}`,
-        "SourceRegister",
+      wordParagraph("Limitations", "Heading1", {
+        pageBreakBefore: true,
+        keepNext: true,
+      }),
+      wordCallout(
+        "Read with the current project evidence",
+        model.limitations.map((item) => `- ${item}`).join("\n"),
+        "FFF7EB",
       ),
     );
-  }
-
-  if (candidate.limitations.length > 0) {
-    body.push(wordParagraph("Limitations", "Heading1", { keepNext: true }));
-    for (const limitation of candidate.limitations) {
-      body.push(wordParagraph(`• ${limitation}`, "Normal"));
-    }
   }
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -350,8 +532,9 @@ const renderDocx = (
     ${body.join("\n")}
     <w:sectPr>
       <w:pgSz w:w="11906" w:h="16838"/>
-      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/>
-      <w:footerReference w:type="default" r:id="rId1"/>
+      <w:pgMar w:top="1050" w:right="1275" w:bottom="1050" w:left="1275" w:header="520" w:footer="520" w:gutter="0"/>
+      <w:headerReference w:type="default" r:id="rId1"/>
+      <w:footerReference w:type="default" r:id="rId2"/>
     </w:sectPr>
   </w:body>
 </w:document>`;
@@ -359,22 +542,32 @@ const renderDocx = (
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
-    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="22"/><w:color w:val="24313A"/></w:rPr></w:rPrDefault>
-    <w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/><w:color w:val="24313A"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="150" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
   </w:docDefaults>
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
-  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Subtitle"/><w:pPr><w:spacing w:before="2400" w:after="240"/><w:jc w:val="left"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="54"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:color w:val="4D6670"/><w:sz w:val="28"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="18"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="180"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="34"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="Citation"><w:name w:val="Citation"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:before="80" w:after="240"/></w:pPr><w:rPr><w:i/><w:color w:val="536A73"/><w:sz w:val="18"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
-  <w:style w:type="paragraph" w:styleId="SourceRegister"><w:name w:val="Source Register"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/></w:pPr><w:rPr><w:sz w:val="18"/><w:color w:val="425A63"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Brand"><w:name w:val="Brand"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="620" w:after="150"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="0B5860"/><w:sz w:val="28"/><w:spacing w:val="80"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverStatus"><w:name w:val="Cover Status"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="2150" w:after="120"/></w:pPr><w:rPr><w:b/><w:color w:val="9A5A17"/><w:sz w:val="18"/><w:spacing w:val="45"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="CoverSite"/><w:pPr><w:spacing w:after="180"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="18363B"/><w:sz w:val="52"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverSite"><w:name w:val="Cover Site"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="60" w:after="100"/></w:pPr><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="28"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="420"/></w:pPr><w:rPr><w:color w:val="4D6670"/><w:sz w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverLabel"><w:name w:val="Cover Label"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="300" w:after="70"/></w:pPr><w:rPr><w:b/><w:color w:val="78888E"/><w:sz w:val="16"/><w:spacing w:val="35"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverSummary"><w:name w:val="Cover Summary"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="420"/></w:pPr><w:rPr><w:color w:val="304047"/><w:sz w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CoverMeta"><w:name w:val="Cover Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="1200" w:after="80"/></w:pPr><w:rPr><w:color w:val="718087"/><w:sz w:val="17"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Metadata"><w:name w:val="Metadata"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="70"/></w:pPr><w:rPr><w:color w:val="65767D"/><w:sz w:val="16"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="300" w:after="170"/><w:outlineLvl w:val="0"/><w:pBdr><w:bottom w:val="single" w:sz="10" w:space="5" w:color="0B5860"/></w:pBdr></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:b/><w:color w:val="18363B"/><w:sz w:val="32"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="280" w:after="110"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="24"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TocEntry"><w:name w:val="Contents Entry"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="240"/><w:spacing w:after="95"/></w:pPr><w:rPr><w:color w:val="425A63"/><w:sz w:val="20"/></w:rPr></w:style>
 </w:styles>`;
+
+  const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9300"/></w:tabs><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="5" w:color="D5DEE1"/></w:pBdr></w:pPr><w:r><w:rPr><w:b/><w:color w:val="0B5860"/><w:sz w:val="16"/></w:rPr><w:t>PLANNERA</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>${xmlEscape(model.siteLabel)}</w:t></w:r></w:p>
+</w:hdr>`;
 
   const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="16"/></w:rPr><w:t>Plannera | ${xmlEscape(presentation.footerLabel)} | </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+  <w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9300"/></w:tabs><w:pBdr><w:top w:val="single" w:sz="4" w:space="5" w:color="D5DEE1"/></w:pBdr></w:pPr><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>Plannera | ${xmlEscape(presentation.footerLabel)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:rPr><w:color w:val="718087"/><w:sz w:val="15"/></w:rPr><w:t>Page </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
 </w:ftr>`;
 
   const entries: ZipEntry[] = [
@@ -386,6 +579,7 @@ const renderDocx = (
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
   <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -402,12 +596,14 @@ const renderDocx = (
     },
     { name: "word/document.xml", data: Buffer.from(documentXml, "utf8") },
     { name: "word/styles.xml", data: Buffer.from(stylesXml, "utf8") },
+    { name: "word/header1.xml", data: Buffer.from(headerXml, "utf8") },
     { name: "word/footer1.xml", data: Buffer.from(footerXml, "utf8") },
     {
       name: "word/_rels/document.xml.rels",
       data: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
 </Relationships>`, "utf8"),
     },
     {
