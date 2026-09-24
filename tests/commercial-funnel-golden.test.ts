@@ -30,6 +30,7 @@ type GoldenFixture = {
   permittedWithConsent: string[];
   permittedWithoutConsent?: string[];
   prohibited?: string[];
+  zoneObjectives?: string[];
 };
 
 const BYRON: GoldenFixture = {
@@ -91,6 +92,10 @@ const BYRON_R2: GoldenFixture = {
   permittedWithConsent: ["Dwelling houses"],
   permittedWithoutConsent: ["Home occupations"],
   prohibited: ["Industries"],
+  zoneObjectives: [
+    "To provide for the housing needs of the community within a low density residential environment.",
+    "To enable other land uses that provide facilities or services to meet the day to day needs of residents.",
+  ],
 };
 
 const KEMPSEY_SP2: GoldenFixture = {
@@ -111,6 +116,7 @@ const KEMPSEY_SP2: GoldenFixture = {
   permittedWithConsent: [],
   permittedWithoutConsent: [],
   prohibited: [],
+  zoneObjectives: [],
 };
 
 const USER_ID = "golden-test-user";
@@ -291,10 +297,11 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
     lga: fixture.lgaName,
     lepName: fixture.instrumentName,
     zone: fixture.zoneCode,
-    objectives: [
-      `Support development compatible with the ${fixture.zoneName} zone.`,
-      "Ensure development responds to local character and amenity.",
-    ],
+    objectives:
+      fixture.zoneObjectives ?? [
+        `Support development compatible with the ${fixture.zoneName} zone.`,
+        "Ensure development responds to local character and amenity.",
+      ],
     controls: {
       heightOfBuilding: fixture.height
         ? {
@@ -307,10 +314,11 @@ const lepDependencies = (prisma: GoldenPrisma, fixture: GoldenFixture) => ({
         ? { value: fixture.fsr, clauseRef: "4.4", confidence: "Cited" }
         : null,
       minLotSize: null,
-      zoneObjectives: [
-        `Support development compatible with the ${fixture.zoneName} zone.`,
-        "Ensure development responds to local character and amenity.",
-      ],
+      zoneObjectives:
+        fixture.zoneObjectives ?? [
+          `Support development compatible with the ${fixture.zoneName} zone.`,
+          "Ensure development responds to local character and amenity.",
+        ],
     },
     permissibility: {
       permittedWithoutConsent:
@@ -810,6 +818,7 @@ test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commerc
   assert.equal(result.audit.site.address, "32 Smith St, Kempsey NSW 2440");
   assert.equal(result.audit.site.zoneCode, "SP2");
   assert.equal(qsc.site.zoneName, "Infrastructure");
+  assert.deepEqual(qsc.objectives ?? [], []);
   assert.deepEqual(qsc.permissibility?.permittedWithoutConsent ?? [], []);
   assert.deepEqual(qsc.permissibility?.permittedWithConsent ?? [], []);
   assert.deepEqual(qsc.permissibility?.prohibited ?? [], []);
