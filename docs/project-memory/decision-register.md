@@ -4,7 +4,7 @@
 
 Decision: expanding Byron/Kempsey golden coverage beyond SP3/E2 must use repository-proven address/zone truth cases and must not manufacture proposal-specific DCP or permissibility evidence merely to obtain a green commercial result.
 
-Issue #427 adds Byron R2 (33 Lorikeet Lane, reviewed storage-shed case) and Kempsey SP2 (32 Smith St, infrastructure truth case). Both representative journeys deliberately omit DCP evidence and must terminate as expert-review material. Kempsey SP2 must not inherit E2 Commercial Centre terms or controls.
+Issue #427 adds Byron R2 (33 Lorikeet Lane, reviewed storage-shed case) and Kempsey SP2 (32 Smith St, infrastructure truth case). Byron R2 deliberately omits DCP evidence and terminates as expert-review material. Kempsey SP2 is not given synthetic statutory land-use evidence; its QSC remains uncited and the paid-pack gate must block progression. Kempsey SP2 must not inherit E2 Commercial Centre terms or controls.
 
 This is deterministic regression coverage only and does not replace live address resolution, every-zone flights, rendered SEE review, payment acceptance or operator sign-off.
 
