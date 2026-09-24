@@ -195,6 +195,16 @@ type WorkspaceUploadResponse = {
   reviewReason?: string | null;
   indexingStatus?: "READY" | "PENDING" | "FAILED" | "NOT_APPLICABLE";
   indexingError?: string | null;
+  ocr?: {
+    status: "QUEUED" | "PROCESSING" | "REVIEW_REQUIRED" | "FAILED" | "REJECTED" | "PROMOTED";
+    attempt: number;
+    providerKey: string;
+    errorCode: string | null;
+    queuedAt: string;
+    completedAt: string | null;
+    reviewedAt: string | null;
+    promotedAt: string | null;
+  } | null;
   applicabilityStatus?:
     | "PENDING_REVIEW"
     | "ACCEPTED"
@@ -265,6 +275,24 @@ const evidenceStatusClasses: Record<NonNullable<WorkspaceSource["evidenceStatus"
   NEEDS_REVIEW: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200",
 };
 
+const ocrStatusLabels: Record<NonNullable<WorkspaceSource["ocrStatus"]>, string> = {
+  QUEUED: "OCR queued",
+  PROCESSING: "OCR processing",
+  REVIEW_REQUIRED: "OCR review required",
+  FAILED: "OCR failed",
+  REJECTED: "OCR rejected",
+  PROMOTED: "OCR reviewed",
+};
+
+const ocrStatusClasses: Record<NonNullable<WorkspaceSource["ocrStatus"]>, string> = {
+  QUEUED: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
+  PROCESSING: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
+  REVIEW_REQUIRED: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+  FAILED: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
+  REJECTED: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  PROMOTED: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+};
+
 const applicabilityStatusLabels: Record<NonNullable<WorkspaceSource["applicabilityStatus"]>, string> = {
   PENDING_REVIEW: "Review pending",
   ACCEPTED: "Accepted for planning use",
@@ -287,6 +315,19 @@ const mapUploadToWorkspaceSource = (upload: WorkspaceUploadResponse): WorkspaceS
     : upload.indexingStatus === "PENDING"
       ? "Indexing for planning use."
       : null;
+  const ocrIssue = upload.ocr?.status === "QUEUED"
+    ? "OCR is queued. The original image remains excluded from planning evidence."
+    : upload.ocr?.status === "PROCESSING"
+      ? "OCR is processing. No OCR text is available to planning retrieval yet."
+      : upload.ocr?.status === "REVIEW_REQUIRED"
+        ? "OCR completed. Visual review is required before this text can support planning evidence."
+        : upload.ocr?.status === "FAILED"
+          ? `OCR failed${upload.ocr.errorCode ? ` (${upload.ocr.errorCode})` : ""}. The original remains excluded from planning evidence.`
+          : upload.ocr?.status === "REJECTED"
+            ? "The OCR result was rejected. The original remains excluded from planning evidence."
+            : upload.ocr?.status === "PROMOTED"
+              ? "OCR was visually reviewed and promoted into the normal evidence indexing path."
+              : null;
   const evidenceStatus = upload.evidenceStatus ?? "NEEDS_REVIEW";
 
   return {
@@ -297,9 +338,13 @@ const mapUploadToWorkspaceSource = (upload: WorkspaceUploadResponse): WorkspaceS
     uploadedAt: new Date(upload.createdAt).toLocaleDateString(),
     sizeLabel: formatFileSize(upload.fileSize),
     status: evidenceStatusLabels[evidenceStatus],
-    statusDetail: indexingIssue ?? upload.reviewReason ?? undefined,
+    statusDetail: indexingIssue ?? ocrIssue ?? upload.reviewReason ?? undefined,
     evidenceStatus,
     indexingStatus: upload.indexingStatus,
+    ocrStatus: upload.ocr?.status,
+    ocrAttempt: upload.ocr?.attempt,
+    ocrProviderKey: upload.ocr?.providerKey ?? null,
+    ocrErrorCode: upload.ocr?.errorCode ?? null,
     applicabilityStatus: upload.applicabilityStatus ?? "PENDING_REVIEW",
     applicabilityArtefactId: upload.applicabilityArtefactId,
     applicabilityTopics: parseSeeEvidenceTopics(upload.applicabilityTopics),
@@ -4134,6 +4179,12 @@ export function ProjectWorkspace({
                             {source.status ? (
                               <span className={cn("rounded-full px-2 py-1 text-[11px] font-semibold", source.evidenceStatus ? evidenceStatusClasses[source.evidenceStatus] : "bg-slate-900/5 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200")}>
                                 {source.status}
+                              </span>
+                            ) : null}
+                            {source.ocrStatus ? (
+                              <span className={cn("rounded-full border px-2 py-1 text-[11px] font-semibold", ocrStatusClasses[source.ocrStatus])}>
+                                {ocrStatusLabels[source.ocrStatus]}
+                                {source.ocrAttempt ? ` · ${source.ocrAttempt}` : ""}
                               </span>
                             ) : null}
                             <span className={cn("rounded-full border px-2 py-1 text-[11px] font-semibold", applicabilityStatusClasses[applicabilityStatus])}>
