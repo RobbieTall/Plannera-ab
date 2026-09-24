@@ -218,7 +218,7 @@ describe("submission SEE rendering", () => {
     ].map((match) => match[1] ?? "");
     expect(contentStreams[0]).toContain("(STATEMENT OF)");
     expect(contentStreams[1]).toContain("(Contents)");
-    expect(contentStreams[1]).toMatch(/\(Executive Summary \\?\.{3,} 3\)/);
+    expect(contentStreams[1]).toMatch(/\(Executive Summary \.{3,} 3\)/);
     expect(contentStreams[2]).toContain("(Executive Summary)");
     const impactsStream = contentStreams.find((stream) =>
       stream.includes("(Environmental Impacts)"),
