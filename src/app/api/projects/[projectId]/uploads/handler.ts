@@ -34,6 +34,17 @@ type StructuredErrorResponse = {
   tier?: UploadTier;
 };
 
+type UploadOcrSummary = {
+  status: "QUEUED" | "PROCESSING" | "REVIEW_REQUIRED" | "FAILED" | "REJECTED" | "PROMOTED";
+  attempt: number;
+  providerKey: string;
+  errorCode: string | null;
+  queuedAt: Date;
+  completedAt: Date | null;
+  reviewedAt: Date | null;
+  promotedAt: Date | null;
+};
+
 type StructuredSuccessResponse = {
   ok: true;
   uploads: Array<{
@@ -61,6 +72,7 @@ type StructuredSuccessResponse = {
     validUntil: Date | null;
     applicabilityReviewedAt: Date | null;
     applicabilityReviewNote: string | null;
+    ocr?: UploadOcrSummary | null;
     createdAt: Date;
   }>;
   usage: { used: number; limit: number };
@@ -201,13 +213,32 @@ export async function handleUploadGet(_request: NextRequest, { params }: { param
         validUntil: true,
         applicabilityReviewedAt: true,
         applicabilityReviewNote: true,
+        ocrAttempts: {
+          orderBy: [{ attempt: "desc" }, { createdAt: "desc" }],
+          take: 1,
+          select: {
+            status: true,
+            attempt: true,
+            providerKey: true,
+            errorCode: true,
+            queuedAt: true,
+            completedAt: true,
+            reviewedAt: true,
+            promotedAt: true,
+          },
+        },
         createdAt: true,
       },
     });
 
+    const responseUploads = uploads.map(({ ocrAttempts, ...upload }) => ({
+      ...upload,
+      ocr: ocrAttempts[0] ?? null,
+    }));
+
     return NextResponse.json<StructuredSuccessResponse>({
       ok: true,
-      uploads,
+      uploads: responseUploads,
       usage: { used: uploads.length, limit: WORKSPACE_UPLOAD_LIMITS["guest"] },
       tier: "guest",
     });
