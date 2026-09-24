@@ -42,3 +42,14 @@ This is not:
 - operator sign-off.
 
 It expands deterministic regression coverage only. Existing SP3/E2 quality-chain tests remain unchanged.
+
+## Verification
+
+Tested PR #429 head `faea1f343a5a9283725483ccb0f0813dbb2b9479` passed:
+- Soft launch smoke — run 35965978466;
+- Whole-LGA source matrix — run 35965978410;
+- Commercial Funnel Golden Gate — run 35965978518.
+
+The commercial node suite reported 177 tests, 177 passed, 0 failed. Separate read-only review #5300780748 found no blocking issue.
+
+Earlier test failures confirmed existing fail-closed boundaries rather than product regressions: no cited DCP evidence blocks SEE generation, and uncited SP2 QSC evidence blocks paid-pack generation.
