@@ -8,7 +8,7 @@ Issue #427 / `test/representative-address-proposal-golden-20260924` adds test-on
 - Byron R2: `33 Lorikeet Lane, Mullumbimby NSW 2482`, reviewed 24 sqm storage-shed case;
 - Kempsey SP2: `32 Smith St, Kempsey NSW 2440`, retained strictly as an SP2 Infrastructure truth case and never treated as E2.
 
-The new journeys intentionally withhold proposal-specific DCP evidence so the funnel must remain `needs_expert_review` / `working_needs_evidence` / `unresolved_pack_referral`, proving exact site/proposal binding without fabricating readiness. No production code, billing, schema, environment or external data changes are part of this slice.
+The new journeys intentionally withhold proposal-specific DCP evidence so SEE generation must fail closed; the funnel remains `needs_expert_review` / SEE `missing` / `unresolved_pack_referral`, proving exact site/proposal binding without fabricating readiness. No production code, billing, schema, environment or external data changes are part of this slice.
 
 
 This is the active sequence for what to build next so direction is never lost.
