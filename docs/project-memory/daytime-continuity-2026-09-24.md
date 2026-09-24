@@ -157,7 +157,7 @@ Implemented so far:
 - R2 uses the repository-established Zone R2 term `Dwelling houses` as permitted with consent;
 - SP2 asserts no permitted-with-consent term in this slice because inspected repository evidence establishes the zone identity but not a proposal-specific statutory use term;
 - both new journeys intentionally return no proposal-specific DCP evidence;
-- tests require exact QSC → DPP → working SEE → expert-review/audit site/proposal binding;
+- tests require exact QSC → DPP → expert-review/audit site/proposal binding;
 - forged caller site/proposal fields must be ignored;
 - all five DPP topics must remain `Unavailable`;
 - expected audit terminal state is `needs_expert_review` / `working_needs_evidence` / `unresolved_pack_referral` with next action `refer_unresolved_pack_for_expert_review`;
