@@ -669,6 +669,7 @@ model WorkspaceUpload {
   sourceChunks              WorkspaceSourceChunk[]
   pathwayEvidenceSnapshots PathwayEvidenceSnapshot[]
   applicabilityReviewEvents EvidenceApplicabilityReviewEvent[]
+  ocrAttempts               WorkspaceUploadOcrAttempt[]
 
   @@index([projectId])
   @@index([userId])
@@ -688,6 +689,43 @@ enum EvidenceIndexingStatus {
   PENDING
   FAILED
   NOT_APPLICABLE
+}
+
+enum EvidenceOcrStatus {
+  QUEUED
+  PROCESSING
+  REVIEW_REQUIRED
+  FAILED
+  REJECTED
+  PROMOTED
+}
+
+model WorkspaceUploadOcrAttempt {
+  id                String            @id @default(cuid())
+  uploadId          String
+  upload            WorkspaceUpload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  sourceContentHash String
+  attempt           Int
+  providerKey       String
+  status            EvidenceOcrStatus @default(QUEUED)
+  resultText        String?
+  resultSegments    Json?
+  resultContentHash String?
+  pageCount         Int?
+  errorCode         String?
+  queuedAt          DateTime          @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewerRef       String?
+  reviewNote        String?
+  promotedAt        DateTime?
+  requestHash       String            @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([uploadId, attempt], map: "WorkspaceUploadOcrAttempt_upload_attempt_key")
+  @@index([uploadId, status], map: "WorkspaceUploadOcrAttempt_upload_status_idx")
 }
 
 enum WorkspaceSourceType {
