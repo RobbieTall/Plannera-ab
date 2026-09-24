@@ -223,7 +223,11 @@ describe("submission SEE rendering", () => {
     expect(impactsStream).toBeDefined();
     const impactsOffset = impactsStream!.indexOf("(6. Environmental Impacts)");
     expect(impactsStream!.slice(impactsOffset)).toContain("(Evidence used)");
-    expect(impactsStream!.slice(impactsOffset)).toContain("(lep - Byron Local Environmental Plan 2014)");
+    const impactsEvidence = impactsStream!.slice(impactsOffset);
+    expect(impactsEvidence).toContain("(lep - Byron Local Environmental");
+    expect(impactsEvidence).toContain("(Plan 2014");
+    expect(impactsEvidence).toContain("(dcp - Byron Development Control");
+    expect(impactsEvidence).toContain("(Plan 2014");
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
     const startXref = /startxref\n(\d+)\n%%EOF/.exec(pdf);
