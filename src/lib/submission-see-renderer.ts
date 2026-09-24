@@ -100,9 +100,11 @@ const renderStatusLabel = (presentation: RenderPresentation) =>
 
 const operatorReviewLabel = (candidate: SubmissionSeeCandidate) => {
   const status = titleCase(candidate.operatorReview.status);
-  const reviewedAt = candidate.operatorReview.reviewedAt
-    ? new Date(candidate.operatorReview.reviewedAt).toISOString()
-    : null;
+  const reviewedAt =
+    candidate.operatorReview.reviewedAt &&
+    Number.isFinite(Date.parse(candidate.operatorReview.reviewedAt))
+      ? new Date(candidate.operatorReview.reviewedAt).toISOString()
+      : null;
   return reviewedAt ? `${status} at ${reviewedAt}` : status;
 };
 
