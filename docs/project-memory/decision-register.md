@@ -1,5 +1,20 @@
 # Decision Register
 
+## DR-078H — Professional SEE presentation is a separate deterministic layer — 24 September 2026
+
+Decision: the professional DOCX/PDF presentation layer must consume the already accepted `see-builder-standard.v1` candidate without changing statutory conclusions, citations, evidence finality or readiness.
+
+PR #434 implements one shared deterministic presentation model for DOCX and PDF. The renderer may improve cover hierarchy, document control, numbering, evidence schedules, source register, limitations, page furniture and working-document warnings, but it must never manufacture planning content or turn a blocked/working candidate into a final one.
+
+Visual acceptance uses the approved `SEE Various Examples.pdf` benchmark qualities: ELKN-style document discipline, Ardill Payne-style planning-report hierarchy and Planners North-style professional presentation. Plannera retains its own branding and layout system.
+
+Exact code/test head `c9a9624ef085287765a17ee0443a2319d8552282` passed all observed renderer/commercial/safety gates and artifact `10796395242` produced visually accepted 14-page DOCX and PDF outputs. Review `#5301256836` found no blocker.
+
+A missing OOXML relationship to `word/styles.xml` was proven to collapse DOCX pagination despite valid-looking XML. Styles relationships are therefore part of the renderer contract and regression coverage.
+
+This decision authorises no Production, checkout, billing, schema or real-customer document mutation.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.
