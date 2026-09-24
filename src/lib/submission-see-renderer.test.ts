@@ -231,7 +231,7 @@ describe("submission SEE rendering", () => {
       "(lep - Byron Local Environmental Plan 2014; dcp - Byron Development Control Plan 2014;)",
     );
     expect(impactsEvidence).toContain(
-      "(spatial - Official NSW zoning feature; proposal-plan - Synthetic current proposal plan)",
+      "(spatial - Official NSW zoning feature; proposal-plan - Current proposal plan)",
     );
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
