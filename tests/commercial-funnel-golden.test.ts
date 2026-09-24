@@ -661,7 +661,7 @@ test("Kempsey evidence gap creates a qualified working SEE and unresolved-pack r
   assert.ok("referralEligibility" in audit);
   assert.equal(audit.quickSiteCheck.state, "ready");
   assert.equal(audit.detailedPlanningPack.state, "needs_expert_review");
-  assert.equal(audit.see.state, "working_needs_evidence");
+  assert.equal(audit.see.state, "missing");
   assert.equal(audit.referralEligibility, "unresolved_pack_referral");
   assert.equal(
     audit.nextAction.code,
@@ -748,23 +748,20 @@ const runRepresentativeUnresolvedJourney = async (fixture: GoldenFixture) => {
   );
   assert.equal(detailedPlanningPack.content.unresolvedTopics.length, 5);
 
-  const workingSee = await createPreSeePlanningMemoArtefact({
-    body: {
-      projectId: fixture.publicId,
-      sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
-      expectedProposalBrief: fixture.proposalBrief,
-      proposedWorksSummary: "forged client proposal",
-    },
-    userId: USER_ID,
-    deps: deps as any,
-  });
-
-  assert.equal(workingSee.content.proposedWorksSummary, fixture.proposalBrief);
-  assert.equal(workingSee.content.documentReadiness.state, "WORKING_SEE");
-  assert.equal(workingSee.content.documentReadiness.submissionReady, false);
-  assert.equal(
-    workingSee.content.sourceDetailedPlanningPack?.artefactId,
-    detailedPlanningPack.artefact.id,
+  await assert.rejects(
+    () => createPreSeePlanningMemoArtefact({
+      body: {
+        projectId: fixture.publicId,
+        sourceDetailedPlanningPackArtefactId: detailedPlanningPack.artefact.id,
+        expectedProposalBrief: fixture.proposalBrief,
+        proposedWorksSummary: "forged client proposal",
+      },
+      userId: USER_ID,
+      deps: deps as any,
+    }),
+    (error) =>
+      error instanceof ArtefactValidationError &&
+      /no applicable cited DCP evidence/.test(error.message),
   );
 
   const review = await createExpertReviewRequestArtefact(
@@ -780,7 +777,7 @@ const runRepresentativeUnresolvedJourney = async (fixture: GoldenFixture) => {
   );
 
   assert.equal(review.content.detailedPlanningPack?.artefactId, detailedPlanningPack.artefact.id);
-  assert.equal(review.content.sourceSeeMemo?.artefactId, workingSee.artefact.id);
+  assert.equal(review.content.sourceSeeMemo ?? null, null);
   assert.ok((review.content.confidenceGaps?.length ?? 0) > 0);
 
   const audit = await auditCommercialFunnel(fixture.publicId, {
@@ -792,7 +789,7 @@ const runRepresentativeUnresolvedJourney = async (fixture: GoldenFixture) => {
   assert.equal(audit.referralEligibility, "unresolved_pack_referral");
   assert.equal(audit.nextAction.code, "refer_unresolved_pack_for_expert_review");
 
-  return { quickSiteCheck, detailedPlanningPack, workingSee, review, audit };
+  return { quickSiteCheck, detailedPlanningPack, review, audit };
 };
 
 test("Byron R2 representative journey preserves the reviewed 33 Lorikeet Lane shed scope and refuses unsupported readiness", async () => {
@@ -820,7 +817,7 @@ test("Kempsey SP2 representative journey keeps 32 Smith St out of the E2 commerc
     JSON.stringify({
       qsc,
       dpp: result.detailedPlanningPack.content,
-      see: result.workingSee.content,
+      review: result.review.content,
     }),
     /E2 - Commercial Centre|Commercial premises|Kempsey DCP 2026 > E2/i,
   );
