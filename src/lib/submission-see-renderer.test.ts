@@ -227,10 +227,12 @@ describe("submission SEE rendering", () => {
     const impactsOffset = impactsStream!.indexOf("(6. Environmental Impacts)");
     expect(impactsStream!.slice(impactsOffset)).toContain("(Evidence used)");
     const impactsEvidence = impactsStream!.slice(impactsOffset);
-    expect(impactsEvidence).toContain("(lep - Byron Local Environmental");
-    expect(impactsEvidence).toContain("(Plan 2014");
-    expect(impactsEvidence).toContain("(dcp - Byron Development Control");
-    expect(impactsEvidence).toContain("(Plan 2014");
+    expect(impactsEvidence).toContain(
+      "(lep - Byron Local Environmental Plan 2014; dcp - Byron Development Control Plan 2014;)",
+    );
+    expect(impactsEvidence).toContain(
+      "(spatial - Official NSW zoning feature; proposal-plan - Synthetic current proposal plan)",
+    );
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
     const startXref = /startxref\n(\d+)\n%%EOF/.exec(pdf);
