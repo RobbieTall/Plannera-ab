@@ -1,5 +1,21 @@
 # Build Next (Execution Queue)
 
+## Latest Item 78C checkpoint - 2026-09-25: Byron test configuration deployed
+
+This checkpoint supersedes earlier incomplete-configuration and identity-wait instructions below. Historical evidence is retained, not an instruction to repeat setup.
+
+- Byron's GitHub base URL and allowed-base URL are saved for its independent Preview. The earlier GitHub identity confirmation is resolved.
+- Byron-only Vercel sign-in URL, Stripe test key, new webhook signing secret, checkout return URLs and diagnostic target list are saved. Existing Kempsey and ops entries were preserved. Credential values were entered by Robbie and were not read by the agent.
+- Hosted Byron test checkout is now enabled on its exact repaired Preview branch only. Kempsey's existing branch-specific test checkout was already enabled and was not changed. Workflow runner checkout flags remain false; Production checkout must remain disabled.
+- Byron configuration redeployment `dpl_Ehs1rNCVfWUYTVsKC8QA6UiyhpFh` is READY at exact application SHA `732de603021a3474222927ffbe34bac7a30b70f5`. Its guarded build returned BUILD_PASSED and the protected, no-database-query diagnostic returned HTTP 200 / BYRON.
+- This is deployment/configuration evidence, not proof of Stripe credentials, webhook delivery, project eligibility, paid replay, outputs or consultant handoff.
+- Both GitHub environments retain required review, no administrator bypass and the exact acceptance runner branch restriction. Both workflow pins still name `077d0e5d48fb6ab49fb7c5acc8cfa70668270f4d`; do not dispatch current branch HEAD against those old pins.
+- Kempsey's referral variables and required secret names are present. Presence does not prove validity; do not recreate them without a specific failing check.
+- Next: confirm current primary and alternative project/QSC/session eligibility; obtain exact replacement runner authorization and keep human environment approval; then run the protected whole-funnel suite. Do not use another council's fixture merely to remove a 404.
+- Decision remains HOLD. No whole-funnel rerun, payment, refund, migration, Production deployment or Production setting change occurred in this checkpoint. `main` remains untouched. The temporary diagnostic/build wrapper expires 2026-09-28 00:00 UTC and must be removed before Production integration.
+- Read [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395) and `docs/project-memory/item78c-current-handover.md` before continuing. Never retry Stripe connector/OAuth authorization or publish secrets, cookies, private project IDs or document contents.
+
+
 ## Current Item 78C handover - 2026-09-25: independent hosted targets proven
 
 This checkpoint supersedes earlier prepared/not-deployed alignment status below.

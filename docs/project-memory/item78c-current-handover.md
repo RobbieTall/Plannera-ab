@@ -1,5 +1,48 @@
 # Item 78C current desktop/mobile handover
 
+## Latest Item 78C checkpoint - 2026-09-25: Byron test configuration deployed
+
+This checkpoint supersedes earlier incomplete-configuration and identity-wait instructions below. Historical evidence is retained, not an instruction to repeat setup.
+
+- Byron's GitHub base URL and allowed-base URL are saved for its independent Preview. The earlier GitHub identity confirmation is resolved.
+- Byron-only Vercel sign-in URL, Stripe test key, new webhook signing secret, checkout return URLs and diagnostic target list are saved. Existing Kempsey and ops entries were preserved. Credential values were entered by Robbie and were not read by the agent.
+- Hosted Byron test checkout is now enabled on its exact repaired Preview branch only. Kempsey's existing branch-specific test checkout was already enabled and was not changed. Workflow runner checkout flags remain false; Production checkout must remain disabled.
+- Byron configuration redeployment `dpl_Ehs1rNCVfWUYTVsKC8QA6UiyhpFh` is READY at exact application SHA `732de603021a3474222927ffbe34bac7a30b70f5`. Its guarded build returned BUILD_PASSED and the protected, no-database-query diagnostic returned HTTP 200 / BYRON.
+- This is deployment/configuration evidence, not proof of Stripe credentials, webhook delivery, project eligibility, paid replay, outputs or consultant handoff.
+- Both GitHub environments retain required review, no administrator bypass and the exact acceptance runner branch restriction. Both workflow pins still name `077d0e5d48fb6ab49fb7c5acc8cfa70668270f4d`; do not dispatch current branch HEAD against those old pins.
+- Kempsey's referral variables and required secret names are present. Presence does not prove validity; do not recreate them without a specific failing check.
+- Next: confirm current primary and alternative project/QSC/session eligibility; obtain exact replacement runner authorization and keep human environment approval; then run the protected whole-funnel suite. Do not use another council's fixture merely to remove a 404.
+- Decision remains HOLD. No whole-funnel rerun, payment, refund, migration, Production deployment or Production setting change occurred in this checkpoint. `main` remains untouched. The temporary diagnostic/build wrapper expires 2026-09-28 00:00 UTC and must be removed before Production integration.
+- Read [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395) and `docs/project-memory/item78c-current-handover.md` before continuing. Never retry Stripe connector/OAuth authorization or publish secrets, cookies, private project IDs or document contents.
+
+### Configuration register and next operator actions
+
+| Required setting or evidence | Status at this checkpoint |
+| --- | --- |
+| Byron GitHub base URL and allowed URL | Confirmed saved for independent Byron alias |
+| Byron branch-only sign-in URL, return URLs, Stripe key and webhook secret | Confirmed saved; values not read; deployment completed |
+| New Byron Stripe test destination | Confirmed Active; signed delivery remains unproven |
+| Hosted Preview planning-pack checkout | Byron true saved and deployed; Kempsey true saved, unchanged; functionality unproven |
+| Runner checkout flags | Remain false in the workflow |
+| Independent hosted database targets | Byron and Kempsey classification proven separately; not fixture/content proof |
+| Both GitHub review/branch protections | Confirmed present; administrator bypass disabled |
+| Both workflow authorization pins | Superseded old pin; replacement exact runner SHA and approval still required |
+| Required GitHub secret names, including Kempsey referral | Present, not proof of validity; no duplicate setup requested |
+| Browser session at the new Byron alias | Guest project page with zero browser-local projects; authenticated access not established |
+| Primary/alternative project, QSC, paid scope and referral eligibility | Not yet re-proven against the aligned hosted applications |
+| Whole-funnel decision and representative DOCX/PDF inspection | Unproven; HOLD |
+| Production checkout | Must remain disabled; no Production changes made |
+
+1. Use the existing repaired Byron Preview, not an older alias. If inspecting projects through Chrome, Robbie must sign in there; the guest browser page does not establish whether the separately saved GitHub runner cookie is valid.
+2. Inspect current evidence for primary and alternative project ownership, confirmed site/QSC and paid-session linkage in each independent fixture. Record only safe outcomes. Do not label HTTP 404 an acceptable unpaid denial or repurpose the other council's fixture.
+3. Review the exact acceptance runner commit after documentation integration; obtain its replacement authorization and update both protected pins together. Do not confuse the runner SHA with the two application deployment SHAs. Keep the human approval gates.
+4. Dispatch only the authorised protected workflow once prerequisites are satisfied. Keep raw credentials, responses and documents out of logs/issue comments.
+5. Require both council journeys, replay idempotency, private evidence, rendered outputs and the Kempsey consultant handoff to pass. Inspect representative DOCX/PDF files before accepting READY_FOR_NON_PRODUCTION_ACCEPTANCE.
+6. Record the exact run and safe result here and in Issue #395. If human approval/authentication is unavailable, leave a precise checkpoint rather than weakening protections or claiming completion.
+
+The temporary guard expires at 2026-09-28 00:00 UTC. Expiry is not permission to extend or remove it silently. No live payment, refund, Production activation or Production schema work is included.
+
+
 ## Current Item 78C handover - 2026-09-25: independent hosted targets proven
 
 This checkpoint supersedes earlier prepared/not-deployed alignment status below.
