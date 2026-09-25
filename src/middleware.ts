@@ -28,6 +28,11 @@ export async function middleware(request: NextRequest) {
     });
   }
 
+  // This bounded Preview diagnostic must not create or refresh any session cookie.
+  if (pathname === "/api/internal/item78c-database-target") {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/projects/ensure")) {
     return NextResponse.next();
   }

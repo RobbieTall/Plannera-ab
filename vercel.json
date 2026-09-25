@@ -6,7 +6,8 @@
       "accept/item-78c-byron-kempsey-20260914": false,
       "fix/item78c-config-reasons-20260925": false,
       "fix/item78c-presence-only-20260925": false,
-      "fix/item78c-direct-login-20260925": false
+      "fix/item78c-direct-login-20260925": false,
+      "fix/item78c-database-target-20260925": false
     }
   },
   "functions": {
