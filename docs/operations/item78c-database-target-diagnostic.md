@@ -34,3 +34,15 @@ This identifies an endpoint, not database name, role, connectivity, schema, reco
 Run #71 proves both primary session/project lookups only. The hosted target comparison remains outstanding until an actual protected response is recorded. Alternate-project eligibility, payment idempotency, private evidence, DPP/SEE output, consultant handoff and representative DOCX/PDF review are not established by this diagnostic.
 
 Decision remains HOLD. Production checkout stays disabled and Production data/schema unchanged. Do not recreate saved credentials. Preserve independent fixtures and unrelated PRs.
+
+## Guarded deployment build
+
+The candidate's vercel.json disables install lifecycle scripts and calls scripts/item78c-diagnostic-build.mjs before the unchanged npm run vercel-build chain. The wrapper refuses Production, any other branch, missing commit evidence, an expired window, an enabled controlled-address external probe, or a database outside the two independently confirmed Preview endpoint labels.
+
+One new NON-SECRET branch-only setting is required: ITEM78C_DIAGNOSTIC_DATABASE_TARGETS. Its value is the two independently confirmed GitHub Preview target labels separated by one comma, without spaces or pooling suffixes. Check saved cloud state before creating it. Scope it only to Preview branch accept/item-78c-byron-kempsey-20260914. Do not include a connection string. Do not publish its value in handoff notes. This setting authorizes the build's target; it does not replace either council's fixture or credential.
+
+After the guard succeeds, the existing launch and whole-LGA smoke checks still execute and can read the confirmed Preview database. The diagnostic route itself remains database-free. The child build receives only the validated DATABASE_URL and a limited build-variable allowlist; unrelated credentials and fallback database variables are excluded. Child output is captured and never printed or persisted; only TARGET_REFUSED, BUILD_FAILED or BUILD_PASSED is reported. A failed build is a failure, never acceptance success.
+
+The temporary wrapper intentionally refuses Production builds. This PR must remain acceptance-only. Remove the temporary deployment override/guard through a reviewed change before any future Production integration; never bypass it on Production. No existing launch gate is removed or marked passed by this wrapper.
+
+Additional synthetic command: node --experimental-strip-types --test tests/item78c-database-target-diagnostic.test.mjs tests/item78c-diagnostic-build.test.mjs. The credential-free PR contract workflow also performs a strict helper type check. Full application compilation is still a separate deployment result, not implied by these focused checks.

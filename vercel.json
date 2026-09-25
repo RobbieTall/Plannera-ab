@@ -24,5 +24,7 @@
       "path": "/api/cron/consultant-referral-retention",
       "schedule": "37 3 * * *"
     }
-  ]
+  ],
+  "installCommand": "npm ci --ignore-scripts",
+  "buildCommand": "node ./scripts/item78c-diagnostic-build.mjs"
 }
