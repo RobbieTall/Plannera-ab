@@ -1,5 +1,23 @@
 # Decision Register
 
+## Current Item 78C handover - 2026-09-25: independent hosted targets proven
+
+This checkpoint supersedes earlier prepared/not-deployed alignment status below.
+
+- PR #444 passed its two CI checks and merged into acceptance only. The focused contract suite passed 60 synthetic tests and its TypeScript check; the Golden Gate also passed.
+- Both protected Preview deployments are READY and their guarded builds completed. The bounded no-database-query runtime diagnostic independently returned the expected council classification for each deployment.
+- Kempsey application commit: `87de1a054ed75290ff9d58e566cf37220f1de406`. Byron application commit: `732de603021a3474222927ffbe34bac7a30b70f5`. Their reviewed file tree is identical: `7e6d1b3677c4fd8d2291e79ce3da7383959bfd10`. Byron's no-file-change commit resolves Vercel's ambiguous branch selection; these are not the same SHA.
+- Existing independent databases were reused. No database credentials were revealed or copied, and no Production or schema mutation was performed.
+- Byron's GitHub test base URL and allowed-base URL were still pointing at the other app. The attempted correction reached GitHub's fresh identity check; do not record either save as completed until its saved row confirms the new address.
+- Byron-only sign-in URL and explicit checkout-off configuration were saved in Vercel after its initial deployment. A new deployment is required before claiming those saved changes are active.
+- Byron's branch-scoped Stripe test configuration remains incomplete. Verify saved state before requesting any manual secret entry. Do not duplicate completed setup or enable checkout merely to bypass a missing configuration check.
+- The operator confirmed Stripe's authorization-success screen and explicitly requested no more Stripe connector/OAuth access prompts. Do not retry that connector or initiate reauthorization; use the existing signed-in dashboard when needed.
+- Workflow/environment acceptance pins remain unchanged. Hosted target classification does not prove database contents, alternative-project eligibility, payment idempotency, private evidence, output quality or consultant handoff.
+- Next: complete the two non-secret GitHub URL updates after normal identity confirmation; finish missing branch-only test configuration; redeploy only the reviewed Preview; confirm fixture boundaries and exact execution pins before a separately authorised whole-funnel rerun.
+- Decision: HOLD. The whole-funnel gate has not been rerun or passed. Production checkout remains disabled and `main` remains unchanged. Remove the temporary Preview-only guard/diagnostic before any future Production integration; its existing expiry is 2026-09-28 UTC.
+- Issue #395 is the privacy-minimal continuity record. Never publish credentials, tokens, connection strings, private project identifiers, document contents or raw authenticated logs.
+
+
 ## Independent Preview alignment follow-up - 2026-09-25
 
 Prepared follow-up to the completed diagnostic; not yet deployed or proven.
