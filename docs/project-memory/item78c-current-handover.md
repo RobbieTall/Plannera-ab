@@ -1,5 +1,18 @@
 # Item 78C current desktop/mobile handover
 
+## Item 78C runtime-target diagnostic checkpoint - 25 September 2026
+
+**HOLD: whole-funnel acceptance and commercial launch remain unproven.**
+This checkpoint supersedes historical next-step instructions below.
+
+Both council saved-login checks passed in [run #71](https://github.com/RobbieTall/Plannera-ab/actions/runs/36086708887). This proves the checked primary session/project relationships in the runner databases, not hosted alignment, alternate-fixture eligibility, payment/output acceptance or commercial readiness. Do not repeat credential setup.
+
+Robbie approved preparing, testing and deploying a bounded Preview-only database-target diagnostic. This patch is preparation, not deployment or execution evidence. The diagnostic performs an in-process configuration comparison only, without database queries, session updates, network calls or secret output. It is restricted to the acceptance Preview branch and expires automatically. A result identifies configuration only; it does not certify connectivity, data identity, fixture readiness or historical deployments.
+
+Follow [the diagnostic runbook](/docs/operations/item78c-database-target-diagnostic.md). Confirm deployment protection, exact candidate/build safety and unchanged Production before a manual Preview deployment. Keep automatic Git deployment suppressed. Record actual candidate/deployment/result evidence in Issue #395. Do not dispatch stateful acceptance merely because this diagnostic passes. Production checkout stays disabled; no Production data/schema changes are authorized. Preserve independent council fixtures and unrelated work.
+
+
+
 ## Current checkpoint: direct read-only follow-up - 25 September 2026
 
 **HOLD. Neither whole-funnel acceptance nor commercial launch is proven.**

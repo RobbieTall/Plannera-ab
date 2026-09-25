@@ -1,0 +1,34 @@
+name: Item 78C database-target diagnostic contract
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/item78c-database-target-diagnostic.ts"
+      - "src/app/api/internal/item78c-database-target/route.ts"
+      - "src/middleware.ts"
+      - "scripts/item78c-diagnostic-build.mjs"
+      - "tests/item78c-database-target-diagnostic.test.mjs"
+      - "tests/item78c-diagnostic-build.test.mjs"
+      - "vercel.json"
+      - ".github/workflows/item78c-database-target-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+      - name: Synthetic diagnostic and build-refusal tests
+        run: node --experimental-strip-types --test tests/item78c-database-target-diagnostic.test.mjs tests/item78c-diagnostic-build.test.mjs
+      - name: Install compiler without lifecycle scripts
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Strict diagnostic helper type check
+        run: ./node_modules/.bin/tsc --strict --noEmit --skipLibCheck --target ES2022 --module nodenext --moduleResolution nodenext --types node src/lib/item78c-database-target-diagnostic.ts
