@@ -4,7 +4,8 @@
     "deploymentEnabled": {
       "fix/item78c-session-preflight-20260923": false,
       "accept/item-78c-byron-kempsey-20260914": false,
-      "fix/item78c-config-reasons-20260925": false
+      "fix/item78c-config-reasons-20260925": false,
+      "fix/item78c-presence-only-20260925": false
     }
   },
   "functions": {

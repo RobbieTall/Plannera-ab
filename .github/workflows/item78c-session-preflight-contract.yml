@@ -24,4 +24,4 @@ jobs:
           node-version: '22'
           package-manager-cache: false
       - name: Test injected synthetic inputs only; no install, environment or cloud credentials
-        run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs tests/item78c-session-preflight-wiring.test.mjs
+        run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs tests/item78c-session-preflight-wiring.test.mjs tests/item78c-session-preflight-presence.test.mjs

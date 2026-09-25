@@ -24,6 +24,11 @@ on:
         type: boolean
         required: false
         default: false
+      presence_only:
+        description: With diagnostic_only, check setting presence only; no database connection
+        type: boolean
+        required: false
+        default: false
       expected_commit:
         description: Required for diagnostic mode; exact reviewed non-main commit
         type: string
@@ -37,12 +42,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: item77-protected-commercial-journey-${{ github.ref }}-${{ inputs.diagnostic_only && 'diagnostic' || 'contracts' }}
-  cancel-in-progress: ${{ !inputs.diagnostic_only }}
+  group: ${{ inputs.presence_only && 'item78c-presence-only' || format('item77-protected-commercial-journey-{0}-{1}', github.ref, inputs.diagnostic_only && 'diagnostic' || 'contracts') }}
+  cancel-in-progress: ${{ !inputs.diagnostic_only && !inputs.presence_only }}
 
 jobs:
   commercial-journey:
-    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.diagnostic_only }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (!inputs.diagnostic_only && !inputs.presence_only) }}
     name: Exact scope, credit, evidence, outputs and UI
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -71,7 +76,7 @@ jobs:
 
   session-diagnostic:
     name: Protected read-only Item 78C saved-login diagnostic
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && !inputs.presence_only }}
     permissions:
       contents: read
       actions: read
@@ -79,3 +84,71 @@ jobs:
     with:
       expected_commit: ${{ inputs.expected_commit }}
       confirmation: ${{ inputs.confirmation }}
+
+  presence-authorize:
+    name: Authorize presence-only probe without application credentials
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.presence_only }}
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      ITEM78C_DIAGNOSTIC_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_DIAGNOSTIC_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - name: Require explicit diagnostic-only selection
+        env:
+          DIAGNOSTIC_ONLY: ${{ inputs.diagnostic_only }}
+        run: node -e 'if (process.env.DIAGNOSTIC_ONLY !== "true") process.exit(1)'
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify commit evidence and both environments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-session-preflight-authorize.mjs credential-free
+      - name: Synthetic diagnostic and presence regression tests
+        run: node --test tests/item78c-session-preflight*.test.mjs
+
+  presence:
+    name: Presence only for ${{ matrix.council }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && inputs.presence_only }}
+    needs: presence-authorize
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - council: BYRON
+            environment: item78c-byron-preview
+          - council: KEMPSEY
+            environment: item78c-kempsey-preview
+    environment: ${{ matrix.environment }}
+    env:
+      ITEM78C_DIAGNOSTIC_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_DIAGNOSTIC_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protections and environment commit pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ITEM78C_DIAGNOSTIC_COUNCIL: ${{ matrix.council }}
+          ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+          ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+        run: node scripts/item78c-session-preflight-authorize.mjs protected
+      - name: Report two presence flags only
+        env:
+          DATABASE_CONFIGURED: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL != '' }}
+          SESSION_CONFIGURED: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE != '' }}
+        run: node scripts/item78c-session-preflight-presence.mjs

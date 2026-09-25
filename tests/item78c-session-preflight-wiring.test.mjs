@@ -7,18 +7,18 @@ const read = name => readFileSync(new URL('../.github/workflows/' + name, import
 const caller = read('item77-protected-commercial-journey.yml');
 const callee = read('item78c-session-preflight.yml');
 const ci = read('item78c-session-preflight-contract.yml');
-const diagnostic = caller.slice(caller.indexOf('  session-diagnostic:'));
+const diagnostic = caller.slice(caller.indexOf('  session-diagnostic:'), caller.indexOf('\n  presence-authorize:'));
 const originalSteps = "    steps:\n      - name: Checkout\n        uses: actions/checkout@v4\n      - name: Use Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: 20\n          cache: npm\n      - name: Install dependencies\n        run: npm ci\n      - name: Verify Stripe test lifecycle contract\n        run: npx tsx --test tests/stripe-test-acceptance.test.ts\n      - name: Verify credit, evidence, rendering and progressive disclosure\n        run: >-\n          npx vitest run\n          src/lib/submission-see-credit.test.ts\n          src/lib/item74h-progressive-evidence-regeneration.test.ts\n          src/lib/submission-see-renderer.test.ts\n          src/lib/item74h-visual-acceptance.test.ts\n          tests/see-document-panel.test.tsx\n      - name: Verify qualified working DOCX/PDF regeneration\n        run: npm run --silent accept:item74h-working-see-preview\n";
 
 test('registered caller preserves every original commercial test step', () => {
   const job = caller.slice(caller.indexOf('  commercial-journey:'), caller.indexOf('\n  session-diagnostic:'));
   assert.equal(job.slice(job.indexOf('    steps:')).trimEnd(), originalSteps.trimEnd());
-  assert.ok(job.includes("github.event_name != 'workflow_dispatch' || !inputs.diagnostic_only"));
+  assert.ok(job.includes("github.event_name != 'workflow_dispatch' || (!inputs.diagnostic_only && !inputs.presence_only)"));
 });
 test('diagnostic is explicitly opted into and never a PR side effect', () => {
   assert.match(caller, /diagnostic_only:\n[\s\S]*?type: boolean\n        required: false\n        default: false/);
   assert.ok(diagnostic.includes("github.event_name == 'workflow_dispatch' && inputs.diagnostic_only"));
-  assert.ok(caller.includes("cancel-in-progress: $" + "{{ !inputs.diagnostic_only }}"));
+  assert.ok(caller.includes("cancel-in-progress: $" + "{{ !inputs.diagnostic_only && !inputs.presence_only }}"));
 });
 test('caller passes data only to same-commit reusable workflow and no secrets', () => {
   assert.ok(diagnostic.includes('uses: ./.github/workflows/item78c-session-preflight.yml'));
