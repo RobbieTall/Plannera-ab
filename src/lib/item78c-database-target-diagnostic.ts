@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 
 type DiagnosticEnvironment = Readonly<Record<string, string | undefined>>;
 type Target = "BYRON" | "KEMPSEY" | "NEITHER" | "UNAVAILABLE";
-const BRANCH = "accept/item-78c-byron-kempsey-20260914";
+const BRANCHES = new Set([
+  "accept/item-78c-byron-kempsey-20260914",
+  "accept/item-78c-byron-repaired-20260919",
+]);
 const EXPIRES_AT = Date.parse("2026-09-28T00:00:00.000Z");
 const PATH = "/api/internal/item78c-database-target";
 const HEADERS = {
@@ -27,7 +30,7 @@ export function databaseTargetDiagnostic(
 ): Response {
   if (
     env.VERCEL_ENV !== "preview" ||
-    env.VERCEL_GIT_COMMIT_REF !== BRANCH ||
+    !BRANCHES.has(env.VERCEL_GIT_COMMIT_REF ?? "") ||
     !Number.isFinite(now) ||
     now >= EXPIRES_AT ||
     now < Date.parse("2026-09-25T00:00:00.000Z")

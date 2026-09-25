@@ -6,14 +6,45 @@ import { authorizeDiagnosticBuild, diagnosticBuildEnvironment, runDiagnosticBuil
 const now = Date.parse("2026-09-25T12:00:00Z");
 const env = {
   VERCEL_ENV: "preview",
-  VERCEL_GIT_COMMIT_REF: "accept/item-78c-byron-kempsey-20260914",
+  VERCEL_GIT_COMMIT_REF: "accept/item-78c-byron-repaired-20260919",
   VERCEL_GIT_COMMIT_SHA: "a".repeat(40),
   ITEM78C_DIAGNOSTIC_DATABASE_TARGETS: "ep-synthetic-byron,ep-synthetic-kempsey",
   DATABASE_URL: "postgresql://synthetic:synthetic@ep-synthetic-byron.ap-southeast-2.aws.neon.tech/synthetic",
 };
-test("both distinct confirmed targets and pooled form are permitted", () => {
-  for (const endpoint of ["ep-synthetic-byron", "ep-synthetic-kempsey", "ep-synthetic-byron-pooler"]) {
-    assert.equal(authorizeDiagnosticBuild({ ...env, DATABASE_URL: env.DATABASE_URL.replace("ep-synthetic-byron", endpoint) }, now), true);
+test("each council branch only permits its own confirmed endpoint and pooled form", () => {
+  for (const [branch, endpoint] of [
+    ["accept/item-78c-byron-repaired-20260919", "ep-synthetic-byron"],
+    ["accept/item-78c-byron-kempsey-20260914", "ep-synthetic-kempsey"],
+  ]) {
+    for (const suffix of ["", "-pooler"]) {
+      assert.equal(authorizeDiagnosticBuild({ ...env, VERCEL_GIT_COMMIT_REF: branch,
+        DATABASE_URL: env.DATABASE_URL.replace("ep-synthetic-byron", endpoint + suffix) }, now), true);
+    }
+  }
+});
+test("cross-council target mismatches never invoke the build", () => {
+  for (const [branch, endpoint] of [
+    ["accept/item-78c-byron-repaired-20260919", "ep-synthetic-kempsey"],
+    ["accept/item-78c-byron-kempsey-20260914", "ep-synthetic-byron"],
+  ]) {
+    let calls = 0;
+    const result = runDiagnosticBuild({ ...env, VERCEL_GIT_COMMIT_REF: branch,
+      DATABASE_URL: env.DATABASE_URL.replace("ep-synthetic-byron", endpoint) },
+      () => { calls += 1; }, now);
+    assert.equal(calls, 0);
+    assert.deepEqual(result, { status: 1, decision: "TARGET_REFUSED" });
+  }
+});
+test("invalid scope is rejected before database configuration is accessed", () => {
+  for (const changes of [
+    { VERCEL_ENV: "production" }, { VERCEL_GIT_COMMIT_REF: "main" },
+    { VERCEL_GIT_COMMIT_REF: undefined },
+    { VERCEL_GIT_COMMIT_REF: env.VERCEL_GIT_COMMIT_REF + "-other" },
+  ]) {
+    const configuration = { ...env, ...changes };
+    Object.defineProperty(configuration, "DATABASE_URL", { get() { throw new Error("MUST NOT READ"); } });
+    assert.deepEqual(runDiagnosticBuild(configuration, () => { throw new Error("MUST NOT RUN"); }, now),
+      { status: 1, decision: "TARGET_REFUSED" });
   }
 });
 for (const changes of [
@@ -73,7 +104,9 @@ test("deployment wiring disables install scripts, retains existing build gates a
   const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
   assert.equal(config.installCommand, "npm ci --ignore-scripts");
   assert.equal(config.buildCommand, "node ./scripts/item78c-diagnostic-build.mjs");
-  assert.equal(config.git.deploymentEnabled[env.VERCEL_GIT_COMMIT_REF], false);
+  for (const branch of ["accept/item-78c-byron-repaired-20260919", "accept/item-78c-byron-kempsey-20260914"]) {
+    assert.equal(config.git.deploymentEnabled[branch], false);
+  }
   assert.equal(config.git.deploymentEnabled["fix/item78c-database-target-20260925"], false);
   assert.equal(diagnosticBuildEnvironment(env).DATABASE_URL, env.DATABASE_URL);
 });

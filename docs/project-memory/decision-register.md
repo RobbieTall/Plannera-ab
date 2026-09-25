@@ -1,5 +1,19 @@
 # Decision Register
 
+## Independent Preview alignment follow-up - 2026-09-25
+
+Prepared follow-up to the completed diagnostic; not yet deployed or proven.
+
+- Keep the acceptance/workflow branch unchanged. Add a separate hosted Preview branch for the existing independent Byron database; do not copy or merge council fixtures.
+- The temporary guarded build now binds each exact Preview branch to one entry in the ordered non-secret target list (Byron first, Kempsey second), rejecting cross-council mismatches before any build process starts.
+- Automatic Git deployments remain suppressed for both hosted Preview branches and the preparation branch. Manual deployment must remain pinned to reviewed code.
+- Neon injects branch-specific database variables at deployment time; saved project variables alone are not runtime target evidence. Existing branch reuse must be confirmed from deployment metadata and the bounded diagnostic, never assumed from naming alone.
+- Check required branch-scoped application settings before requesting manual secret entry. Preserve Production and unrelated Preview settings.
+- Both hosted target identities, current session/fixture boundaries, protected workflow pins and fresh whole-funnel results remain required. No payment, migration, fixture mutation or stateful acceptance is authorised or performed by this preparation.
+- The existing expiry remains 2026-09-28 UTC. This temporary Preview-only wrapper must not be merged to main or used for Production.
+- Canonical continuity: Issue #395. Decision remains HOLD.
+
+
 ## Latest Item 78C checkpoint - 2026-09-25
 
 This checkpoint supersedes earlier prepared/not-deployed status below.

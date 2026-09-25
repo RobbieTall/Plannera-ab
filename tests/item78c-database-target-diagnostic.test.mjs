@@ -114,3 +114,15 @@ test("helper has only a crypto import; route is dynamic; middleware bypass prece
   assert.ok(bypass < middleware.indexOf("const existingCookie", start));
   assert.match(middleware.slice(bypass, middleware.indexOf("const existingCookie",start)), /return NextResponse\.next\(\)/);
 });
+
+test("independent Byron branch retains the same bounded, non-disclosing diagnostic", async () => {
+  const configuration = { ...env, VERCEL_GIT_COMMIT_REF: "accept/item-78c-byron-repaired-20260919" };
+  const { response, body, text } = await inspect(configuration);
+  assert.equal(response.status, 200);
+  assert.equal(body.target, "BYRON");
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.ok(!text.includes("synthetic"));
+  assert.equal((await inspect({ ...configuration, VERCEL_ENV: "production" })).response.status, 404);
+  assert.equal((await inspect(configuration, request(), Date.parse("2026-09-28T00:00:00Z"))).response.status, 404);
+  assert.equal((await inspect({ ...configuration, VERCEL_GIT_COMMIT_REF: configuration.VERCEL_GIT_COMMIT_REF + "-other" })).response.status, 404);
+});

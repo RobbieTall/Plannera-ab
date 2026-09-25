@@ -2,7 +2,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const BRANCH = "accept/item-78c-byron-kempsey-20260914";
+const BRANCH_TARGET_INDEX = new Map([
+  ["accept/item-78c-byron-repaired-20260919", 0],
+  ["accept/item-78c-byron-kempsey-20260914", 1],
+]);
 const START = Date.parse("2026-09-25T00:00:00.000Z");
 const END = Date.parse("2026-09-28T00:00:00.000Z");
 const SAFE_KEYS = new Set([
@@ -13,7 +16,8 @@ const SAFE_KEYS = new Set([
 ]);
 
 export function authorizeDiagnosticBuild(env, now = Date.now()) {
-  if (env.VERCEL_ENV !== "preview" || env.VERCEL_GIT_COMMIT_REF !== BRANCH ||
+  const targetIndex = BRANCH_TARGET_INDEX.get(env.VERCEL_GIT_COMMIT_REF);
+  if (env.VERCEL_ENV !== "preview" || targetIndex === undefined ||
       !Number.isFinite(now) || now < START || now >= END) return false;
   if (!/^[a-f0-9]{40}$/.test(env.VERCEL_GIT_COMMIT_SHA ?? "")) return false;
   if (env.ITEM74H_CONTROLLED_ADDRESS_ACCEPTANCE === "true") return false;
@@ -28,7 +32,9 @@ export function authorizeDiagnosticBuild(env, now = Date.now()) {
     if (!["postgres:", "postgresql:"].includes(url.protocol) || url.hash ||
         !/^ep-[a-z0-9-]+\.(?:[a-z0-9-]+\.)+neon\.tech$/.test(url.hostname)) return false;
     const endpoint = url.hostname.split(".")[0].replace(/-pooler$/, "");
-    return targets.includes(endpoint);
+    // Ordered non-secret configuration: Byron first, Kempsey second.
+    // A permitted endpoint for the other council must still fail closed.
+    return endpoint === targets[targetIndex];
   } catch {
     return false;
   }
