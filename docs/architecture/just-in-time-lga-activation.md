@@ -158,3 +158,14 @@ This is an architecture feature, not a quick UX copy patch.
 Suggested roadmap task title:
 
 **Add Just-in-Time LGA Activation for unsupported DCP and local mapping coverage.**
+
+
+
+## Research Viewer extension 27 September 2026
+
+[Research Viewer](../product/research-viewer.md) is the near-term workspace surface after commercial gates. Extend the existing `src/lib/lga-map-registry.ts` with validated source descriptors and capability-based routing: native first, permitted embed, later controlled remote browser, external fallback. Map/tracker availability and capture support are independent of statutory LGA coverage maturity. JIT preparation can discover candidate sources, but an unvalidated URL remains external and cannot self-promote to native/capture-ready or `VERIFIED`.
+
+Begin with Byron and Kempsey. Store capture provenance in the existing project evidence chain; do not duplicate source, storage, authentication or planning-rule services. Remote browsing is deferred and a screenshot alone never validates a planning control.
+
+
+Research Viewer layer policy (27 September 2026): official NSW state layers first, then official council layers where available for local detail or missing state coverage. Validate authority, currency, scale and site coverage per layer. Preserve state/council disagreements as unresolved until reviewed against the applicable instrument/map or responsible authority; never silently override or infer an absence of constraints. See the Research Viewer product contract for exceptions and acceptance cases.

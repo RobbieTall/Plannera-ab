@@ -2,6 +2,17 @@
 
 This is the active sequence for what to build next so direction is never lost.
 
+## Current sequencing update 27 September 2026
+
+1. Finish the paused commercial-gate work and its prerequisite fixes. Existing acceptance records, immutable snapshots and Production restrictions remain authoritative; this update does not declare a gate passed.
+2. Next near-term capability: **Research Viewer RV0/RV1 — PLANNED**. Validate Byron/Kempsey sources, extend the existing LGA map registry, and deliver native viewing → site focus → layer controls → Capture to Project → saved provenance → reopen evidence.
+3. After native capture acceptance: **RV2 — PLANNED**. Add reviewed Planning Controls Pack/SEE evidence linkage and one public DA-tracker adapter.
+4. **RV3 — DEFERRED**. A controlled remote-browser pilot requires separate security, permitted-use, operating-cost and acceptance evidence. External links remain the default for unsupported sources.
+
+[Product contract](../product/research-viewer.md) · [First task](research-viewer-first-task.md) · [Operations](../operations/research-viewer.md).
+
+The 27 September documentation update is complete as a documentation change only. No Research Viewer feature is implemented, no launch gate is closed and no stateful acceptance run is authorised by this queue update.
+
 ## Item A — SEE output quality — DONE ✅
 
 Strengthened SEE generation grounding so retrieved DCP chunks are injected as inline `DCP Source — [title]: [chunk text]` evidence, SEE section instructions require exact DCP source titles and LEP clause-number citations, generic control numbers are prohibited unless present in retrieved text, and section JSON can carry `citations` entries for each cited LEP/DCP source.
@@ -1586,3 +1597,7 @@ Next action:
 5. Require `READY_FOR_NON_PRODUCTION_ACCEPTANCE` and inspect representative DOCX/PDF outputs before any Production go/no-go.
 
 Do not dispatch `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; it predates the required authentication correction. Production checkout remains disabled.
+
+
+
+Research Viewer layer policy (27 September 2026): official NSW state layers first, then official council layers where available for local detail or missing state coverage. Validate authority, currency, scale and site coverage per layer. Preserve state/council disagreements as unresolved until reviewed against the applicable instrument/map or responsible authority; never silently override or infer an absence of constraints. See the Research Viewer product contract for exceptions and acceptance cases.

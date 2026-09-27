@@ -2,6 +2,12 @@
 
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
+## Near term Research Viewer
+
+Research Viewer is adopted product direction, not a shipped feature. Build it immediately after the current commercial gates and prerequisite fixes: Byron/Kempsey native NSW/ArcGIS viewing, site focus, layer controls, Capture to Project, provenance and evidence reopening; then one DA-tracker adapter. Remote browsing is a later separately accepted mode. Captures do not independently verify planning controls or complete commercial acceptance.
+
+See the [product contract](docs/product/research-viewer.md), [first implementation task](docs/project-memory/research-viewer-first-task.md) and [operating plan](docs/operations/research-viewer.md).
+
 ## Features
 
 ### Address-first free Quick Site Check
@@ -255,3 +261,7 @@ The release decision is **HOLD** until the workflow produces `READY_FOR_NON_PROD
 - The preserved acceptance branch `accept/item-78c-byron-kempsey-20260911` and SHA `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8` predate this correction. They are **superseded and must not be dispatched or reported as current acceptance evidence**.
 - Item 78C remains **HOLD**. The exact blocker is approval and creation of a new immutable non-production acceptance snapshot from corrected `main`, followed by re-pinning both protected council environments and completing the independent paid test journeys and rendered-output review.
 - Production checkout remains disabled. No Production data or schema mutation is authorized.
+
+
+
+Research Viewer layer policy (27 September 2026): official NSW state layers first, then official council layers where available for local detail or missing state coverage. Validate authority, currency, scale and site coverage per layer. Preserve state/council disagreements as unresolved until reviewed against the applicable instrument/map or responsible authority; never silently override or infer an absence of constraints. See the Research Viewer product contract for exceptions and acceptance cases.

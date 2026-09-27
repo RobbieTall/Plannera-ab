@@ -1403,3 +1403,18 @@ Evidence:
 - exact-head Vercel Preview: Ready;
 - independent exact-commit review: no blocking findings, merge recommended;
 - Item 78C workflow decision: not yet produced; `HOLD`.
+
+
+
+## 2026-09-27 Research Viewer promoted to near term delivery
+
+Status: **ADOPTED PRODUCT DIRECTION / IMPLEMENTATION PENDING**.
+
+Decision: build a controlled Research Viewer in the existing workspace immediately after current commercial release gates and prerequisite fixes. Prefer native spatial integration, use embeds only where permitted, reserve remote browsing for a later separately accepted pilot, and retain external fallback. Start with Byron/Kempsey and preserve captured research as private, immutable, source-linked project evidence.
+
+Extend `src/lib/lga-map-registry.ts` compatibly with validated per-source capabilities and viewer mode. Native viewing/capture does not promote LGA maturity, authenticate a screenshot, satisfy a statutory control or clear a commercial gate. Client-observed metadata and independently server-verified provenance remain distinct. Preserve exact project/site/proposal scope and existing evidence review for later Planning Controls Pack/SEE use.
+
+RV0/RV1 covers native view/capture/save/reopen; RV2 adds reviewed downstream linkage and one public DA tracker. RV3 remote-browser work is deferred. No runtime, schema, billing, production, credential or immutable acceptance-snapshot change is made by this decision. Canonical details: [Research Viewer](../product/research-viewer.md).
+
+
+Research Viewer layer policy (27 September 2026): official NSW state layers first, then official council layers where available for local detail or missing state coverage. Validate authority, currency, scale and site coverage per layer. Preserve state/council disagreements as unresolved until reviewed against the applicable instrument/map or responsible authority; never silently override or infer an absence of constraints. See the Research Viewer product contract for exceptions and acceptance cases.

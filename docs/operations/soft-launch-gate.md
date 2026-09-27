@@ -72,3 +72,9 @@ Do not dispatch until every pending protected input is present. Do not record `R
 - Production data/schema mutation: not authorized.
 
 Do not edit or reuse the historical acceptance branch/SHA. Do not report configuration or a green build as `READY_FOR_NON_PRODUCTION_ACCEPTANCE`; only a passing protected workflow at the newly approved exact snapshot plus rendered-output inspection can produce that decision.
+
+
+
+## Research Viewer sequencing 27 September 2026
+
+Research Viewer is queued immediately after current commercial gates and their prerequisite fixes. This roadmap addition does not alter the acceptance snapshot, dispatch instructions, commercial HOLD/READY decision or Production restrictions recorded above. Its separate [product acceptance](../product/research-viewer.md) and [operating plan](research-viewer.md) must be satisfied before that feature is activated. A research capture cannot substitute for structured statutory evidence or commercial-funnel acceptance.
