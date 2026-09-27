@@ -1,5 +1,22 @@
 Plannera — Commercialisation Layer Workflows
 
+## Latest Item 78C checkpoint - 2026-09-27: Byron sign-in repaired; acceptance still HOLD
+
+This checkpoint supersedes the older sign-in and redeployment instructions below. Historical records are retained.
+
+- A missing Byron branch-specific `APP_URL` override was identified. The deployed email helper prioritises `APP_URL` over `VERCEL_URL`; changing `NEXTAUTH_URL` alone did not establish the magic-link origin. The inherited value was not exposed or independently read.
+- Robbie saved `APP_URL` for `accept/item-78c-byron-repaired-20260919` only, with Production excluded. No other council's configuration was substituted.
+- Replacement Byron Preview deployment `dpl_HyncdptgBatoinZPEex5L44XN3uc` is READY at application SHA `732de603021a3474222927ffbe34bac7a30b70f5`. The protected no-query diagnostic returned HTTP 200 / BYRON. Build-log retrieval was unavailable for this deployment; do not attribute the previous deployment's explicit BUILD_PASSED marker to it.
+- A fresh interactive sign-in now reaches authenticated My Projects on the correct repaired Byron Preview, with five saved workspaces visible. This observed journey resolves the prior main-origin redirect symptom. Do not repeat APP_URL, key entry or sign-in setup without a new specific failure.
+- Interactive sign-in and a project list do not prove designated fixture access, saved runner-cookie validity, alternative-project ownership, QSC eligibility, purchase linkage, signed webhook delivery, payment idempotency, private evidence, SEE/DPP output quality or consultant handoff.
+- Source inspection confirms the existing saved-login diagnostic checks only its fixed primary project/session relationship. It cannot establish alternative-project, QSC or purchase eligibility. Do not substitute another repetition of that diagnostic for whole-funnel evidence.
+- Acceptance runner branch was reconciled at `c2518158db07bc1c4e74b75836748e746e0ab0bb` before this documentation update. The last audited protected pins still named `077d0e5d48fb6ab49fb7c5acc8cfa70668270f4d`; they were not changed in this checkpoint. Obtain exact replacement runner authorization and retain required human review before execution. Runner and hosted application SHAs are different identities.
+- Next: inspect the existing designated Byron primary workspace under the working login, then establish both councils' primary/alternative project, QSC and paid-scope eligibility. Preserve independent fixtures and do not create another payment merely to bypass an unresolved check. Then run the protected whole-funnel suite at the reviewed, authorised runner SHA and inspect representative DOCX/PDF outputs.
+- Hosted Preview test checkout configuration is unchanged from the September 25 checkpoint. Runner flags remain false. Production checkout must remain disabled; no Production setting, data, schema or deployment action was taken. No whole-funnel run, payment, refund or migration was performed for this sign-in repair.
+- The temporary Preview diagnostic/build wrapper expires at **2026-09-28 00:00 UTC (10:00 Sydney)**. Do not silently extend or bypass it; it must be removed before Production integration. Expiry does not itself invalidate previously recorded evidence.
+- Overall decision: **HOLD**. Whole-funnel acceptance and commercial readiness remain unproven. Issue #395 contains the September 27 live checkpoints. Never publish credentials, cookies, authenticated links, private fixture identifiers or document contents. Do not retry Stripe OAuth authorization.
+
+
 ## Latest Item 78C checkpoint - 2026-09-25: Byron test configuration deployed
 
 This checkpoint supersedes earlier incomplete-configuration and identity-wait instructions below. Historical evidence is retained, not an instruction to repeat setup.
