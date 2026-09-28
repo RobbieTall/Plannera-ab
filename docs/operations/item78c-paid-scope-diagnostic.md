@@ -1,3 +1,35 @@
+## Current checkpoint - 28 September 2026: paid-scope comparison
+
+This checkpoint supersedes older next-action instructions below; historical evidence is preserved.
+
+- Protected run [36371024396](https://github.com/RobbieTall/Plannera-ab/actions/runs/36371024396), diagnostic SHA 43c77a384cb4a29f22d04a54798584e3757c171c, completed both council comparisons. Both exact scopes returned available rather than paid. Changed-proposal and other-project cases also returned available; no request errors occurred. Green diagnostic jobs are NOT acceptance success.
+- Independent read-only Preview database checks confirm existing PAID purchases and matching ACTIVE entitlements, valid ownership/scope keys, one configured QSC per fixture and no DPP. No data or secret was changed. The older SEE memo proposal does not match the paid proposal and must not be used to replace the saved test input.
+- The next candidate adds a separate default-off scope_reconcile_only mode to the existing registered Item 77 workflow on diag/item78c-paid-scope-20260928. It compares saved session, checkout reference, proposal, QSC, product and entitlement fields using fixed parameterized read-only SQL. It prints only booleans and fixed reasons, never secret values, identifiers, hashes or proposal text. Preparation is not execution.
+- Use Issue #395 for the exact published candidate, synthetic-test/review evidence and live result. Before running this NEW mode, both separate diagnostic pins must authorize that exact reviewed SHA; preserve all existing secrets and acceptance pins. Select ONLY scope_reconcile_only, with expected_commit and READ ONLY PREVIEW SCOPE CHECK. Human approval of both environments remains required.
+- Frozen stateful acceptance remains accept/item-78c-byron-kempsey-20260914 at fcd0c27c68daea81bd51e28b567e469a5fe6b97a. Main and both hosted deployments are unchanged. No payment, refund, migration or checkout activation is part of reconciliation.
+- The diagnostic expiry remains 2026-09-30T00:00:00Z. The older hosted build/target guard has expired and is not extended. No hosted build is needed for this mode.
+- Decision: HOLD. After the specific mismatch is corrected, whole-funnel paid replay, DPP/SEE, consultant handoff and representative DOCX/PDF review are still required. Production checkout stays disabled. Remove only the temporary diagnostic branch rules and diagnostic pins after investigation, before using the legacy saved-login mode.
+
+## Purchase-field reconciliation mode
+
+The separate scope_reconcile_only mode is NOT the older three-request scope_only mode described below. Select exactly one mode. Mixed modes select no credential-bearing job. It preserves the old scope-only code and its tests.
+
+Reconciliation adds the existing ITEM74H_PREVIEW_DATABASE_URL and ITEM78A_STRIPE_TEST_SESSION_ID to the FINAL protected step only. No new secret, Stripe API key, Vercel API token, Blob token, npm dependency, install or Prisma generation is needed. Application credentials are not exposed to the prerequisite authorization job. The existing exact-SHA/Git ancestry checks and both actual environment-protection checks remain mandatory and are repeated after human approval.
+
+The database URL is validated in memory against the council-specific existing Preview endpoint and neondb, TLS, protocol, port and bounded options. Redirects are refused. The script uses Neon's SQL-over-HTTP batch protocol with Neon-Batch-Read-Only=true and RepeatableRead; the SELECT also verifies transaction_read_only=on before accepting any comparison. Query parameters carry the saved session and hashes calculated with the application's exact proposal normalization. No input is interpolated into SQL or shell. Only one bounded SELECT transaction is executed, and only approved boolean fields leave the runner. No raw provider response or error is printed.
+
+Protocol references (official source):
+- https://github.com/neondatabase/serverless/blob/main/src/httpQuery.ts
+- https://github.com/neondatabase/serverless/blob/main/src/shims/net/index.ts
+- https://github.com/neondatabase/neon/blob/main/proxy/README.md
+
+This reads the independently allowlisted runner database; it does NOT freshly attest the hosted application's runtime database, reproduce all QSC Zod/site-currentness logic, or establish payment acceptance. A saved_inputs_match_database result with an application available result requires further hosted-scope reconciliation, not a fabricated success. Missing/ambiguous purchase reference or unsupported response fails closed. Old memo text is not an authoritative recovery source for a paid proposal.
+
+Synthetic checks: node --test tests/item78c-paid-scope-diagnostic.test.mjs tests/item78c-paid-scope-entry.test.mjs tests/item78c-paid-scope-reconcile.test.mjs.
+Do not report these tests or independent review as passed until Issue #395 records their actual result.
+
+## Historical three-request mode documentation
+
 # Item 78C read-only paid-scope diagnostic
 
 Status: CORRECTED DRAFT / LIVE EXECUTION NOT PERFORMED. Item 78C remains HOLD.

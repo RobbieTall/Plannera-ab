@@ -1,3 +1,15 @@
+## Current checkpoint - 28 September 2026: paid-scope comparison
+
+This checkpoint supersedes older next-action instructions below; historical evidence is preserved.
+
+- Protected run [36371024396](https://github.com/RobbieTall/Plannera-ab/actions/runs/36371024396), diagnostic SHA 43c77a384cb4a29f22d04a54798584e3757c171c, completed both council comparisons. Both exact scopes returned available rather than paid. Changed-proposal and other-project cases also returned available; no request errors occurred. Green diagnostic jobs are NOT acceptance success.
+- Independent read-only Preview database checks confirm existing PAID purchases and matching ACTIVE entitlements, valid ownership/scope keys, one configured QSC per fixture and no DPP. No data or secret was changed. The older SEE memo proposal does not match the paid proposal and must not be used to replace the saved test input.
+- The next candidate adds a separate default-off scope_reconcile_only mode to the existing registered Item 77 workflow on diag/item78c-paid-scope-20260928. It compares saved session, checkout reference, proposal, QSC, product and entitlement fields using fixed parameterized read-only SQL. It prints only booleans and fixed reasons, never secret values, identifiers, hashes or proposal text. Preparation is not execution.
+- Use Issue #395 for the exact published candidate, synthetic-test/review evidence and live result. Before running this NEW mode, both separate diagnostic pins must authorize that exact reviewed SHA; preserve all existing secrets and acceptance pins. Select ONLY scope_reconcile_only, with expected_commit and READ ONLY PREVIEW SCOPE CHECK. Human approval of both environments remains required.
+- Frozen stateful acceptance remains accept/item-78c-byron-kempsey-20260914 at fcd0c27c68daea81bd51e28b567e469a5fe6b97a. Main and both hosted deployments are unchanged. No payment, refund, migration or checkout activation is part of reconciliation.
+- The diagnostic expiry remains 2026-09-30T00:00:00Z. The older hosted build/target guard has expired and is not extended. No hosted build is needed for this mode.
+- Decision: HOLD. After the specific mismatch is corrected, whole-funnel paid replay, DPP/SEE, consultant handoff and representative DOCX/PDF review are still required. Production checkout stays disabled. Remove only the temporary diagnostic branch rules and diagnostic pins after investigation, before using the legacy saved-login mode.
+
 # Build Next (Execution Queue)
 
 ## Latest Item 78C checkpoint - 2026-09-27: Byron sign-in repaired; acceptance still HOLD

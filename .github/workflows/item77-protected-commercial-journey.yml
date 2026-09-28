@@ -19,6 +19,11 @@ on:
       - "scripts/item74h-working-see-preview-acceptance.ts"
   workflow_dispatch:
     inputs:
+      scope_reconcile_only:
+        description: Read-only Preview purchase field comparison; leave ALL other mode boxes unchecked
+        type: boolean
+        required: false
+        default: false
       scope_only:
         description: Run ONLY the reviewed read-only paid-scope diagnostic; leave other mode boxes unchecked
         type: boolean
@@ -47,12 +52,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.scope_only && 'item78c-paid-scope-only' || (inputs.presence_only && 'item78c-presence-only' || format('item77-protected-commercial-journey-{0}-{1}', github.ref, inputs.diagnostic_only && 'diagnostic' || 'contracts')) }}
-  cancel-in-progress: ${{ !inputs.scope_only && !inputs.diagnostic_only && !inputs.presence_only }}
+  group: ${{ inputs.scope_reconcile_only && 'item78c-paid-scope-reconcile' || inputs.scope_only && 'item78c-paid-scope-only' || (inputs.presence_only && 'item78c-presence-only' || format('item77-protected-commercial-journey-{0}-{1}', github.ref, inputs.diagnostic_only && 'diagnostic' || 'contracts')) }}
+  cancel-in-progress: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && !inputs.diagnostic_only && !inputs.presence_only }}
 
 jobs:
   commercial-journey:
-    if: ${{ !inputs.scope_only && (github.event_name != 'workflow_dispatch' || (!inputs.diagnostic_only && !inputs.presence_only)) }}
+    if: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && (github.event_name != 'workflow_dispatch' || (!inputs.diagnostic_only && !inputs.presence_only)) }}
     name: Exact scope, credit, evidence, outputs and UI
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -80,7 +85,7 @@ jobs:
         run: npm run --silent accept:item74h-working-see-preview
 
   session-diagnostic:
-    if: ${{ !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && !inputs.presence_only }}
+    if: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && !inputs.presence_only }}
     name: Read-only ${{ matrix.council }} login check
     needs: session-authorize
     permissions:
@@ -140,7 +145,7 @@ jobs:
         run: rm -f -- item78c-session-preflight.json item78c-session-preflight.stderr
 
   session-authorize:
-    if: ${{ !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && !inputs.presence_only }}
+    if: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && !inputs.presence_only }}
     name: Authorize without application credentials
     permissions:
       contents: read
@@ -165,7 +170,7 @@ jobs:
 
   presence-authorize:
     name: Authorize presence-only probe without application credentials
-    if: ${{ !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.presence_only }}
+    if: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.presence_only }}
     permissions:
       contents: read
       actions: read
@@ -193,7 +198,7 @@ jobs:
 
   presence:
     name: Presence only for ${{ matrix.council }}
-    if: ${{ !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && inputs.presence_only }}
+    if: ${{ !inputs.scope_reconcile_only && !inputs.scope_only && github.event_name == 'workflow_dispatch' && inputs.diagnostic_only && inputs.presence_only }}
     needs: presence-authorize
     permissions:
       contents: read
@@ -234,7 +239,7 @@ jobs:
 
   scope-authorize:
     name: Authorize read-only scope diagnostic without application credentials
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_only }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_only && !inputs.scope_reconcile_only }}
     permissions:
       contents: read
       actions: read
@@ -258,7 +263,7 @@ jobs:
 
   scope-diagnose:
     name: Read-only ${{ matrix.council }} paid scope comparison
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_only }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_only && !inputs.scope_reconcile_only }}
     needs: scope-authorize
     permissions:
       contents: read
@@ -311,3 +316,86 @@ jobs:
           DEBUG: ''
           NODE_OPTIONS: ''
         run: node scripts/item78c-paid-scope-diagnostic.mjs
+
+  scope-reconcile-authorize:
+    name: Authorize read-only purchase reconciliation without application credentials
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_reconcile_only && !inputs.scope_only && !inputs.diagnostic_only && !inputs.presence_only }}
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      ITEM78C_DIAGNOSTIC_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_DIAGNOSTIC_CONFIRMATION: ${{ inputs.confirmation }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact diagnostic commit and both protection policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-paid-scope-authorize.mjs credential-free
+
+  scope-reconcile:
+    name: Read-only ${{ matrix.council }} purchase field comparison
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope_reconcile_only && !inputs.scope_only && !inputs.diagnostic_only && !inputs.presence_only }}
+    needs: scope-reconcile-authorize
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - council: BYRON
+            environment: item78c-byron-preview
+          - council: KEMPSEY
+            environment: item78c-kempsey-preview
+    environment: ${{ matrix.environment }}
+    env:
+      ITEM78C_DIAGNOSTIC_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_DIAGNOSTIC_CONFIRMATION: ${{ inputs.confirmation }}
+      ITEM78C_DIAGNOSTIC_COUNCIL: ${{ matrix.council }}
+      ITEM78C_SCOPE_DIAGNOSTIC_AUTHORIZED_COMMIT: ${{ vars.ITEM78C_SCOPE_DIAGNOSTIC_AUTHORIZED_COMMIT }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protections and separate diagnostic pin before exposing credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-paid-scope-authorize.mjs protected
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Compare saved inputs with Preview purchase using read-only SQL
+        env:
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          ITEM78C_SCOPE_RECONCILE_ONLY: 'true'
+          ITEM74H_PREVIEW_DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          PLANNERA_STRIPE_TEST_SESSION_ID: ${{ secrets.ITEM78A_STRIPE_TEST_SESSION_ID }}
+          DEBUG: ''
+          NODE_OPTIONS: ''
+        run: node scripts/item78c-paid-scope-reconcile.mjs
