@@ -1,10 +1,18 @@
 name: Stripe test session preparation
-
 on:
   workflow_dispatch:
     inputs:
+      item78c_prepare_only:
+        description: Prepare ONLY the two approved replacement Preview test purchases; no payment or acceptance
+        required: false
+        default: false
+        type: boolean
+      expected_commit:
+        description: Exact reviewed diagnostic-branch SHA; required for Item 78C mode
+        required: false
+        type: string
       confirmation:
-        description: Type PREPARE STRIPE TEST-MODE SESSION to create one unpaid protected Preview Checkout.
+        description: Item 78C requires PREPARE TWO PREVIEW TEST PURCHASES; legacy requires PREPARE STRIPE TEST-MODE SESSION
         required: true
         type: string
       target_confirmation:
@@ -13,17 +21,14 @@ on:
         type: choice
         options:
           - PROTECTED NON-PRODUCTION
-
 permissions:
   contents: read
-
 concurrency:
-  group: stripe-test-acceptance
+  group: ${{ inputs.item78c_prepare_only && 'item78c-replacement-20260928' || 'stripe-test-acceptance' }}
   cancel-in-progress: false
-
 jobs:
   prepare:
-    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'PREPARE STRIPE TEST-MODE SESSION' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
+    if: ${{ !inputs.item78c_prepare_only && github.ref == 'refs/heads/main' && inputs.confirmation == 'PREPARE STRIPE TEST-MODE SESSION' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: stripe-test-acceptance
@@ -32,19 +37,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install without lifecycle scripts
         run: npm ci --ignore-scripts
-
       - name: Verify preparation boundary
         run: npx tsx --test tests/stripe-test-session-prepare.test.ts
-
       - name: Prepare one unpaid test-mode session
         run: npx tsx scripts/stripe-test-session-prepare.ts
         env:
@@ -55,7 +56,6 @@ jobs:
           PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
           PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
           PLANNERA_STRIPE_TEST_PREPARE_OUTPUT: ${{ runner.temp }}/stripe-test-session.json
-
       - name: Retain private handoff briefly
         uses: actions/upload-artifact@v4
         with:
@@ -63,3 +63,114 @@ jobs:
           path: ${{ runner.temp }}/stripe-test-session.json
           if-no-files-found: error
           retention-days: 1
+
+  item78c-authorize:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.item78c_prepare_only }}
+    name: Authorize replacement preparation without application credentials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    env:
+      ITEM78C_PREPARE_ONLY: ${{ inputs.item78c_prepare_only }}
+      ITEM78C_PREPARE_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_PREPARE_CONFIRMATION: ${{ inputs.confirmation }}
+      ITEM78C_PREPARE_TARGET_CONFIRMATION: ${{ inputs.target_confirmation }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact commit evidence and both environment policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-test-purchase-authorize.mjs credential-free
+      - name: Run synthetic boundary and retry tests without services
+        run: node --test tests/item78c-test-purchase*.test.mjs
+
+  item78c-prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.item78c_prepare_only }}
+    needs: item78c-authorize
+    name: Prepare ${{ matrix.council }} replacement Sandbox purchase
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        include:
+          - council: BYRON
+            environment: item78c-byron-preview
+          - council: KEMPSEY
+            environment: item78c-kempsey-preview
+    environment: ${{ matrix.environment }}
+    env:
+      ITEM78C_PREPARE_ONLY: ${{ inputs.item78c_prepare_only }}
+      ITEM78C_PREPARE_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_PREPARE_CONFIRMATION: ${{ inputs.confirmation }}
+      ITEM78C_PREPARE_TARGET_CONFIRMATION: ${{ inputs.target_confirmation }}
+      ITEM78C_PREPARE_COUNCIL: ${{ matrix.council }}
+      ITEM78C_TEST_PURCHASE_AUTHORIZED_COMMIT: ${{ vars.ITEM78C_TEST_PURCHASE_AUTHORIZED_COMMIT }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck policies and separate preparation pin before application credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-test-purchase-authorize.mjs protected
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install without lifecycle scripts or application credentials
+        run: npm ci --ignore-scripts --loglevel=error
+      - name: Generate Prisma client using synthetic configuration only
+        env:
+          DATABASE_URL: postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic
+          DIRECT_URL: postgresql://synthetic:synthetic@127.0.0.1:5432/synthetic
+        run: ./node_modules/.bin/prisma generate
+      - name: Prepare or recover one exact replacement; do not pay
+        id: replacement
+        continue-on-error: true
+        env:
+          ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          ITEM74H_PREVIEW_DATABASE_URL: ${{ secrets.ITEM74H_PREVIEW_DATABASE_URL }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          ITEM78A_STRIPE_TEST_SESSION_ID: ${{ secrets.ITEM78A_STRIPE_TEST_SESSION_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN: ${{ secrets.ITEM74H_PREVIEW_VERCEL_ACCESS_TOKEN }}
+          DEBUG: ''
+          NODE_OPTIONS: ''
+        run: |
+          umask 077
+          node --import tsx scripts/item78c-test-purchase-prepare.mjs > "$RUNNER_TEMP/item78c-replacement.json" 2> "$RUNNER_TEMP/item78c-replacement.stderr"
+      - name: Emit allowlisted status only, without credentials
+        if: ${{ !cancelled() && steps.replacement.outcome != 'skipped' }}
+        env:
+          PREPARATION_OUTCOME: ${{ steps.replacement.outcome }}
+        run: node scripts/item78c-test-purchase-summary.mjs
+      - name: Remove private temporary output; never upload it
+        if: ${{ always() }}
+        run: rm -f -- "$RUNNER_TEMP/item78c-replacement.json" "$RUNNER_TEMP/item78c-replacement.stderr"

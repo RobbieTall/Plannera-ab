@@ -1,3 +1,28 @@
+## Current status - 28 September 2026: preparation implementation reviewed; execution pending
+
+- The approved retry correction is implemented. Offline validation: **77 tests passed, 0 failed**; the workflow YAML also parsed successfully.
+- Follow-up independent review recommends publication with no remaining blocking findings in its reviewed scope. The reviewer checked the supplied unchanged service APIs but did not independently rerun tests or execute live integrations.
+- This package is the reviewed replacement-purchase PREPARATION implementation, not evidence of created Checkouts, completed payments, webhook delivery or whole-funnel acceptance. Overall decision remains **HOLD**.
+- Next action: inspect/set the separate non-secret `ITEM78C_TEST_PURCHASE_AUTHORIZED_COMMIT` in both existing council Preview environments to this package's published commit, then manually dispatch the explicit preparation mode and approve its protected jobs. The exact commit and handoff are recorded in [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395). Do not change the existing acceptance or diagnostic pins or recreate saved secrets.
+- Production checkout must remain disabled. No Production, main, acceptance snapshot, deployment, schema, refund or payment action is included in publication.
+
+The implementation/review history below is retained; this status and the latest Issue #395 checkpoint supersede older next-action instructions.
+
+## 28 September 2026: approved retry-safety correction
+
+The replacement preparer now refuses a PAID database purchase paired with an open/unpaid provider Checkout, before any provider-reference attachment or payment handoff. Regression cases cover both present and absent provider references. This corrects the independent-review finding recorded in Issue #395; revalidation and follow-up review are required before publication/execution. The prior 75-test result predates these two added cases. No replacement payment or acceptance success is implied.
+
+## Current checkpoint - 28 September 2026: separate replacement preparation runner
+
+This checkpoint supersedes older next-action instructions without deleting history.
+
+- The approved two-purchase repair now has a separate preparation implementation and synthetic regression suite; see [replacement test-purchase runbook](../operations/item78c-test-purchase-preparation.md). From the operations directory use `item78c-test-purchase-preparation.md`.
+- Run #73 remains diagnostic success with BOTH councils `saved_proposal_mismatch`, not acceptance success. Original paid purchases and entitlements must remain intact.
+- The preparation mode uses its OWN exact commit pin `ITEM78C_TEST_PURCHASE_AUTHORIZED_COMMIT` in both protected environments. Do not move the acceptance pin or read-only diagnostic pin.
+- Source/testing/publication progress and the exact reviewed preparation SHA are recorded in Issue #395. Code presence is not evidence that purchases were created or paid. No replacement execution or final acceptance is claimed by this checkpoint.
+- Next: finish synthetic validation and independent review, publish only to the contained diagnostic branch, configure the new exact pin after checking existing saved settings, then use the protected manual preparation mode. Test-payment handoff follows only after both safe preparation results.
+- Item 78C remains HOLD. Both replacement payments, complete whole-funnel tests and representative output review remain unproven. Production checkout remains required disabled; no Production setting/data/schema changes.
+
 ## Current checkpoint - 28 September 2026: replacement test purchases approved, not executed
 
 This checkpoint supersedes older next-action instructions below. Preserve the historical records and immutable acceptance snapshot.
