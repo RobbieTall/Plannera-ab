@@ -3,12 +3,22 @@ name: Consultant Referral Non-production Acceptance
 on:
   workflow_dispatch:
     inputs:
+      repair_preview_only:
+        description: Regenerate only the existing Kempsey Preview review package; no referral submission
+        required: false
+        default: false
+        type: boolean
+      expected_commit:
+        description: Exact reviewed diagnostic commit; required for repair mode
+        required: false
+        type: string
       confirmation:
         description: Confirm one synthetic referral through the protected human queue.
         required: true
         type: choice
         options:
           - RUN CONSULTANT REFERRAL ACCEPTANCE
+          - REGENERATE PREVIEW REVIEW PACKAGE
       target_confirmation:
         description: Confirm the target is protected and non-production.
         required: true
@@ -16,11 +26,11 @@ on:
         options:
           - PROTECTED NON-PRODUCTION
       project_id:
-        description: Opaque dedicated preview project ID. Do not use a customer or protected golden project.
+        description: Legacy project ID; ignored by repair mode, which uses protected environment values.
         required: true
         type: string
       review_request_artefact_id:
-        description: Opaque newly generated consultant-needs.v1 review-request artefact ID.
+        description: Legacy review ID; ignored by repair mode.
         required: true
         type: string
 
@@ -33,7 +43,7 @@ concurrency:
 
 jobs:
   accept:
-    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'RUN CONSULTANT REFERRAL ACCEPTANCE' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
+    if: ${{ !inputs.repair_preview_only && github.ref == 'refs/heads/main' && inputs.confirmation == 'RUN CONSULTANT REFERRAL ACCEPTANCE' && inputs.target_confirmation == 'PROTECTED NON-PRODUCTION' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: consultant-referral-test-acceptance
@@ -81,3 +91,87 @@ jobs:
           retention-days: 14
       - name: Enforce acceptance result
         run: node -e "const s=require('./consultant-referral-acceptance.json'); if(s.passed!==true) process.exit(1)"
+
+  repair-authorize:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.repair_preview_only }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    env:
+      ITEM78C_REFERRAL_REPAIR_ONLY: ${{ inputs.repair_preview_only }}
+      ITEM78C_REFERRAL_REPAIR_CONFIRMATION: ${{ inputs.confirmation }}
+      ITEM78C_REFERRAL_REPAIR_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_REFERRAL_REPAIR_TARGET: ${{ inputs.target_confirmation }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact commit, Preview protections and no active whole-funnel run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-referral-repair-authorize.mjs credential-free
+      - name: Run synthetic repair tests without application credentials
+        run: node --test tests/item78c-referral-repair.test.mjs
+
+  repair-preview:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.repair_preview_only }}
+    needs: repair-authorize
+    environment: item78c-kempsey-preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      actions: read
+    env:
+      ITEM78C_REFERRAL_REPAIR_ONLY: ${{ inputs.repair_preview_only }}
+      ITEM78C_REFERRAL_REPAIR_CONFIRMATION: ${{ inputs.confirmation }}
+      ITEM78C_REFERRAL_REPAIR_EXPECTED_SHA: ${{ inputs.expected_commit }}
+      ITEM78C_REFERRAL_REPAIR_TARGET: ${{ inputs.target_confirmation }}
+      ITEM78C_REFERRAL_REPAIR_AUTHORIZED_COMMIT: ${{ vars.ITEM78C_REFERRAL_REPAIR_AUTHORIZED_COMMIT }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      ITEM74H_PREVIEW_MUTATION_APPROVED: ${{ vars.ITEM74H_PREVIEW_MUTATION_APPROVED }}
+      ITEM74H_AUTHORIZED_DATABASE_TARGET: ${{ vars.ITEM74H_AUTHORIZED_DATABASE_TARGET }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protected repair pin before application credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-referral-repair-authorize.mjs protected
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Regenerate or recover one bound review; never submit a referral
+        id: repair
+        continue-on-error: true
+        env:
+          PLANNERA_REFERRAL_TEST_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_REFERRAL_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_REFERRAL_TEST_PROJECT_ID: ${{ vars.PLANNERA_REFERRAL_TEST_PROJECT_ID }}
+          PLANNERA_REFERRAL_TEST_REVIEW_REQUEST_ARTEFACT_ID: ${{ vars.PLANNERA_REFERRAL_TEST_REVIEW_REQUEST_ARTEFACT_ID }}
+          PLANNERA_REFERRAL_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_REFERRAL_TEST_SESSION_COOKIE }}
+          PLANNERA_REFERRAL_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_REFERRAL_TEST_VERCEL_BYPASS }}
+          NODE_OPTIONS: ''
+          DEBUG: ''
+        run: |
+          umask 077
+          node scripts/item78c-referral-repair.mjs > "$RUNNER_TEMP/item78c-referral-repair.json" 2> "$RUNNER_TEMP/item78c-referral-repair.stderr"
+      - name: Emit only allowlisted booleans and reason codes without credentials
+        if: ${{ !cancelled() && steps.repair.outcome != 'skipped' }}
+        run: node scripts/item78c-referral-repair.mjs --summary
+      - name: Remove private temporary output
+        if: ${{ always() }}
+        run: rm -f -- "$RUNNER_TEMP/item78c-referral-repair.json" "$RUNNER_TEMP/item78c-referral-repair.stderr"
+
