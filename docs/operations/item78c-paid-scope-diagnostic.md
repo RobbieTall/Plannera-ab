@@ -91,9 +91,21 @@ readiness. Configuration failures and HTTP errors must be investigated, not waiv
 5. Add the non-secret ITEM78C_SCOPE_DIAGNOSTIC_AUTHORIZED_COMMIT variable in each
    environment with the reviewed diagnostic SHA. Do not change the acceptance pin.
 6. No credential replacement is required. Retain the existing council fixtures.
-7. Use the already registered item78c-session-preflight.yml workflow on the exact
-   diagnostic branch, set scope_only=true, expected_commit to the reviewed SHA,
-   confirmation=READ ONLY PREVIEW SCOPE CHECK. Do NOT dispatch whole-funnel acceptance.
+7. Open the existing "Item 77 protected commercial journey" workflow:
+   https://github.com/RobbieTall/Plannera-ab/actions/workflows/item77-protected-commercial-journey.yml
+   Select the exact diagnostic branch FIRST. Set scope_only=true, leave
+   diagnostic_only=false and presence_only=false, set expected_commit to the
+   newly reviewed diagnostic SHA, and confirmation=READ ONLY PREVIEW SCOPE CHECK.
+   Do NOT run the default main branch or dispatch whole-funnel acceptance.
+   If the scope_only field does not appear after selecting the diagnostic branch,
+   stop and report the visible form rather than running another mode.
+
+   The standalone item78c-session-preflight.yml file is NOT registered on main.
+   Its direct Actions link reported "This workflow does not exist". The prior
+   instruction to use that link was incorrect. The registered Item 77 entry now
+   has a separate scope-only path with the same reviewed protected steps.
+   Scope-only mode skips every legacy commercial, login and presence job.
+   No main change is needed for this diagnostic-branch entry-point correction.
 8. Inspect the pending jobs and approve BOTH protected Preview environments.
 9. Record only safe result enums/booleans in Issue #395. Reconcile the cause before
    any repair; never repeat a payment or alter data to force a pass.
