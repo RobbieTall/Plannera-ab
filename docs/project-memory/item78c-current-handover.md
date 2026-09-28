@@ -1,3 +1,19 @@
+## Current checkpoint - 28 September 2026: replacement test purchases approved, not executed
+
+This checkpoint supersedes older next-action instructions below. Preserve the historical records and immutable acceptance snapshot.
+
+- Read-only purchase reconciliation [run #73](https://github.com/RobbieTall/Plannera-ab/actions/runs/36379535529) at diagnostic commit `122b55845e2c1e081c0e47bede98f286586b2b68` completed successfully for BOTH councils. Both results are `saved_proposal_mismatch`, not acceptance success.
+- Existing paid test purchases, ACTIVE entitlements, ownership, saved sessions, configured QSCs and product/price checks passed. The saved test proposal does not match the paid fingerprint; the corresponding exact purchase and entitlement checks therefore fail. No key rotation or entitlement rewrite is justified.
+- Bounded SELECT-only comparison of each council's existing project descriptions/titles/names, artefact payload strings/notes, user chat and pathway inputs found no matching original paid description. This is not a claim that no original exists elsewhere. Do not substitute older memo text or invent a recovered description.
+- Robbie explicitly approved one replacement Sandbox test purchase per council, using the existing saved proposal and matching DPP request settings. Preserve all old paid records. This approval does not permit real charges, refunds, Production operations, schema changes or changed acceptance assertions.
+- Preparation is a separate, stateful operation and requires its own exact-commit permission and explicit confirmation. The read-only diagnostic pin is NOT write authorization. The generic `Stripe test session preparation` workflow currently targets the older main/ops environment and must not be dispatched unchanged for Item 78C.
+- A protected preparation draft is being built around the unchanged normal checkout services, with retry-safe recovery, strict test-key/account/target checks and private handoff. It has NOT been executed. No replacement session or payment is yet proven. Independent design review is not an implementation review.
+- The fixed hosted application tree and frozen runner have identical source blobs and relevant package/lock/schema/TypeScript configuration (458 compared entries). Both fixed Preview deployments remain READY at the recorded SHAs. Historical council target-classification evidence is retained; the expired target diagnostic was not extended or bypassed. Static source identity does not prove every runtime effect.
+- Keep `accept/item-78c-byron-kempsey-20260914` and acceptance SHA `fcd0c27c68daea81bd51e28b567e469a5fe6b97a` unchanged. Do not merge new preparation work into main or the frozen acceptance branch, redeploy the app, or repin stateful acceptance for this preparation.
+- The next live action requires a reviewed preparation candidate, verified publication containment, separate saved authorization, and both normal GitHub human environment approvals. After actual test payment/webhook linkage, update only the existing council session-reference secret with independently verified association, then rerun unchanged acceptance and inspect representative outputs.
+- Production checkout must remain disabled. No Production configuration/data/schema change, real charge or refund was performed. Overall decision: **HOLD**.
+- [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395) remains the live execution ledger. It records approval and results without secret values, cookies, proposal text, purchase/session identifiers or private Checkout URLs.
+
 ## Current checkpoint - 28 September 2026: paid-scope comparison
 
 This checkpoint supersedes older next-action instructions below; historical evidence is preserved.
