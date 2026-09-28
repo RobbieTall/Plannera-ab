@@ -11,6 +11,11 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      scope_only:
+        description: Run the separately pinned read-only paid-scope diagnostic; no acceptance or payment writes
+        type: boolean
+        required: false
+        default: false
       expected_commit:
         description: Exact reviewed non-main commit containing this diagnostic
         type: string
@@ -21,6 +26,7 @@ on:
         required: true
         options:
           - READ ONLY PREVIEW LOGIN CHECK
+          - READ ONLY PREVIEW SCOPE CHECK
 
 permissions:
   contents: read
@@ -36,6 +42,7 @@ env:
 
 jobs:
   authorize:
+    if: ${{ !inputs.scope_only }}
     name: Authorize without application credentials
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -53,6 +60,7 @@ jobs:
         run: node --test tests/item78c-session-preflight.test.mjs tests/item78c-session-preflight-authorize.test.mjs tests/item78c-session-preflight-wiring.test.mjs
 
   diagnose:
+    if: ${{ !inputs.scope_only }}
     name: Read-only ${{ matrix.council }} login check
     needs: authorize
     runs-on: ubuntu-24.04
@@ -104,3 +112,73 @@ jobs:
       - name: Remove temporary output without uploading it
         if: ${{ always() }}
         run: rm -f -- item78c-session-preflight.json item78c-session-preflight.stderr
+
+  scope-authorize:
+    name: Authorize read-only scope diagnostic without application credentials
+    if: ${{ inputs.scope_only }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact diagnostic commit and both protection policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-paid-scope-authorize.mjs credential-free
+
+  scope-diagnose:
+    name: Read-only ${{ matrix.council }} paid scope comparison
+    if: ${{ inputs.scope_only }}
+    needs: scope-authorize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - council: BYRON
+            environment: item78c-byron-preview
+          - council: KEMPSEY
+            environment: item78c-kempsey-preview
+    environment: ${{ matrix.environment }}
+    env:
+      ITEM78C_DIAGNOSTIC_COUNCIL: ${{ matrix.council }}
+      ITEM78C_SCOPE_DIAGNOSTIC_AUTHORIZED_COMMIT: ${{ vars.ITEM78C_SCOPE_DIAGNOSTIC_AUTHORIZED_COMMIT }}
+      ITEM74H_WORKFLOW_AUTHORIZED_COMMIT: ${{ vars.ITEM74H_WORKFLOW_AUTHORIZED_COMMIT }}
+      PLANNING_PACK_CHECKOUT_ENABLED: 'false'
+      SUBMISSION_SEE_CHECKOUT_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recheck protections and separate diagnostic pin before exposing credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/item78c-paid-scope-authorize.mjs protected
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Read three scope states without database or Stripe credentials
+        env:
+          PLANNERA_STRIPE_TEST_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_BASE_URL }}
+          PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL: ${{ vars.PLANNERA_STRIPE_TEST_ALLOWED_BASE_URL }}
+          PLANNERA_STRIPE_TEST_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID: ${{ vars.PLANNERA_STRIPE_TEST_OTHER_PROJECT_ID }}
+          PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID: ${{ vars.PLANNERA_STRIPE_TEST_QSC_ARTEFACT_ID }}
+          PLANNERA_STRIPE_TEST_SESSION_COOKIE: ${{ secrets.PLANNERA_STRIPE_TEST_SESSION_COOKIE }}
+          PLANNERA_STRIPE_TEST_VERCEL_BYPASS: ${{ secrets.PLANNERA_STRIPE_TEST_VERCEL_BYPASS }}
+          PLANNERA_STRIPE_TEST_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_OTHER_PROPOSAL: ${{ secrets.PLANNERA_STRIPE_TEST_OTHER_PROPOSAL }}
+          PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON: ${{ secrets.PLANNERA_STRIPE_TEST_DPP_REQUEST_JSON }}
+          DEBUG: ''
+          NODE_OPTIONS: ''
+        run: node scripts/item78c-paid-scope-diagnostic.mjs
