@@ -123,3 +123,24 @@ file bytes. No lint/security rule was disabled. The focused local lint check
 passed; Linux validation of this correction is pending. Bundle compilation alone
 is not a completed Next build. The database smoke and real customer journey
 remain outstanding, and the commercial decision remains HOLD.
+
+
+## Verified correction results
+
+Code commit `a199e2f262f1824ddcc8448a56c0e1ff4af5ff50` completed
+[run 36532529622](https://github.com/RobbieTall/Plannera-ab/actions/runs/36532529622).
+The credential-free compilation job passed the complete Next build, including
+lint, types, static generation and page optimization. Full TypeScript checking
+and all 55 focused tests passed (11 safety, 29 delivery/storage/HTTP, 15 renderer).
+Seven other PR workflows also passed their applicable non-stateful checks.
+
+The isolated-validation job still ends in failure when the unchanged complete
+`vercel-build` reaches its database smoke. The engine-free Prisma client rejects
+the synthetic localhost datasource protocol. This is not a passing release gate;
+no cloud database was contacted or live credentials supplied to satisfy it.
+The Next build emitted a non-fatal dynamic-route diagnostic for `/api/dcp/search`.
+
+Next: trusted saved-source generation, private snapshot persistence and metadata
+pointers, then customer version/download UI and protected Preview proof for both
+councils. Keep source gaps explicit. No merge or deployment occurred. This result
+is recorded on the draft PR branch, not merged main; commercial status is HOLD.
