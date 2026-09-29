@@ -1,3 +1,29 @@
+## Local prerequisite checkpoint: official council-point lookup
+
+A new read-only adapter is prepared LOCALLY ONLY in
+src/lib/see-document-council-identity.ts with
+tests/see-document-council-identity.test.ts. All 10 isolated tests, full TypeScript
+and focused lint PASS. It is not yet connected to normal site persistence or the
+generation loader and is not included in the published application/CI test count.
+
+The source is NSW Spatial Services' LocalGovernmentArea layer:
+https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Administrative_Boundaries_Theme/MapServer/8
+Official layer metadata was inspected on 2026-09-29. The adapter queries only a
+fixed HTTPS endpoint, an explicit WGS84 point, current rows, two-result limit and
+selected non-personal fields, with no credentials or redirects. It bounds response
+size/time, preserves the original JSON and SHA-256/retrieval time, rejects missing,
+multiple, truncated or malformed results, and limits canonical councils to Byron
+and Kempsey. Stored evidence is checked against the exact current point and expiry.
+It identifies a point's council, not full parcel extent, address accuracy,
+statutory planning controls or LGA coverage maturity.
+
+No new adapter call has fetched a real project location. Tests use in-memory
+responses only. No database write, canonical-code backfill, migration, deployment
+or Production change occurred. The actual normal site-saving integration and
+generation requirement remain to implement and test; do not call this gap closed.
+Resume from these two existing local files and the current draft branch.
+The published Linux/Preview-readiness checkpoint below remains authoritative.
+
 ## Current checkpoint: Linux proof complete; protected Preview prerequisites absent
 
 Both approved test-only corrections are complete: the mock type assertion stays
