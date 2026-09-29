@@ -1,0 +1,53 @@
+# Item 78C current handover
+
+## Current checkpoint - 29 September 2026
+
+Automated gate: **READY_FOR_NON_PRODUCTION_ACCEPTANCE**.
+Commercial launch: **NOT APPROVED**.
+Documentation/review closeout: **INCOMPLETE** until the remaining evidence below is recorded.
+
+## Proven evidence
+
+- [Whole-funnel run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240): completed successfully.
+- Runner commit: `0a871d38a5806e6a28404700d660f5d363f3a1d4`.
+- Runner branch: `accept/item-78c-byron-kempsey-20260914`.
+- All six jobs passed: credential-free authorisation, canonical SEE compiler/rendering, independent Byron bridge, independent Kempsey bridge, protected consultant handoff and final decision.
+- The only retained run artifact is `item78c-whole-funnel-decision`, artifact `11006011812`, expiring 29 October 2026. It is decision JSON, not a Word/PDF bundle.
+- GitHub main at reconciliation: `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`. Do not equate main or any deployed Preview application with the acceptance runner.
+
+## Output review and limits
+
+The bridge renders baseline and strengthened synthetic working-SEE bytes, checks their warnings/hashes, persists metadata for replay tests, then deletes synthetic records. Do not look for those deleted records in the customer's workspace or rerun the workflow to recover files it never retains.
+
+Four local synthetic Word/PDF pairs were generated with the accepted renderer and its candidate builder using separate synthetic Byron R2 and Kempsey SP2 identifiers. No credentials, paid fixtures, real addresses or private documents were used. All 16 PDF pages were inspected. Working/non-submission-ready warnings and distinct evidence states are visible; no visible clipping was observed.
+
+Presentation observations: the statutory heading displays "Section 4 15"; strengthened-output source-register entries split across pages; a predecessor working-SEE reference is displayed as "Strengthens DPP". These findings are not silently repaired in the immutable acceptance runner.
+
+Fresh DOCX visual review remains unperformed. DOCX generation and byte-level warning assertions are not a visual pass. The available helper was found, but a suitable bundled LibreOffice runtime has not been located; do not install or bypass local security without an approved path.
+
+Separately, all 14 pages of the PR #434 synthetic final PDF were inspected. Those bytes and the companion DOCX match its existing runbook hashes, but PR #434 is not the accepted renderer. That review cannot replace review of the accepted working documents or prove both actual council downloads.
+
+## Remaining work, in order
+
+1. Complete the Word visual review using a trusted renderer and retain privacy-minimal provenance/results.
+2. Establish hosted customer DOCX/PDF delivery separately before claiming commercial readiness. The inspected Preview Generate SEE route returned a pre-SEE memo and its UI offered a text download; the automated gate does not close that gap.
+3. Reconcile presentation PRs #433, #434 and #435 through normal review. Preserve #433's revision-history work, #434's presentation model/styles relationship and #435's TOC/page-reference work. No combined implementation or merged result has been verified.
+4. Review this published documentation proposal before merging. Robbie approved status-only publication and the documentation-branch safeguard on 29 September 2026. The issue checkpoint is https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5882042049. This branch is a draft proposal, not merged main.
+5. Stop this acceptance goal with an accurate decision and residual risks. Production activation requires a separate approval; Research Viewer stays later.
+
+## Non-negotiable boundaries
+
+- Keep Production checkout disabled and Production data/schema unchanged.
+- Do not infer current Production configuration from runner flags.
+- No additional payment, refund, fixture recreation, migration or acceptance rerun is required merely to update this handover.
+- Preserve independent council fixtures and all successful evidence.
+- Do not expose credentials, cookies, private documents, signed URLs or customer/project/payment identifiers.
+- Do not rewrite the accepted runner or silently extend expired diagnostic guards.
+- Never call the GitHub docs updated until the publication actually succeeds.
+
+## Mobile/desktop continuation
+
+Read Issue #395, this handover and the linked run first. Use available connected services rather than assuming access to the other device's filesystem, clipboard or browser. Before requesting manual setup, confirm saved cloud metadata. Every checkpoint must distinguish completed actions, observed evidence, unproven claims, exact next action and required approval.
+
+[Operating closeout instructions](../operations/item78c-acceptance-closeout.md).
+

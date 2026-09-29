@@ -1,5 +1,16 @@
 # Plannera
 
+## Current Item 78C checkpoint - 29 September 2026
+
+The protected Byron/Kempsey automated gate completed successfully in [run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240) at `0a871d38a5806e6a28404700d660f5d363f3a1d4`. Its decision is **READY_FOR_NON_PRODUCTION_ACCEPTANCE**, not permission for a commercial or Production launch.
+
+Both independent council bridges, canonical SEE rendering checks and the protected consultant lifecycle passed. The runner deletes its temporary working-SEE records and uploads only a privacy-minimal decision; the run does not retain a customer DOCX/PDF download pack. Representative synthetic PDF inspection is recorded separately, and fresh Word visual review and hosted customer document delivery remain unproven.
+
+Production checkout must remain disabled. No Production data/schema changes or activation are authorised. Runner safety assertions are not a fresh audit of live Production settings.
+
+Read the [current handover](docs/project-memory/item78c-current-handover.md) and [closeout runbook](docs/operations/item78c-acceptance-closeout.md) before following older Item 78C instructions below. Older HOLD statements and superseded pins are historical, not current dispatch instructions.
+
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features

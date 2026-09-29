@@ -1,5 +1,20 @@
 # Build Next (Execution Queue)
 
+## Current Item 78C priority - 29 September 2026
+
+**Automated decision: READY_FOR_NON_PRODUCTION_ACCEPTANCE. Commercial launch: not approved.**
+
+[Run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240) passed at `0a871d38a5806e6a28404700d660f5d363f3a1d4` on `accept/item-78c-byron-kempsey-20260914`. Preserve that immutable evidence. Do not redispatch historical failed runs, repeat test payments, rotate keys, extend expired guards or recreate fixtures simply because older sections below describe missing setup.
+
+1. Complete a trustworthy visual review of representative Word output. Four credential-free synthetic working-SEE pairs were generated with the accepted renderer; all 16 PDF pages were inspected. This does not establish actual hosted download delivery.
+2. Record the exact evidence and remaining limitations in the [current handover](item78c-current-handover.md) and [closeout runbook](../operations/item78c-acceptance-closeout.md).
+3. Reconcile launch-relevant presentation PRs without losing unique changes. PRs #433, #434 and #435 overlap; they are not blanket-approved duplicates. Their integration is a separate reviewed change and must not rewrite the successful acceptance snapshot.
+4. Require a separate commercial go/no-go and explicit approval before Production checkout activation. Keep Production data/schema unchanged.
+5. Research Viewer remains after commercial gates and prerequisite fixes; preserve PR #448 and its concurrent documentation.
+
+The dated entries below are retained as historical context. They do not override this checkpoint or authorise additional cloud actions.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅

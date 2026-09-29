@@ -1,5 +1,18 @@
 # Decision Register
 
+## 2026-09-29 - Item 78C automated acceptance passed; commercial approval remains separate
+
+Evidence: [run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240), exact runner `0a871d38a5806e6a28404700d660f5d363f3a1d4`, branch `accept/item-78c-byron-kempsey-20260914`. All six jobs passed and the privacy-minimal decision is `READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
+
+Decision boundary:
+- This is protected non-production evidence for independent council paid-source bridges, evidence/regeneration/replay checks, canonical rendering and one consultant lifecycle.
+- Temporary synthetic SEE records are cleaned up. Output metadata and compiler tests are not proof of retained customer downloads or human document review.
+- Synthetic PDF review supplements, but does not replace, fresh Word visual review and hosted delivery verification.
+- Production checkout must remain disabled. No Production mutation, migration, deployment, live payment, refund or activation is authorised by this result.
+- Preserve the accepted runner and historical evidence. Do not substitute an open presentation PR's renderer when describing the accepted SHA.
+- Follow the [current handover](item78c-current-handover.md) for exact remaining work. Earlier Item 78C HOLD records below remain historical.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.
