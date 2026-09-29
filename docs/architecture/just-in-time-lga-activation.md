@@ -158,3 +158,14 @@ This is an architecture feature, not a quick UX copy patch.
 Suggested roadmap task title:
 
 **Add Just-in-Time LGA Activation for unsupported DCP and local mapping coverage.**
+
+
+## Real-user activation pilot — 503 Comleroy Road, Kurrajong
+
+Use the 503 Comleroy Road project as a candidate real-user acceptance case for this architecture once the current commercialisation-critical sequence is ready for realistic unsupported-LGA testing.
+
+The project begins with a detailed survey (PDF + DWG) and site/drone imagery. It should test the real journey from address and LGA resolution through immediate state/LEP baseline, truthful local-coverage gap, source discovery and preparation, coverage maturity/QA, project notification and regeneration of the same project outputs.
+
+This case must not shortcut activation by manually supplying a polished answer and later marking the LGA supported. It should expose what Plannera knows, what is missing, and how the platform progressively prepares and validates the local intelligence layer. Shared LGA readiness and proposal-specific project analysis remain separate.
+
+The project is not a golden case until expected planning outcomes and source coverage are independently validated. Reusable lessons must preserve the source-governance distinction between authoritative rules, validated professional assessment patterns and practitioner/user workflow heuristics.
