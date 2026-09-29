@@ -7,8 +7,13 @@ run [36426605240](https://github.com/RobbieTall/Plannera-ab/actions/runs/3642660
 passed with `READY_FOR_NON_PRODUCTION_ACCEPTANCE`. That synthetic gate does not
 prove customer Word/PDF delivery. The current task reconciles presentation PRs
 #433/#434/#435 and completes real protected Preview generation, downloads and
-reopening for independent Byron/Kempsey projects. Local groundwork and checks
-are prepared; Linux build, generation/persistence/UI and hosted evidence remain.
+reopening for independent Byron/Kempsey projects. Draft presentation, private
+persistence and download code now pass 69 focused Linux tests, TypeScript and
+the credential-free application build at `0a081d39fd026d2fd7608e8913cc6c666150509d`
+([run 36533924975](https://github.com/RobbieTall/Plannera-ab/actions/runs/36533924975)).
+Trusted generation, customer UI, an unapplied isolated Preview enum migration and
+real hosted delivery remain. The full release-build database smoke is not green.
+These changes are in draft PR #452, not merged main; no deployment has occurred.
 
 Read the [current delivery handover](see-document-delivery-handover.md) first. Preserve draft PR #450's
 acceptance closeout and immutable runner evidence. Older dated status entries

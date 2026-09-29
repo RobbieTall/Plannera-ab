@@ -1,5 +1,22 @@
 # Customer Word/PDF delivery handover
 
+## Latest verified persistence checkpoint
+
+Code commit `0a081d39fd026d2fd7608e8913cc6c666150509d`:
+[Linux run 36533924975](https://github.com/RobbieTall/Plannera-ab/actions/runs/36533924975)
+passed all 69 focused tests (11 safety, 43 delivery/storage/HTTP/persistence,
+15 renderer), full TypeScript and the complete credential-free Next build.
+Ten other applicable PR workflows passed. The unchanged full `vercel-build`
+still fails its database smoke under synthetic configuration; this is not a
+completed release gate. No live database credentials or cloud writes were used.
+
+Private persistence is implemented in draft code, not yet a hosted customer
+capability. Next: trusted source assembly and generation endpoint; customer
+version/download UI; independently authorised isolated Preview enum migration;
+controlled Preview deployment and both-council permissions/download/reopening
+proof; native Word/PDF review. No Production activation. The schema migration
+is prepared only, and the current documentation is on draft PR #452, not main.
+
 ## Current checkpoint - 29 September 2026
 
 Commercial decision: **HOLD**. Production activation is not authorised.

@@ -50,12 +50,13 @@ non-submission-ready warnings and never relabel a free memo as the paid SEE.
 
 ## Validation and release
 
-The approved corrections pass 37 local focused Node checks, full TypeScript
-checking, pure working-SEE acceptance and static build-contract verification.
-Representative pages from both revised synthetic PDFs were inspected. Native
-Word review of the new revision and all real customer journey evidence remain
-outstanding. The full local build was blocked by tsx/esbuild runtime issues;
-the credential-free Linux workflow must provide independent build evidence.
+Code commit `0a081d39fd026d2fd7608e8913cc6c666150509d` passed 69 focused
+Linux tests, full TypeScript and the complete credential-free Next build in
+[run 36533924975](https://github.com/RobbieTall/Plannera-ab/actions/runs/36533924975).
+The full `vercel-build` remains failed at its unchanged database smoke with
+synthetic configuration. No live credentials were supplied. Representative
+synthetic PDF pages were inspected earlier; native Word review of this revision
+and the real protected customer journey remain unproven.
 
 The first commit on `feat/see-document-delivery-20260929` disables automatic
 Vercel deployment for that branch. Publishing a draft is not permission to merge
