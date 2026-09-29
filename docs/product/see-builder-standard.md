@@ -378,3 +378,10 @@ The first repository implementation of this standard is `see-builder-standard.v1
 - Specialist reports must match the exact site and proposal revision, include attributable findings and recommendations, and preserve limitations and conflicts.
 - Compiler readiness means the section set is complete against registered evidence. It does not itself mean submission readiness, which still requires accepted evidence, polished outputs and operator approval.
 - Legacy pre-SEE fields and public API response shapes remain readable during migration.
+
+
+## Practitioner workflow input boundary
+
+The SEE Builder may use practitioner workflow intelligence to improve issue-spotting, section selection, assessment sequencing and anticipation of likely consent-authority questions. That material is heuristic only unless independently supported by current authoritative sources or clearly identified professional judgement.
+
+A practitioner checklist, local workflow note or live-user project must never by itself establish that a statutory control, referral, constraint or approval requirement applies. The Builder must preserve the source hierarchy in `practitioner-workflow-intelligence.md` and scale its assessment depth to the actual proposal rather than reproducing one practitioner's habits across all development types.
