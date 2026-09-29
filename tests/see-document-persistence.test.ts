@@ -277,3 +277,21 @@ test("existing pointer conflicts fail without overwriting or touching private st
   await assert.rejects(save(f.request));
   assert.deepEqual(f.store.calls, []);
 });
+
+test("source revalidation runs inside the metadata transaction before pointer publication", async () => {
+  const f = database();
+  f.deps.validateSourceSnapshot = async () => {
+    assert.equal(f.calls.at(-1), "sources");
+    assert.equal(f.pointers.size, 0);
+    f.calls.push("source-revalidation");
+  };
+  await createWorkingSeePersistence(f.deps)(f.request);
+  assert.ok(f.calls.indexOf("source-revalidation") < f.calls.indexOf("pointer"));
+  assert.equal(f.pointers.size, 1);
+});
+test("changed source evidence leaves only a private unlisted object, never a pointer", async () => {
+  const f = database();
+  f.deps.validateSourceSnapshot = async () => { throw new Error("source changed"); };
+  await assert.rejects(createWorkingSeePersistence(f.deps)(f.request), /working_document_save_unavailable/);
+  assert.equal(f.pointers.size, 0); assert.equal(f.store.objects.size, 1);
+});

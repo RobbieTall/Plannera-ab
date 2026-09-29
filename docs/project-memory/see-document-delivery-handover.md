@@ -1,3 +1,94 @@
+## Current document-generation status: approved corrections applied
+
+This checkpoint supersedes the earlier unpublished TypeScript-failure/approval
+blocker. Robbie approved the narrow corrections. The throwing guard now uses a
+function declaration so TypeScript narrows rejected records correctly; bound
+evidence snapshots are explicitly ordered by immutable ID before source signatures
+are calculated. No evidence, ownership or payment checks were weakened.
+
+Validation on this corrected local revision:
+- Full TypeScript check: PASS.
+- 108 document tests in one combined run: PASS, including 5 direct loader
+  authorization-denial tests. The local runner uses pure TypeScript transpilation
+  plus Node tests; TypeScript was checked separately.
+- 11 build-safety tests and static contract: PASS (7 commands, 6 entries,
+  14 transitive sources).
+- Focused ESLint: PASS, no warnings.
+- These are 119 local tests across the two test commands, not 119 document tests.
+  The 15 renderer tests and full Next compilation require the new exact-commit
+  Linux run; do not inherit earlier-commit results or claim 134 tests passed yet.
+
+The five loader tests are now included in the isolated CI workflow. They establish
+early authorization failures only, not a successful complete database/source join.
+The new generation endpoint/UI/source validation is draft code, not hosted
+acceptance evidence. Uploaded plans/reports remain explicitly unincorporated and
+the generated document remains qualified, not submission-ready.
+
+Publication is limited to draft PR #452's deployment-disabled branch. Main and
+mobile documentation branches are unchanged; immutable Item 78C evidence is
+preserved. No migration, stateful acceptance, cloud flag, private file or Production
+data/schema change was performed. Keep Production checkout disabled.
+
+Next: record the new exact-commit Linux results in PR #452 / Issue #395, then prove
+actual saved-source availability and the protected Preview customer journey.
+An isolated Preview enum migration and deployment still need their scoped approval.
+The earlier full vercel-build synthetic database-smoke failure remains unresolved;
+a passing Next compilation alone is not database-readiness evidence.
+Commercial decision remains HOLD pending those checks and native Word/PDF review.
+
+## Guarded customer generation checkpoint
+
+The draft now connects an explicit Preview workspace action to a protected POST
+generation endpoint. It accepts only the selected saved DPP/memo identifiers and
+an acknowledgement that the output is a working document. It does not accept
+browser-supplied planning evidence, purchase grants, private storage paths or file
+bytes. Same-origin, bounded-input, real-session and owner checks precede source
+assembly; exact paid SEE scope and active entitlement are checked again.
+
+Actual database joins load the selected current-site DPP/QSC/memo chain, retained
+site lookup and its bound assessment/source snapshots plus linked current clauses.
+The full saved source body, digest, dates, clause identity, official source URL and
+quoted excerpt must agree. Missing or unsupported snapshot provenance fails
+closed. The current adapter supports NSW legislation document URLs and direct
+official Byron/Kempsey council PDF sources only. It does not infer an official
+document from a generic homepage or fabricate a retrieval date. Other legitimate
+source shapes require a reviewed adapter, not a weakened check.
+
+The canonical compiler creates the full working section structure, then the
+existing renderer/persistence stores original DOCX/PDF bytes privately. Source
+signatures are reloaded inside the serializable pointer transaction; a changed
+source or revoked entitlement cannot publish a successful version. A failed final
+transaction can leave a private unlisted object as already documented; no automatic
+deletion or overwrite is added. Separate intentional generation actions may make
+new versions; this path does not initiate payments or consume a new purchase.
+
+IMPORTANT LIMIT: uploaded plans/reports are not independently incorporated by
+this generation path. The document explicitly records this and remains
+MORE_EVIDENCE_REQUIRED / NOT SUBMISSION READY. Missing survey evidence alone is
+not a ban on a working draft; unsupported authoritative planning sources or
+identity mismatches are. This implementation is not proof of assessment quality
+or a finished customer journey.
+
+Default-off gate: `PLANNERA_WORKING_SEE_GENERATION_ENABLED=1` AND
+`VERCEL_ENV=preview`. Do not enable it until the exact Preview deployment,
+isolated database and private Blob target are established, and the prepared
+working_see enum migration is separately approved/applied to that target only.
+The site-provenance retention gate remains separately default-off. No live flags,
+migrations, cloud source records or documents have been changed by this code.
+
+Previous checkpoint 0c29a6ca570effd479ed20b67fcbdd657e0812d7 passed 99 focused Linux
+tests and the full credential-free Next build in run 36539743899. Its full
+vercel-build still failed the unchanged database smoke under synthetic engine-free
+Prisma configuration. The new generation changes require their own exact-commit
+validation, recorded in PR #452 / Issue #395; prior results are not inherited.
+
+Next: resolve genuine validation failures, inspect actual protected Preview source
+availability without fabricating missing records, then separately approved Preview
+migration/deployment and both-council generation/download/original-byte reopening,
+permission denials, version checks and native Word/PDF review. Commercial HOLD.
+No Production activation. Other documentation branches, immutable Item 78C evidence,
+Research Viewer, Project Controls and deferred private pilots remain untouched.
+
 ## Saved-site provenance prerequisite
 
 The document-delivery draft now retains a real resolver result for later reload,

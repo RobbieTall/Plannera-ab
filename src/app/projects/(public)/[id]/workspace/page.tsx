@@ -109,6 +109,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Wor
       initialAddress={searchParams?.initialAddress}
       focusedCheck={searchParams?.check === "1"}
       workingSeeDownloadsEnabled={process.env.VERCEL_ENV === "preview"}
+      workingSeeGenerationEnabled={process.env.VERCEL_ENV === "preview" && process.env.PLANNERA_WORKING_SEE_GENERATION_ENABLED === "1"}
     />
   );
 }

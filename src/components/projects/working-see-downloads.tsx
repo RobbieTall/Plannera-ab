@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchSavedSeeFile, fetchSavedSeeVersions } from "@/lib/see-document-download-client";
+import { fetchSavedSeeFile, fetchSavedSeeVersions, generateSavedWorkingSee } from "@/lib/see-document-download-client";
 import type { SavedSeeFormat, SavedSeeVersion } from "@/lib/see-document-version-summary";
 
 const actionClass = "min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:cursor-wait disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800";
 
 /** Mount with a project key so changing workspaces cannot retain another project's versions. */
-export function WorkingSeeDownloads({ projectId }: { projectId: string }) {
+export function WorkingSeeDownloads({
+  projectId, generationEnabled = false, sourceDetailedPlanningPackArtefactId, sourceMemoArtefactId,
+}: { projectId: string; generationEnabled?: boolean;
+  sourceDetailedPlanningPackArtefactId?: string; sourceMemoArtefactId?: string }) {
   const [versions, setVersions] = useState<SavedSeeVersion[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -56,6 +60,29 @@ export function WorkingSeeDownloads({ projectId }: { projectId: string }) {
     }
   };
 
+
+  const generate = async () => {
+    if (busy || !acknowledged || !generationEnabled ||
+      !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setBusy(true);
+    setMessage("Checking paid access and saved evidence, then preparing your working documents...");
+    try {
+      const version = await generateSavedWorkingSee({
+        projectId, sourceDetailedPlanningPackArtefactId, sourceMemoArtefactId,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setVersions((current) => [version, ...current.filter((item) => item.versionId !== version.versionId)]);
+      setMessage("Your working Word and PDF version is saved. Read the evidence warnings before using it.");
+    } catch (error) {
+      if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Generation could not be completed.");
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  };
+
   const download = async (version: SavedSeeVersion, format: SavedSeeFormat) => {
     if (busy) return;
     const controller = new AbortController();
@@ -91,6 +118,21 @@ export function WorkingSeeDownloads({ projectId }: { projectId: string }) {
         These downloads reopen the original saved files, not a new assessment.
         Older versions may not include later plans or evidence. All are working documents, not submission-ready.
       </p>
+      {generationEnabled ? (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+          <label className="flex items-start gap-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+            <input type="checkbox" checked={acknowledged} disabled={busy}
+              onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1" />
+            I understand this is a working document, not ready for submission. Plans, surveys and reports may require further review.
+          </label>
+          <button type="button" className={actionClass}
+            disabled={busy || !acknowledged || !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId}
+            onClick={() => void generate()}>Generate working Word and PDF</button>
+          {!sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId ? (
+            <p className="text-xs text-amber-900 dark:text-amber-200">Select a saved planning pack and generate its matching assessment above first.</p>
+          ) : null}
+        </div>
+      ) : null}
       {message ? <p role="status" className="text-sm text-amber-800 dark:text-amber-200">{message}</p> : null}
       {busy ? <p role="status" className="text-xs text-slate-500">Loading protected documents...</p> : null}
       {!busy && !message && versions.length === 0 ? (

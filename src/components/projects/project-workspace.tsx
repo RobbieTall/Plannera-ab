@@ -130,6 +130,7 @@ interface ProjectWorkspaceProps {
   initialAddress?: string | null;
   focusedCheck?: boolean;
   workingSeeDownloadsEnabled?: boolean;
+  workingSeeGenerationEnabled?: boolean;
 }
 
 type SiteSelectionState = {
@@ -1358,6 +1359,7 @@ export function ProjectWorkspace({
   initialAddress,
   focusedCheck = false,
   workingSeeDownloadsEnabled = false,
+  workingSeeGenerationEnabled = false,
 }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -4948,7 +4950,11 @@ export function ProjectWorkspace({
                       Generate a structured SEE from the current commercial-ready Detailed Planning Pack.
                     </p>
                   )}
-                  {workingSeeDownloadsEnabled ? <WorkingSeeDownloads key={project.id} projectId={project.id} /> : null}
+                  {workingSeeDownloadsEnabled ? <WorkingSeeDownloads
+                    key={project.id + ":" + (latestDetailedPlanningPackArtefact?.id ?? "") + ":" + (latestSeeArtefact?.id ?? "")}
+                    projectId={project.id} generationEnabled={workingSeeGenerationEnabled}
+                    sourceDetailedPlanningPackArtefactId={latestDetailedPlanningPackArtefact?.id}
+                    sourceMemoArtefactId={latestSeeArtefact?.id} /> : null}
                 </OutputSection>
 
                 <OutputSection id="workspace-review-section" sectionRef={reviewSectionRef} title="Expert Review Request">

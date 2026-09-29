@@ -49,6 +49,7 @@ export function createWorkingSeePersistence(deps: {
   deploymentEnvironment: string | undefined;
   writesEnabled: boolean;
   prisma: PersistenceDatabase;
+  validateSourceSnapshot?: (db: Prisma.TransactionClient) => Promise<void>;
   writePrivateSnapshot: (snapshot: WorkingSeeSnapshot) =>
     Promise<{ pathname: string; versionId: string }>;
 }) {
@@ -133,6 +134,7 @@ export function createWorkingSeePersistence(deps: {
 
       await deps.prisma.$transaction(async (tx) => {
         await authorize(tx);
+        if (deps.validateSourceSnapshot) await deps.validateSourceSnapshot(tx);
         const saved = await tx.artefact.upsert({
           where: { id: pointerId },
           create: {
