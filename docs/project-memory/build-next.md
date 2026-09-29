@@ -1,3 +1,5 @@
+> Document-delivery draft update: PR #452 now includes Preview workspace saved-version/Word/PDF controls and a protected paginated metadata endpoint. Approved typing corrections complete: full TypeScript, lint, 59 document tests and 11 build-safety tests pass locally. Linux CI/build pending; trusted generation and hosted delivery remain unproven. Commercial HOLD. See the draft [delivery handover](see-document-delivery-handover.md). Mobile PR #451 and both deferred pilots are unchanged.
+
 # Build Next (Execution Queue)
 
 ## Current delivery checkpoint - 29 September 2026

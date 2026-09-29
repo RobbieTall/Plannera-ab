@@ -35,8 +35,8 @@ route still produces a pre-SEE planning memo, not this new Word/PDF journey.
 
 ## Not implemented or proven
 
-Trusted saved-source candidate assembly and customer generation/version UI are
-still required. Append-only private writes and metadata pointers now have a draft
+Trusted saved-source candidate assembly and customer generation are still required.
+Saved-version/download UI is now draft code in the actual Preview workspace. Append-only private writes and metadata pointers now have a draft
 implementation; cloud behavior and actual customer delivery remain unproven.
 The loader and HTTP tests use synthetic inputs and injected storage/authorization;
 they are not evidence of real hosted permissions or successful customer downloads.
@@ -88,3 +88,27 @@ Blob and database commits are not atomic. A failed metadata transaction leaves
 an unlisted private object; retry the identical snapshot rather than overwrite or
 automatically delete it. Cleanup needs an approved inventory of unreferenced keys.
 Unit tests exercise this recovery but do not replace real protected Preview proof.
+
+## Saved-version customer controls checkpoint
+
+Draft implementation now adds a Preview-only saved-version list to the actual
+project workspace, plus Word/PDF download buttons, original generation timestamps,
+source DPP/QSC references and expandable evidence warnings. It is separate from
+the existing planning memo/text export. Production does not render these controls.
+
+The paginated metadata endpoint reuses the download service's project membership,
+exact paid SEE scope, active entitlement and original-source checks. It does not
+open private file storage while listing. Browser downloads use exact-version
+same-origin endpoints and check byte length and SHA-256 before saving; errors
+cannot be mistaken for successful document downloads. The original-byte endpoint
+still independently verifies authorization and stored file integrity.
+
+Robbie approved the narrow typing corrections. Local full TypeScript checking,
+focused lint, all 59 document Node tests and all 11 build-safety tests now pass.
+The MIME projection uses the validated format's known MIME constant; test query
+mocks have explicit types. No validation or security rule was disabled.
+Linux CI and the new revision's credential-free build are pending. These are
+implementation changes, not hosted delivery evidence. Trusted saved-source generation, an explicitly approved
+isolated Preview migration/deployment, real customer file reopening, native Word
+review and the commercial decision remain outstanding. No production change,
+migration, stateful acceptance, merge or deployment has been performed.

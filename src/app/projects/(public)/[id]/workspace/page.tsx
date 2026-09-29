@@ -108,6 +108,7 @@ export default async function ProjectWorkspacePage({ params, searchParams }: Wor
       initialPrompt={searchParams?.prompt}
       initialAddress={searchParams?.initialAddress}
       focusedCheck={searchParams?.check === "1"}
+      workingSeeDownloadsEnabled={process.env.VERCEL_ENV === "preview"}
     />
   );
 }

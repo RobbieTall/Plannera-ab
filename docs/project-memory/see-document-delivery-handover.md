@@ -1,3 +1,27 @@
+## Saved-version customer controls checkpoint
+
+Draft implementation now adds a Preview-only saved-version list to the actual
+project workspace, plus Word/PDF download buttons, original generation timestamps,
+source DPP/QSC references and expandable evidence warnings. It is separate from
+the existing planning memo/text export. Production does not render these controls.
+
+The paginated metadata endpoint reuses the download service's project membership,
+exact paid SEE scope, active entitlement and original-source checks. It does not
+open private file storage while listing. Browser downloads use exact-version
+same-origin endpoints and check byte length and SHA-256 before saving; errors
+cannot be mistaken for successful document downloads. The original-byte endpoint
+still independently verifies authorization and stored file integrity.
+
+Robbie approved the narrow typing corrections. Local full TypeScript checking,
+focused lint, all 59 document Node tests and all 11 build-safety tests now pass.
+The MIME projection uses the validated format's known MIME constant; test query
+mocks have explicit types. No validation or security rule was disabled.
+Linux CI and the new revision's credential-free build are pending. These are
+implementation changes, not hosted delivery evidence. Trusted saved-source generation, an explicitly approved
+isolated Preview migration/deployment, real customer file reopening, native Word
+review and the commercial decision remain outstanding. No production change,
+migration, stateful acceptance, merge or deployment has been performed.
+
 # Customer Word/PDF delivery handover
 
 ## Latest verified persistence checkpoint
@@ -200,3 +224,49 @@ process, including maturity/coverage honesty, provenance, freshness, deduplicati
 notification and regeneration; a manually completed planning answer is not proof.
 Neither pilot's private survey, DWG, imagery or design files are needed for this
 persistence work. The mobile documentation branch remains untouched.
+
+## Trusted-generation source audit
+
+Read-only inspection of the current PR base identified an existing provenance
+projection gap, not evidence that cloud records are present or current:
+
+- `Instrument.sourceUrl` and `Clause.retrievedAt`, content hash, version and
+  effective dates exist in the Prisma model. `lookupLepInstruments` selects only
+  clause ID/reference/title/text, and `getLepContextForProject` trims excerpts to
+  400 characters. That output cannot establish retrieval time or full provenance.
+- The saved Quick Site Check's "Cited" label means DB-backed zone/controls were
+  available; it is not a verified spatial match or a currency guarantee.
+- `DCPClause` and saved DPP citations do not hold official URL/retrieval-time
+  fields. `PathwayEvidenceSnapshot` can hold those fields and bind a source to an
+  assessment, but its actual project binding, content, currency and non-synthetic
+  status must be checked. No cloud data was queried during this audit.
+- The existing memo generator already calls the canonical section compiler.
+  Reuse the compiler deliberately with real source bindings and its issue list;
+  copying the memo or changing its product label does not prove a paid SEE.
+
+Next generation work should query exact saved evidence/version bindings rather
+than using shortened search output, latest unrelated clauses, generic council
+homepages or generation timestamps as source provenance. Missing surveys may stay
+qualified; identity and source failures must not become invented confirmations.
+
+Robbie reports PR #451 now includes a third deferred pilot for deliberate Ballina
+council/source/Research Viewer replication, following Byron/Kempsey Research Viewer
+accuracy acceptance. This is distinct from the established-LGA depth pilot and
+automatic unsupported-LGA activation pilot. Do not build any of these during the
+current document gate or access/publish their private files. The mobile branch is
+untouched.
+
+## Approved correction and publication checkpoint
+
+Robbie approved the typing corrections and continuation. The current saved-version
+implementation passes local full TypeScript, focused lint and 70 focused Node tests
+(59 document contracts and 11 build-safety tests). Synthetic data only; no live
+credentials or database calls. Linux CI/build results remain pending for this new
+revision, distinct from the previous 69-test/Next-build evidence above.
+
+The exact PR branch remains deployment-disabled in vercel.json. Read-only Vercel
+inventory showed no deployment for this branch; unrelated mobile documentation
+Preview failures were left untouched. The publication changes no Production ref,
+settings, checkout flag or database. No merge, manual deployment, migration or
+stateful acceptance is authorised by this checkpoint. The earlier correction
+approval blocker is resolved; trusted generation and hosted acceptance remain open.

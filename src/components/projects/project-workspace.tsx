@@ -49,6 +49,7 @@ import { QuickSiteCheckModal, buildQuickSiteCheckArtefactTitle, buildQuickSiteCh
 import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
+import { WorkingSeeDownloads } from "@/components/projects/working-see-downloads";
 import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
 import { ConsultantReferralPanel } from "@/components/projects/consultant-referral-panel";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
@@ -128,6 +129,7 @@ interface ProjectWorkspaceProps {
   initialPrompt?: string | null;
   initialAddress?: string | null;
   focusedCheck?: boolean;
+  workingSeeDownloadsEnabled?: boolean;
 }
 
 type SiteSelectionState = {
@@ -1355,6 +1357,7 @@ export function ProjectWorkspace({
   initialPrompt,
   initialAddress,
   focusedCheck = false,
+  workingSeeDownloadsEnabled = false,
 }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -4945,6 +4948,7 @@ export function ProjectWorkspace({
                       Generate a structured SEE from the current commercial-ready Detailed Planning Pack.
                     </p>
                   )}
+                  {workingSeeDownloadsEnabled ? <WorkingSeeDownloads key={project.id} projectId={project.id} /> : null}
                 </OutputSection>
 
                 <OutputSection id="workspace-review-section" sectionRef={reviewSectionRef} title="Expert Review Request">

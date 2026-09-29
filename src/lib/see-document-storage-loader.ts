@@ -24,22 +24,16 @@ export function workingSeePrivatePath(projectId: string, versionId: string): str
 }
 
 /**
- * Read-only database authorisation for the download contract. No checkout flag,
- * client grant or development bypass can establish entitlement.
- *
- * readPrivateSnapshot must use the configured PRIVATE store, enforce a response
- * size limit and never follow a URL supplied by a browser or artefact payload.
- * The caller must derive actorId from a real server session. This factory does
- * not create an HTTP route, persist a pointer or grant generation permission.
+ * Authorise exact saved metadata without reading file bytes. Shared by the
+ * version list and download loader; callers must supply a real session actor.
  */
-export function createWorkingSeeSnapshotLoader(dependencies: {
+export function createWorkingSeePointerLoader(dependencies: {
   prisma: ReadClient;
   deploymentEnvironment: string | undefined;
-  readPrivateSnapshot: WorkingSeePrivateReader;
 }) {
   return async (scope: {
     actorId: string; projectId: string; versionId: string;
-  }): Promise<AuthorisedWorkingSeeSnapshot | null> => {
+  }) => {
     if (dependencies.deploymentEnvironment !== "preview" ||
       !identifier(scope.actorId) || scope.actorId === "dev-bypass-user" ||
       !identifier(scope.projectId) || !SHA.test(scope.versionId)) return null;
@@ -120,12 +114,28 @@ export function createWorkingSeeSnapshotLoader(dependencies: {
       !sourceRecords.some((row) => row.id === metadata.sourceDetailedPlanningPackArtefactId &&
       row.projectId === project.id && row.type === "detailed_planning_pack")) return null;
 
-    // The private-store reader is invoked only after project AND purchase checks.
+    return { metadata, purchaseScopeKey };
+  };
+}
+
+/** Read and validate original private bytes only after exact-scope authorisation. */
+export function createWorkingSeeSnapshotLoader(dependencies: {
+  prisma: ReadClient;
+  deploymentEnvironment: string | undefined;
+  readPrivateSnapshot: WorkingSeePrivateReader;
+}) {
+  const loadPointer = createWorkingSeePointerLoader(dependencies);
+  return async (scope: {
+    actorId: string; projectId: string; versionId: string;
+  }): Promise<AuthorisedWorkingSeeSnapshot | null> => {
+    const authorised = await loadPointer(scope);
+    if (!authorised) return null;
+    const { metadata, purchaseScopeKey } = authorised;
     const stored = await dependencies.readPrivateSnapshot(
-      workingSeePrivatePath(project.id, scope.versionId),
+      workingSeePrivatePath(scope.projectId, scope.versionId),
     );
     const snapshot = readWorkingSeeSnapshot(stored);
-    if (snapshot.projectId !== project.id || snapshot.versionId !== scope.versionId ||
+    if (snapshot.projectId !== scope.projectId || snapshot.versionId !== scope.versionId ||
       snapshot.purchaseScopeKey !== purchaseScopeKey || snapshot.siteId !== metadata.siteId ||
       snapshot.council !== metadata.council ||
       snapshot.sourceQuickSiteCheckArtefactId !== metadata.sourceQuickSiteCheckArtefactId ||
@@ -133,10 +143,9 @@ export function createWorkingSeeSnapshotLoader(dependencies: {
     return {
       snapshot,
       grant: {
-        actorId: scope.actorId, projectId: project.id, versionId: scope.versionId,
+        actorId: scope.actorId, projectId: scope.projectId, versionId: scope.versionId,
         purchaseScopeKey, status: "ACTIVE",
       },
     };
   };
 }
-
