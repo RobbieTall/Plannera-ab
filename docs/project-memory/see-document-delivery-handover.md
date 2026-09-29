@@ -1,3 +1,22 @@
+## Verified saved-version checkpoint
+
+Code commit `210dfb255ae27a6c58c8f1e0dddf1225d61bca2b`, [Linux run 36536822465](https://github.com/RobbieTall/Plannera-ab/actions/runs/36536822465):
+**85 focused tests passed** (11 build safety, 59 delivery/storage/HTTP/persistence/
+version-list tests, 15 renderer), full TypeScript passed, and the complete
+credential-free Next build passed, including lint/types, 37 static pages and
+optimization. Eleven other applicable PR workflows passed their non-stateful checks.
+
+The full `vercel-build` remains failed at the unchanged database smoke: its
+engine-free Prisma client rejects the synthetic localhost datasource protocol.
+No live credentials were supplied and no release gate was disabled. Passing
+compilation is not database-readiness or real customer-download evidence.
+
+PR #452 now includes the actual Preview workspace saved-version controls. Trusted
+saved-source generation, separately authorised isolated Preview migration/deployment,
+both-council real delivery/reopening and native Word/PDF review remain unfinished.
+**Commercial HOLD.** No merge, deployment, stateful acceptance or Production change.
+The mobile documentation branch and all three deferred pilots remain untouched.
+
 ## Saved-version customer controls checkpoint
 
 Draft implementation now adds a Preview-only saved-version list to the actual
@@ -16,8 +35,9 @@ Robbie approved the narrow typing corrections. Local full TypeScript checking,
 focused lint, all 59 document Node tests and all 11 build-safety tests now pass.
 The MIME projection uses the validated format's known MIME constant; test query
 mocks have explicit types. No validation or security rule was disabled.
-Linux CI and the new revision's credential-free build are pending. These are
-implementation changes, not hosted delivery evidence. Trusted saved-source generation, an explicitly approved
+Linux run 36536822465 now confirms 85 focused tests, full TypeScript and the
+complete credential-free Next build. The unchanged full-build database smoke
+still fails with synthetic configuration. This is not hosted delivery evidence. Trusted saved-source generation, an explicitly approved
 isolated Preview migration/deployment, real customer file reopening, native Word
 review and the commercial decision remain outstanding. No production change,
 migration, stateful acceptance, merge or deployment has been performed.
@@ -261,8 +281,8 @@ untouched.
 Robbie approved the typing corrections and continuation. The current saved-version
 implementation passes local full TypeScript, focused lint and 70 focused Node tests
 (59 document contracts and 11 build-safety tests). Synthetic data only; no live
-credentials or database calls. Linux CI/build results remain pending for this new
-revision, distinct from the previous 69-test/Next-build evidence above.
+credentials or database calls. Linux run 36536822465 now confirms 85 focused tests and the full credential-free
+Next build for this revision; the unchanged database smoke remains failed.
 
 The exact PR branch remains deployment-disabled in vercel.json. Read-only Vercel
 inventory showed no deployment for this branch; unrelated mobile documentation
