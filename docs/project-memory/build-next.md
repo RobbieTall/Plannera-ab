@@ -1,3 +1,12 @@
+## Current document-delivery prerequisite
+
+PR #452 now includes default-off, Preview-only retention of site lookup provenance.
+It is not deployed or evidence of a completed customer generation journey.
+Commercial HOLD; Production checkout remains disabled by the operating constraint.
+See [the current handover](see-document-delivery-handover.md)
+for exact limits, validation references and remaining work. Other documentation
+branches and immutable Item 78C evidence remain untouched.
+
 > Document-delivery draft update: PR #452 now includes Preview workspace saved-version/Word/PDF controls and a protected paginated metadata endpoint. Approved typing corrections complete: full TypeScript, lint, 59 document tests and 11 build-safety tests pass locally. Linux validation now passes 85 focused tests, full TypeScript and the complete credential-free Next build at code commit 210dfb2; the unchanged full-build database smoke and actual hosted journey remain unproven. Commercial HOLD. See the draft [delivery handover](see-document-delivery-handover.md). Mobile PR #451 and both deferred pilots are unchanged.
 
 # Build Next (Execution Queue)

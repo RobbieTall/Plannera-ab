@@ -1,3 +1,4 @@
+import { createResolvedSiteProvenanceStorage } from "./site-context-provenance-storage";
 import type { SiteContext } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -187,7 +188,7 @@ const resolveLepForLga = (lgaName: string | null | undefined) => {
   };
 };
 
-export const persistSiteContextFromCandidate = async (params: {
+const persistSiteContextFromCandidateWithoutProvenanceRetention = async (params: {
   projectId: string;
   addressInput: string;
   candidate: SiteCandidate;
@@ -325,7 +326,7 @@ export const persistManualSiteContext = async (params: {
   return persisted;
 };
 
-export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> => {
+const getSiteContextForProjectWithoutProvenanceReload = async (projectId: string): Promise<SiteContext | null> => {
   const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
   if (!project) {
     return null;
@@ -415,3 +416,26 @@ export const resolveInstrumentsForSite = (site: { lgaName: string | null } | nul
     lgaCode: lepMatch?.lgaCode,
   };
 };
+
+function resolvedSiteProvenanceStorage() {
+  return createResolvedSiteProvenanceStorage({
+    prisma,
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    enabled: process.env.PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED === "1",
+  });
+}
+
+export async function persistSiteContextFromCandidate(
+  ...args: Parameters<typeof persistSiteContextFromCandidateWithoutProvenanceRetention>
+) {
+  const site = await persistSiteContextFromCandidateWithoutProvenanceRetention(...args);
+  await resolvedSiteProvenanceStorage().retain(site, site.spatialProvenance);
+  return site;
+}
+
+export async function getSiteContextForProject(
+  ...args: Parameters<typeof getSiteContextForProjectWithoutProvenanceReload>
+) {
+  const site = await getSiteContextForProjectWithoutProvenanceReload(...args);
+  return resolvedSiteProvenanceStorage().reload(site);
+}

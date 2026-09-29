@@ -1,3 +1,48 @@
+## Saved-site provenance prerequisite
+
+The document-delivery draft now retains a real resolver result for later reload,
+behind `VERCEL_ENV=preview` and the default-off
+`PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED=1` switch. Production behavior is
+unchanged. Do not enable this switch until the exact protected Preview deployment
+and its isolated database target have been independently established.
+
+This uses the existing SiteSpatialProvenance model; it adds no schema migration.
+The separate working_see enum migration remains PREPARED ONLY. No migration,
+cloud lookup/write, environment change or deployment was performed for this code.
+
+Retention accepts only complete official-service lookup provenance from the
+server's resolver, never browser-supplied evidence. It binds the exact project,
+site, address, council, parcel/coordinates, zone and saved-site revision. A
+serializable append rejects concurrent site changes; retries never overwrite an
+existing snapshot. Reload revalidates the envelope, digest, source metadata and
+binding. Candidate/manual/launch-fixture results are not promoted. Changes to
+the site invalidate old bindings without deleting historical evidence.
+
+The 24-hour cache lifetime is an operational freshness ceiling, NOT a statutory
+currency guarantee. The digest covers the captured normalized lookup envelope,
+not the full upstream feature response. Existing snapshots are neither backfilled
+nor presented as authoritative by default. LEP/DCP source currency, applicability,
+full-source bindings and paid generation remain separate unfinished work.
+Survey/report gaps must stay visible without falsely marking a draft as ready
+for submission.
+
+Site-context saving and provenance append are separate operations. A failed
+append can leave the site saved without this evidence; the operation reports
+failure rather than inventing proof. Reload falls back to the existing unverified
+representation when no valid record exists. Database errors are not hidden.
+
+Fourteen synthetic regression cases cover Preview gating, replay, tampering,
+staleness, identity/revision changes, concurrent changes, coordinate/parcel matches
+and missing evidence. Exact execution results are recorded in the linked PR/Issue
+#395 checkpoint and isolated CI; this is not protected Preview customer proof.
+The prior code commit's 85-test result does not automatically cover this change.
+
+**Commercial HOLD:** trusted saved-source generation and actual both-council
+generation/download/original-byte reopening still need completion. No Production
+activation, no real paid journey, no acceptance snapshot changes. Research Viewer,
+Project Controls and all three real-user pilots remain deferred; PR #451's mobile
+documentation branch is untouched.
+
 ## Verified saved-version checkpoint
 
 Code commit `210dfb255ae27a6c58c8f1e0dddf1225d61bca2b`, [Linux run 36536822465](https://github.com/RobbieTall/Plannera-ab/actions/runs/36536822465):
