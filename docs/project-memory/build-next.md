@@ -6,7 +6,7 @@
 
 [Run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240) passed at `0a871d38a5806e6a28404700d660f5d363f3a1d4` on `accept/item-78c-byron-kempsey-20260914`. Preserve that immutable evidence. Do not redispatch historical failed runs, repeat test payments, rotate keys, extend expired guards or recreate fixtures simply because older sections below describe missing setup.
 
-1. Complete a trustworthy visual review of representative Word output. Four credential-free synthetic working-SEE pairs were generated with the accepted renderer; all 16 PDF pages were inspected. This does not establish actual hosted download delivery.
+1. Representative review completed: all 16 generated PDF pages, plus ten native Word-rendered pages each for Byron missing-evidence and Kempsey strengthened-evidence samples. Preserve the recorded presentation weaknesses. The next evidence gap is actual hosted customer DOCX/PDF delivery; offline rendering does not prove it.
 2. Record the exact evidence and remaining limitations in the [current handover](item78c-current-handover.md) and [closeout runbook](../operations/item78c-acceptance-closeout.md).
 3. Reconcile launch-relevant presentation PRs without losing unique changes. PRs #433, #434 and #435 overlap; they are not blanket-approved duplicates. Their integration is a separate reviewed change and must not rewrite the successful acceptance snapshot.
 4. Require a separate commercial go/no-go and explicit approval before Production checkout activation. Keep Production data/schema unchanged.

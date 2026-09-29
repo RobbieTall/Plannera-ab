@@ -7,7 +7,7 @@ Evidence: [run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426
 Decision boundary:
 - This is protected non-production evidence for independent council paid-source bridges, evidence/regeneration/replay checks, canonical rendering and one consultant lifecycle.
 - Temporary synthetic SEE records are cleaned up. Output metadata and compiler tests are not proof of retained customer downloads or human document review.
-- Synthetic PDF review supplements, but does not replace, fresh Word visual review and hosted delivery verification.
+- Synthetic PDF review and representative native Word review are complete for both councils (Byron baseline and Kempsey strengthened sample, ten Word-rendered pages each). Presentation findings remain. Neither proves hosted customer document delivery.
 - Production checkout must remain disabled. No Production mutation, migration, deployment, live payment, refund or activation is authorised by this result.
 - Preserve the accepted runner and historical evidence. Do not substitute an open presentation PR's renderer when describing the accepted SHA.
 - Follow the [current handover](item78c-current-handover.md) for exact remaining work. Earlier Item 78C HOLD records below remain historical.

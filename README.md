@@ -4,7 +4,7 @@
 
 The protected Byron/Kempsey automated gate completed successfully in [run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240) at `0a871d38a5806e6a28404700d660f5d363f3a1d4`. Its decision is **READY_FOR_NON_PRODUCTION_ACCEPTANCE**, not permission for a commercial or Production launch.
 
-Both independent council bridges, canonical SEE rendering checks and the protected consultant lifecycle passed. The runner deletes its temporary working-SEE records and uploads only a privacy-minimal decision; the run does not retain a customer DOCX/PDF download pack. Representative synthetic PDF inspection is recorded separately, and complete cross-council Word visual review and hosted customer document delivery remain unproven.
+Both independent council bridges, canonical SEE rendering checks and the protected consultant lifecycle passed. The runner deletes its temporary working-SEE records and uploads only a privacy-minimal decision; the run does not retain a customer DOCX/PDF download pack. Representative synthetic PDF inspection and cross-council native Word visual review are now recorded separately. Presentation weaknesses remain; hosted customer DOCX/PDF delivery is still unproven.
 
 Production checkout must remain disabled. No Production data/schema changes or activation are authorised. Runner safety assertions are not a fresh audit of live Production settings.
 

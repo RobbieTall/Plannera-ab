@@ -19,7 +19,7 @@ Both independent council jobs and consultant handoff passed. Do not repeat payme
 | Consultant handoff | Protected lifecycle job passed | One configured council lifecycle |
 | Final automated decision | Decision job and retained JSON artifact | Non-production acceptance only |
 | Representative PDF inspection | Four accepted-renderer synthetic pairs, 16 pages inspected locally | New offline bytes, not retained run outputs |
-| Representative Word inspection | Byron missing-evidence sample: all ten Word-rendered pages inspected in Microsoft Word 16.113.2 | Kempsey Word review pending; presentation defects recorded in handover |
+| Representative Word inspection | Byron missing-evidence and Kempsey strengthened-evidence samples: all ten Word-rendered pages each inspected in Microsoft Word 16.113.2 | Synthetic local output only; presentation defects and hashes recorded in handover |
 | Commercial/Production readiness | Not established | Separate approval and evidence required |
 
 ## Document review
@@ -41,7 +41,7 @@ Correction to the initial trigger summary: these paths trigger three pull-reques
 
 ## Stop condition and escalation
 
-Do not activate Production checkout during Item 78C closeout. Report the automated decision separately from incomplete Word review, hosted delivery and commercial approval. Keep Production data/schema unchanged and request a separate explicit go/no-go before any Production activation.
+Do not activate Production checkout during Item 78C closeout. Report the automated decision and completed representative Word review separately from unproven hosted delivery and commercial approval. Keep Production data/schema unchanged and request a separate explicit go/no-go before any Production activation.
 
 See [current handover](../project-memory/item78c-current-handover.md) for outstanding PR reconciliation and continuity.
 
