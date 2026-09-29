@@ -210,3 +210,14 @@ Measurement must also have an end. Events expire after 90 days, are removed when
 linked output is deleted, and are pruned by an authenticated retention job. Collection remains off
 until both the operator feature flag and retention secret are configured. This is a product-truth
 constraint, not an analytics preference.
+
+
+## Project Schedule and Project Controls Engine
+
+The long-term project brain needs an evidence-backed control layer, not just a visual lifecycle bar. Plannera's future **Project Controls Engine** will own site-specific tasks, required-for-site decisions, dependencies, blockers, dates, readiness gates and evidence provenance. The existing Timeline/Journey remains a lightweight representation of that underlying state.
+
+The schedule should emerge progressively from the same statutory intelligence, project sources, uploads, approvals, correspondence, finance information and authorised external evidence that already feed the Workspace. A template may know that S68, S138, bushfire, easements, strata or other approvals can matter, but Plannera must still decide **required for this site?** before promoting them into the live programme.
+
+Garruka is the first case study/template seed. It should teach the ontology and dependencies without becoming a universal dual-occupancy checklist. Consequential project state must remain source-aware and confidence-labelled; AI may propose a change, but must not silently turn inference into confirmed completion.
+
+See: `docs/product/project-schedule-project-controls.md`. This is future architecture and does not widen the current Commercial Gate implementation scope.
