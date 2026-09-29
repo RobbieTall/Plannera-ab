@@ -1,0 +1,76 @@
+# Customer Word/PDF delivery handover
+
+## Current checkpoint - 29 September 2026
+
+Commercial decision: **HOLD**. Production activation is not authorised.
+
+Item 78C's automated decision remains **READY_FOR_NON_PRODUCTION_ACCEPTANCE**:
+[run 36426605240](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240),
+runner `0a871d38a5806e6a28404700d660f5d363f3a1d4`. Its retained artifact is
+decision JSON, not customer Word/PDF files. Preserve that immutable evidence,
+the independent council fixtures and draft PR #450's detailed closeout.
+
+The active task is a separate customer document journey. The existing hosted
+Generate SEE flow is a pre-SEE memo/text export; it must not be marketed as
+a proven paid Word/PDF journey.
+
+## Prepared implementation
+
+- Reconciles useful presentation work from PRs #433, #434 and #435: current-issue
+  revision history, shared presentation model, native Word contents field,
+  styles relationship, PDF page references and qualified working-document labels.
+- Adds immutable project/evidence/version-bound DOCX/PDF snapshots.
+- Adds Preview-only authenticated downloads, exact-scope paid entitlement checks,
+  private storage reads and original-byte reopening.
+- Does not yet implement trusted customer generation, private snapshot writes,
+  metadata pointer creation or customer UI. No cloud snapshot has been created.
+- New implementation branch: `feat/see-document-delivery-20260929`.
+  Its first commit includes `git.deploymentEnabled: false` for that exact branch.
+  No merge or manual deployment is part of draft publication.
+
+## Evidence and limits
+
+The approved corrections are complete. Local evidence: 37 focused Node checks,
+full TypeScript checking, the pure working-SEE acceptance and static build
+contract passed. The revised synthetic PDFs have 11 pages each; representative
+cover, document-control and continuous-section pages were visually inspected.
+
+The full local build did not complete: the sandbox blocked tsx's local socket,
+and a permitted retry ended when esbuild stopped during launch smoke. No macOS
+security bypass was used. The new Linux workflow must supply full-build evidence;
+its existence is not a passing result. Native Word review of this new revision
+and actual protected Preview generation/download/reopening remain unproven.
+
+Static import/fingerprint checks constrain reviewed entrypoints; they do not
+prove every dependency or Next.js build behavior non-mutating. The isolated CI
+job has no cloud credentials, environment binding or deployment command, disables
+install lifecycle scripts, and executes checks under a cleared environment with
+synthetic localhost configuration. Dependencies still require network downloads.
+
+## Exact next work
+
+1. Obtain the draft commit's isolated Linux CI results and resolve genuine failures.
+2. Assemble actual saved project candidates without inventing source URLs, retrieval
+   dates or spatial evidence. Keep survey gaps explicit, not falsely verified.
+3. Persist private immutable snapshots and metadata-only pointers; never put file
+   bytes in Artefact payloads exposed by project listing.
+4. Add project generation, version selection and Word/PDF download controls.
+5. Establish deployment safety for a separately controlled protected Preview.
+6. Prove both councils' authorized downloads, denied cross-project/unauthorized/
+   revoked access, original-byte reopening, warnings and version identity.
+7. Review the downloaded documents in Word and a PDF viewer, then report a
+   commercial go/no-go. Passing unit tests alone does not close this task.
+
+## Continuity and boundaries
+
+Read Issue #395, this file, the build-next queue and
+[download contract](../operations/working-see-download-contract.md).
+Record the exact commit and CI/Preview evidence after each meaningful milestone.
+Do not repeat paid sessions or request credentials without confirming saved state.
+Keep Production checkout disabled; do not mutate Production data/schema.
+Do not merge main or deploy Production without explicit approval.
+
+PR #448 Research Viewer and PR #449 Project Controls remain deferred. Preserve
+original-source provenance, project identity and immutable version bindings.
+Screenshots alone are not authoritative evidence. Do not build those features
+to avoid completing the current commercial gate.

@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
+import { buildSubmissionSeePresentation } from "./submission-see-presentation";
+
 import {
   REQUIRED_SUBMISSION_SEE_SECTIONS,
   assessSubmissionSee,
@@ -175,6 +177,7 @@ describe("submission SEE rendering", () => {
         "_rels/.rels",
         "word/document.xml",
         "word/styles.xml",
+        "word/header1.xml",
         "word/footer1.xml",
         "word/_rels/document.xml.rels",
         "docProps/core.xml",
@@ -183,10 +186,23 @@ describe("submission SEE rendering", () => {
     );
     const document = entries.get("word/document.xml")!.toString("utf8");
     expect(document).toContain("Statement of Environmental Effects");
+    expect(document).toContain("Document Control");
+    expect(document).toContain("Proposal Summary");
+    expect(document).toContain("1. Executive Summary");
+    expect(document).toContain("Supporting Evidence Schedule");
     expect(document).toContain("Source Register");
     expect(document).toContain("Environmental Impacts");
+    expect(document).toContain("<w:tbl>");
+    expect(document).not.toContain("Project: synthetic-render-review");
+    expect(entries.get("word/_rels/document.xml.rels")!.toString("utf8")).toContain(
+      "relationships/styles",
+    );
+    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("PLANNERA");
+    expect(entries.get("word/header1.xml")!.toString("utf8")).toContain("Confirmed acceptance site");
     expect(document).not.toContain("Update this field in Word");
-    expect(document).not.toContain('<w:br w:type="page"/>');
+    const hardPageBreaks = document.match(/<w:br w:type="page"\/>/g)?.length ?? 0;
+    expect(hardPageBreaks).toBeGreaterThanOrEqual(5);
+    expect(hardPageBreaks).toBeLessThan(REQUIRED_SUBMISSION_SEE_SECTIONS.length + 3);
     expect(document).not.toContain(' TOC \\o "1-2" ');
   });
 
@@ -195,19 +211,28 @@ describe("submission SEE rendering", () => {
     const pdf = rendered.pdf.toString("latin1");
 
     expect(pdf.startsWith("%PDF-1.7")).toBe(true);
-    expect(pdf).toContain("STATEMENT OF");
-    expect(pdf).toContain("ENVIRONMENTAL EFFECTS");
-    expect(pdf).toContain("Executive Summary");
+    expect(pdf).toContain("Statement of Environmental Effects");
+    expect(pdf).toContain("DOCUMENT CONTROL");
+    expect(pdf).toContain("CONTENTS");
+    expect(pdf).toContain("1. Executive Summary");
+    expect(pdf).toContain("Supporting Evidence Schedule");
     expect(pdf).toContain("Source Register");
+    expect(pdf).toContain("PLANNERA");
+    expect(pdf).not.toContain("Project synthetic-render-review");
     const contentStreams = [
       ...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g),
     ].map((match) => match[1] ?? "");
     const impactsStream = contentStreams.find((stream) =>
-      stream.includes("(Environmental Impacts)"),
+      stream.includes("(6. Environmental Impacts)") && stream.includes("(Evidence used)"),
     );
     expect(impactsStream).toBeDefined();
-    const impactsOffset = impactsStream!.indexOf("(Environmental Impacts)");
-    expect(impactsStream!.slice(impactsOffset)).toContain("(Sources:");
+    const impactsOffset = impactsStream!.indexOf("(6. Environmental Impacts)");
+    expect(impactsStream!.slice(impactsOffset)).toContain("(Evidence used)");
+    const impactsEvidence = impactsStream!.slice(impactsOffset);
+    expect(impactsEvidence).toContain("lep - Byron Local Environmental Plan 2014");
+    expect(impactsEvidence).toContain("dcp - Byron Development Control Plan 2014");
+    expect(impactsEvidence).toContain("spatial - Official NSW zoning feature");
+    expect(impactsEvidence).toContain("upload-plan - Current proposal plan");
     expect(pdf.endsWith("%%EOF\n")).toBe(true);
 
     const startXref = /startxref\n(\d+)\n%%EOF/.exec(pdf);
@@ -369,4 +394,113 @@ describe("submission SEE rendering", () => {
     expect(rendered.outputs).toHaveLength(2);
   });
 
+});
+
+describe("reconciled SEE presentation", () => {
+  it("preserves revision disclosure, native Word contents, styles and exact statutory labels", () => {
+    const output = renderSubmissionSeeOutputs(makeCandidate());
+    const entries = storedZipEntries(output.docx);
+    const xml = entries.get("word/document.xml")!.toString("utf8");
+    expect(xml).toContain("Revision History");
+    expect(xml).toContain("Only the current generated issue is shown. Prior versions are not inferred");
+    expect(xml).toContain(' TOC \\o "1-1" \\h \\z ');
+    expect(xml).toContain('<w:fldChar w:fldCharType="separate"/>');
+    expect(xml).toContain('<w:pStyle w:val="ContentsHeading"/>');
+    expect(xml).toContain("<w:cantSplit/>");
+    expect(xml).toContain("<w:tblHeader/>");
+    expect(xml).toContain("Section 4.15 Evaluation");
+    expect(xml).not.toContain("Section 4 15");
+    expect(entries.get("word/settings.xml")!.toString()).toContain('<w:updateFields w:val="true"/>');
+    const relationships = entries.get("word/_rels/document.xml.rels")!.toString();
+    expect(relationships).toContain('Target="styles.xml"');
+    expect(relationships).toContain('Target="settings.xml"');
+    expect(output.pdf.toString("latin1")).toContain("Revision History");
+    expect(output.pdf.toString("latin1")).toContain("Section 4.15 Evaluation");
+  });
+
+  it("numbers PDF contents from the actual layout rather than fixed page estimates", () => {
+    const candidate = makeCandidate();
+    candidate.sections[0]!.narrative = "A longer cited planning assessment is retained without inventing evidence. ".repeat(85);
+    const pdf = renderSubmissionSeeOutputs(candidate).pdf.toString("latin1");
+    const streams = [...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g)].map((match) => match[1]!);
+    const toc = streams.find((stream) => stream.includes("(CONTENTS)"))!;
+    for (const [number, title] of [["1", "Executive Summary"], ["6", "Environmental Impacts"], ["7", "Section 4.15 Evaluation"], ["C", "Source Register"]]) {
+      const label = number + ". " + title;
+      const target = streams.findIndex((stream) => stream.includes("(SECTION " + number + ")") && stream.includes("(" + label + ")"));
+      const titleLine = toc.split("\n").find((line) => line.includes("(" + label + ")"))!;
+      const baseline = /54\.00 ([\d.]+) Tm/.exec(titleLine)![1];
+      const pageLine = toc.split("\n").find((line) => line.includes("517.00 " + baseline + " Tm"))!;
+      expect(Number(/\((\d+)\) Tj/.exec(pageLine)![1])).toBe(target + 1);
+      expect(target).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps warnings and uses a neutral predecessor label without inventing document history", () => {
+    const candidate = makeCandidate();
+    const context = makeWorkingContext();
+    context.predecessorDetailedPlanningPackArtefactId = "earlier-evidence-reference";
+    candidate.sourceDetailedPlanningPack.commercialReady = false;
+    candidate.sourceDetailedPlanningPack.unresolvedTopics = [context.outstandingEvidence[0]!.topic];
+    candidate.limitations = [context.documentReadiness.customerMessage, "This working SEE is not submission-ready."];
+    candidate.operatorReview = { status: "not_reviewed", reviewedAt: null, checklistVersion: null, unresolvedIssues: [] };
+    const output = renderWorkingSeeOutputs(candidate, context);
+    const xml = storedZipEntries(output.docx).get("word/document.xml")!.toString();
+    for (const text of [xml, output.pdf.toString("latin1")]) {
+      expect(text).toContain("Earlier evidence reference");
+      expect(text).not.toContain("Strengthens DPP");
+      expect(text).toContain("WORKING SEE - NOT SUBMISSION READY");
+      expect(text).toContain("Outstanding Evidence");
+    }
+    expect(assessSubmissionSee({ ...candidate, outputs: output.outputs }).ready).toBe(false);
+  });
+
+  it("binds the document reference to project, evidence and renderer, not mutable output metadata", () => {
+    const candidate = makeCandidate();
+    const model = buildSubmissionSeePresentation({ candidate });
+    expect(model.documentReference).toMatch(/^SEE-[A-F0-9]{16}$/);
+    expect(model.revisionHistory[0]!.value).toBe("Current generated issue");
+    const reordered = Object.fromEntries(Object.entries(candidate).reverse()) as SubmissionSeeCandidate;
+    expect(buildSubmissionSeePresentation({ candidate: reordered }).documentReference).toBe(model.documentReference);
+    const output = renderSubmissionSeeOutputs(candidate);
+    expect(buildSubmissionSeePresentation({ candidate: { ...candidate, outputs: output.outputs } }).documentReference).toBe(model.documentReference);
+    expect(buildSubmissionSeePresentation({ candidate: { ...candidate, projectId: "different-project" } }).documentReference).not.toBe(model.documentReference);
+    const updated = structuredClone(candidate);
+    updated.sections[0]!.narrative += " Additional supported assessment is now recorded.";
+    expect(buildSubmissionSeePresentation({ candidate: updated }).documentReference).not.toBe(model.documentReference);
+    expect(storedZipEntries(output.docx).get("docProps/core.xml")!.toString()).toContain(model.documentReference);
+    expect(output.pdf.toString("latin1")).toContain(model.documentReference);
+  });
+
+  it.each(["BYRON", "KEMPSEY"])("renders an independent %s fixture with its own identity", (lga) => {
+    const candidate = makeCandidate();
+    candidate.projectId = "synthetic-" + lga;
+    candidate.site.label = "Synthetic " + lga + " review site";
+    candidate.site.lgaCode = lga;
+    candidate.site.confirmedSiteId = "synthetic-site-" + lga;
+    candidate.sourceDetailedPlanningPack.projectId = candidate.projectId;
+    candidate.sourceDetailedPlanningPack.lgaCode = lga;
+    candidate.sources[0]!.title = lga + " synthetic LEP fixture";
+    candidate.sources[0]!.officialUrl = "https://legislation.nsw.gov.au/";
+    candidate.sources[1]!.title = lga + " synthetic DCP fixture";
+    candidate.sources[1]!.officialUrl = lga === "BYRON" ? "https://www.byron.nsw.gov.au/" : "https://www.kempsey.nsw.gov.au/";
+    const output = renderSubmissionSeeOutputs(candidate);
+    const xml = storedZipEntries(output.docx).get("word/document.xml")!.toString();
+    expect(xml).toContain(candidate.site.label);
+    expect(output.pdf.toString("latin1")).toContain(candidate.site.label);
+    expect(output.outputs.every((file) => file.fileName.includes(candidate.site.confirmedSiteId.toLowerCase()))).toBe(true);
+  });
+
+  it("retains oversized source and limitation text within PDF page bounds", () => {
+    const candidate = makeCandidate();
+    candidate.limitations = ["A recorded evidence qualification remains visible. ".repeat(400) + " LIMITATION-END"];
+    candidate.sources[1]!.title = "Long source reference text ".repeat(300) + " SOURCE-END";
+    const pdf = renderSubmissionSeeOutputs(candidate).pdf.toString("latin1");
+    expect(pdf).toContain("LIMITATION-END");
+    expect(pdf).toContain("SOURCE-END");
+    const textPositions = [...pdf.matchAll(/1 0 0 1 ([\d.]+) (-?[\d.]+) Tm/g)];
+    for (const match of textPositions) {
+      expect(Number(match[2])).toBeGreaterThanOrEqual(20);
+      expect(Number(match[2])).toBeLessThanOrEqual(820);
+    }
+  });
 });

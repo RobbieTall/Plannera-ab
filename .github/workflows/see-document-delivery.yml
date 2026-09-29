@@ -1,0 +1,61 @@
+name: Working SEE document delivery (isolated)
+
+on:
+  push:
+    branches: [feat/see-document-delivery-20260929]
+  pull_request:
+    paths:
+      - "src/lib/see-document-*.ts"
+      - "src/lib/submission-see-*.ts"
+      - "src/app/api/projects/**/working-see/**"
+      - "tests/see-document-*.test.ts"
+      - "scripts/verify-vercel-build-safety.mjs"
+      - "scripts/item74h-working-see-preview-acceptance.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/see-document-delivery.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: see-document-delivery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout without retained credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Validate with synthetic configuration only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/see-document-home"
+          run_clean() {
+            env -i PATH="$PATH" HOME="$RUNNER_TEMP/see-document-home" \
+              CI=true NEXT_TELEMETRY_DISABLED=1 \
+              DATABASE_URL="postgresql://synthetic:synthetic@127.0.0.1:1/synthetic" \
+              DIRECT_URL="postgresql://synthetic:synthetic@127.0.0.1:1/synthetic" \
+              NEXTAUTH_URL="http://127.0.0.1:3000" \
+              NEXTAUTH_SECRET="synthetic-ci-only-not-a-deployment-credential" \
+              VERCEL_ENV=preview \
+              "$@"
+          }
+          run_clean npm ci --ignore-scripts --loglevel=error
+          run_clean node scripts/verify-vercel-build-safety.mjs
+          run_clean node --test tests/vercel-build-safety.test.mjs
+          run_clean node node_modules/prisma/build/index.js generate --no-engine
+          run_clean node node_modules/typescript/bin/tsc --noEmit --incremental false --pretty false
+          run_clean ./node_modules/.bin/tsx --test tests/see-document-delivery.test.ts tests/see-document-storage-loader.test.ts tests/see-document-http.test.ts
+          run_clean ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/submission-see-renderer.test.ts
+          run_clean npm run vercel-build
