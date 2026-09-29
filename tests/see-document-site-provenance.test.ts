@@ -3,9 +3,11 @@ import test from "node:test";
 import type { PrismaClient, SiteContext, SiteSpatialProvenance } from "@prisma/client";
 import { assessSpatialProvenance, NSW_EPI_ZONING_LAYER_URL } from "../src/lib/spatial-provenance";
 import {
-  createResolvedSiteProvenanceStorage, readSavedSiteProvenance,
+  createResolvedSiteProvenanceStorage, readSavedSiteProvenance, readSavedCouncilIdentity,
   savedSiteBinding, SAVED_SITE_PROVENANCE_MAX_AGE_MS,
 } from "../src/lib/site-context-provenance-storage";
+
+import { lookupWorkingSeeCouncilIdentity } from "../src/lib/see-document-council-identity";
 
 const clock = new Date("2026-09-29T01:00:00Z");
 const site: SiteContext = {
@@ -217,4 +219,61 @@ test("a formatted label cannot replace the separate mirrored lookup code", async
   f.setSite(labelledSite);
   await f.storage.retain(labelledSite, spatial);
   assert.equal(readSavedSiteProvenance({ ...f.row()!, zoneCode: labelledSite.zone }, labelledSite, clock), null);
+});
+
+async function councilProof(council = "Byron", capturedAt = clock) {
+  const proof = await lookupWorkingSeeCouncilIdentity({ lat: site.latitude!, lng: site.longitude! }, {
+    fetcher: async () => new Response(JSON.stringify({ features: [{ attributes: {
+      rid: 1, lganame: council, councilname: council + " Shire Council", abscode: 99999, enddate: null,
+    } }] }), { headers: { "content-type": "application/json" } }),
+    now: () => capturedAt,
+  });
+  assert.ok(proof);
+  return proof;
+}
+test("retained council response is bound to the exact saved site and zoning envelope", async () => {
+  const f = fixture();
+  const proof = await councilProof();
+  assert.equal(await f.storage.retain(site, spatial, proof), true);
+  assert.deepEqual(readSavedCouncilIdentity(f.row(), site, clock), proof);
+  assert.deepEqual(readSavedSiteProvenance(f.row(), site, clock), spatial);
+  assert.equal(readSavedCouncilIdentity(f.row(), { ...site, longitude: 152 }, clock), null);
+  assert.equal(readSavedCouncilIdentity(f.row(), { ...site, lgaCode: "KEMPSEY" }, clock), null);
+});
+test("legacy zoning records remain readable but cannot invent council evidence", async () => {
+  const f = fixture();
+  await f.storage.retain(site, spatial);
+  assert.deepEqual(readSavedSiteProvenance(f.row(), site, clock), spatial);
+  assert.equal(readSavedCouncilIdentity(f.row(), site, clock), null);
+});
+test("invalid, conflicting and expired council proof causes no persistence", async () => {
+  const proof = await councilProof();
+  const other = await councilProof("Kempsey");
+  const expired = await councilProof("Byron", new Date(clock.getTime() - SAVED_SITE_PROVENANCE_MAX_AGE_MS));
+  for (const invalid of [null, {}, other, expired, { ...proof, responseSha256: "wrong" }]) {
+    const f = fixture();
+    assert.equal(await f.storage.retain(site, spatial, invalid), false);
+    assert.equal(f.calls(), 0);
+  }
+  const f = fixture();
+  assert.equal(await f.storage.retain({ ...site, lgaName: "Kempsey" }, spatial, proof), false);
+  assert.equal(f.calls(), 0);
+});
+test("a retained council proof expires independently of the newer zoning lookup", async () => {
+  const f = fixture();
+  const proof = await councilProof("Byron", new Date(clock.getTime() - 60 * 60 * 1000));
+  await f.storage.retain(site, spatial, proof);
+  const later = new Date(clock.getTime() + 23 * 60 * 60 * 1000);
+  assert.ok(f.row()!.staleAt!.getTime() > later.getTime());
+  assert.equal(readSavedCouncilIdentity(f.row(), site, later), null);
+  assert.equal(readSavedSiteProvenance(f.row(), site, later), null);
+});
+test("adding or substituting council evidence cannot reuse an old envelope hash", async () => {
+  const f = fixture();
+  await f.storage.retain(site, spatial);
+  const row = f.row()!;
+  const payload = row.payload as Record<string, import("@prisma/client").Prisma.JsonValue>;
+  const forged = { ...row, payload: { ...payload, councilIdentity: await councilProof() } };
+  assert.equal(readSavedCouncilIdentity(forged, site, clock), null);
+  assert.equal(readSavedSiteProvenance(forged, site, clock), null);
 });

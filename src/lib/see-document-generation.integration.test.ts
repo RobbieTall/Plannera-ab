@@ -5,6 +5,7 @@ import type { PrismaClient, SiteContext, SiteSpatialProvenance } from "@prisma/c
 import { loadSavedWorkingSeeGeneration, type WorkingSeeSourceDatabase } from "./see-document-generation-source-loader";
 import { createWorkingSeeSnapshot, readWorkingSeeSnapshot } from "./see-document-delivery";
 import { createResolvedSiteProvenanceStorage } from "./site-context-provenance-storage";
+import { lookupWorkingSeeCouncilIdentity } from "./see-document-council-identity";
 import { assessSpatialProvenance, NSW_EPI_ZONING_LAYER_URL } from "./spatial-provenance";
 
 // Test doubles only. No connections, files, actual planning conclusions or cloud writes.
@@ -22,7 +23,7 @@ const retrieved = new Date("2026-09-29T01:00:00Z");
 const later = new Date("2026-10-01T02:00:00Z");
 const bodyText = "In-memory source text for testing exact saved-record joins, not a statutory control or real property assessment.";
 
-async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false) {
+async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false, withCouncilIdentity = false) {
   const name = council === "BYRON" ? "Byron" : "Kempsey";
   const id = (suffix: string) => "join-" + council + "-" + suffix;
   const scope = { actorId: id("owner"), projectId: id("project"),
@@ -153,18 +154,24 @@ async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false)
   } as unknown as Pick<PrismaClient, "$transaction" | "siteSpatialProvenance">;
   const retention = createResolvedSiteProvenanceStorage({ prisma: retentionDb,
     deploymentEnvironment: "preview", enabled: true, now: () => now });
+  const councilIdentity = withCouncilIdentity ? await lookupWorkingSeeCouncilIdentity({ lat: -30, lng: 153 }, {
+    fetcher: async () => new Response(JSON.stringify({ features: [{ attributes: {
+      rid: 1, lganame: name, councilname: name + " Shire Council", abscode: 99999, enddate: null,
+    } }] }), { headers: { "content-type": "application/json" } }),
+    now: () => retrieved,
+  }) : undefined;
+  if (withCouncilIdentity) assert.ok(councilIdentity);
   assert.equal(await retention.retain(site, assessSpatialProvenance({
     zoneCode: "R2", zoningSource: "NSW_EPI_LZN", resolutionMethod: "coordinate_intersection",
     serviceUrl: NSW_EPI_ZONING_LAYER_URL, featureIdentifier: id("feature"),
     resolvedAt: retrieved, coordinates: { lat: -30, lng: 153 }, parcelId: null,
-  })), true);
+  }), councilIdentity), true);
   return { scope, site, db: memory as unknown as WorkingSeeSourceDatabase, binding, purchase, entitlement,
     qsc, dpp, calls, memo: () => memo!, clearSpatial: () => { spatial = null; } };
 }
 
-
-async function ordinaryCaptureFixture(council: "BYRON" | "KEMPSEY") {
-  const f = await fixture(council);
+async function ordinaryCaptureFixture(council: "BYRON" | "KEMPSEY", withCouncilIdentity = true) {
+  const f = await fixture(council, false, withCouncilIdentity);
   const { captureWorkingSeePackSources } = await import("./see-document-pack-source-capture");
   const { captureDcpSource } = await import("./dcp/dcp-source-capture");
   const { resolveCurrentDetailedPlanningPackChain } = await import("./artefact-service");
@@ -276,6 +283,7 @@ test("unpaid or revoked scope stops before spatial and assessment records", asyn
     assert.equal(f.calls.includes("binding"), false);
   }
 });
+
 test("uncited planning assessments remain rejected even when other evidence is present", async () => {
   const f = await fixture("BYRON", true);
   await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_unverified/);
@@ -305,3 +313,11 @@ test("changed current clause body and expired snapshots fail closed", async () =
   }
 });
 
+
+test("ordinary packs require saved council evidence before reading control rows", async () => {
+  for (const council of ["BYRON", "KEMPSEY"] as const) {
+    const f = await ordinaryCaptureFixture(council, false);
+    await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_missing/);
+    assert.deepEqual(f.calls, ["purchase", "entitlement", "spatial"]);
+  }
+});

@@ -1,4 +1,5 @@
 import { createResolvedSiteProvenanceStorage } from "./site-context-provenance-storage";
+import { resolveWorkingSeeCouncilForCandidate, type WorkingSeeCouncilIdentity } from "./see-document-council-identity";
 import type { SiteContext } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -40,6 +41,7 @@ type LepZoneSummary = Pick<LepZoneUses, "zoneCode" | "zoneName">;
 
 type SiteContextWithSpatialProvenance = SiteContext & {
   spatialProvenance?: SpatialProvenance;
+  councilIdentity?: WorkingSeeCouncilIdentity;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -241,12 +243,17 @@ const persistSiteContextFromCandidateWithoutProvenanceRetention = async (params:
     zoning: resolvedZoning,
     location,
   });
+  const councilIdentity = await resolveWorkingSeeCouncilForCandidate({
+    candidate,
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    enabled: process.env.PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED === "1",
+  });
   const data = {
     projectId: project.id,
     addressInput: normalizedAddressInput,
     formattedAddress: candidate.formattedAddress,
-    lgaName: candidate.lgaName ?? null,
-    lgaCode: candidate.lgaCode ?? null,
+    lgaName: councilIdentity?.lgaName ?? candidate.lgaName ?? null,
+    lgaCode: councilIdentity?.council ?? candidate.lgaCode ?? null,
     parcelId: candidate.parcelId ?? null,
     lot: candidate.lot ?? null,
     planNumber: candidate.planNumber ?? null,
@@ -281,6 +288,7 @@ const persistSiteContextFromCandidateWithoutProvenanceRetention = async (params:
   return {
     ...persisted,
     spatialProvenance,
+    ...(councilIdentity ? { councilIdentity } : {}),
   };
 };
 
@@ -429,7 +437,7 @@ export async function persistSiteContextFromCandidate(
   ...args: Parameters<typeof persistSiteContextFromCandidateWithoutProvenanceRetention>
 ) {
   const site = await persistSiteContextFromCandidateWithoutProvenanceRetention(...args);
-  await resolvedSiteProvenanceStorage().retain(site, site.spatialProvenance);
+  await resolvedSiteProvenanceStorage().retain(site, site.spatialProvenance, site.councilIdentity);
   return site;
 }
 

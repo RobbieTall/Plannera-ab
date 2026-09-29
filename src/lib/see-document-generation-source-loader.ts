@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { compileCanonicalSeeFromPreSee } from "./submission-see-application-adapter";
 import { assembleSubmissionSeeCandidate } from "./submission-see-candidate";
-import { readSavedSiteProvenance, savedSiteBinding, SAVED_SITE_PROVENANCE_VERSION } from "./site-context-provenance-storage";
+import { readSavedCouncilIdentity, readSavedSiteProvenance, savedSiteBinding, SAVED_SITE_PROVENANCE_VERSION } from "./site-context-provenance-storage";
 import { resolveSavedWorkingSeePlanningSources, resolveWorkingSeeSourceCitations, WorkingSeeSourceError, type SavedPlanningSource, type WorkingSeeCouncil } from "./see-document-generation-sources";
 import { readWorkingSeePackSources, WorkingSeePackCaptureError } from "./see-document-pack-source-capture";
 import type { WorkingSeeRenderContext } from "./submission-see-renderer";
@@ -101,6 +101,8 @@ export async function loadSavedWorkingSeeGeneration(
   const rawPack = selected.artefact.payload;
   // A present but invalid capture must never fall back to a different proof path.
   if (record(rawPack) && Object.prototype.hasOwnProperty.call(rawPack, "workingSeeSourceCapture")) {
+    // Canonical labels alone are not proof of council identity for a normal pack.
+    if (!readSavedCouncilIdentity(spatialRow, site, now)) fail("source_evidence_missing");
     try {
       const capture = await readWorkingSeePackSources(db, {
         site, pack: rawPack as unknown as typeof pack,

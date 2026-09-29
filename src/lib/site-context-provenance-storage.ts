@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { Prisma, PrismaClient, SiteContext, SiteSpatialProvenance } from "@prisma/client";
 import { assessSpatialProvenance, type SpatialProvenance } from "./spatial-provenance";
+import { readWorkingSeeCouncilIdentity, type WorkingSeeCouncilIdentity } from "./see-document-council-identity";
+import { normalizeCouncilLgaCode } from "./council/lga-normaliser";
 
 export const SAVED_SITE_PROVENANCE_VERSION = "resolved-site-provenance.v1";
 // Operational cache lifetime, not a guarantee that a planning instrument is current.
@@ -60,11 +62,23 @@ function validatedSpatial(
   }
 }
 
-function envelopeFor(site: SiteContext, spatial: SpatialProvenance) {
+function validatedCouncil(value: unknown, site: SiteContext, now: Date) {
+  if (site.latitude === null || site.longitude === null) return null;
+  const identity = readWorkingSeeCouncilIdentity(value, {
+    lat: site.latitude, lng: site.longitude,
+  }, now);
+  return identity && identity.council === site.lgaCode &&
+    normalizeCouncilLgaCode(site.lgaName) === identity.council ? identity : null;
+}
+
+function envelopeFor(
+  site: SiteContext, spatial: SpatialProvenance, councilIdentity?: WorkingSeeCouncilIdentity,
+) {
   return {
     schema: SAVED_SITE_PROVENANCE_VERSION,
     siteBinding: savedSiteBinding(site),
     spatial,
+    ...(councilIdentity ? { councilIdentity } : {}),
   };
 }
 
@@ -75,10 +89,13 @@ export function readSavedSiteProvenance(
     if (!row || row.siteContextId !== site.id ||
       row.sourceVersion !== SAVED_SITE_PROVENANCE_VERSION ||
       !row.staleAt || row.staleAt.getTime() <= now.getTime()) return null;
-    const payload = row.payload as { spatial?: unknown } | null;
+    const payload = row.payload as { spatial?: unknown; councilIdentity?: unknown } | null;
     const spatial = validatedSpatial(payload?.spatial, site, now);
     if (!spatial) return null;
-    const envelope = envelopeFor(site, spatial);
+    const hasCouncil = Boolean(payload && Object.prototype.hasOwnProperty.call(payload, "councilIdentity"));
+    const councilIdentity = hasCouncil ? validatedCouncil(payload?.councilIdentity, site, now) : null;
+    if (hasCouncil && !councilIdentity) return null;
+    const envelope = envelopeFor(site, spatial, councilIdentity ?? undefined);
     if (!isDeepStrictEqual(row.payload, envelope) || row.contentHash !== hash(envelope) ||
       row.authority !== "NSW Planning" || row.datasetName !== "EPI Primary Planning Layers - zoning" ||
       row.sourceUrl !== spatial.serviceUrl || row.trustLevel !== "EVIDENCE_VERIFIED" ||
@@ -94,12 +111,22 @@ export function readSavedSiteProvenance(
   }
 }
 
+/** Ordinary planning packs require this additional point-identity evidence. */
+export function readSavedCouncilIdentity(
+  row: SiteSpatialProvenance | null, site: SiteContext, now: Date,
+): WorkingSeeCouncilIdentity | null {
+  if (!readSavedSiteProvenance(row, site, now)) return null;
+  const payload = row!.payload as { councilIdentity?: unknown } | null;
+  return validatedCouncil(payload?.councilIdentity, site, now);
+}
+
 /**
  * Internal resolver persistence only, never a browser-supplied provenance object.
  * Caller must already authorize the site mutation. The flag is default-off and
  * Preview-only; operators must separately verify that Preview targets an isolated
  * database before enabling it. No migration, deletion, or remote lookup occurs here.
- * contentHash protects this captured lookup envelope, NOT a full provider response.
+ * contentHash covers normalized zoning evidence and optional original council JSON.
+ * It does NOT prove the zoning provider response was retained in full.
  */
 export function createResolvedSiteProvenanceStorage(deps: {
   prisma: Database;
@@ -110,12 +137,14 @@ export function createResolvedSiteProvenanceStorage(deps: {
   const enabled = deps.deploymentEnvironment === "preview" && deps.enabled === true;
   const now = deps.now ?? (() => new Date());
   return {
-    async retain(site: SiteContext, value: unknown): Promise<boolean> {
+    async retain(site: SiteContext, value: unknown, councilValue?: unknown): Promise<boolean> {
       if (!enabled) return false;
       const capturedAt = now();
       const spatial = validatedSpatial(value, site, capturedAt);
       if (!spatial) return false;
-      const envelope = envelopeFor(site, spatial);
+      const councilIdentity = councilValue === undefined ? null : validatedCouncil(councilValue, site, capturedAt);
+      if (councilValue !== undefined && !councilIdentity) return false;
+      const envelope = envelopeFor(site, spatial, councilIdentity ?? undefined);
       const contentHash = hash(envelope);
       // The resolver already saved SiteContext. Serialize the append against the
       // current row and bind its revision, so edits/races cannot reuse old evidence.
