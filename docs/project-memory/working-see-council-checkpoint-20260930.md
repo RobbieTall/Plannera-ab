@@ -30,13 +30,25 @@ Local full TypeScript and focused lint PASS.
 
 Tests use in-memory fixtures and synthetic configuration; the local harness blocks
 external fetch/socket access. They do not establish genuine planning evidence.
-The build-safety contract passes. Native Linux CI and separate compilation for this
-new revision are pending. No new complete vercel-build pass is claimed: the earlier
-synthetic database-smoke incompatibility remains unresolved, not bypassed.
+The build-safety contract passes. GitHub run 36635473044 tested application source
+28e2a8d3080f38e1a48c99d4627551e9780d165d through its PR merge snapshot against
+unchanged main. Full TypeScript and 195 Linux tests PASS: 140 core tests,
+44 native Vitest tests (including 15 renderer tests), and 11 build-safety tests.
+The separate credential-free Next compilation job 109634914043 PASSED, including
+all 37 static pages and optimisation.
+
+The isolated-validation job 109634913692 FAILED only after those tests, at the
+unchanged full vercel-build database smoke. Engine-free Prisma rejects the
+synthetic localhost PostgreSQL URL because it requires prisma:// or
+prisma+postgres://. No live credential was substituted and no gate was disabled.
+Compilation is not database readiness or hosted customer acceptance. The complete
+build remains NOT green.
+
+Run: https://github.com/RobbieTall/Plannera-ab/actions/runs/36635473044
 
 ## Remaining commercial gates
 
-- Exact-revision Linux validation and compilation.
+- Resolve the full-build synthetic database-smoke incompatibility without masking readiness failures; exact-revision Linux tests and separate compilation are proven above.
 - Separately authorised isolated Preview prerequisites, including the existing
   unapplied working_see enum change and genuine fresh source/provenance capture.
 - Both councils' real customer generation, private download, original-version
