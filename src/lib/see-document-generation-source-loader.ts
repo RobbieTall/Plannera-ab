@@ -3,11 +3,12 @@ import type { PrismaClient } from "@prisma/client";
 import { compileCanonicalSeeFromPreSee } from "./submission-see-application-adapter";
 import { assembleSubmissionSeeCandidate } from "./submission-see-candidate";
 import { readSavedSiteProvenance, savedSiteBinding, SAVED_SITE_PROVENANCE_VERSION } from "./site-context-provenance-storage";
-import { resolveSavedWorkingSeePlanningSources, WorkingSeeSourceError, type SavedPlanningSource, type WorkingSeeCouncil } from "./see-document-generation-sources";
+import { resolveSavedWorkingSeePlanningSources, resolveWorkingSeeSourceCitations, WorkingSeeSourceError, type SavedPlanningSource, type WorkingSeeCouncil } from "./see-document-generation-sources";
+import { readWorkingSeePackSources, WorkingSeePackCaptureError } from "./see-document-pack-source-capture";
 import type { WorkingSeeRenderContext } from "./submission-see-renderer";
 
 export type WorkingSeeSourceDatabase = Pick<PrismaClient,
-  "project" | "artefact" | "purchase" | "entitlement" | "pathwayArtefactBinding" | "siteSpatialProvenance">;
+  "project" | "artefact" | "purchase" | "entitlement" | "pathwayArtefactBinding" | "siteSpatialProvenance" | "clause" | "dCPClause">;
 export type WorkingSeeGenerationScope = {
   actorId: string; projectId: string;
   sourceDetailedPlanningPackArtefactId: string; sourceMemoArtefactId: string;
@@ -88,7 +89,52 @@ export async function loadSavedWorkingSeeGeneration(
   const spatial = readSavedSiteProvenance(spatialRow, site, now);
   if (!spatial || !spatialRow) fail("source_evidence_missing");
 
-  const binding = await db.pathwayArtefactBinding.findUnique({
+  const requiredCitations = [
+      ...memo.consistencyAssessment.flatMap((item) => item.citations ?? []),
+      ...pack.dcpEvidence.flatMap((topic) => topic.citations.map((citation) =>
+        ({ type: "DCP" as const, ref: citation.ref, excerpt: citation.excerpt }))),
+    ];
+  let binding: unknown = null;
+  let captureEvidence: unknown = null;
+  const sources: SavedPlanningSource[] = [];
+  let officialSources: ReturnType<typeof resolveWorkingSeeSourceCitations>;
+  const rawPack = selected.artefact.payload;
+  // A present but invalid capture must never fall back to a different proof path.
+  if (record(rawPack) && Object.prototype.hasOwnProperty.call(rawPack, "workingSeeSourceCapture")) {
+    try {
+      const capture = await readWorkingSeePackSources(db, {
+        site, pack: rawPack as unknown as typeof pack,
+        quickSiteCheck: selected.quickSiteCheck,
+        capture: rawPack.workingSeeSourceCapture, resolvedZoneCode: spatial.zoneCode ?? "",
+      }, now);
+      captureEvidence = capture;
+      for (const source of capture.sources) {
+        sources.push({
+          id: source.kind + ":" + source.clauseId, kind: source.kind,
+          reference: source.reference, title: source.title,
+          sourceUrl: source.sourceUrl, sourceVersion: source.sourceVersion,
+          retrievedAt: source.retrievedAt, effectiveFrom: source.effectiveFrom,
+          effectiveTo: source.effectiveTo, staleAt: capture.expiresAt,
+          isCurrentAtAssessment: true, contentHash: source.bodyTextSha256,
+          snapshotBodyText: source.bodyText, currentBodyText: source.bodyText,
+          snapshotClauseId: source.clauseId, currentClauseId: source.clauseId,
+          currentClauseIsCurrent: true, currentClauseUpdatedAt: source.recordUpdatedAt,
+          registrySourceUrl: source.kind === "LEP" ? source.sourceUrl : null, council,
+          // readWorkingSeePackSources has just matched these fields to current
+          // database rows. Preserve original trust markers, not just URL shape.
+          markers: source.originMetadataJson === null ? {} : JSON.parse(source.originMetadataJson),
+        });
+      }
+      officialSources = resolveWorkingSeeSourceCitations({
+        council, requiredCitations, sources, now, recordCapturedAt: capture.capturedAt,
+        markers: { pack: rawPack, memo: memoRow.payload },
+      });
+    } catch (error) {
+      if (error instanceof WorkingSeePackCaptureError) fail("source_evidence_unverified");
+      throw error;
+    }
+  } else {
+  const legacyBinding = await db.pathwayArtefactBinding.findUnique({
     where: { artefactId: selected.artefact.id },
     include: { assessment: { include: {
       spatialProvenance: true,
@@ -98,9 +144,9 @@ export async function loadSavedWorkingSeeGeneration(
       },
     } } },
   });
-  if (!binding || binding.assessment.environment !== "PREVIEW") fail("source_evidence_missing");
-  const assessment = binding.assessment;
-  const sources: SavedPlanningSource[] = [];
+  if (!legacyBinding || legacyBinding.assessment.environment !== "PREVIEW") fail("source_evidence_missing");
+  binding = legacyBinding;
+  const assessment = legacyBinding.assessment;
   for (const row of assessment.evidenceSnapshots) {
     if (row.evidenceKind !== "LEP" && row.evidenceKind !== "DCP") continue;
     const snapshot = record(row.snapshot) ? row.snapshot : {};
@@ -135,9 +181,9 @@ export async function loadSavedWorkingSeeGeneration(
       markers: { snapshot: row.snapshot, citation: row.citation },
     });
   }
-  const officialSources = resolveSavedWorkingSeePlanningSources({
+  officialSources = resolveSavedWorkingSeePlanningSources({
     projectId: project.id, siteId: site.id, siteUpdatedAt: site.updatedAt.toISOString(),
-    council, zoneCode: site.zone ?? "", sourceDetailedPlanningPackArtefactId: selected.artefact.id,
+    council, zoneCode: spatial.zoneCode ?? "", sourceDetailedPlanningPackArtefactId: selected.artefact.id,
     sourceQuickSiteCheckArtefactId: qsc.id,
     binding: {
       projectId: selected.artefact.projectId, siteId: site.id,
@@ -149,18 +195,16 @@ export async function loadSavedWorkingSeeGeneration(
       assessmentZone: assessment.spatialProvenance.zoneCode ?? "",
       assessmentIsCurrent: assessment.isCurrent, assessmentAt: assessment.assessedAt.toISOString(),
       assessmentStaleAt: iso(assessment.staleAt),
-      bindingArtefactId: binding.artefactId, bindingAssessmentId: binding.assessmentId,
-      bindingEvidenceDigest: binding.evidenceDigest, assessmentEvidenceDigest: assessment.evidenceDigest,
-      bindingScopeKey: binding.scopeKey, assessmentScopeKey: assessment.scopeKey,
+      bindingArtefactId: legacyBinding.artefactId, bindingAssessmentId: legacyBinding.assessmentId,
+      bindingEvidenceDigest: legacyBinding.evidenceDigest, assessmentEvidenceDigest: assessment.evidenceDigest,
+      bindingScopeKey: legacyBinding.scopeKey, assessmentScopeKey: assessment.scopeKey,
       markers: { input: assessment.input, result: assessment.result,
         spatial: assessment.spatialProvenance.payload, pack: selected.artefact.payload, memo: memoRow.payload },
     },
-    requiredCitations: [
-      ...memo.consistencyAssessment.flatMap((item) => item.citations ?? []),
-      ...pack.dcpEvidence.flatMap((topic) => topic.citations.map((citation) =>
-        ({ type: "DCP" as const, ref: citation.ref, excerpt: citation.excerpt }))),
-    ], sources, now,
+    requiredCitations, sources, now,
   });
+
+  }
 
   const canonical = compileCanonicalSeeFromPreSee({
     detailedPlanningPackArtefactId: selected.artefact.id, detailedPlanningPack: pack, preSeeMemo: memo,
@@ -212,7 +256,7 @@ export async function loadSavedWorkingSeeGeneration(
     // Stable source signature excludes new output time; rechecked in pointer transaction.
     sourceSignature: hash({
       site: savedSiteBinding(site), pack: selected.artefact.payload, qsc: qsc.payload,
-      memo: memoRow.payload, binding, spatial: spatialRow, sources,
+      memo: memoRow.payload, binding, captureEvidence, spatial: spatialRow, sources,
     }),
   };
 }

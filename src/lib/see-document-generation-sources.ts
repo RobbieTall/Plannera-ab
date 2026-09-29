@@ -140,6 +140,31 @@ export function resolveSavedWorkingSeePlanningSources(input: {
     !Number.isFinite(millis(b.assessmentStaleAt)) || millis(b.assessmentStaleAt) <= now ||
     marker(b.markers)) fail("source_scope_mismatch");
 
+
+  return resolveWorkingSeeSourceCitations(input);
+}
+
+/**
+ * Shared citation checks after the caller verifies its genuine saved binding.
+ * This is not an authorization boundary. Ordinary-pack capture supplies the
+ * original capture time because database persistence can follow source retrieval;
+ * the retrieval timestamp in the output is never rewritten.
+ */
+export function resolveWorkingSeeSourceCitations(input: {
+  council: WorkingSeeCouncil;
+  requiredCitations: Array<{ type: "LEP" | "DCP"; ref: string; excerpt?: string }>;
+  sources: SavedPlanningSource[];
+  now: Date;
+  recordCapturedAt?: string;
+  markers?: unknown;
+}): Array<SubmissionSeeSource & { type: "LEP" | "DCP" }> {
+  const now = input.now.getTime();
+  const capturedAt = input.recordCapturedAt === undefined ? null : millis(input.recordCapturedAt);
+  if (!Number.isFinite(now) || !["BYRON", "KEMPSEY"].includes(input.council) ||
+    marker(input.markers) ||
+    (capturedAt !== null && (!Number.isFinite(capturedAt) || capturedAt > now))) {
+    fail("source_evidence_unverified");
+  }
   if (!input.requiredCitations.length ||
     !input.requiredCitations.some((item) => item.type === "LEP") ||
     !input.requiredCitations.some((item) => item.type === "DCP")) fail("source_evidence_missing");
@@ -157,7 +182,8 @@ export function resolveSavedWorkingSeePlanningSources(input: {
       !source.isCurrentAtAssessment || !source.currentClauseIsCurrent ||
       !text(source.snapshotClauseId) || source.snapshotClauseId !== source.currentClauseId ||
       !Number.isFinite(retrieved) || retrieved > now ||
-      !Number.isFinite(updated) || updated > retrieved ||
+      !Number.isFinite(updated) || updated > (capturedAt ?? retrieved) ||
+      (capturedAt !== null && retrieved > capturedAt) ||
       !Number.isFinite(millis(source.staleAt)) || millis(source.staleAt) <= now ||
       (source.effectiveFrom !== null &&
         (!Number.isFinite(millis(source.effectiveFrom)) || millis(source.effectiveFrom) > now)) ||

@@ -31,7 +31,7 @@ async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false)
     id: id("site"), projectId: scope.projectId, addressInput: id("address"),
     formattedAddress: id("address"), lgaName: name, lgaCode: council,
     parcelId: null, lot: null, planNumber: null, latitude: -30, longitude: 153,
-    zone: "R2", createdAt: earlier, updatedAt: earlier,
+    zone: "R2 - Low Density Residential", createdAt: earlier, updatedAt: earlier,
   };
   const project = { id: scope.projectId, publicId: id("public"), userId: scope.actorId,
     createdById: scope.actorId, isDemo: false, title: id("project"),
@@ -158,9 +158,97 @@ async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false)
     serviceUrl: NSW_EPI_ZONING_LAYER_URL, featureIdentifier: id("feature"),
     resolvedAt: retrieved, coordinates: { lat: -30, lng: 153 }, parcelId: null,
   })), true);
-  return { scope, db: memory as unknown as WorkingSeeSourceDatabase, binding, purchase, entitlement,
+  return { scope, site, db: memory as unknown as WorkingSeeSourceDatabase, binding, purchase, entitlement,
     qsc, dpp, calls, memo: () => memo!, clearSpatial: () => { spatial = null; } };
 }
+
+
+async function ordinaryCaptureFixture(council: "BYRON" | "KEMPSEY") {
+  const f = await fixture(council);
+  const { captureWorkingSeePackSources } = await import("./see-document-pack-source-capture");
+  const { captureDcpSource } = await import("./dcp/dcp-source-capture");
+  const { resolveCurrentDetailedPlanningPackChain } = await import("./artefact-service");
+  const lepRows = f.binding.assessment.evidenceSnapshots.flatMap(row => row.clause ? [{
+    ...row.clause, instrument: { ...row.clause.instrument, instrumentType: "LEP" },
+    version: 1, retrievedAt: retrieved, contentHash: sha("original-container-" + row.clause.id),
+    // Normal imports persist rows after retrieval; this is not a fresh retrieval.
+    updatedAt: new Date(retrieved.getTime() + 1000),
+  }] : []);
+  const row = f.binding.assessment.evidenceSnapshots.find(item => item.dcpClause)!;
+  const dcpRows = [{
+    ...row.dcpClause!, instrumentSlug: council.toLowerCase() + "-dcp",
+    headingPath: ["Local detail"], parentRef: null, depth: 1, bodyHtml: null,
+    topicTags: [], createdAt: earlier,
+    numericMeta: { sourceUrl: row.sourceUrl, sourceCapture: captureDcpSource({
+      council, sourceUrl: row.sourceUrl, sourceVersion: "edition-1",
+      retrievedAt: retrieved.toISOString(), pdfSha256: sha("original-pdf"), bodyText,
+    }, now) },
+  }];
+  const memory = {
+    ...f.db,
+    clause: { findMany: async () => { f.calls.push("clause"); return lepRows; } },
+    dCPClause: { findMany: async () => { f.calls.push("dcp"); return dcpRows; } },
+    pathwayArtefactBinding: { findUnique: async () => { throw new Error("Pretend assessment forbidden"); } },
+  };
+  const db = memory as unknown as WorkingSeeSourceDatabase;
+  const project = {
+    id: f.scope.projectId, publicId: "public", userId: f.scope.actorId,
+    createdById: f.scope.actorId, isDemo: false, siteContext: f.site, zoningCode: "R2",
+    name: "In-memory project", title: "In-memory project", description: null,
+    status: "PLANNING", lepData: null, dcpData: null, zoningName: null,
+    zoningSource: null, zoning: null, address: f.site.formattedAddress,
+    sessionId: null, propertyId: "in-memory-property", startDate: null, dueDate: null,
+    createdAt: earlier, updatedAt: earlier,
+  } satisfies Parameters<typeof resolveCurrentDetailedPlanningPackChain>[0]["project"];
+  const chain = await resolveCurrentDetailedPlanningPackChain({ prismaClient: db, project });
+  const selected = chain.candidates.find(entry => entry.artefact.id === f.dpp.id)!;
+  assert.ok(selected.pack && selected.quickSiteCheck);
+  const capture = await captureWorkingSeePackSources(db, {
+    site: f.site, pack: f.dpp.payload as unknown as NonNullable<typeof selected.pack>,
+    quickSiteCheck: selected.quickSiteCheck,
+    dcpClauses: dcpRows as unknown as import("@prisma/client").DCPClause[],
+  }, now);
+  assert.equal(capture.status, "CAPTURED");
+  Object.assign(f.dpp.payload, { workingSeeSourceCapture: capture });
+  f.calls.length = 0;
+  return { ...f, db, lepRows, dcpRows };
+}
+
+for (const council of ["BYRON", "KEMPSEY"] as const) {
+  test(council + " saved ordinary-pack capture renders without any PathwayAssessment", async () => {
+    const f = await ordinaryCaptureFixture(council);
+    const loaded = await loadSavedWorkingSeeGeneration(f.db, f.scope, now);
+    const repeated = await loadSavedWorkingSeeGeneration(f.db, f.scope, new Date(now.getTime() + 1000));
+    assert.equal(loaded.sourceSignature, repeated.sourceSignature);
+    const snapshot = createWorkingSeeSnapshot(loaded);
+    assert.equal(snapshot.submissionReady, false);
+    assert.equal(loaded.candidate.site.lgaCode, council);
+    assert.deepEqual(snapshot.files.map(file => file.format), ["DOCX", "PDF"]);
+    assert.deepEqual(readWorkingSeeSnapshot(snapshot), snapshot);
+    assert.ok(f.calls.includes("clause") && f.calls.includes("dcp"));
+  });
+}
+test("ordinary-pack source reads remain behind paid-scope authorization", async () => {
+  const f = await ordinaryCaptureFixture("BYRON");
+  f.purchase.status = "PENDING";
+  await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_scope_mismatch/);
+  assert.deepEqual(f.calls, ["purchase"]);
+});
+test("ordinary-pack changed current rows, wrong council and expired capture fail closed", async () => {
+  for (const change of ["body", "council", "expiry"]) {
+    const f = await ordinaryCaptureFixture("KEMPSEY");
+    if (change === "body") f.lepRows[0].bodyText += " changed";
+    if (change === "council") f.dcpRows[0].lgaCode = "BYRON";
+    const time = change === "expiry" ? new Date(now.getTime() + 8 * 86400000) : now;
+    await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, time),
+      /source_evidence_(unverified|missing)/);
+  }
+});
+test("an unavailable ordinary capture never falls back to a different assessment", async () => {
+  const f = await ordinaryCaptureFixture("BYRON");
+  Object.assign(f.dpp.payload, { workingSeeSourceCapture: { status: "UNAVAILABLE" } });
+  await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_unverified/);
+});
 
 for (const council of ["BYRON", "KEMPSEY"] as const) {
   test(council + " real parsing and compiler join in-memory records into original working DOCX/PDF", async () => {
@@ -188,6 +276,11 @@ test("unpaid or revoked scope stops before spatial and assessment records", asyn
     assert.equal(f.calls.includes("binding"), false);
   }
 });
+test("uncited planning assessments remain rejected even when other evidence is present", async () => {
+  const f = await fixture("BYRON", true);
+  await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_unverified/);
+  assert.equal(f.calls.includes("binding"), true);
+});
 test("missing retained site evidence stops before assessment records", async () => {
   const f = await fixture("KEMPSEY"); f.clearSpatial();
   await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_missing/);
@@ -212,8 +305,3 @@ test("changed current clause body and expired snapshots fail closed", async () =
   }
 });
 
-test("uncited planning assessments remain rejected even when other evidence is present", async () => {
-  const f = await fixture("BYRON", true);
-  await assert.rejects(loadSavedWorkingSeeGeneration(f.db, f.scope, now), /source_evidence_unverified/);
-  assert.equal(f.calls.includes("binding"), true);
-});

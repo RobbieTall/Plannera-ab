@@ -21,6 +21,18 @@ export function savedSiteBinding(site: SiteContext): string {
   });
 }
 
+// The authoritative code comes from the saved lookup, never from parsing a
+// display label. The label is checked for consistency but remains in siteBinding.
+export function matchesResolvedZoneLabel(label: string | null, code: string | null): boolean {
+  if (!label || !code || !/^[A-Z]{1,3}[0-9]{0,2}[A-Z]?$/.test(code)) return false;
+  const normalized = label.trim().replace(/\s+/g, " ").toUpperCase();
+  if (normalized === code) return true;
+  if (!normalized.startsWith(code + " ")) return false;
+  const description = normalized.slice(code.length).trim().replace(/^[-\u2013\u2014]\s*/, "");
+  return Boolean(description && /^[A-Z]/.test(description) &&
+    !/\b(?:RU|R|E|MU|B|IN|SP|RE|C|W)[0-9][A-Z]?\b/.test(description));
+}
+
 function validatedSpatial(
   value: unknown, site: SiteContext, now: Date,
 ): SpatialProvenance | null {
@@ -34,7 +46,7 @@ function validatedSpatial(
       coordinates: spatial.query.coordinates, parcelId: spatial.query.parcelId,
     });
     if (!isDeepStrictEqual(validated, spatial) || validated.status !== "verified" ||
-      !validated.authoritative || validated.zoneCode !== site.zone ||
+      !validated.authoritative || !matchesResolvedZoneLabel(site.zone, validated.zoneCode) ||
       !validated.resolvedAt || !validated.serviceUrl) return null;
     const age = now.getTime() - new Date(validated.resolvedAt).getTime();
     if (!Number.isFinite(age) || age < 0 || age >= SAVED_SITE_PROVENANCE_MAX_AGE_MS) return null;
@@ -71,7 +83,7 @@ export function readSavedSiteProvenance(
       row.authority !== "NSW Planning" || row.datasetName !== "EPI Primary Planning Layers - zoning" ||
       row.sourceUrl !== spatial.serviceUrl || row.trustLevel !== "EVIDENCE_VERIFIED" ||
       row.matchMethod !== spatial.resolutionMethod || row.lgaCode !== site.lgaCode ||
-      row.zoneCode !== site.zone || row.parcelId !== site.parcelId ||
+      row.zoneCode !== spatial.zoneCode || row.parcelId !== site.parcelId ||
       row.lot !== site.lot || row.planNumber !== site.planNumber ||
       row.latitude !== site.latitude || row.longitude !== site.longitude ||
       row.retrievedAt.toISOString() !== spatial.resolvedAt ||
@@ -123,7 +135,7 @@ export function createResolvedSiteProvenanceStorage(deps: {
             contentHash,
             matchMethod: spatial.resolutionMethod,
             parcelId: site.parcelId, lot: site.lot, planNumber: site.planNumber,
-            lgaCode: site.lgaCode!, zoneCode: site.zone,
+            lgaCode: site.lgaCode!, zoneCode: spatial.zoneCode,
             latitude: site.latitude, longitude: site.longitude,
             payload: envelope as unknown as Prisma.InputJsonValue,
             trustLevel: "EVIDENCE_VERIFIED",

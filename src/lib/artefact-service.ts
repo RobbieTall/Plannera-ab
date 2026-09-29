@@ -1,3 +1,4 @@
+import { captureWorkingSeePackSources, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
 import { z } from "zod";
 
 import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
@@ -884,11 +885,13 @@ export async function createDetailedPlanningPackArtefact({
   }
 
   const siteZone = quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null);
+  const capturedDcpClauses: ScoredDcpClause[] = [];
   const topicResults = await Promise.all(DETAILED_PLANNING_PACK_TOPICS.map(async (topic) => {
     const clauses = lgaCode
       ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone })
       : [];
     const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id);
+    capturedDcpClauses.push(...filtered);
     return mapDcpTopicEvidence(topic, filtered);
   }));
 
@@ -936,6 +939,12 @@ export async function createDetailedPlanningPackArtefact({
     commercialReady: citedTopicCount === DETAILED_PLANNING_PACK_TOPICS.length && unresolvedTopics.length === 0,
   };
 
+  const workingSeeSourceCapture = await deps.captureWorkingSeeSources?.({
+    site: projectWithContext.siteContext, pack: content, quickSiteCheck,
+    dcpClauses: capturedDcpClauses,
+  });
+  const savedPayload = workingSeeSourceCapture ? { ...content, workingSeeSourceCapture } : content;
+
   const artefact = await deps.prisma.artefact.create({
     data: {
       projectId: project.id,
@@ -945,7 +954,7 @@ export async function createDetailedPlanningPackArtefact({
       source: content.site.address ?? content.site.zoneLabel ?? "Detailed Planning Pack",
       overlays: [],
       notes: `${citedTopicCount} cited DCP topic${citedTopicCount === 1 ? "" : "s"}; ${unresolvedTopics.length} unresolved topic${unresolvedTopics.length === 1 ? "" : "s"}`,
-      payload: content,
+      payload: savedPayload,
       capturedAt: new Date(content.generatedAt),
     },
   });
@@ -1724,6 +1733,7 @@ const buildLepCitationRef = (instrumentName: string | null | undefined, clauseRe
 
 
 type PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources?: (input: WorkingSeePackCaptureInput) => Promise<WorkingSeePackCaptureResult | null>;
   prisma: ArtefactDependencies["prisma"];
   buildQuickSiteCheckReport: typeof buildQuickSiteCheckReport;
   getDCPContext: typeof getDCPContext;
@@ -1734,6 +1744,11 @@ type PreSeePlanningMemoDeps = {
 };
 
 const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources: async (input) => {
+    if (process.env.VERCEL_ENV !== "preview" ||
+      process.env.PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED !== "1") return null;
+    return captureWorkingSeePackSources(prisma, input);
+  },
   prisma,
   buildQuickSiteCheckReport,
   getDCPContext,

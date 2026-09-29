@@ -189,3 +189,32 @@ test("missing records and missing site remain unverified", async () => {
   assert.equal(await f.storage.reload(null), null);
   assert.equal(await f.storage.reload(site), site);
 });
+
+test("formatted labels retain the actual lookup code separately and reload unchanged", async () => {
+  for (const zone of ["RU2 Rural Landscape", "RU2 - Rural Landscape", "RU2 \u2013 Rural Landscape"]) {
+    const f = fixture();
+    const labelledSite = { ...site, zone };
+    f.setSite(labelledSite);
+    assert.equal(await f.storage.retain(labelledSite, spatial), true);
+    assert.equal(f.row()?.zoneCode, "RU2");
+    assert.deepEqual((await f.storage.reload(labelledSite))?.spatialProvenance, spatial);
+    assert.equal(readSavedSiteProvenance(f.row(), site, clock), null);
+  }
+});
+
+test("ambiguous or conflicting labels cannot supply an authoritative code", async () => {
+  const f = fixture();
+  for (const zone of ["R2 Rural Landscape", "RU20 Rural Landscape", "Rural Landscape",
+    "RU2 / R2", "RU2 - R2 Low Density Residential", "RU2 -"]) {
+    assert.equal(await f.storage.retain({ ...site, zone }, spatial), false);
+  }
+  assert.equal(f.calls(), 0);
+});
+
+test("a formatted label cannot replace the separate mirrored lookup code", async () => {
+  const f = fixture();
+  const labelledSite = { ...site, zone: "RU2 - Rural Landscape" };
+  f.setSite(labelledSite);
+  await f.storage.retain(labelledSite, spatial);
+  assert.equal(readSavedSiteProvenance({ ...f.row()!, zoneCode: labelledSite.zone }, labelledSite, clock), null);
+});
