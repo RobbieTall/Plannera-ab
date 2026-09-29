@@ -1,36 +1,35 @@
-## Linux validation and integration-test checkpoint
+## Integration-source checkpoint: corrected synthetic records
 
-Published source head a7782f49744bbd051d5082f70f59f87d386fd00f was tested by
-[run 36542483021](https://github.com/RobbieTall/Plannera-ab/actions/runs/36542483021)
-on GitHub's PR merge snapshot 4a4318886d3f0c3dedc6f0247636915a6f959e21 against
-unchanged main ff2179e06f68a8f265d7cc0b873cd28320a4da6b.
-Full TypeScript and all **134 focused tests passed: 108 document, 11 build-safety,
-15 renderer**. The separate credential-free Next compilation job passed.
-The complete vercel-build remains FAILED at the unchanged synthetic-database
-smoke (engine-free Prisma rejects the localhost datasource protocol). Nothing was
-disabled to obtain a green result; no full-build or commercial pass is claimed.
+Robbie approved completing the positive in-memory source records. The integration
+test now supplies exact linked citations for permissibility, height, FSR and lot
+size. The former incomplete case remains an explicit rejection test. No production
+validator, compiler, evidence rule, entitlement check or application behavior was
+weakened to make it pass.
 
-A further integration test is prepared locally only in
-src/lib/see-document-generation.integration.test.ts. It exercises the actual
-saved-record parsers, memo generator, source loader, compiler and renderer with
-in-memory database doubles. Global Prisma access, external fetch and sockets were
-blocked by the local harness. TypeScript passes. Five rejection tests pass; the
-two expected-success council cases fail because the newly authored test data left
-permissibility, FSR and minimum-lot-size assessments uncited. The compiler reports
-three uncited_planning_control issues and the loader correctly rejects them.
-This is not evidence that hosted generation works, nor grounds to weaken checks.
+Local validation: full TypeScript PASS, focused ESLint PASS, all 8 new integration
+tests PASS. Both Byron and Kempsey exercise the real saved-record parsers, memo
+generator, source loader, canonical compiler and document renderer, producing
+valid project-specific working DOCX/PDF snapshots. The other cases reject unpaid
+or revoked scope, missing retained spatial proof, substituted council/project,
+changed or expired sources and uncited assessments. Database records exist only
+in memory; this is not hosted acceptance or authentic council-source evidence.
 
-Next narrow correction: complete the positive in-memory test records and their
-exact linked citations, preserving the incomplete-source case as a rejection test.
-Do not fabricate or relabel real source evidence. Approval to correct this newly
-introduced test-data mistake has been requested. The new test is not published
-or included in CI yet. No application code was changed during this checkpoint.
+The new tests are included with the renderer suite in isolated Linux CI. Their
+native Vitest result on the new commit is pending. The previous source revision
+a7782f49744bbd051d5082f70f59f87d386fd00f had 134 focused tests and separate
+credential-free Next compilation pass in run 36542483021. Do not count the new
+total as a passing Linux run until that run is inspected.
 
-After that, prove protected Preview source availability and actual both-council
-generation/download/reopening, versions, permissions and native Word/PDF review.
-Preview migration/deployment still require scoped approval. Production checkout
-stays disabled; no Production data/schema, deployment, merge or cloud changes.
-Commercial HOLD. Mobile branches and immutable Item 78C evidence remain untouched.
+Remaining: actual protected Preview source availability; independently authorised
+Preview migration/deployment; both-council customer generation/download/reopening;
+permissions, warnings, versions and native Word/PDF review. The full-build
+synthetic database smoke remains unresolved, and uploaded plans/reports are not
+independently incorporated by this generation path. Commercial HOLD.
+
+Publication stays on deployment-disabled draft PR #452. Production checkout remains
+disabled and Production data/schema unchanged. Other documentation branches and
+immutable Item 78C acceptance are untouched. No live credentials or private
+documents are introduced by these tests.
 
 ## Guarded customer generation checkpoint
 
