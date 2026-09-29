@@ -74,3 +74,22 @@ PR #448 Research Viewer and PR #449 Project Controls remain deferred. Preserve
 original-source provenance, project identity and immutable version bindings.
 Screenshots alone are not authoritative evidence. Do not build those features
 to avoid completing the current commercial gate.
+
+## Approved continuation and practitioner governance
+
+Robbie confirmed that the concurrent documentation branch is mobile work and
+authorised continuing PR #452 without touching it. The build-safety regression
+test's expected transitive-source count is corrected from 13 to 14 to include the
+reviewed presentation module; all dependency and mutation checks are retained.
+
+PR #451 records Practitioner Workflow Intelligence and a later real-user pilot.
+Practitioner material may inform what Plannera checks; authoritative current
+sources determine what Plannera says. It is not statutory authority, a complete
+council methodology, a universal checklist or a substitute for wider professional
+review. Assessment breadth and depth must scale with development complexity.
+
+The real-user pilot follows the commercialisation-critical work. It is not a
+golden case or planning precedent, and no project-specific conclusions belong in
+Byron rules. Do not ingest or publish that project's private files as part of this
+draft. Reconcile canonical governance after PR #451 is merged, without modifying
+the mobile branch or interrupting the current document journey.
