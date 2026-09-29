@@ -111,3 +111,15 @@ pending. Do not call the full build or the customer journey accepted.
 The dependency installer also reported vulnerability advisories in the unchanged
 lockfile. Exploitability/release impact has not been assessed; do not claim the
 application is vulnerability-free or run an automatic force-upgrade.
+
+
+## Approved metadata lint correction
+
+The separate compilation job at `cc7132c11361c438e7a9c07dc969da1cdf6ef672`
+compiled the application bundle, then failed lint on the unused `_bytes` binding.
+Robbie approved its correction. The manifest now explicitly selects only format,
+MIME type, content hash and byte length, preserving their order and excluding
+file bytes. No lint/security rule was disabled. The focused local lint check
+passed; Linux validation of this correction is pending. Bundle compilation alone
+is not a completed Next build. The database smoke and real customer journey
+remain outstanding, and the commercial decision remains HOLD.

@@ -84,7 +84,12 @@ const manifest = (snapshot: Omit<WorkingSeeSnapshot, "versionId">) => ({
   submissionReady: snapshot.submissionReady,
   evidenceStatus: snapshot.evidenceStatus,
   warnings: snapshot.warnings,
-  files: snapshot.files.map(({ base64: _bytes, ...metadata }) => metadata),
+  files: snapshot.files.map((file) => ({
+    format: file.format,
+    mimeType: file.mimeType,
+    contentHash: file.contentHash,
+    byteLength: file.byteLength,
+  })),
 });
 
 /**
