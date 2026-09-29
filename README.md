@@ -1,40 +1,36 @@
-## Current document-generation status: approved corrections applied
+## Linux validation and integration-test checkpoint
 
-This checkpoint supersedes the earlier unpublished TypeScript-failure/approval
-blocker. Robbie approved the narrow corrections. The throwing guard now uses a
-function declaration so TypeScript narrows rejected records correctly; bound
-evidence snapshots are explicitly ordered by immutable ID before source signatures
-are calculated. No evidence, ownership or payment checks were weakened.
+Published source head a7782f49744bbd051d5082f70f59f87d386fd00f was tested by
+[run 36542483021](https://github.com/RobbieTall/Plannera-ab/actions/runs/36542483021)
+on GitHub's PR merge snapshot 4a4318886d3f0c3dedc6f0247636915a6f959e21 against
+unchanged main ff2179e06f68a8f265d7cc0b873cd28320a4da6b.
+Full TypeScript and all **134 focused tests passed: 108 document, 11 build-safety,
+15 renderer**. The separate credential-free Next compilation job passed.
+The complete vercel-build remains FAILED at the unchanged synthetic-database
+smoke (engine-free Prisma rejects the localhost datasource protocol). Nothing was
+disabled to obtain a green result; no full-build or commercial pass is claimed.
 
-Validation on this corrected local revision:
-- Full TypeScript check: PASS.
-- 108 document tests in one combined run: PASS, including 5 direct loader
-  authorization-denial tests. The local runner uses pure TypeScript transpilation
-  plus Node tests; TypeScript was checked separately.
-- 11 build-safety tests and static contract: PASS (7 commands, 6 entries,
-  14 transitive sources).
-- Focused ESLint: PASS, no warnings.
-- These are 119 local tests across the two test commands, not 119 document tests.
-  The 15 renderer tests and full Next compilation require the new exact-commit
-  Linux run; do not inherit earlier-commit results or claim 134 tests passed yet.
+A further integration test is prepared locally only in
+src/lib/see-document-generation.integration.test.ts. It exercises the actual
+saved-record parsers, memo generator, source loader, compiler and renderer with
+in-memory database doubles. Global Prisma access, external fetch and sockets were
+blocked by the local harness. TypeScript passes. Five rejection tests pass; the
+two expected-success council cases fail because the newly authored test data left
+permissibility, FSR and minimum-lot-size assessments uncited. The compiler reports
+three uncited_planning_control issues and the loader correctly rejects them.
+This is not evidence that hosted generation works, nor grounds to weaken checks.
 
-The five loader tests are now included in the isolated CI workflow. They establish
-early authorization failures only, not a successful complete database/source join.
-The new generation endpoint/UI/source validation is draft code, not hosted
-acceptance evidence. Uploaded plans/reports remain explicitly unincorporated and
-the generated document remains qualified, not submission-ready.
+Next narrow correction: complete the positive in-memory test records and their
+exact linked citations, preserving the incomplete-source case as a rejection test.
+Do not fabricate or relabel real source evidence. Approval to correct this newly
+introduced test-data mistake has been requested. The new test is not published
+or included in CI yet. No application code was changed during this checkpoint.
 
-Publication is limited to draft PR #452's deployment-disabled branch. Main and
-mobile documentation branches are unchanged; immutable Item 78C evidence is
-preserved. No migration, stateful acceptance, cloud flag, private file or Production
-data/schema change was performed. Keep Production checkout disabled.
-
-Next: record the new exact-commit Linux results in PR #452 / Issue #395, then prove
-actual saved-source availability and the protected Preview customer journey.
-An isolated Preview enum migration and deployment still need their scoped approval.
-The earlier full vercel-build synthetic database-smoke failure remains unresolved;
-a passing Next compilation alone is not database-readiness evidence.
-Commercial decision remains HOLD pending those checks and native Word/PDF review.
+After that, prove protected Preview source availability and actual both-council
+generation/download/reopening, versions, permissions and native Word/PDF review.
+Preview migration/deployment still require scoped approval. Production checkout
+stays disabled; no Production data/schema, deployment, merge or cloud changes.
+Commercial HOLD. Mobile branches and immutable Item 78C evidence remain untouched.
 
 ## Guarded document generation draft
 
