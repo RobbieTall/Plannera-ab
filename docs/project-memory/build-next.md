@@ -1586,3 +1586,10 @@ Next action:
 5. Require `READY_FOR_NON_PRODUCTION_ACCEPTANCE` and inspect representative DOCX/PDF outputs before any Production go/no-go.
 
 Do not dispatch `404e5a5314e40b2ecbdd6d5a8c694d705d07ecf8`; it predates the required authentication correction. Production checkout remains disabled.
+
+
+## Future roadmap — Project Schedule & Project Controls Engine (recorded 2026-09-29; NOT current Commercial Gate scope)
+
+After the current Commercial Gate goal is completed and reprioritisation is explicit, build the evidence-backed Project Controls foundation described in `docs/product/project-schedule-project-controls.md`. V1 should establish the work-item ontology, `requiredForSite` triggers, dependencies/blockers, evidence provenance, consent-conditions integration, Finance Clock, readiness gates and the Journey / My Actions / Project Schedule / Readiness views. Use 3 Garruka Way as Template/Case Study 001, not as a universal rule set. Research Viewer, external tracker automation and predictive/benchmark scheduling follow later.
+
+**Current-scope rule:** this roadmap entry must not widen, refactor or delay the active Commercial Gate task. It exists now so current architectural choices preserve a clean future path.
