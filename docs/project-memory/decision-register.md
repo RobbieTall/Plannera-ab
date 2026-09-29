@@ -1,6 +1,6 @@
 # Decision Register
 
-## 2026-09-29 - Item 78C automated acceptance passed; commercial approval remains separate
+## 2026-09-29 - Item 78C acceptance and representative review complete; commercial approval remains separate
 
 Evidence: [run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240), exact runner `0a871d38a5806e6a28404700d660f5d363f3a1d4`, branch `accept/item-78c-byron-kempsey-20260914`. All six jobs passed and the privacy-minimal decision is `READY_FOR_NON_PRODUCTION_ACCEPTANCE`.
 
@@ -10,7 +10,8 @@ Decision boundary:
 - Synthetic PDF review and representative native Word review are complete for both councils (Byron baseline and Kempsey strengthened sample, ten Word-rendered pages each). Presentation findings remain. Neither proves hosted customer document delivery.
 - Production checkout must remain disabled. No Production mutation, migration, deployment, live payment, refund or activation is authorised by this result.
 - Preserve the accepted runner and historical evidence. Do not substitute an open presentation PR's renderer when describing the accepted SHA.
-- Follow the [current handover](item78c-current-handover.md) for exact remaining work. Earlier Item 78C HOLD records below remain historical.
+- A separate credential-free status-only request on 29 September confirmed current Production Planning Pack checkout reports `enabled: false, state: free`; no payment or database mutation was performed. Saved checkout flags appeared only on named Preview branches, with no matching shared flag. This is not a broad security audit.
+- The acceptance goal stops at READY_FOR_NON_PRODUCTION_ACCEPTANCE. Follow the [current handover](item78c-current-handover.md) for the separate commercial follow-on. Earlier Item 78C HOLD records below remain historical.
 
 
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D

@@ -2,7 +2,7 @@
 
 ## Current execution checkpoint - 29 September 2026
 
-Start with [Item 78C current handover](item78c-current-handover.md), then [the closeout runbook](../operations/item78c-acceptance-closeout.md). The protected automated gate passed at `0a871d38a5806e6a28404700d660f5d363f3a1d4`; the remaining work is documented review and handover, not repeat payments or fixture recreation.
+Start with [Item 78C current handover](item78c-current-handover.md), then [the closeout runbook](../operations/item78c-acceptance-closeout.md). The protected automated gate passed at `0a871d38a5806e6a28404700d660f5d363f3a1d4`; representative cross-council Word/PDF review and the acceptance closeout audit are complete. Commercial delivery and presentation integration remain a separate follow-on, not repeat payments or fixture recreation.
 
 Do not confuse the accepted Preview runner, deployed application snapshots, current main, and open presentation PRs. Production remains outside this acceptance and checkout must stay disabled.
 

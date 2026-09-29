@@ -45,3 +45,30 @@ Do not activate Production checkout during Item 78C closeout. Report the automat
 
 See [current handover](../project-memory/item78c-current-handover.md) for outstanding PR reconciliation and continuity.
 
+
+## Final acceptance closeout audit - 29 September 2026
+
+Decision: **READY_FOR_NON_PRODUCTION_ACCEPTANCE** for Issue #395's protected scope. Commercial launch remains **HOLD**, not authorised. The issue requires both council commercial bridges, compiler evidence, one consultant lifecycle and representative visual inspection; it does not equate that runner with a shipped customer download interface. No gate has been weakened or rerun to obtain this closeout.
+
+- Re-read Issue #395 and current run metadata: run #24, attempt 1, SHA `0a871d38a5806e6a28404700d660f5d363f3a1d4`, all six jobs successful.
+- Inspected the decision job's actual sanitized upstream evidence: both bridges report all twelve checks true, including paid source, exact scope, single pack, evidence regeneration, replay and zero residue; all eight compiler checks true; all seven consultant checks true and all five required statuses present. The subsequent decision-validation step succeeded with the required READY value and privacy checks.
+- Confirmed the decision artifact is retained and unexpired until 29 October 2026. It is not a customer document bundle.
+- Completed all sixteen separate generated PDF pages and twenty native Word-rendered pages across representative independent council samples. Preserve the presentation defects and fixture limitations rather than claiming a polished or legally reviewed output.
+- Current saved Vercel checkout-switch entries are confined to named Preview branches; the shared-variable search returned no matching switch. The current Production deployment shown by Vercel is `HijtEqMttm18FfhVnb4pAkfwh1DP` at main SHA `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`.
+- After inspecting that deployed commit's status route, performed one successful unauthenticated, empty-body status-only request to `/api/planning-pack/status`. It returned `enabled: false, state: free`. The disabled branch returns before session/project/database handling. No cookies, credentials or customer data were sent; no checkout session, payment or database write was created. No Production setting/schema/data change was performed. This is specific checkout evidence, not a comprehensive Production security audit.
+- Current PR reconciliation: #433 remains open at `2da817a93671c8a64ac56437c51d7daf82d9f324`; #434 at `ba1b0cdb602f595371d8647a54b38d2632fc6080`; #435 at `17822eb2c80db266bde300a27300fea75d805876`. Their overlapping presentation changes are not combined or approved by the acceptance result. No merges were made. PR #450 remains a draft, and PRs #448/#449 remain separate future-direction documents.
+
+### Configuration register: evidence without values
+
+| Required configuration | Status | Evidence boundary |
+| --- | --- | --- |
+| Exact runner SHA, non-main authorization and council environment approval | Confirmed at accepted run | Credential-free and protected authorization steps passed; do not reuse historical pins for a new run |
+| Independent council database/Blob targets and credential-target matching | Confirmed at accepted run | Both target checks and both council-specific bridges passed; no credential values disclosed |
+| Stripe test sessions, paid exact-scope source packs and replay | Confirmed at accepted run | Both paid_source, exact_scope, single_pack and replay_safety checks true; no new payments needed |
+| Private evidence, Sandbox scan, regeneration and cleanup | Confirmed at accepted run | Both private-storage/scan steps and bridge evidence/zero-residue checks passed |
+| Consultant fixture, protected access and lifecycle | Confirmed at accepted run | One required council lifecycle, seven checks and five statuses passed |
+| Production Planning Pack checkout | Confirmed disabled on 29 September | Live status-only response; no activation or configuration change |
+| Original 11 September acceptance pin/instructions | Superseded | Use the approved successful 14 September branch and exact accepted SHA as historical evidence, not an instruction to reset environments |
+| Hosted customer DOCX/PDF download delivery | Unproven commercial follow-on | Offline render/bridge success is not proof of browser delivery |
+
+All goal-required acceptance evidence is now recorded. Stop the acceptance goal here; do not activate Production or silently expand it into implementation of hosted delivery. Main documentation remains unchanged pending review of the explicitly authorised draft documentation PR. Mobile/desktop continuation must read that PR and Issue #395 rather than assume the draft is already merged.

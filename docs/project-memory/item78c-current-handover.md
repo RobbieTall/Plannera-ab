@@ -4,7 +4,8 @@
 
 Automated gate: **READY_FOR_NON_PRODUCTION_ACCEPTANCE**.
 Commercial launch: **NOT APPROVED**.
-Documentation/review closeout: **INCOMPLETE** until the remaining evidence below is recorded.
+Acceptance evidence and representative review closeout: **COMPLETE**, published in draft PR #450; not merged into main.
+Commercial launch remains **HOLD** until hosted delivery, presentation integration and the separate release approval are completed.
 
 ## Proven evidence
 
@@ -35,13 +36,13 @@ Kempsey Word-rendered PDF SHA-256: `ad4d18ca7e177160e2300ce7db9cbfc01a4500c50c27
 
 Separately, all 14 pages of the PR #434 synthetic final PDF were inspected. Those bytes and the companion DOCX match its existing runbook hashes, but PR #434 is not the accepted renderer. That review cannot replace review of the accepted working documents or prove both actual council downloads.
 
-## Remaining work, in order
+## Separate follow-on work, in order
 
 1. Representative cross-council Word review is complete. Preserve its hashes, page counts and presentation findings above; do not call these presentation weaknesses fixed or substitute an unmerged renderer.
 2. Establish hosted customer DOCX/PDF delivery separately before claiming commercial readiness. The inspected Preview Generate SEE route returned a pre-SEE memo and its UI offered a text download; the automated gate does not close that gap.
 3. Reconcile presentation PRs #433, #434 and #435 through normal review. Preserve #433's revision-history work, #434's presentation model/styles relationship and #435's TOC/page-reference work. No combined implementation or merged result has been verified.
 4. Review this published documentation proposal before merging. Robbie approved status-only publication and the documentation-branch safeguard on 29 September 2026. The issue checkpoint is https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5882042049. This branch is a draft proposal, not merged main.
-5. Stop this acceptance goal with an accurate decision and residual risks. Production activation requires a separate approval; Research Viewer stays later.
+5. This acceptance goal stops with READY_FOR_NON_PRODUCTION_ACCEPTANCE and the recorded residual risks. Production activation requires a separate approval; Research Viewer and the Project Schedule / Project Controls Engine stay later.
 
 ## Non-negotiable boundaries
 

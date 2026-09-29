@@ -6,7 +6,7 @@ The protected Byron/Kempsey automated gate completed successfully in [run #24](h
 
 Both independent council bridges, canonical SEE rendering checks and the protected consultant lifecycle passed. The runner deletes its temporary working-SEE records and uploads only a privacy-minimal decision; the run does not retain a customer DOCX/PDF download pack. Representative synthetic PDF inspection and cross-council native Word visual review are now recorded separately. Presentation weaknesses remain; hosted customer DOCX/PDF delivery is still unproven.
 
-Production checkout must remain disabled. No Production data/schema changes or activation are authorised. Runner safety assertions are not a fresh audit of live Production settings.
+Item 78C acceptance and representative document-review closeout are complete; see the evidence audit in the runbook. A separate credential-free status-only request on 29 September returned `enabled: false, state: free` from the current Production Planning Pack status endpoint. Production checkout must remain disabled; no Production data/schema changes or activation are authorised. This check is not a comprehensive Production security audit.
 
 Read the [current handover](docs/project-memory/item78c-current-handover.md) and [closeout runbook](docs/operations/item78c-acceptance-closeout.md) before following older Item 78C instructions below. Older HOLD statements and superseded pins are historical, not current dispatch instructions.
 

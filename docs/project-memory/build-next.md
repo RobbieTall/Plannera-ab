@@ -2,12 +2,12 @@
 
 ## Current Item 78C priority - 29 September 2026
 
-**Automated decision: READY_FOR_NON_PRODUCTION_ACCEPTANCE. Commercial launch: not approved.**
+**Item 78C acceptance closeout: READY_FOR_NON_PRODUCTION_ACCEPTANCE. Commercial launch: HOLD / not approved.**
 
 [Run #24](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240) passed at `0a871d38a5806e6a28404700d660f5d363f3a1d4` on `accept/item-78c-byron-kempsey-20260914`. Preserve that immutable evidence. Do not redispatch historical failed runs, repeat test payments, rotate keys, extend expired guards or recreate fixtures simply because older sections below describe missing setup.
 
 1. Representative review completed: all 16 generated PDF pages, plus ten native Word-rendered pages each for Byron missing-evidence and Kempsey strengthened-evidence samples. Preserve the recorded presentation weaknesses. The next evidence gap is actual hosted customer DOCX/PDF delivery; offline rendering does not prove it.
-2. Record the exact evidence and remaining limitations in the [current handover](item78c-current-handover.md) and [closeout runbook](../operations/item78c-acceptance-closeout.md).
+2. Acceptance evidence and limitations are recorded in the [current handover](item78c-current-handover.md) and [closeout runbook](../operations/item78c-acceptance-closeout.md). Review draft PR #450; no merge or deployment is authorised by this checkpoint.
 3. Reconcile launch-relevant presentation PRs without losing unique changes. PRs #433, #434 and #435 overlap; they are not blanket-approved duplicates. Their integration is a separate reviewed change and must not rewrite the successful acceptance snapshot.
 4. Require a separate commercial go/no-go and explicit approval before Production checkout activation. Keep Production data/schema unchanged.
 5. Research Viewer remains after commercial gates and prerequisite fixes; preserve PR #448 and its concurrent documentation.
