@@ -23,13 +23,18 @@ Four local synthetic Word/PDF pairs were generated with the accepted renderer an
 
 Presentation observations: the statutory heading displays "Section 4 15"; strengthened-output source-register entries split across pages; a predecessor working-SEE reference is displayed as "Strengthens DPP". These findings are not silently repaired in the immutable acceptance runner.
 
-Fresh DOCX visual review remains unperformed. DOCX generation and byte-level warning assertions are not a visual pass. The available helper was found, but a suitable bundled LibreOffice runtime has not been located; do not install or bypass local security without an approved path.
+Fresh DOCX visual review is partially completed. The synthetic Byron missing-evidence DOCX was opened in Microsoft Word for Mac 16.113.2 and exported locally through Word's Save as PDF function; all ten rendered pages were inspected. Text, source references and non-submission-ready warnings remained readable with no visible clipping. Title/heading hierarchy is visually weak, the contents list has no page references, and short sections leave large blank areas. The Word layout is ten pages versus four in the separate generated PDF. This is a presentation finding, not an automatic acceptance failure or proof of actual hosted delivery.
+
+Reviewed DOCX SHA-256: `c04044491bbf9adb48b9e8cf31200c0a983a2f0003525a3d6829c799da1b061d`.
+Word-rendered PDF SHA-256: `5222170662553db7910c0153144ceb3254a0af8674ebe332598795d1d42d665a`.
+
+Kempsey's strengthened synthetic Word sample remains unreviewed: the native file picker reset the target path and did not open the file. No original DOCX was edited or saved, no document was uploaded and no software was installed. Complete the cross-council Word review before calling the document-review requirement complete. Byte-level warning assertions alone are not a visual pass.
 
 Separately, all 14 pages of the PR #434 synthetic final PDF were inspected. Those bytes and the companion DOCX match its existing runbook hashes, but PR #434 is not the accepted renderer. That review cannot replace review of the accepted working documents or prove both actual council downloads.
 
 ## Remaining work, in order
 
-1. Complete the Word visual review using a trusted renderer and retain privacy-minimal provenance/results.
+1. Complete the remaining Kempsey Word visual review using a trusted renderer and retain privacy-minimal provenance/results. Preserve the Byron presentation findings above.
 2. Establish hosted customer DOCX/PDF delivery separately before claiming commercial readiness. The inspected Preview Generate SEE route returned a pre-SEE memo and its UI offered a text download; the automated gate does not close that gap.
 3. Reconcile presentation PRs #433, #434 and #435 through normal review. Preserve #433's revision-history work, #434's presentation model/styles relationship and #435's TOC/page-reference work. No combined implementation or merged result has been verified.
 4. Review this published documentation proposal before merging. Robbie approved status-only publication and the documentation-branch safeguard on 29 September 2026. The issue checkpoint is https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5882042049. This branch is a draft proposal, not merged main.
