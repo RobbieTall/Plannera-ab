@@ -20,9 +20,17 @@ removed, bypassed, reclassified as a pass or replaced by synthetic council evide
 The existing smoke-enforcement workflow checks build wiring, not real database data.
 
 Local full TypeScript, focused lint, six new offline-guard regressions and all
-eleven build-safety tests PASS. The actual child CLI checks will run in Linux CI;
-the local regressions inject a runner because the local native tooling restriction
-has not been bypassed. Exact-revision Linux results for this correction are pending.
+eleven build-safety tests PASS. Linux run 36636420187 now confirms both jobs PASS
+for source 31fc550d6402fb88160aad5b5d570a1740268342 through its PR merge snapshot:
+- Full TypeScript and 201 tests PASS (140 core + 44 native Vitest + 11 safety + 6 offline guard).
+- Both actual unchanged smoke CLIs reject missing database configuration as required.
+- Separate credential-free Next compilation PASS, including all 37 static pages.
+
+Run: https://github.com/RobbieTall/Plannera-ab/actions/runs/36636420187
+
+This resolves the offline CI configuration failure. It does not prove a complete
+real Vercel build, database readiness, current authoritative sources or hosted
+customer acceptance. Local native tooling restrictions have not been bypassed.
 
 No deployment, merge, database/schema mutation, source ingestion, service secret
 change or Production action occurred. The exact feature-branch deployment-disable
@@ -51,7 +59,7 @@ No new schema change is included in this integration.
 The four approved synthetic test-fixture corrections explicitly supply a null
 council name where no name is present. Application rules and assertions are unchanged.
 
-## Validation
+## Historical validation before the offline CI correction
 
 Local full TypeScript and focused lint PASS.
 180 unique local tests PASS:
@@ -80,7 +88,7 @@ Run: https://github.com/RobbieTall/Plannera-ab/actions/runs/36635473044
 
 ## Remaining commercial gates
 
-- Resolve the full-build synthetic database-smoke incompatibility without masking readiness failures; exact-revision Linux tests and separate compilation are proven above.
+- Real database readiness and complete protected Preview build remain unproven. Offline CI is now green without claiming those gates passed.
 - Separately authorised isolated Preview prerequisites, including the existing
   unapplied working_see enum change and genuine fresh source/provenance capture.
 - Both councils' real customer generation, private download, original-version
