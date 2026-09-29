@@ -93,3 +93,21 @@ golden case or planning precedent, and no project-specific conclusions belong in
 Byron rules. Do not ingest or publish that project's private files as part of this
 draft. Reconcile canonical governance after PR #451 is merged, without modifying
 the mobile branch or interrupting the current document journey.
+
+## Linux validation checkpoint
+
+At commit `7c2877ffcde1b796e7b17a0a59d2568ef608ed89`,
+[isolated run 36530989953](https://github.com/RobbieTall/Plannera-ab/actions/runs/36530989953)
+passed full TypeScript checking, 11 build-safety tests, 29 delivery/HTTP/storage
+tests and 15 renderer tests. Seven other PR workflows also passed.
+
+The complete `vercel-build` did not pass: `smoke:launch` invokes a database read,
+and synthetic localhost configuration with the engine-free Prisma client cannot
+satisfy it. No live database credentials were supplied. The new separate
+credential-free compilation job calls the existing sanitized Next build wrapper;
+it does not replace, disable or satisfy the database smoke gate. Its result is
+pending. Do not call the full build or the customer journey accepted.
+
+The dependency installer also reported vulnerability advisories in the unchanged
+lockfile. Exploitability/release impact has not been assessed; do not claim the
+application is vulnerability-free or run an automatic force-upgrade.
