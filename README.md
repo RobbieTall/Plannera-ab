@@ -1,76 +1,99 @@
-## Current local checkpoint: corrections and ordinary-pack source capture
+## Current local checkpoint: ordinary-pack generation connected
 
-Robbie approved correcting the test mistakes and zone-code/display-label mismatch,
-and continuing the document goal while away. Work remains local and unpublished;
-the source code in draft PR #452 is still at the earlier 142-test checkpoint
-(source 3ef7a7d2ee5517ac0de285c878b1172e6828c586, documentation 6cee1d2765e0285f0bbe45cf47b5da46cf9e9890).
-This status update does not publish the local application changes.
+The approved label-matcher and QSC interpretation corrections are applied.
+The new application changes remain LOCAL and UNPUBLISHED. Draft PR #452's
+published application code remains source 3ef7a7d2ee5517ac0de285c878b1172e6828c586;
+this checkpoint replaces the status recorded by documentation commit
+8ca3aa94a41cffe73028e6fb615e37c53dd970dd. Do not confuse documentation publication
+with application publication, Preview deployment, or acceptance.
 
-### Local implementation and checks
+### Implemented locally
 
-- Timestamp assertions and PDF-parser mock interoperability are corrected.
-  All 14 new DCP retention/importer cases now pass within the combined local run.
-  Both real importer functions are exercised with mocked HTTP/PDF parsing and
-  in-memory transactions only. No ingestion was run against external sources or a database.
-- The provenance adapter now intends to retain the official lookup code separately
-  from its readable label, and the loader consumes that lookup code. However, a
-  newly introduced over-escaping error in the label matcher still rejects formatted
-  labels. Combined run: 30/39 pass; nine fail at formatted-label retention. Do not
-  claim this correction or either council's generation integration currently passes.
-- New see-document-pack-source-capture.ts captures actual server-loaded LEP/DCP row
-  identities, original retrieval/version metadata, exact clause-text fingerprints,
-  and project/site/QSC/pack digests. It reads current source rows again to detect
-  replacements, expiry and source changes. No fake PathwayAssessment is created.
-- The normal createDetailedPlanningPackArtefact flow now has a local default-off,
-  Preview-only PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED=1 hook. The capture is
-  stored in the same new Artefact payload as the pack; legacy packs are untouched.
-  Missing proof is recorded as UNAVAILABLE and does not prevent saving the DPP.
-- The new source-capture suite has 9/11 passes. Its two normal-DPP cases stop before
-  capture because the new test QSC omits required interpretation strings for
-  unavailable controls. Three new TypeScript errors are also confined to this test:
-  overly narrow mutable metadata types and a Promise/PrismaPromise mock assignment.
-  Application files produced no diagnostics in that TypeScript run, but the full
-  type check is FAILED and the upstream normal-flow tests are NOT proven.
-- Test/harness failures above are mistakes in this new work, not inherited main
-  failures. No validation rule was weakened. Local tests prohibit external network
-  and global database access. Native Linux CI has not run for these local changes.
+- Normal Byron/Kempsey DCP importers retain actual retrieval time, original PDF
+  fingerprint and exact stored clause-text fingerprint. All external I/O in their
+  tests is mocked; no real source ingestion has run.
+- Retained zoning stores the authoritative lookup code separately from its readable
+  label. Formatted labels now pass without allowing conflicting codes.
+- Normal DPP creation has a default-off, Preview-only
+  PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED=1 hook. It stores a source envelope
+  in the same NEW pack payload. Legacy packs are untouched; missing proof remains
+  UNAVAILABLE and does not prevent saving a qualified DPP.
+- The generation loader now consumes that ordinary-pack envelope after owner,
+  exact paid entitlement, memo/QSC/pack and retained spatial checks. It rereads
+  current LEP/DCP records and validates original version, URL, text and timestamps.
+  It does not create a pretend PathwayAssessment. The existing genuine assessment
+  path remains available for packs without an ordinary capture; a present invalid
+  capture cannot fall back to another proof path.
+- Shared citation checks preserve exact excerpts, official-source requirements,
+  trust-marker rejection and retrieval times. Row persistence may follow source
+  retrieval; the original capture time bounds row changes, not a fabricated new
+  retrieval time. Operational seven-day freshness is not statutory currency.
+- The isolated workflow now includes the ordinary-pack capture test suite.
 
-### Resume without recreating work
+### Evidence and remaining validation failures
 
-Use the existing isolated working copy and PR #452. Thirteen local changed/new
-source/test/workflow files are preserved. Correct the newly disclosed label-matcher
-escaping and test fixture/typing issues after Robbie approves; do not replace tests
-with permissive mocks or treat synthetic data as authoritative planning evidence.
-Then finish the source-envelope consumption in the generation loader: it STILL
-requires the older Pathway binding and does not yet consume the new normal-pack
-capture. Prove the actual DPP -> memo -> source recheck -> DOCX/PDF flow for both
-councils, not merely preassembled snapshots. Wire the new suite into isolated CI.
+The latest network-blocked combined local run PASSED 60/60:
+17 spatial retention, 16 planning-source validation, 10 DCP capture,
+4 mocked importer integration, and 13 document-generation integration tests.
+The five added integration tests include Byron and Kempsey ordinary-capture
+DOCX/PDF generation without any PathwayAssessment, paid-scope ordering, changed
+source rejection and invalid-capture/no-fallback behaviour. Existing eight
+assessment-path integration tests still pass.
 
-Canonical lgaCode fields and saved spatial provenance remain missing in the
-previously inspected Preview fixtures; the working_see enum migration is unapplied.
-Do not infer council codes, bulk backfill evidence, or assume refreshing a site
-solves the label mismatch. Existing DCP rows lack the new retention envelope and
-must not be silently promoted. Seven-day source freshness is an operational policy,
-not proof that an instrument is legally current or applicable.
+Separately, the ordinary-pack capture suite last ran 10/11 PASS, including both
+normal createDetailedPlanningPackArtefact capture tests. Its remaining failure is
+a newly introduced TEST-ONLY newline before an 'as unknown as' assertion in
+src/lib/see-document-pack-source-capture.test.ts:140. Full TypeScript stops on
+TS1434 there. A scoped diagnostic check excluding that file found one additional
+TEST-ONLY TS2322 in src/lib/see-document-generation.integration.test.ts:195:
+the new in-memory project object lacks fields of ProjectWithOptionalSiteContext.
+Both narrow test corrections require the requested approval; neither is corrected
+yet. They are new-work mistakes, not inherited main failures. No full TypeScript,
+new Linux CI, new build or commercial pass is claimed.
 
-After local corrections: re-establish push safety, publish validated changes only,
-then obtain scoped isolated Preview migration/deployment approval and prove customer
-generation/download/original-version reopening, permissions, warnings, versions
-and native Word/PDF presentation. The unchanged full-build synthetic database smoke
-still fails; separate Next compilation is not a full-build or commercial pass.
-Uploaded plans/reports are still explicitly not independently incorporated.
+These are in-memory records, real application parsers/compiler/rendering, and
+mocked database/HTTP adapters. They are NOT proof of real statutory sources,
+cloud ingestion, protected Preview customer downloads, native Word/PDF reopening,
+or the complete normal DPP -> memo -> generation journey in one external run.
+No synthetic records may be promoted as planning evidence.
 
-### Safety and handover
+### Exact next work and handover
 
-Only these status documents are being published. PR #452's exact branch deployment
-disable rule is retained; current PR/main metadata is unchanged and the latest
-20-deployment inventory contains no deployment for this branch. Existing isolated
-CI uses synthetic configuration; stateful workflows are not dispatched.
+Preserve the existing isolated working copy and fourteen changed/new application,
+test and workflow files. Correct the two test-only issues after approval, rerun
+the complete checks without exclusions, then establish push safety and publish
+the validated application patch to PR #452. Do not recreate configuration, ask for
+keys, repin acceptance or overwrite concurrent mobile documentation work.
 
-No merge, deployment, cloud setting change, real source ingestion, database/schema
-write, private-document access or payment action. Production checkout remains
-disabled. Other mobile documentation branches, Research Viewer/Project Controls
-scope and immutable Item 78C evidence are preserved. Commercial HOLD.
+The latest read-only Preview inventory still leaves prerequisites unresolved:
+canonical council codes, saved authoritative spatial provenance, retained current
+DCP source envelopes, and the working_see enum migration. No evidence backfill
+or code inference from council display names is authorized by this checkpoint.
+Obtain scoped approval before isolated Preview schema/ingestion/deployment work.
+Then prove customer generation, private download, original-version reopening,
+wrong-user/wrong-project rejection, warnings, document versions and native
+Word/PDF layout for BOTH councils.
+
+The earlier published 142-test Linux checkpoint applies only to source 3ef7a7d.
+Its credential-free Next compilation passed, but full vercel-build still failed
+at the unchanged synthetic Prisma database smoke. That remains unresolved.
+Uploaded plans/reports are explicitly not independently incorporated by this
+generation path.
+
+### Safety and commercial decision
+
+Documentation-only publication retains the exact PR branch deployment-disable
+rule. Before this update PR #452 remained draft/unmerged at 8ca3aa9; main remained
+ff2179e06f68a8f265d7cc0b873cd28320a4da6b. The latest 20-deployment inventory had no
+deployment for this branch. Previously audited automatic workflows remain
+unchanged; no stateful workflow is dispatched.
+
+No application push, merge, deployment, cloud settings, real ingestion,
+database/schema write, payment action or private-document publication occurred.
+Production checkout remains disabled; Production data/schema are untouched.
+Immutable Item 78C acceptance is unchanged. Research Viewer, Project Controls and
+the practitioner/pilot documentation remain compatible and deferred.
+Commercial decision: HOLD pending the actual protected customer document journey.
 ## Guarded document generation draft
 
 PR #452 now connects the Preview-only working Word/PDF generation action to saved
