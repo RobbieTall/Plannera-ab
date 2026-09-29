@@ -1,3 +1,35 @@
+## Offline CI correction: real database readiness remains required
+
+The previous CI failure was caused by asking an engine-free client with a dummy
+localhost URL to perform genuine database readiness checks. Changing the URL or
+client mode would not supply the missing database or verified council data.
+Prisma documents --no-engine as omitting the query engine for Accelerate:
+https://www.prisma.io/docs/accelerate/getting-started
+
+The isolated document workflow now tests the offline failure boundary explicitly:
+both unchanged smoke scripts must exit with the specific missing-database error
+and their BLOCKED decision. Success, crashes, timeouts and unrelated failures do
+not count as expected rejection. The runner clears database aliases, service
+credentials, NODE_OPTIONS and dotenv file loading, and never echoes child diagnostics.
+It reports database readiness NOT ASSESSED, never READY.
+
+Actual package.json vercel-build, both smoke scripts, Prisma generation, the build
+contract and its reviewed fingerprints remain unchanged. Real Vercel builds still
+must pass both database gates before compilation. No live readiness check was
+removed, bypassed, reclassified as a pass or replaced by synthetic council evidence.
+The existing smoke-enforcement workflow checks build wiring, not real database data.
+
+Local full TypeScript, focused lint, six new offline-guard regressions and all
+eleven build-safety tests PASS. The actual child CLI checks will run in Linux CI;
+the local regressions inject a runner because the local native tooling restriction
+has not been bypassed. Exact-revision Linux results for this correction are pending.
+
+No deployment, merge, database/schema mutation, source ingestion, service secret
+change or Production action occurred. The exact feature-branch deployment-disable
+rule remains unchanged. Commercial HOLD pending actual protected Preview proof.
+The older full-build failure below is retained as historical evidence, not a
+current hosted-readiness result. This checkpoint does not authorise Production.
+
 # Working SEE council integration checkpoint
 
 Date: 2026-09-30
