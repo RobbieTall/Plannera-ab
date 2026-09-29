@@ -1,35 +1,48 @@
-## Integration-source checkpoint: corrected synthetic records
+## Current commercial blocker: normal source capture is not yet connected
 
-Robbie approved completing the positive in-memory source records. The integration
-test now supplies exact linked citations for permissibility, height, FSR and lot
-size. The former incomplete case remains an explicit rejection test. No production
-validator, compiler, evidence rule, entitlement check or application behavior was
-weakened to make it pass.
+PR #452 source commit 3ef7a7d2ee5517ac0de285c878b1172e6828c586 passes full
+TypeScript, **142 focused Linux tests (108 document + 11 safety + 15 renderer +
+8 source-join integration tests)** and separate credential-free Next compilation
+in [run 36546394798](https://github.com/RobbieTall/Plannera-ab/actions/runs/36546394798).
+The GitHub PR merge snapshot starts cefab02. The full vercel-build still fails
+the unchanged synthetic database smoke; neither that gate nor commercial launch
+is green.
 
-Local validation: full TypeScript PASS, focused ESLint PASS, all 8 new integration
-tests PASS. Both Byron and Kempsey exercise the real saved-record parsers, memo
-generator, source loader, canonical compiler and document renderer, producing
-valid project-specific working DOCX/PDF snapshots. The other cases reject unpaid
-or revoked scope, missing retained spatial proof, substituted council/project,
-changed or expired sources and uncited assessments. Database records exist only
-in memory; this is not hosted acceptance or authentic council-source evidence.
+Read-only aggregate/schema inspection of the two existing acceptance Preview
+databases confirmed:
+- They are distinct non-default branches/endpoints; Production was not queried.
+- The required tables exist, but working_see is not yet an ArtefactType enum value.
+- Existing site rows are present, with council names and many zones/coordinates,
+  but their canonical lgaCode fields are unset.
+- Neither branch has SiteSpatialProvenance, PathwayAssessment or
+  PathwayEvidenceSnapshot records. No data, flags, schema or documents were changed.
 
-The new tests are included with the renderer suite in isolated Linux CI. Their
-native Vitest result on the new commit is pending. The previous source revision
-a7782f49744bbd051d5082f70f59f87d386fd00f had 134 focused tests and separate
-credential-free Next compilation pass in run 36542483021. Do not count the new
-total as a passing Linux run until that run is inspected.
+The new loader requires a PathwayArtefactBinding and exact saved source snapshots.
+The ordinary createDetailedPlanningPackArtefact flow in src/lib/artefact-service.ts
+saves the planning-pack payload but does not create those records. Therefore a
+deployment or enum migration alone cannot complete this customer journey.
+The passing integration test supplies in-memory records; it does not prove normal
+planning-pack creation produces them or that any live source is authoritative.
 
-Remaining: actual protected Preview source availability; independently authorised
-Preview migration/deployment; both-council customer generation/download/reopening;
-permissions, warnings, versions and native Word/PDF review. The full-build
-synthetic database smoke remains unresolved, and uploaded plans/reports are not
-independently incorporated by this generation path. Commercial HOLD.
+Next correction: connect ordinary project/site and planning-pack creation to real,
+versioned source capture, or provide an appropriate reviewed source-capture adapter
+rather than repurposing pathway records blindly. Preserve full source identity,
+retrieval/version/freshness, exact clause and project/site/pack bindings, original
+bytes/versions and explicit evidence gaps. Test the normal upstream creation flow,
+not just preassembled records. Do not manufacture source proof, promote synthetic
+snapshots, fill council codes by assumption, or weaken existing checks.
+Approval for correcting this newly identified integration gap is requested.
 
-Publication stays on deployment-disabled draft PR #452. Production checkout remains
-disabled and Production data/schema unchanged. Other documentation branches and
-immutable Item 78C acceptance are untouched. No live credentials or private
-documents are introduced by these tests.
+After that: scoped approval for isolated Preview migration/deployment, then actual
+Byron/Kempsey generation/download/reopening, permissions, versions, warnings and
+native Word/PDF review. Uploaded plans/reports are still not independently
+incorporated by this generation path and remain explicitly qualified.
+
+Commercial HOLD. Generation flags remain default-off and Preview-only. Production
+checkout remains disabled, Production data/schema unchanged. No deployment, merge,
+migration, private document access or payment action. Other documentation branches
+and immutable Item 78C evidence remain untouched. No repeated secret setup or
+test payment is indicated by this finding.
 
 ## Guarded document generation draft
 
