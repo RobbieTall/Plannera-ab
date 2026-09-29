@@ -25,6 +25,9 @@ The commercial SEE is a separate one-time product at **A$749 before credits**. I
 ### Project Workspace Intelligence
 A persistent sidebar card shows: site address and zone, LGA coverage maturity level, artefact freshness (last generated, stale count), and confidence breakdown from the most recent chat session.
 
+### Project Schedule & Project Controls — roadmap
+The existing Workspace journey is planned to evolve into an evidence-backed **Project Controls Engine** that can build and maintain site-specific work items, dependencies, Finance Clock dates, consent-condition actions and readiness gates as project evidence accumulates. The lightweight Timeline/Journey remains a simple user view; the underlying engine becomes the source of project schedule truth. Garruka is Template/Case Study 001. This is recorded architecture only and is **not part of the current Commercial Gate build**. See [Project Schedule & Project Controls Engine](docs/product/project-schedule-project-controls.md).
+
 ### LGA Coverage Tracking
 Real-time polling shows LGA data preparation progress. When an LGA reaches SEARCHABLE_READY, a persistent dismissible in-app notification is surfaced in the workspace. A stale-artefacts banner prompts regeneration when coverage improves.
 
