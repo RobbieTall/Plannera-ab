@@ -1,4 +1,4 @@
-## Current checkpoint: approved test corrections validated
+## Current checkpoint: Linux proof complete; protected Preview prerequisites absent
 
 Both approved test-only corrections are complete: the mock type assertion stays
 on its expression line, and the in-memory integration project supplies every
@@ -49,19 +49,55 @@ Network/global database use is forbidden by the local harness.
 These results do NOT establish authentic statutory evidence, cloud ingestion,
 protected Preview customer downloads, native Word/PDF reopening, or one complete
 normal DPP -> memo -> generation -> delivery run. No synthetic test records may
-be promoted as planning evidence. Native Linux CI and a new compilation result
-for this exact published application revision remain pending.
+be promoted as planning evidence. GitHub run 36558368296 now confirms FULL TypeScript and 175 focused Linux tests
+PASS: 121 core Node + 43 native Vitest (including 15 renderer) + 11 safety.
+Source commit 2721b7fce3d1ea13bba5b487d0fcbee5ee0a1c05 was tested through PR merge
+snapshot 2e4bddfaeebd52c5d1e057b3b2a7c431cc3a3142 against unchanged main.
+The separate credential-free Next compilation job 109372924835 PASSED, including
+37 static pages and optimization. This was compilation, NOT a Production deployment.
+
+The isolated-validation job 109372924997 still FAILED after all tests at full
+vercel-build's unchanged synthetic Prisma database smoke: an engine-free client
+requires prisma:// or prisma+postgres:// rather than the synthetic localhost
+Postgres URL. No live credential was substituted and no check was disabled.
+Twelve other applicable PR workflows passed their automatic non-stateful checks.
+The full build gate and commercial readiness remain NOT green.
 
 The earlier 142-test Linux/Next compilation result belongs only to source 3ef7a7d.
 Its complete vercel-build failed at the unchanged synthetic Prisma database smoke;
 that is still unresolved, not bypassed or presented as a full-build pass.
 Existing dependency advisories remain subject to release-risk assessment.
 
+### Current protected Preview evidence (read-only recheck)
+
+Both previously identified council targets are still distinct, non-default Neon
+branches with their expected independent endpoints. Production was not queried.
+Explicit READ ONLY transactions with an eight-second statement timeout returned
+aggregate counts only; no address, person, document body or credential was read.
+
+For BOTH targets:
+- working_see is still absent from the ArtefactType enum.
+- No SiteContext has a BYRON/KEMPSEY canonical council code.
+- No saved SiteSpatialProvenance record exists.
+- No relevant DCPClause row has the new sourceCapture envelope.
+- No current Byron/Kempsey LEP row has retrieval within the seven-day policy.
+
+Therefore a deployment alone cannot prove customer generation. Fresh source
+ingestion must preserve genuine retrieval/provenance, not relabel existing data.
+The normal site resolver's persistence currently uses candidate.lgaCode or null;
+canonical council identity needs an evidence-based normal-flow solution, not a
+manual code backfill or an assumed council from an address string. That application
+prerequisite must be completed/proven before calling a Preview rehearsal ready.
+
+Preserve the existing acceptance snapshots and source revisions. Prepare separate
+document-rehearsal targets where writes are needed, then obtain scoped approval
+for their additive schema step, source refresh and protected deployment. No such
+write, branch creation, migration, ingestion or deployment has occurred here.
+
 ### Resume and remaining commercial gates
 
 The test-correction approval blocker is resolved. Continue from this draft PR,
-not a new branch or recreated cloud setup. First inspect exact-commit Linux CI
-and address genuine failures without weakening checks. Then prepare the separately
+not a new branch or recreated cloud setup. The exact-commit Linux results are above. Next prepare the separately
 authorized isolated Preview prerequisites: canonical council identity from actual
 resolution, saved authoritative spatial evidence, current retained LEP/DCP source
 envelopes and the unapplied working_see enum migration. Do not guess council codes,
@@ -75,7 +111,8 @@ Seven-day source freshness is an operational policy, not statutory currency proo
 
 ### Deployment safety and status
 
-Before publication, draft head 245a5721cbc352e9aa48ad70b6d911e95075dcfa and
+Before this documentation-only update, draft application head
+2721b7fce3d1ea13bba5b487d0fcbee5ee0a1c05 and
 main ff2179e06f68a8f265d7cc0b873cd28320a4da6b were unchanged. The retained exact
 branch deployment-disable rule for feat/see-document-delivery-20260929 remains
 in vercel.json; the latest twenty-deployment inventory contains no deployment for
