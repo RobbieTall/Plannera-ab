@@ -1403,3 +1403,12 @@ Evidence:
 - exact-head Vercel Preview: Ready;
 - independent exact-commit review: no blocking findings, merge recommended;
 - Item 78C workflow decision: not yet produced; `HOLD`.
+
+
+### 2026-09-29 — Project Schedule becomes an evidence-backed Project Controls Engine (roadmap decision)
+
+Decision: Plannera's existing Timeline/Journey remains the lightweight lifecycle UI, while future project scheduling and state move into a dedicated Project Controls Engine. The engine will progressively derive site-specific work items, `requiredForSite` decisions, dependencies, blockers, Finance Clock dates and readiness gates from project/statutory evidence, with provenance and confidence retained. Garruka is Template/Case Study 001. Research Viewer/screenshots may later contribute inspectable evidence.
+
+Scope boundary: this is recorded future architecture only. It does **not** change the current Commercial Gate goal or authorise implementation, refactoring, production changes, schema changes or new external integrations in the active slice.
+
+Canonical detail: `docs/product/project-schedule-project-controls.md`.
