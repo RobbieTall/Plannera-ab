@@ -22,8 +22,8 @@ a proven paid Word/PDF journey.
 - Adds immutable project/evidence/version-bound DOCX/PDF snapshots.
 - Adds Preview-only authenticated downloads, exact-scope paid entitlement checks,
   private storage reads and original-byte reopening.
-- Does not yet implement trusted customer generation, private snapshot writes,
-  metadata pointer creation or customer UI. No cloud snapshot has been created.
+- Implements private snapshot persistence and metadata-only pointers in draft code.
+  Trusted customer generation and UI remain unfinished. No cloud snapshot has been created.
 - New implementation branch: `feat/see-document-delivery-20260929`.
   Its first commit includes `git.deploymentEnabled: false` for that exact branch.
   No merge or manual deployment is part of draft publication.
@@ -144,3 +144,42 @@ Next: trusted saved-source generation, private snapshot persistence and metadata
 pointers, then customer version/download UI and protected Preview proof for both
 councils. Keep source gaps explicit. No merge or deployment occurred. This result
 is recorded on the draft PR branch, not merged main; commercial status is HOLD.
+
+
+## Private persistence implementation checkpoint
+
+The draft now includes an append-only private Blob writer and an owner-authorised
+persistence service. Both deny non-Preview or disabled-write configurations before
+I/O. The writer refuses overwrite, verifies original bytes through a private read,
+and accepts retries only when that read proves an identical snapshot. The service
+checks exact paid SEE scope and original project source records before upload,
+then rechecks authorization in a serializable transaction before publishing a
+metadata-only pointer. No provider URL or file bytes belong in the Artefact row.
+
+A distinct `working_see` Artefact type and additive migration are PREPARED ONLY.
+No database migration, cloud write, Preview deployment or Production change has
+been executed. Do not run migrations from builds. A separately authorised isolated
+Preview migration and target-safety check are required before enabling persistence.
+On a database failure an uploaded object remains private and unlisted; an identical
+retry can finish its pointer. Do not automatically delete it: concurrent work may
+already reference it. Retention/repair must use an explicit inventory and approval.
+
+Persistence tests use injected in-memory databases and private storage. Their tiny
+byte fixtures do not prove Word/PDF validity or cloud transaction behavior. Existing
+renderer tests cover synthetic document rendering separately. This checkpoint's
+validation is pending. Trusted saved-source assembly, actual generation endpoint,
+customer UI/version controls and hosted both-council proof remain unfinished.
+
+
+Local persistence validation: full TypeScript and focused lint passed; all 43
+combined delivery/storage/HTTP/persistence Node tests passed using a pure TypeScript
+transpilation harness. The native tsx/esbuild runner failed before running tests;
+no macOS security bypass was used. Linux CI must independently exercise the usual
+runner and the new code before this checkpoint is considered validated remotely.
+
+PR #451 now documents two complementary deferred pilots: established-LGA depth
+and genuine just-in-time new-LGA activation. The latter must prove the activation
+process, including maturity/coverage honesty, provenance, freshness, deduplication,
+notification and regeneration; a manually completed planning answer is not proof.
+Neither pilot's private survey, DWG, imagery or design files are needed for this
+persistence work. The mobile documentation branch remains untouched.

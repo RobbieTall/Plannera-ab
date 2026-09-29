@@ -35,8 +35,9 @@ route still produces a pre-SEE planning memo, not this new Word/PDF journey.
 
 ## Not implemented or proven
 
-Trusted saved-source candidate assembly, append-only private snapshot writes,
-metadata pointer creation and customer generation/version UI are still required.
+Trusted saved-source candidate assembly and customer generation/version UI are
+still required. Append-only private writes and metadata pointers now have a draft
+implementation; cloud behavior and actual customer delivery remain unproven.
 The loader and HTTP tests use synthetic inputs and injected storage/authorization;
 they are not evidence of real hosted permissions or successful customer downloads.
 No database query, cloud snapshot write or Preview deployment has been performed
@@ -61,3 +62,28 @@ Vercel deployment for that branch. Publishing a draft is not permission to merge
 or deploy. Keep Production checkout disabled and Production data/schema unchanged.
 Commercial status remains HOLD until actual protected Preview delivery and
 document review are proven. Research Viewer and Project Controls remain later.
+
+## Private persistence and schema gate
+
+`see-document-private-writer.ts` uses private access, deterministic version keys,
+`allowOverwrite: false`, bounded upload time, and verified private readback. It
+rejects files larger than the current 4 MiB download limit. Provider errors and
+URLs are not exposed. See [Vercel Blob SDK write semantics](https://vercel.com/docs/vercel-blob/using-blob-sdk).
+
+`see-document-persistence.ts` is a trusted server service, not an endpoint accepting
+browser-generated snapshots. Only the current project owner may create versions.
+Downloads separately recheck owner/collaborator access and exact active entitlement.
+Authorization is repeated after upload before a serializable metadata transaction.
+Retries cannot overwrite existing pointers or files, including conflicting data.
+
+Migration `20260929070000_add_working_see_artefact_type` adds a distinct
+`working_see` kind. It is prepared, not applied. Execute only as a separately
+authorised migration against an identified isolated Preview target after inspecting
+its current schema; never from a build. No Production migration is authorised.
+Both services require Preview plus explicit write enablement. No write endpoint
+is wired yet. The enum does not relabel pre-SEE memos as paid documents.
+
+Blob and database commits are not atomic. A failed metadata transaction leaves
+an unlisted private object; retry the identical snapshot rather than overwrite or
+automatically delete it. Cleanup needs an approved inventory of unreferenced keys.
+Unit tests exercise this recovery but do not replace real protected Preview proof.
