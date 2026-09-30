@@ -1,5 +1,50 @@
 # Live-only LEP retrieval prerequisite for Working SEE
 
+## Approved schedule-identity correction: 30 September 2026
+
+Latest checkpoint: the parser correction is implemented and locally validated;
+hosted document acceptance and commercial status remain HOLD.
+
+The original XML parser reused visible clause numbers across schedules. Both
+downloaded source files produced 11 duplicate-key groups (schedule 1 versus
+schedule 6, clauses 1-11). XML schedule provisions now use their official scoped
+IDs, for example `SCH_1_SEC_1` versus `SCH_6_SEC_1`. Main-clause and HTML
+identifiers retain their existing behavior. No clause wording is rewritten.
+
+Validation of this correction:
+- Focused strict TypeScript compilation passed.
+- Six synthetic runtime regressions passed: main provisions, distinct schedules,
+  nested schedule divisions, grouped zoning text, HTML compatibility, and distinct
+  unnumbered schedule provisions.
+- Two separate original-source checks passed against the SHA-256 values recorded
+  below: Byron 162 parsed records; Kempsey 137; zero duplicate output keys in each.
+- Against the unchanged parser, every non-key field and record order was identical:
+  title, body HTML/text, hierarchy and content hash. Core 2.3/4.3/4.4/4.6 records
+  were entirely unchanged. These comparisons establish no regression from this
+  identity fix, not independent proof of complete statutory extraction.
+- The six regression tests are added to the isolated GitHub workflow. Remote
+  validation for the new commit is pending; previous successful runs are historical.
+
+The earlier broad mismatch diagnostic counted nested zone-group provisions as
+missing despite their text remaining in parent records, and assumed visible
+numbers for unnumbered provisions. Those counts are not evidence of lost clauses.
+Full parser completeness, unit/superscript fidelity, semantic applicability,
+fresh DCP/spatial coverage and hosted output quality still require review.
+
+This changes keys for future parsing only. No stored records, receipts, source
+timestamps or historical document/acceptance snapshots have been rewritten.
+Before any isolated-child ingestion, explicitly reconcile these scoped keys and
+the existing prefixed main-clause keys with the pack reader's numeric references.
+Do not insert duplicate aliases, silently remap history, force-replace clauses,
+or call the existing admin ingestion endpoints. Durable original-source binding
+and a child-only non-destructive refresh path remain prerequisites.
+
+Publication is limited to draft PR #452's deployment-disabled feature branch.
+No main merge, deployment, database access or Production change is part of this
+correction. Production checkout remains outside this task.
+
+## Earlier checkpoints (historical where superseded above)
+
 Status: read-only transport primitive; NOT a completed source refresh or commercial gate.
 
 The existing admin LEP route reads bundled XML, and its force mode replaces clauses
