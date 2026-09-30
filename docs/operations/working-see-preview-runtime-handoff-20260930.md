@@ -77,3 +77,64 @@ Research Viewer, Project Controls and the documented private pilots remain later
 ## Continuity
 
 Record each meaningful cloud change and result on PR #452 / Issue #395 without credentials, customer details or private documents. Retain failure evidence. Do not label unresolved items complete, resend authentication requests unnecessarily, or repeat secret-entry steps based on assumptions.
+
+## Manual original-source checkpoint: 30 September 2026
+
+Both official XML files have now been manually downloaded by Robbie and inspected
+locally. This supersedes earlier download-blocked status for these two manual
+rehearsal inputs only. Automated HTTP retrieval remains unproven.
+
+| Council | Original export filename | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Byron | `epi-2014-0297_2026-09-30.xml` | 1315362 | `42196389383aa5a424fd8d9b619b473d4df28a1061b672f1e5c2aceff869f821` |
+| Kempsey | `epi-2013-0712_2026-09-30.xml` | 1128828 | `ee5269d8709cad6615a59ccd02d99bdbff485d9d699130c8c4c5d4417e438720` |
+
+UTF-8 decoding and XML well-formedness checks passed with entity processing
+disabled. Identity and version metadata match the official pages inspected:
+Byron LEP 2014, first.valid.date 2026-07-03; Kempsey LEP 2013,
+first.valid.date 2026-07-01. Kempsey's official XML council code is `KEMP`,
+not `KEMPSEY`; any future identity validator must use an explicit reviewed
+mapping together with instrument ID and title, never a fuzzy council match.
+Version IDs: Byron `3b18cafa-cf70-402d-83d9-8ef1f17d0c4e`;
+Kempsey `77285005-6e77-4d8a-ae77-da49d3ccbb54`.
+
+These checks do not prove DTD conformance, complete clause extraction, spatial
+applicability, current DCP coverage, automated freshness or successful ingestion.
+The originals were not modified or uploaded. No database writes occurred.
+No successful HTTP receipt or exact download timestamp has been invented.
+
+## Source freshness operating rule and remaining implementation
+
+Older local-folder and repository copies are historical inputs, not inherently
+current authoritative evidence. Do not delete them or overwrite immutable
+acceptance snapshots. A current-looking filename, a new upload, successful parsing,
+a fresh build or a database timestamp is not evidence of current legislation.
+
+Before a source is represented as current:
+1. Resolve its correct official instrument identity and authoritative source.
+2. Check official version/publication/effective information and record when checked.
+3. Preserve exact retrieved bytes, their hash, the source/version URL and the actual
+   acquisition method (manual download versus successful automated retrieval).
+4. Validate semantic identity, applicable scope and parser coverage. Keep LEP,
+   DCP and spatial-layer freshness separate; one cannot establish the others.
+5. Compare against the prior source version. If text is unchanged, revalidation
+   still requires a genuine official check; never refresh dates on bundled fixtures.
+6. Preserve documents already issued against their original source version. New
+   evidence produces a new document version and identifies affected earlier work.
+7. If retrieval or currency cannot be confirmed, label that limitation clearly.
+   Do not silently substitute stale evidence or claim submission readiness.
+   Useful qualified drafts may continue only where the existing product supports
+   them safely; this rule is not permission to weaken evidence gates.
+
+Recurring refresh, change detection, controlled re-ingestion, affected-project
+notification and regeneration are requirements, not proven capabilities of this
+helper. It is a date-pinned rehearsal transport primitive with no callers.
+NSW's published XML guidance asks automated processing to run outside normal
+NSW business hours: https://legislation.nsw.gov.au/help/export .
+The current task must prove a safe refresh on the two isolated children before
+claiming the customer document journey complete; it does not activate Production.
+
+Next: validate extraction/provenance and an explicit child-only ingestion path,
+then fresh project/site/pack preparation and actual DOCX/PDF generation,
+private download/reopening, permissions, warnings and native document review.
+Commercial HOLD remains.
