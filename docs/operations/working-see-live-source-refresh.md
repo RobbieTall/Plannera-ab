@@ -57,3 +57,31 @@ deployment. Both existing protected Preview builds are Ready and Byron sign-in
 has succeeded. None of those observations proves the customer document journey.
 Continue from the runtime handover and latest PR comments, preserving original
 acceptance snapshots and the separate mobile documentation branches.
+
+## Corrected source references (30 September 2026)
+
+The first helper revision copied incorrect identifiers from the existing register.
+Robbie approved correcting the helper and tests. The existing general-purpose
+instrument register and ingestion paths are not changed by this narrowly scoped fix;
+their old identifiers remain a separate integration issue and must not be relied on.
+
+Official page inspection confirmed:
+
+| Council | Correct instrument | Page-displayed current version | Advertised XML export |
+| --- | --- | --- | --- |
+| Byron | `epi-2014-0297` | 3 July 2026 to date | `https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2014-0297` |
+| Kempsey | `epi-2013-0712` | 1 July 2026 to date | `https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2013-0712` |
+
+These are explicitly date-pinned rehearsal snapshots, not a rolling-current feed.
+Recheck authoritative version information and export links before later reuse.
+Retrieval time records when bytes were fetched, not the date a law became current.
+The public current-version source URL is a citation; the receipt records the exact
+historical export URL used for the bytes. Browser page/link inspection does not
+prove raw XML retrieval, valid XML, semantic identity, applicability or persistence.
+Do not invent `/export/xml/current/` support or mark an unchanged fixture as fresh.
+
+The two additional synthetic regressions reject responses carrying the old incorrect
+identifiers. Existing safety and failure tests remain intact. Validation results for
+this correction must be recorded against its exact commit in the PR; earlier
+18-test results refer to the prior revision. No helper caller, schema, deployment,
+cloud configuration or database content is changed here. Commercial HOLD remains.

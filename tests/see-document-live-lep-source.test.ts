@@ -14,7 +14,7 @@ after(() => {
   else process.env.VERCEL_ENV = originalEnv;
   globalThis.fetch = originalFetch;
 });
-const url = "https://legislation.nsw.gov.au/export/xml/current/epi-2014-355";
+const url = "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2014-0297";
 const body = "<legislation><title>Synthetic fixture, not planning evidence</title></legislation>";
 function response(text: string | Uint8Array = body, overrides: { url?: string; type?: string; status?: number; length?: string; redirected?: boolean } = {}) {
   const headers = new Headers({ "content-type": overrides.type ?? "application/xml" });
@@ -51,10 +51,11 @@ test("retains original bytes, digest, source and retrieval time for Byron", asyn
   assert.equal(result.receipt.retrievedAt, now.toISOString());
   assert.equal(result.receipt.usedFixture, false);
   assert.equal(result.receipt.retrievalUrl, url);
+  assert.equal(result.receipt.sourceUrl, "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-0297");
 });
 test("uses a distinct fixed official Kempsey source", async () => {
   const result = await fetchLivePreviewLepSource("KEMPSEY", { fetch: async (input, init) => {
-    assert.equal(input, "https://legislation.nsw.gov.au/export/xml/current/epi-2013-437");
+    assert.equal(input, "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2013-0712");
     assert.equal(init?.redirect, "error"); assert.equal(init?.credentials, "omit");
     assert.equal(init?.cache, "no-store"); assert.equal(init?.referrerPolicy, "no-referrer");
     assert.ok(init?.signal);
@@ -62,6 +63,7 @@ test("uses a distinct fixed official Kempsey source", async () => {
     return response(body, { url: String(input) });
   } });
   assert.equal(result.receipt.council, "KEMPSEY");
+  assert.equal(result.receipt.sourceUrl, "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-0712");
 });
 test("fixture flags cannot replace the live request", async () => {
   const old = process.env.LEGISLATION_USE_FIXTURES;
@@ -75,7 +77,7 @@ test("fixture flags cannot replace the live request", async () => {
   }
 });
 test("refuses redirects", () => rejects("source_mismatch", response(body, { redirected: true })));
-test("refuses another council or unknown final URL", () => rejects("source_mismatch", response(body, { url: url.replace("2014-355", "2013-437") })));
+test("refuses another council or unknown final URL", () => rejects("source_mismatch", response(body, { url: url.replace("2014-0297", "2013-0712") })));
 test("refuses missing final URL", () => rejects("source_mismatch", response(body, { url: "" })));
 test("refuses non-success HTTP status", () => rejects("http_failed", response(body, { status: 503 })));
 test("refuses HTML challenge pages", () => rejects("unexpected_content_type", response("<html>Challenge</html>", { type: "text/html" })));
@@ -94,4 +96,12 @@ test("redacts streaming failures", async () => {
     { headers: { "content-type": "text/xml; charset=utf-8" } });
   Object.defineProperty(broken, "url", { value: url });
   await rejects("retrieval_failed", broken);
+});
+
+test("rejects the superseded incorrect Byron identifier", () =>
+  rejects("source_mismatch", response(body, { url: "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2014-355" })));
+test("rejects the superseded incorrect Kempsey identifier", async () => {
+  await assert.rejects(fetchLivePreviewLepSource("KEMPSEY", { fetch: mockFetch(response(body, {
+    url: "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2013-437",
+  })) }), (error: unknown) => error instanceof LivePreviewLepSourceError && error.code === "source_mismatch");
 });

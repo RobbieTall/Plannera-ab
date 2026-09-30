@@ -1,13 +1,15 @@
 import { createHash } from "node:crypto";
 
+// Date-pinned exports verified on the official pages on 30 September 2026.
+// This is a rehearsal snapshot, not a rolling-current source. Revalidate before reuse.
 const SOURCES = {
   BYRON: {
-    sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-355",
-    retrievalUrl: "https://legislation.nsw.gov.au/export/xml/current/epi-2014-355",
+    sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-0297",
+    retrievalUrl: "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2014-0297",
   },
   KEMPSEY: {
-    sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-437",
-    retrievalUrl: "https://legislation.nsw.gov.au/export/xml/current/epi-2013-437",
+    sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2013-0712",
+    retrievalUrl: "https://legislation.nsw.gov.au/export/xml/2026-09-30/epi-2013-0712",
   },
 } as const;
 
