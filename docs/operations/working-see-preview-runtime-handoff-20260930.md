@@ -1,5 +1,70 @@
 # Working SEE Preview runtime handover - 2026-09-30
 
+## Source-proof refresh preparation: 30 September 2026
+
+The previous lookup correction at d03964e176d19e0fe81893c4facb3e2857d5527a
+passed all 14 exact-commit GitHub workflow runs, including isolated validation
+and credential-free compilation in runs 36691051717 and 36691059323.
+The earlier 247-test result remains historical evidence for that application
+snapshot, not a new test execution in this checkpoint.
+
+A pure, explicitly invoked planner now prepares DCP source-capture metadata
+updates for only the two approved isolated database copies:
+- BYRON: br-blue-dawn-a733pff4; 826 existing rows; 39 original PDFs.
+- KEMPSEY: br-royal-breeze-a75t8c41; 1,496 existing rows; five original PDFs.
+
+Run its credential-free regressions with:
+`node --test scripts/prepare-isolated-dcp-source-refresh.test.mjs`
+
+All 23 new planner regressions passed locally. This is not a PostgreSQL execution
+test. The planner has no database client, credential handling, automatic CLI
+execution, build hook or workflow invocation. Its returned statements must be
+submitted together using a transaction-capable connector with the exact explicit
+project, branch and database from the validated plan. SQL current_database()
+cannot prove the Neon branch; independently verify connector branch metadata
+before execution. Never paste these statements into an arbitrary connection.
+
+The transaction takes a short write-conflicting lock on DCPClause in the child,
+with five-second lock and 30-second statement limits. It checks the complete
+council inventory and every selected row's ID, reference, parent, instrument,
+source URL, body SHA-256 and prior metadata SHA-256. Existing captures, fixture
+flags, mismatches or concurrent changes abort the entire transaction. Only
+numericMeta.sourceCapture and updatedAt are changed; all other metadata, IDs,
+clause bodies, histories, project records and immutable acceptance artifacts are
+preserved. A successful repeat is deliberately refused rather than refreshing
+timestamps without another review. New packs must be generated after source
+metadata changes; historical citation fingerprints are not rewritten.
+
+Preparation evidence:
+- Original PDFs and manually downloaded LEP XMLs are retained in a durable local
+  source-evidence archive outside the temporary working directory and GitHub.
+- All 44 PDF originals were hash-checked against acquisition receipts.
+- Kempsey's five originals were re-acquired over official HTTPS with actual
+  request-start/completion timestamps; all matched the prior parsed originals.
+  Earlier HTTP Date and later inspection times were not recast as retrieval times.
+- Every input row still matches the original offline parsing comparison,
+  preserving duplicate human references as distinct rows.
+- Byron planned payload SHA-256:
+  `0d3de66367247c93b33c0f31e2091f10df0584ef99aa9c3b7628c821934bd7df`.
+- Kempsey planned payload SHA-256:
+  `fede25f355c33bd870d567ec6576b8dfc28c16e399f11b7fe98a54854e6165e7`.
+
+The planner trusts validated acquisition/parsing inputs; strings and fingerprints
+alone do not prove official origin, source currency, applicability, extraction
+completeness, legal accuracy, or runtime isolation. Original-byte checks and the
+source-comparison process are separate prerequisites. Local retention is not
+hosted private archival/reopening proof. PDF table/diagram fidelity remains
+unproven. No customer or private project documents are published.
+
+At this preparation checkpoint no refresh transaction has been executed.
+Execution results must be recorded separately before claiming persisted captures.
+LEP source/version refresh and spatial evidence remain separate outstanding work.
+The exact feature branch retains its automatic-deployment disable. No main merge,
+deployment, Production change or checkout activation is included. Commercial HOLD:
+the protected customer Word/PDF journey and native output inspection remain pending.
+
+## Earlier checkpoints (historical where superseded above)
+
 ## Test lint correction: 30 September 2026
 
 Robbie approved removing the two unused digest bindings introduced in the lookup
