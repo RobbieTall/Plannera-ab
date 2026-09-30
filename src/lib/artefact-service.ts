@@ -1,4 +1,4 @@
-import { captureWorkingSeePackSources, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
+import { captureWorkingSeePackSources, workingSeeDcpCitationBinding, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
 import { z } from "zod";
 
 import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
@@ -805,6 +805,7 @@ const mapDcpTopicEvidence = (
         ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
         title: clause.title ?? null,
         headingPath: clause.headingPath ?? [],
+        sourceBinding: workingSeeDcpCitationBinding(clause),
         excerpt: compactExcerpt(qualifyingRows.join(" ")),
         score: clause.score,
       }];
@@ -964,6 +965,10 @@ export async function createDetailedPlanningPackArtefact({
 
 
 const dppCitationSchema = z.object({
+  sourceBinding: z.object({
+    clauseId: z.string().min(1),
+    recordSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict().optional(),
   ref: z.string(),
   title: z.string().nullable().default(null),
   headingPath: z.array(z.string()).default([]),

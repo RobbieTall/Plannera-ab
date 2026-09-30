@@ -37,8 +37,10 @@ async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false,
   const project = { id: scope.projectId, publicId: id("public"), userId: scope.actorId,
     createdById: scope.actorId, isDemo: false, title: id("project"),
     siteContext: site, zoningCode: "R2" };
-  const instrumentName = name + " Local Environmental Plan 2014";
-  const lepUrl = "https://legislation.nsw.gov.au/view/html/inforce/current/epi-test-" + council;
+  const instrumentName = name + " Local Environmental Plan " + (council === "BYRON" ? "2014" : "2013");
+  // Correct source identity, but still synthetic text and no network access.
+  const lepUrl = "https://legislation.nsw.gov.au/view/html/inforce/current/" +
+    (council === "BYRON" ? "epi-2014-0297" : "epi-2013-0712");
   const dcpUrl = "https://www." + council.toLowerCase() + ".nsw.gov.au/documents/join-test.pdf";
   const control = { label: "Height", value: "test value", present: true, lepSource: true,
     clauseRef: "4.3", interpretation: bodyText, confidence: "Cited" };
@@ -172,7 +174,7 @@ async function fixture(council: "BYRON" | "KEMPSEY", incompleteControls = false,
 
 async function ordinaryCaptureFixture(council: "BYRON" | "KEMPSEY", withCouncilIdentity = true) {
   const f = await fixture(council, false, withCouncilIdentity);
-  const { captureWorkingSeePackSources } = await import("./see-document-pack-source-capture");
+  const { captureWorkingSeePackSources, workingSeeDcpCitationBinding } = await import("./see-document-pack-source-capture");
   const { captureDcpSource } = await import("./dcp/dcp-source-capture");
   const { resolveCurrentDetailedPlanningPackChain } = await import("./artefact-service");
   const lepRows = f.binding.assessment.evidenceSnapshots.flatMap(row => row.clause ? [{
@@ -184,13 +186,18 @@ async function ordinaryCaptureFixture(council: "BYRON" | "KEMPSEY", withCouncilI
   const row = f.binding.assessment.evidenceSnapshots.find(item => item.dcpClause)!;
   const dcpRows = [{
     ...row.dcpClause!, instrumentSlug: council.toLowerCase() + "-dcp",
-    headingPath: ["Local detail"], parentRef: null, depth: 1, bodyHtml: null,
+    headingPath: ["Local detail"], parentRef: null, depth: 1, bodyHtml: "<p>" + bodyText + "</p>",
     topicTags: [], createdAt: earlier,
     numericMeta: { sourceUrl: row.sourceUrl, sourceCapture: captureDcpSource({
       council, sourceUrl: row.sourceUrl, sourceVersion: "edition-1",
       retrievedAt: retrieved.toISOString(), pdfSha256: sha("original-pdf"), bodyText,
     }, now) },
   }];
+  for (const topic of f.dpp.payload.dcpEvidence) {
+    for (const citation of topic.citations) {
+      Object.assign(citation, { sourceBinding: workingSeeDcpCitationBinding(dcpRows[0]) });
+    }
+  }
   const memory = {
     ...f.db,
     clause: { findMany: async () => { f.calls.push("clause"); return lepRows; } },

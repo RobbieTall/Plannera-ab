@@ -388,6 +388,19 @@ const stripHeadingFromBody = (element: HTMLElement) => {
   return { html, text };
 };
 
+// NSW schedules restart provision numbering; retain their official scoped identity.
+const buildXmlClauseKey = (
+  config: InstrumentConfig,
+  element: HTMLElement,
+  clauseHeading: ClauseHeading,
+) => {
+  const officialId = element.getAttribute("id") || "";
+  if (/^sch\.[0-9A-Za-z]+(?:[.-].+)?$/i.test(officialId)) {
+    return buildClauseKey(config, { ...clauseHeading, clauseNumber: officialId });
+  }
+  return buildClauseKey(config, clauseHeading);
+};
+
 const buildXmlHierarchyPath = (tiers: string[], clauseLabel: string) => [...tiers, clauseLabel];
 
 const extractNumberFromLevel = (element: HTMLElement) => {
@@ -458,7 +471,7 @@ const traverseXml = (
 
       const { html: bodyHtml, text: bodyText } = stripHeadingFromBody(element);
       const clause: ParsedClause = {
-        clauseKey: buildClauseKey(config, clauseHeading),
+        clauseKey: buildXmlClauseKey(config, element, clauseHeading),
         title: clauseHeading.clauseTitle,
         bodyHtml,
         bodyText,
@@ -492,7 +505,7 @@ const traverseXml = (
 
     const { html: bodyHtml, text: bodyText } = stripHeadingFromBody(element);
     clauses.push({
-      clauseKey: buildClauseKey(config, clauseHeading),
+      clauseKey: buildXmlClauseKey(config, element, clauseHeading),
       title: clauseHeading.clauseTitle,
       bodyHtml,
       bodyText,
