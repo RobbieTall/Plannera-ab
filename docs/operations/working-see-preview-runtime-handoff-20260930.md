@@ -1,5 +1,79 @@
 # Working SEE Preview runtime handover - 2026-09-30
 
+## DCP original-source comparison: 30 September 2026
+
+This supersedes the earlier DCP-field diagnostic. The implementation reads
+`numericMeta.sourceCapture`, NOT `numericMeta.provenance`. The earlier
+query of `provenance` alone did not establish the required envelope was missing.
+A corrected read-only query now confirms zero `sourceCapture` envelopes in
+both isolated children for both council corpora. Existing source URLs are present.
+No missing-envelope assertion should rely on the earlier wrong-field query.
+
+The stored corpus labels are already `byron-dcp-2014` (826 rows) and
+`kempsey-dcp-2026` (1,496 rows). Do not recreate or migrate Kempsey merely
+because an obsolete 2013 PDF still appears in search results.
+
+Official authority/version check:
+- [Kempsey's current DCP page](https://www.kempsey.nsw.gov.au/Plan-Build/Local-planning-zoning/Kempsey-Development-Control-Plan)
+  links the 2026 plan, effective 1 July 2026, and describes transitional treatment.
+- [Part A](https://www.kempsey.nsw.gov.au/files/sharedassets/public/v/1/docs/departments/dev-and-compliance/development-assessment/part-a-explanation-kempsey-shire-council-development-control-plan-2026.pdf)
+  identifies adoption on 16 June 2026, commencement on 1 July, repeal of the 2013
+  DCP and transitional provisions for undetermined pre-commencement applications.
+  Preserve those distinctions; do not select a version from the LGA name alone.
+- Byron's official DCP 2014 index was retrieved directly and its current chapter
+  links matched the 39-source manifest. Chapter applicability/version must still
+  be considered individually. No public-page summary certifies a particular site.
+
+Original source acquisition and offline comparison:
+- All five official Kempsey part PDFs and all 39 official Byron chapter PDFs were
+  downloaded successfully over HTTPS and retained locally with original-byte
+  SHA-256 values and response metadata. No cookies/credentials were supplied.
+- The read-only comparison reused each importer’s parsing functions but blocked
+  database access. Neither ingestion function was invoked.
+- Byron: all 826 parsed records matched stored references, parent references,
+  source URLs and SHA-256 body digests on the Byron child; zero unmatched records.
+- Kempsey: all 1,496 parsed records matched stored references, source URLs and
+  SHA-256 body digests on the Kempsey child; zero unmatched records. An initial
+  MD5 diagnostic was superseded by this SHA-256 comparison.
+- PDF extraction emitted font warnings. Text agreement is not visual proof:
+  diagrams, tables, extraction completeness, source applicability and actual
+  customer DOCX/PDF rendering remain unverified. No PDF visual pass is claimed.
+- Kempsey HTTP Date and later validation-recorded times are kept separate; neither
+  is fabricated as an exact application-ingestion timestamp. Byron acquisition
+  start/completion times were captured around each request.
+
+Kempsey original PDF receipts (HTTP 200):
+| Part | Bytes | Pages | SHA-256 |
+| --- | ---: | ---: | --- |
+| Part A - Explanation | 954674 | 11 | `5757d0e8751dc5c1db5733796280b3b6ca15d4795f309a577c647b8dee3d751a` |
+| Part B - Shire-wide requirements | 1190270 | 39 | `3a025693ed9c6b8a4e00c776538564eb125d4a6b450f0bbfcd319e70d66eac16` |
+| Part C - Place-based requirements | 6453779 | 101 | `9652b7d02639f29c9b0a3d02ab9849807183b6a962b66232f2cd324c11c591a9` |
+| Part D - Development requirements | 2179640 | 191 | `535b9ce0bc8ae9d7cce891ed1cde4392661528482225a3171fe28e6f813d318a` |
+| Part E - Appendices | 1901931 | 75 | `312b1f6daf3a5f41c293ef45025dbecc07d38122076b00a4a7b4ac032945a5f2` |
+
+This evidence supports preparing a source-bound, non-destructive provenance
+addition for unchanged child records; it is NOT execution authorisation or proof
+that provenance has been persisted. Retain original files/receipts durably before
+a hosted readiness claim. Do not merely update timestamps or run the current
+importers: both contain corpus delete/replace operations that can change row IDs.
+
+A second lookup issue is now confirmed: 79 human-reference groups in the Byron
+corpus contain multiple rows. The new pack-capture implementation reduces DCP
+citations to a reference string and requires one matching row, so such references
+remain unavailable even after freshness is resolved. Fix citation-to-record
+binding using exact server-selected identity/source evidence; retain fail-closed
+behavior for genuine ambiguity. Never choose the first matching row, silently
+deduplicate different bodies, or combine different chapters. This agent-authored
+lookup correction, together with the LEP mapping fix, requires Robbie's approval
+before edits and regression tests. No correction has yet been applied.
+
+All source/database operations in this checkpoint were read-only. No stored data,
+schema, evidence snapshots, deployment settings or Production state changed.
+Commercial HOLD remains until source integration, unambiguous capture and the
+complete protected project-specific Word/PDF journey are proven.
+
+## Earlier checkpoints (historical where superseded above)
+
 ## Source-integration inventory: 30 September 2026
 
 Application commit `feb75947ba0bd26f6deef368bafa854d1b2a85f9` passed both
