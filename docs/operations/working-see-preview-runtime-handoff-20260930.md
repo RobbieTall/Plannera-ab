@@ -1,5 +1,69 @@
 # Working SEE Preview runtime handover - 2026-09-30
 
+## Source-integration inventory: 30 September 2026
+
+Application commit `feb75947ba0bd26f6deef368bafa854d1b2a85f9` passed both
+`isolated-validation` and `credential-free-compilation` in
+[run 36681846126](https://github.com/RobbieTall/Plannera-ab/actions/runs/36681846126).
+This proves the isolated checks/compilation only, not hosted document acceptance.
+The six focused parser tests and two original-file comparisons are recorded below.
+
+Read-only Neon branch metadata confirmed the two intended children remain ready,
+non-default and distinct, with their expected parents. No credentials were read.
+Queries were explicitly scoped to those children and `neondb`; Production was
+not queried or changed.
+
+The cloned LEP inventory in both children still has:
+- Byron: 128 current records, last retrieval 13 June 2026, with the incorrect
+  `epi-2014-355` citation on its Instrument row.
+- Kempsey: 103 current records, last retrieval 13 June 2026, with the correct
+  `epi-2013-0712` Instrument citation.
+- No numeric-only current clause keys and no records retrieved within seven days.
+
+Core rows inspected on the Byron child use `BYRON_2014_2_3` and
+`KEMP_2013_2_3` (similarly 4.3/4.4/4.6), while the new pack capture queries
+literal numeric references such as `2.3`. The capture lookup therefore requires
+an explicit, council/instrument-bound mapping. A read-only query must reject
+ambiguous matches and cross-council/schedule collisions; do not insert numeric
+duplicate rows or disguise stale sources as current. Robbie has been asked to
+approve correcting the agent-authored lookup and adding regressions. It is not
+yet changed, deployed or proven.
+
+An offline original-file comparison using the existing council prefixes found:
+
+| Council | Existing current rows | Newly parsed rows | Same key/body | Same key, changed body | New keys | Existing keys absent from parsed output |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Byron | 128 | 162 | 111 | 2 | 49 | 15 |
+| Kempsey | 103 | 137 | 82 | 5 | 50 | 16 |
+
+The absent keys are legacy bare schedule numbers. These counts are planning
+diagnostics, not authorised deletes or proof of repeal. Explicitly map reviewed
+schedule identities and preserve old records and issued-document snapshots.
+A new clause version must respect the maximum historical version, not merely the
+current row. Unchanged text still needs genuine source revalidation; do not refresh
+timestamps alone. The original XMLs remain local and unchanged.
+
+On the Byron child only, the DCP inventory contains 826 Byron and 1,496 Kempsey
+rows; none has a `numericMeta.provenance` field. Latest row updates are
+29 August 2026. This is not a full DCP semantic/provenance audit and does not prove
+the Kempsey child's DCP state. It identifies another prerequisite: reviewed
+official DCP acquisition and source-bound provenance before the capture can pass.
+
+Next sequence:
+1. Correct and test explicit LEP reference resolution after approval.
+2. Prepare a non-destructive, receipt-bound refresh plan for each isolated child,
+   with correct instrument links, original bytes/version identity, explicit source
+   acquisition method, and reviewed clause/zone mapping. No force-replace/backfill.
+3. Acquire and validate applicable official DCP and spatial sources separately.
+4. Generate new project-bound packs/documents through normal protected Preview
+   flows; test private download, permissions, immutable reopening and versions.
+5. Inspect actual DOCX/PDF presentation and record the final commercial decision.
+
+No database rows, schema, deployment settings or Production behavior were changed
+by this investigation. Commercial HOLD remains.
+
+## Earlier evidence checkpoints
+
 ## Approved schedule-identity correction: 30 September 2026
 
 Latest checkpoint: the parser correction is implemented and locally validated;
