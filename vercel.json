@@ -17,7 +17,9 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "feat/see-document-delivery-20260929": false
+      "feat/see-document-delivery-20260929": false,
+      "see-doc-byron-20260930": false,
+      "see-doc-kempsey-20260930": false
     }
   }
 }
