@@ -1,5 +1,60 @@
 # Live-only LEP retrieval prerequisite for Working SEE
 
+## Approved lookup corrections validated locally: 30 September 2026
+
+This supersedes the earlier approval-pending and local typing/fixture failure
+checkpoints. Both lookup corrections are implemented on this draft branch;
+hosted customer acceptance and commercial status remain HOLD.
+
+- LEP capture resolves numeric main-clause references through explicit aliases
+  scoped to Byron LEP 2014 or Kempsey LEP 2013. Ambiguous aliases, other-council,
+  wrong-year and schedule-suffix matches fail closed. The official URL must name
+  the matching instrument, not merely use the official hostname.
+- New DPP citations retain the exact server-selected DCP row identity and record
+  fingerprint. Distinct rows sharing a human reference remain distinct; repeated
+  selection of one unchanged row across topics does not create duplicate evidence.
+- New captures use v2. Historic v1 envelopes retain their read-only validation
+  path and are not rewritten or silently upgraded. Unbound old packs cannot
+  manufacture new v2 evidence; regenerate through the normal authorised flow.
+- The final synthetic-fixture correction supplies HTML text rather than null.
+  No test assertions, source-freshness requirements or access checks were weakened.
+
+Local validation with synthetic configuration and isolated generated Prisma types:
+- Full TypeScript check passed.
+- 166 document Node tests passed.
+- 64 document Vitest tests passed, including 31 focused lookup tests and all 14
+  generation integration tests. Do not count the focused suite twice.
+- 17 build-safety/offline-guard regression tests passed.
+- Total: 247 runtime regression tests passed.
+- Build-safety contract passed; both real missing-database rejection checks passed.
+  These are rejection tests, not evidence of database or commercial readiness.
+- A sandboxed guard invocation failed because the tsx process could not run its
+  local IPC setup; the unchanged credential-free guard passed when that process
+  restriction was removed. Earlier dependency-copy/type failures are historical.
+- No local application build was run. Remote isolated validation and separate
+  credential-free compilation must be checked for the exact published commit.
+
+Publication is confined to draft PR #452's existing feature branch. Its unchanged
+vercel.json explicitly disables automatic deployment for
+feat/see-document-delivery-20260929. Current PR head was reconciled before
+publication; no main merge, manual deployment or environment change is included.
+The Vercel deployment inventory still shows the existing isolated Byron/Kempsey
+rehearsals; those deployments do not yet contain these lookup changes.
+
+No database reads/writes, migrations, source ingestion, secrets, customer data or
+private documents were involved in these corrections. Original source files,
+issued documents and immutable acceptance snapshots remain untouched.
+
+Next: inspect exact-commit CI, then prepare the separate non-destructive,
+original-receipt-bound source refresh on the two approved isolated children.
+Preserve existing row IDs/history, council separation and actual source timing;
+do not run delete/replace importers or refresh timestamps without source proof.
+After source integration and protected Preview deployment, prove real customer
+DOCX/PDF generation, private downloads/reopening, permissions, warnings and
+versions, and inspect representative files. No Production activation.
+
+## Earlier checkpoints (historical where superseded above)
+
 ## DCP original-source comparison: 30 September 2026
 
 This supersedes the earlier DCP-field diagnostic. The implementation reads

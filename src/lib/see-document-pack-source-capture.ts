@@ -6,7 +6,8 @@ import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import { savedSiteBinding } from "./site-context-provenance-storage";
 import { readDcpSourceCapture, DCP_SOURCE_CAPTURE_MAX_AGE_MS } from "./dcp/dcp-source-capture";
 
-export const WORKING_SEE_PACK_CAPTURE_VERSION = "working-see-pack-source-capture.v1";
+export const WORKING_SEE_PACK_CAPTURE_VERSION = "working-see-pack-source-capture.v2";
+const LEGACY_CAPTURE_VERSION = "working-see-pack-source-capture.v1";
 const MAX_CAPTURE_BYTES = 512 * 1024;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const bodyHash = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -23,7 +24,7 @@ const sourceSchema = z.object({
   originMetadataJson: z.string().nullable(),
 }).strict();
 const captureSchema = z.object({
-  schema: z.literal(WORKING_SEE_PACK_CAPTURE_VERSION), status: z.literal("CAPTURED"),
+  schema: z.enum([LEGACY_CAPTURE_VERSION, WORKING_SEE_PACK_CAPTURE_VERSION]), status: z.literal("CAPTURED"),
   projectId: z.string().min(1), siteId: z.string().min(1), siteBinding: sha,
   council: z.enum(["BYRON", "KEMPSEY"]), zoneCode: z.string().min(1),
   sourceQuickSiteCheckArtefactId: z.string().min(1), quickSiteCheckDigest: sha,
@@ -59,6 +60,60 @@ function officialLepUrl(value: string) {
       /^\/view\/(?:html|whole|pdf)\//.test(u.pathname);
   } catch { return false; }
 }
+
+const LEP_IDENTITIES = {
+  BYRON: { name: "Byron Local Environmental Plan 2014", instrument: "epi-2014-0297",
+    prefixes: ["BYRON_2014_", "BYRON_LEP_2014_"] },
+  KEMPSEY: { name: "Kempsey Local Environmental Plan 2013", instrument: "epi-2013-0712",
+    prefixes: ["KEMP_2013_", "KEMPSEY_LEP_2013_"] },
+} as const;
+type Council = keyof typeof LEP_IDENTITIES;
+function lepClauseAliases(council: Council, reference: string): string[] {
+  // Main provisions only: never suffix-match schedules, another council or year.
+  if (!/^[1-9]\d*\.[1-9]\d*[A-Z]?$/.test(reference)) fail();
+  return [reference, ...LEP_IDENTITIES[council].prefixes.map(prefix =>
+    prefix + reference.replace(".", "_"))];
+}
+function requestedLepReferences(report: QuickSiteCheckReport): string[] {
+  return [...new Set(["2.3", ...Object.values(report.controls ?? {})
+    .flatMap(control => control?.clauseRef ? [control.clauseRef.trim()] : [])])];
+}
+function scopedLepUrl(value: string, council: Council) {
+  if (!officialLepUrl(value)) return false;
+  const path = new URL(value).pathname;
+  return new RegExp("^/view/(?:html|whole/html|pdf)/inforce/(?:current|\\d{4}-\\d{2}-\\d{2})/" +
+    LEP_IDENTITIES[council].instrument + "$").test(path);
+}
+
+/** Identity of the exact server-selected row; not a statutory-validity certificate. */
+export function workingSeeDcpCitationBinding(row: DCPClause) {
+  if (!row.id || !row.instrumentSlug || !row.bodyText ||
+    !(row.updatedAt instanceof Date) || !Number.isFinite(row.updatedAt.getTime())) return undefined;
+  return { clauseId: row.id, recordSha256: hash({
+    id: row.id, council: row.lgaCode, instrumentSlug: row.instrumentSlug,
+    ref: row.ref, title: row.title, headingPath: row.headingPath, parentRef: row.parentRef,
+    bodyText: row.bodyText, numericMeta: row.numericMeta, updatedAt: row.updatedAt.toISOString(),
+  }) };
+}
+function boundDcpRows(pack: DetailedPlanningPackContent, rows: readonly DCPClause[], council: Council) {
+  const selected = new Map<string, DCPClause>();
+  const citations = pack.dcpEvidence.flatMap(topic => topic.citations);
+  if (!citations.length) fail();
+  for (const citation of citations) {
+    const binding = citation.sourceBinding;
+    if (!binding || !binding.clauseId || !/^[a-f0-9]{64}$/.test(binding.recordSha256)) fail();
+    const matches = rows.filter(row => row.id === binding.clauseId);
+    if (!matches.length || matches.some(row => row.lgaCode !== council ||
+      row.ref !== citation.ref || row.title !== citation.title ||
+      hash(row.headingPath) !== hash(citation.headingPath) ||
+      workingSeeDcpCitationBinding(row)?.recordSha256 !== binding.recordSha256)) fail();
+    // Repeated selections of one unchanged row across topics are legitimate.
+    // Different records sharing a human label remain distinct.
+    selected.set(binding.clauseId, matches[0]);
+  }
+  return [...selected.values()];
+}
+
 function usableTime(source: Source, now: Date) {
   const fetched = Date.parse(source.retrievedAt);
   return Number.isFinite(fetched) && fetched <= now.getTime() &&
@@ -84,21 +139,22 @@ export async function captureWorkingSeePackSources(
       site.projectId !== pack.projectId || pack.site.lgaCode !== council ||
       !pack.site.zoneCode || !pack.sourceQuickSiteCheck.artefactId ||
       !quickSiteCheck.lepInstrument?.name ||
-      !quickSiteCheck.lepInstrument.name.toLowerCase().startsWith(council.toLowerCase() + " ")) fail();
-    const keys = [...new Set(["2.3", ...Object.values(quickSiteCheck.controls ?? {})
-      .flatMap(control => control?.clauseRef ? [control.clauseRef.trim()] : [])])];
+      quickSiteCheck.lepInstrument.name !== LEP_IDENTITIES[council].name) fail();
+    const references = requestedLepReferences(quickSiteCheck);
+    const keys = references.flatMap(ref => lepClauseAliases(council, ref));
     const lepRows = await db.clause.findMany({
       where: { isCurrent: true, clauseKey: { in: keys },
         instrument: { name: quickSiteCheck.lepInstrument.name, instrumentType: "LEP" } },
       include: { instrument: true }, orderBy: [{ clauseKey: "asc" }, { id: "asc" }],
     });
     const sources: Source[] = [];
-    for (const key of keys) {
-      const matches = lepRows.filter(row => row.clauseKey === key && row.isCurrent &&
+    for (const reference of references) {
+      const aliases = lepClauseAliases(council, reference);
+      const matches = lepRows.filter(row => aliases.includes(row.clauseKey) && row.isCurrent &&
         row.instrument.name === quickSiteCheck.lepInstrument!.name && row.instrument.instrumentType === "LEP");
       if (matches.length !== 1) fail();
       const row = matches[0];
-      if (!row.retrievedAt || !officialLepUrl(row.instrument.sourceUrl)) fail();
+      if (!row.retrievedAt || !scopedLepUrl(row.instrument.sourceUrl, council)) fail();
       sources.push({
         kind: "LEP", clauseId: row.id, reference: row.instrument.name + " cl. " + row.clauseKey,
         title: row.title || row.clauseKey, bodyText: row.bodyText, bodyTextSha256: bodyHash(row.bodyText),
@@ -108,13 +164,9 @@ export async function captureWorkingSeePackSources(
         effectiveTo: date(row.effectiveTo), originMetadataJson: null,
       });
     }
-    const refs = [...new Set(pack.dcpEvidence.flatMap(topic => topic.citations.map(c => c.ref)))];
-    if (!refs.length) fail();
-    for (const ref of refs) {
-      const matches = [...new Map(input.dcpClauses.filter(row => row.ref === ref && row.lgaCode === council)
-        .map(row => [row.id, row])).values()];
-      if (matches.length !== 1) fail();
-      const row = matches[0];
+    for (const row of boundDcpRows(pack, input.dcpClauses, council)) {
+      const ref = row.ref;
+      if (!ref) fail();
       const proof = readDcpSourceCapture(row.numericMeta, { council, bodyText: row.bodyText, now });
       if (!proof) fail();
       sources.push({
@@ -173,9 +225,25 @@ export async function readWorkingSeePackSources(
   const dcps = await db.dCPClause.findMany({
     where: { id: { in: capture.sources.filter(s => s.kind === "DCP").map(s => s.clauseId) } },
   });
+  if (capture.schema === WORKING_SEE_PACK_CAPTURE_VERSION) {
+    if (input.quickSiteCheck.lepInstrument?.name !== LEP_IDENTITIES[capture.council].name) fail();
+    const references = requestedLepReferences(input.quickSiteCheck);
+    const lepSources = capture.sources.filter(source => source.kind === "LEP");
+    if (lepSources.length !== references.length) fail();
+    for (const reference of references) {
+      const aliases = lepClauseAliases(capture.council, reference);
+      const matches = lepSources.filter(source => leps.some(row =>
+        row.id === source.clauseId && aliases.includes(row.clauseKey)));
+      if (matches.length !== 1) fail();
+    }
+    const expectedDcp = boundDcpRows(input.pack, dcps, capture.council);
+    const dcpSources = capture.sources.filter(source => source.kind === "DCP");
+    if (expectedDcp.length !== dcpSources.length || expectedDcp.some(row =>
+      !dcpSources.some(source => source.clauseId === row.id))) fail();
+  }
   const seen = new Set<string>();
   for (const source of capture.sources) {
-    const key = source.kind + ":" + source.reference;
+    const key = source.kind + ":" + (capture.schema === LEGACY_CAPTURE_VERSION ? source.reference : source.clauseId);
     if (seen.has(key) || !usableTime(source, now) ||
       Date.parse(source.retrievedAt) > Date.parse(capture.capturedAt) ||
       Date.parse(source.recordUpdatedAt) > Date.parse(capture.capturedAt) ||
@@ -188,7 +256,9 @@ export async function readWorkingSeePackSources(
       if (!row.isCurrent || row.instrument.instrumentType !== "LEP" ||
         row.instrument.name !== input.quickSiteCheck.lepInstrument?.name ||
         !row.instrument.name.toLowerCase().startsWith(capture.council.toLowerCase() + " ") ||
-        !officialLepUrl(row.instrument.sourceUrl) || source.sourceUrl !== row.instrument.sourceUrl ||
+        !officialLepUrl(row.instrument.sourceUrl) ||
+        (capture.schema === WORKING_SEE_PACK_CAPTURE_VERSION && !scopedLepUrl(row.instrument.sourceUrl, capture.council)) ||
+        source.sourceUrl !== row.instrument.sourceUrl ||
         source.reference !== row.instrument.name + " cl. " + row.clauseKey ||
         source.sourceVersion !== "clause-version-" + row.version ||
         source.originalRecordHash !== row.contentHash || source.bodyText !== row.bodyText ||

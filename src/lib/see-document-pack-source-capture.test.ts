@@ -5,7 +5,7 @@ import type { DCPClause, PrismaClient, SiteContext } from "@prisma/client";
 import type { DetailedPlanningPackContent } from "@/types/workspace";
 import type { QuickSiteCheckReport } from "@/types/quick-site-check";
 import { captureDcpSource } from "./dcp/dcp-source-capture";
-import { captureWorkingSeePackSources, readWorkingSeePackSources,
+import { captureWorkingSeePackSources, readWorkingSeePackSources, workingSeeDcpCitationBinding,
   type WorkingSeePackCaptureInput } from "./see-document-pack-source-capture";
 
 vi.mock("@/lib/prisma", () => ({
@@ -24,10 +24,14 @@ function fixture(council: "BYRON" | "KEMPSEY" = "BYRON") {
     parcelId: null, lot: null, planNumber: null, latitude: -30, longitude: 153,
     createdAt: earlier, updatedAt: earlier,
   } satisfies SiteContext;
-  const instrument = { id: "instrument-" + council, name: name + " Local Environmental Plan 2014",
-    instrumentType: "LEP", sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/epi-memory-" + council };
+  const instrument = { id: "instrument-" + council,
+    name: name + " Local Environmental Plan " + (council === "BYRON" ? "2014" : "2013"),
+    instrumentType: "LEP", sourceUrl: "https://legislation.nsw.gov.au/view/html/inforce/current/" +
+      (council === "BYRON" ? "epi-2014-0297" : "epi-2013-0712") };
   const leps = ["2.3", "4.3"].map(clauseKey => ({
-    id: council + "-lep-" + clauseKey, clauseKey, instrument, bodyText, title: "In-memory control",
+    id: council + "-lep-" + clauseKey,
+    clauseKey: (council === "BYRON" ? "BYRON_2014_" : "KEMP_2013_") + clauseKey.replace(".", "_"),
+    instrument, bodyText, title: "In-memory control",
     version: 1, isCurrent: true, retrievedAt: earlier, updatedAt: earlier,
     contentHash: sha("original-record-" + clauseKey), effectiveFrom: null, effectiveTo: null,
   }));
@@ -63,16 +67,23 @@ function fixture(council: "BYRON" | "KEMPSEY" = "BYRON") {
       generatedAt: earlier.toISOString(), lepEvidenceSummary: summary },
     carriedLepEvidenceSummary: summary,
     dcpEvidence: [{ topicId: "local_controls", topicLabel: "Local controls", status: "Cited",
-      reason: bodyText, citations: [{ ref: dcp.ref, title: dcp.title, headingPath: dcp.headingPath, excerpt: bodyText, score: 1 }] }],
+      reason: bodyText, citations: [{ ref: dcp.ref, title: dcp.title, headingPath: dcp.headingPath, excerpt: bodyText, score: 1,
+        sourceBinding: workingSeeDcpCitationBinding(dcp) }] }],
     topicMatrix: [], unresolvedTopics: [], consultantReviewQuestions: [], nextAction: "Review",
     commercialReady: false,
   } as unknown as DetailedPlanningPackContent;
+  const dcpRows = [dcp];
+  const queries: string[][] = [];
   const db = {
-    clause: { findMany: async () => leps },
-    dCPClause: { findMany: async () => [dcp] },
+    clause: { findMany: async ({ where }: { where: { clauseKey?: { in: string[] }; id?: { in: string[] } } }) => {
+      if (where.clauseKey) queries.push(where.clauseKey.in);
+      return leps.filter(row => (!where.clauseKey || where.clauseKey.in.includes(row.clauseKey)) &&
+        (!where.id || where.id.in.includes(row.id)));
+    } },
+    dCPClause: { findMany: async () => dcpRows },
   } as unknown as Pick<PrismaClient, "clause" | "dCPClause">;
-  const input = { site, pack, quickSiteCheck: qsc, dcpClauses: [dcp] };
-  return { db, input, leps, dcp };
+  const input = { site, pack, quickSiteCheck: qsc, dcpClauses: dcpRows };
+  return { db, input, leps, dcp, queries };
 }
 async function saved(council: "BYRON" | "KEMPSEY" = "BYRON") {
   const f = fixture(council);
@@ -142,7 +153,7 @@ test("unexpected database failures are not disguised as verified or unavailable 
 for (const council of ["BYRON", "KEMPSEY"] as const) {
   test(council + " normal DPP creation saves real capture output in the same new artefact payload", async () => {
     const f = fixture(council);
-    const { createDetailedPlanningPackArtefact } = await import("./artefact-service");
+    const { createDetailedPlanningPackArtefact, detailedPlanningPackContentSchema } = await import("./artefact-service");
     const project = { id: f.input.site.projectId, publicId: "public-" + council,
       userId: "owner", createdById: "owner", isDemo: false, siteContext: f.input.site, zoningCode: "R2" };
     const qscRow = { id: f.input.pack.sourceQuickSiteCheck.artefactId, projectId: project.id,
@@ -172,6 +183,10 @@ for (const council of ["BYRON", "KEMPSEY"] as const) {
     assert.equal(writes, 1); assert.equal(captures, 1);
     const payload = result.artefact.payload as unknown as DetailedPlanningPackContent & { workingSeeSourceCapture: unknown };
     assert.ok(captureInput);
+    const parsed = detailedPlanningPackContentSchema.parse(payload);
+    assert.ok(parsed.dcpEvidence.flatMap(topic => topic.citations).every(citation =>
+      citation.sourceBinding?.clauseId === f.dcp.id));
+    assert.deepEqual(parsed.dcpEvidence, payload.dcpEvidence);
     const read = await readWorkingSeePackSources(f.db, {
       ...captureInput, pack: payload, capture: payload.workingSeeSourceCapture, resolvedZoneCode: "R2",
     });
@@ -180,3 +195,146 @@ for (const council of ["BYRON", "KEMPSEY"] as const) {
     assert.ok(read.sources.some(source => source.kind === "DCP"));
   });
 }
+
+function bindCitation(f: ReturnType<typeof fixture>, row: DCPClause) {
+  assert.ok(row.ref, "In-memory selected clause must have a reference");
+  return { ref: row.ref, title: row.title, headingPath: row.headingPath, excerpt: row.bodyText,
+    score: 1, sourceBinding: workingSeeDcpCitationBinding(row) };
+}
+function duplicateReference(f: ReturnType<typeof fixture>) {
+  const row = { ...f.dcp, id: f.dcp.id + "-other", bodyText: f.dcp.bodyText + " Separate chapter requirement.",
+    headingPath: ["Other chapter"], numericMeta: { ...f.dcp.numericMeta as object } };
+  const sourceUrl = "https://www.byron.nsw.gov.au/plans/other.pdf";
+  row.numericMeta = { sourceUrl, sourceCapture: captureDcpSource({
+    council: "BYRON", sourceUrl, sourceVersion: "edition-1",
+    retrievedAt: earlier.toISOString(), pdfSha256: sha("other-in-memory-pdf"), bodyText: row.bodyText,
+  }, now) };
+  f.input.dcpClauses.push(row);
+  return row;
+}
+for (const council of ["BYRON", "KEMPSEY"] as const) {
+  for (const format of ["numeric", "configured-prefix"] as const) {
+    test(council + " accepts only the explicit " + format + " main-clause alias", async () => {
+      const f = fixture(council);
+      for (const [index, row] of f.leps.entries()) {
+        const ref = index === 0 ? "2.3" : "4.3";
+        row.clauseKey = format === "numeric" ? ref :
+          (council === "BYRON" ? "BYRON_LEP_2014_" : "KEMPSEY_LEP_2013_") + ref.replace(".", "_");
+      }
+      const capture = await captureWorkingSeePackSources(f.db, f.input, now);
+      assert.equal(capture.status, "CAPTURED");
+      assert.ok(f.queries[0].includes(f.leps[0].clauseKey));
+      assert.equal((await readWorkingSeePackSources(f.db, {
+        ...f.input, capture, resolvedZoneCode: "R2",
+      }, now)).council, council);
+    });
+  }
+  test(council + " rejects simultaneous numeric and prefixed aliases instead of picking one", async () => {
+    const f = fixture(council);
+    f.leps.push({ ...f.leps[0], id: "conflicting-alias", clauseKey: "2.3" });
+    assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+  });
+}
+for (const key of ["KEMP_2013_2_3", "BYRON_2013_2_3", "BYRON_2014_SCH_1_SEC_2_3", "unknown_2_3"]) {
+  test("Byron cannot resolve wrong-scope key " + key, async () => {
+    const f = fixture(); f.leps[0].clauseKey = key;
+    assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+  });
+}
+test("an official host with the wrong instrument, year or instrument type is not enough", async () => {
+  for (const change of ["url", "name", "type"]) {
+    const f = fixture();
+    if (change === "url") f.leps[0].instrument.sourceUrl =
+      "https://legislation.nsw.gov.au/view/html/inforce/current/epi-2014-355";
+    if (change === "name") {
+      f.leps[0].instrument.name = "Byron Local Environmental Plan 2013";
+      f.input.quickSiteCheck.lepInstrument!.name = f.leps[0].instrument.name;
+    }
+    if (change === "type") f.leps[0].instrument.instrumentType = "SEPP";
+    assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+  }
+});
+test("unsupported or schedule-style quick-check references fail closed", async () => {
+  for (const ref of ["SCH_1_SEC_2_3", "KEMP_2013_4_3", "4.3 OR 1=1", "cl. 4.3"]) {
+    const f = fixture(); f.input.quickSiteCheck.controls.heightOfBuilding.clauseRef = ref;
+    assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+  }
+});
+test("duplicate DCP human references preserve both exact selected records and their sources", async () => {
+  const f = fixture(); const other = duplicateReference(f);
+  f.input.pack.dcpEvidence[0].citations.push(bindCitation(f, other));
+  const capture = await captureWorkingSeePackSources(f.db, f.input, now);
+  assert.equal(capture.status, "CAPTURED");
+  const read = await readWorkingSeePackSources(f.db, { ...f.input, capture, resolvedZoneCode: "R2" }, now);
+  assert.deepEqual(read.sources.filter(source => source.kind === "DCP").map(source => source.clauseId).sort(),
+    [f.dcp.id, other.id].sort());
+  assert.equal(new Set(read.sources.filter(source => source.kind === "DCP").map(source => source.sourceUrl)).size, 2);
+});
+test("an unselected row with the same label is not captured", async () => {
+  const f = fixture(); const other = duplicateReference(f);
+  f.input.pack.dcpEvidence[0].citations = [bindCitation(f, other)];
+  const capture = await captureWorkingSeePackSources(f.db, f.input, now);
+  assert.equal(capture.status, "CAPTURED");
+  if (capture.status === "CAPTURED") assert.deepEqual(
+    capture.sources.filter(source => source.kind === "DCP").map(source => source.clauseId), [other.id]);
+});
+test("a repeated identical row across topics is captured once without merging distinct records", async () => {
+  const f = fixture();
+  f.input.dcpClauses.push({ ...f.dcp });
+  f.input.pack.dcpEvidence.push({ ...f.input.pack.dcpEvidence[0], topicId: "other" });
+  const capture = await captureWorkingSeePackSources(f.db, f.input, now);
+  assert.equal(capture.status, "CAPTURED");
+  if (capture.status === "CAPTURED") assert.equal(capture.sources.filter(source => source.kind === "DCP").length, 1);
+});
+test("legacy unbound citations are not silently assigned or upgraded even when their label is unique", async () => {
+  const f = fixture(); delete f.input.pack.dcpEvidence[0].citations[0].sourceBinding;
+  assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+});
+test("DCP binding rejects wrong row, council, body, metadata, title, heading and inconsistent repeated IDs", async () => {
+  for (const change of ["id", "council", "body", "metadata", "title", "heading", "duplicate"]) {
+    const f = fixture();
+    if (change === "id") f.input.pack.dcpEvidence[0].citations[0].sourceBinding!.clauseId = "missing";
+    if (change === "council") f.dcp.lgaCode = "KEMPSEY";
+    if (change === "body") f.dcp.bodyText += " changed";
+    if (change === "metadata") f.dcp.numericMeta = {};
+    if (change === "title") f.dcp.title = "Other title";
+    if (change === "heading") f.dcp.headingPath = ["Other heading"];
+    if (change === "duplicate") f.input.dcpClauses.push({ ...f.dcp, bodyText: "different" });
+    assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE", change);
+  }
+});
+test("read requires exact source coverage even if an altered envelope digest is recomputed", async () => {
+  for (const change of ["missing-dcp", "extra-dcp", "missing-lep", "duplicate-id"]) {
+    const f = await saved();
+    assert.equal(f.capture.status, "CAPTURED");
+    if (f.capture.status !== "CAPTURED") return;
+    const sources = [...f.capture.sources];
+    if (change === "missing-dcp") sources.splice(sources.findIndex(s => s.kind === "DCP"), 1);
+    if (change === "missing-lep") sources.splice(sources.findIndex(s => s.kind === "LEP"), 1);
+    if (change === "extra-dcp") sources.push({ ...sources.find(s => s.kind === "DCP")!, clauseId: "uncited" });
+    if (change === "duplicate-id") sources.push({ ...sources[0] });
+    const { digest: unused, ...base } = { ...f.capture, sources };
+    const capture = { ...base, digest: sha(JSON.stringify(base)) };
+    await assert.rejects(readWorkingSeePackSources(f.db, { ...f.input, capture, resolvedZoneCode: "R2" }, now),
+      /source_capture_incomplete/);
+  }
+});
+test("historical v1 envelopes remain read-only and are not rewritten to v2", async () => {
+  const f = await saved();
+  if (f.capture.status !== "CAPTURED") throw new Error("Missing in-memory capture");
+  delete f.input.pack.dcpEvidence[0].citations[0].sourceBinding;
+  const { digest: unused, ...base } = {
+    ...f.capture, schema: "working-see-pack-source-capture.v1" as const,
+    packDigest: sha(JSON.stringify(f.input.pack)),
+  };
+  const capture = { ...base, digest: sha(JSON.stringify(base)) };
+  const before = JSON.stringify(capture);
+  const read = await readWorkingSeePackSources(f.db, { ...f.input, capture, resolvedZoneCode: "R2" }, now);
+  assert.equal(read.schema, "working-see-pack-source-capture.v1");
+  assert.equal(JSON.stringify(capture), before);
+});
+
+test("a null DCP reference cannot become a captured citation", async () => {
+  const f = fixture(); f.dcp.ref = null;
+  assert.equal((await captureWorkingSeePackSources(f.db, f.input, now)).status, "UNAVAILABLE");
+});
