@@ -41,7 +41,7 @@ Local validation:
 - The first tsx CLI attempt hit sandbox IPC restrictions; the equivalent node --import tsx runner passed without expanding credentials or access.
 - Static import fingerprints are change-control evidence, not proof of all possible build behaviour. Permitted commands, mutation prohibitions and credential-free compilation remain unchanged.
 
-Remote full validation for this retrieval correction is pending publication; the previously deployed source-refresh application passed 299 tests and all 14 workflows at 9f1cca1a483a984209d9119237b53216fa46e6c6. Do not conflate that result with the new correction or a hosted document pass.
+Published correction cc906ae285968bdd69ea4ded18490efc1af102b4 passed 315 tests (11 safety + 52 source planner + 178 Node + 68 Vitest + 6 offline), full TypeScript and separate credential-free compilation in run 36699459863. It has not been deployed. The previously deployed source-refresh application passed 299 tests at 9f1cca1a483a984209d9119237b53216fa46e6c6. Neither result is a hosted customer document pass.
 
 ## Council lookup diagnosis
 
@@ -56,7 +56,7 @@ A targeted correction must evaluate effective end dates against the actual retri
 
 ## Next work and handover
 
-1. Publish and validate the scoped retrieval correction on PR #452 without automatic deployment or main changes.
+1. Scoped retrieval correction publication and isolated validation are complete on PR #452. Preserve the automatic-deployment safeguard; the correction is not yet deployed.
 2. Correct the diagnosed official boundary-date handling after the requested targeted approval; do not replace it with name-only trust.
 3. Redeploy only reviewed council rehearsal commits and repeat normal site confirmation, then regenerate new DPP/SEE versions.
 4. Complete Kempsey normal customer sign-in; continue separate project-specific document tests.
