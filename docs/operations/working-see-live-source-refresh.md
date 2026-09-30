@@ -1,5 +1,34 @@
 # Live-only LEP retrieval prerequisite for Working SEE
 
+## Test lint correction: 30 September 2026
+
+Robbie approved removing the two unused digest bindings introduced in the lookup
+regression tests. The tests now explicitly omit the digest with Object.entries /
+Object.fromEntries before recomputing it. Test intent and assertions are unchanged;
+lint rules, source checks and application code are not weakened or modified.
+
+Local revalidation passed: targeted Next ESLint on all five changed TypeScript
+files; full TypeScript; 166 document Node tests; 64 document Vitest tests; 17
+build-safety/offline-guard tests. Total remains 247, not an additional 247 tests.
+The build-safety contract passed. The exact feature-branch deployment-disable
+safeguard and GitHub workflow definitions remain unchanged.
+
+Historical failure evidence: application commit f524c385a4cd8fd381752e9647ee133033133a3e
+passed isolated validation in runs 36690183311 and 36690190692, but the separate
+credential-free builds failed lint on the two unused variables. They are not
+successful build evidence. Check the new exact-commit runs before declaring this
+correction build-verified. No local Next build is claimed.
+
+The installation log also reported dependency audit advisories; applicability
+and fixes remain untriaged, and this narrow correction does not change dependencies.
+
+No database operations, source refresh, schema changes, deployment, merge or
+Production changes. Commercial HOLD remains: original-source provenance integration
+on the two isolated children and protected customer DOCX/PDF acceptance are still
+outstanding. Latest exact-commit CI results are recorded on PR #452 and Issue #395.
+
+## Earlier checkpoints (historical where superseded above)
+
 ## Approved lookup corrections validated locally: 30 September 2026
 
 This supersedes the earlier approval-pending and local typing/fixture failure

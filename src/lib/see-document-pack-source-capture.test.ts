@@ -313,7 +313,8 @@ test("read requires exact source coverage even if an altered envelope digest is 
     if (change === "missing-lep") sources.splice(sources.findIndex(s => s.kind === "LEP"), 1);
     if (change === "extra-dcp") sources.push({ ...sources.find(s => s.kind === "DCP")!, clauseId: "uncited" });
     if (change === "duplicate-id") sources.push({ ...sources[0] });
-    const { digest: unused, ...base } = { ...f.capture, sources };
+    const base = Object.fromEntries(Object.entries({ ...f.capture, sources })
+      .filter(([key]) => key !== "digest"));
     const capture = { ...base, digest: sha(JSON.stringify(base)) };
     await assert.rejects(readWorkingSeePackSources(f.db, { ...f.input, capture, resolvedZoneCode: "R2" }, now),
       /source_capture_incomplete/);
@@ -323,10 +324,10 @@ test("historical v1 envelopes remain read-only and are not rewritten to v2", asy
   const f = await saved();
   if (f.capture.status !== "CAPTURED") throw new Error("Missing in-memory capture");
   delete f.input.pack.dcpEvidence[0].citations[0].sourceBinding;
-  const { digest: unused, ...base } = {
+  const base = Object.fromEntries(Object.entries({
     ...f.capture, schema: "working-see-pack-source-capture.v1" as const,
     packDigest: sha(JSON.stringify(f.input.pack)),
-  };
+  }).filter(([key]) => key !== "digest"));
   const capture = { ...base, digest: sha(JSON.stringify(base)) };
   const before = JSON.stringify(capture);
   const read = await readWorkingSeePackSources(f.db, { ...f.input, capture, resolvedZoneCode: "R2" }, now);
