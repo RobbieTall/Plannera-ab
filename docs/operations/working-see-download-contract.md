@@ -1,3 +1,107 @@
+# Working SEE operations: current status at 2026-09-30
+
+This section supersedes status claims in the historical checkpoints below. The
+older text is retained as an audit trail, not as current setup instructions.
+Commercial decision: **HOLD**. Production activation is not authorised.
+
+## Implemented and proven offline
+
+Application/source commit: `31fc550d6402fb88160aad5b5d570a1740268342`.
+[Linux run 36636420187](https://github.com/RobbieTall/Plannera-ab/actions/runs/36636420187)
+passed full TypeScript and **201 tests** (140 core, 44 Vitest, 11 safety, 6
+offline-guard regressions). Separate credential-free Next compilation passed.
+Both real database smoke CLIs correctly rejected missing configuration. This is
+not a real-database readiness result or a complete hosted Vercel build.
+
+Council-point lookup is now integrated into normal Preview site provenance and
+generation checks; it is no longer local-only. Source capture, saved-record
+generation, private immutable versions, authenticated downloads and original-byte
+reopening are implemented draft code. Hosted customer acceptance remains unproven.
+Static fingerprints do not guarantee all transitive build behaviour.
+
+## Completed isolated database prerequisite
+
+Robbie explicitly approved retirement of the PR #419 and PR #429 Preview
+databases, two independent copies of the existing council acceptance parents, and
+the document-type addition on those new copies only.
+
+| Council | Rehearsal branch | Neon branch ID | Preserved parent |
+|---|---|---|---|
+| Byron | `preview/see-doc-byron-20260930` | `br-blue-dawn-a733pff4` | `br-square-king-a7hsosg2` |
+| Kempsey | `preview/see-doc-kempsey-20260930` | `br-royal-breeze-a75t8c41` | `br-noisy-leaf-a7o8xtrk` |
+
+Both children were confirmed ready, non-default and non-primary. Schema-only
+prechecks identified public.ArtefactType without working_see. The following
+statement succeeded on each child, and both postchecks returned true:
+
+```sql
+ALTER TYPE "ArtefactType" ADD VALUE IF NOT EXISTS 'working_see';
+```
+
+The migration ledger was NOT reconciled. Do not run migration-deploy blindly or
+claim this manual approved step proves the complete migration history.
+
+Retired database IDs: `br-wispy-brook-a7nk9hhn` (PR #419) and
+`br-dawn-dust-a7kr74rr` (PR #429). Their GitHub code and PRs remain intact;
+old Preview deployments using these databases may fail. Acceptance parents and
+Production were not written to. No credentials were retrieved or published.
+
+## Remaining protected Preview setup
+
+The exact feature branch `feat/see-document-delivery-20260929` still has automatic
+Vercel deployment disabled in vercel.json. Do not remove that safeguard, merge to
+main, or assume a new branch inherits it. Publication of documentation is not
+deployment approval.
+
+Before a separately scoped rehearsal:
+1. Establish two independently identified protected Preview deployment targets.
+   Do not repoint the immutable acceptance deployments. Decide target Git refs and
+   exact source SHA before configuring secrets or triggering any build.
+2. Bind each target's pooled and direct database settings to its own child above.
+   Broad inherited database variables are not verified targets. Robbie handles
+   secret copy/paste; do not print values, cookies or signed private URLs.
+3. Establish private Blob storage and authentication settings for the rehearsal.
+   Preserve private access and project/version isolation. Do not expose historical
+   acceptance documents, use Production credentials, or activate live checkout.
+4. Configure only the identified Preview targets with
+   `PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED=1`,
+   `PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED=1`, and
+   `PLANNERA_WORKING_SEE_GENERATION_ENABLED=1`.
+   These require platform-provided `VERCEL_ENV=preview`; never spoof it in
+   Production. Generation uses the same enablement for private persistence.
+5. Obtain scoped approval before genuine source refresh/ingestion and deployment.
+   Retain actual official retrieval dates, source bodies and hashes. Do not repair
+   stale records by changing timestamps, backfill guessed council codes, or turn
+   synthetic test inputs into planning evidence.
+6. Run unchanged real build/readiness gates against the isolated target. Prove
+   owner and paid-scope checks, current authoritative evidence and the complete
+   saved site -> QSC/DPP/memo -> working SEE chain for each council.
+7. Generate, download and reopen both DOCX and PDF from the actual protected
+   customer UI. Confirm original byte hashes/version, wrong-user/wrong-project
+   denial, evidence warnings and native Word/PDF presentation.
+
+These deployment connections, flags, source preparation and hosted checks have
+NOT been completed by the database-copy step. The current generated sample files
+are synthetic and not established as exact-current-source customer evidence.
+Uploaded plans/reports remain explicitly not independently incorporated by this
+generation path. A working draft is not submission-ready.
+
+## Safety and handover
+
+Production checkout has not been activated. No Production data/schema mutation,
+acceptance-parent mutation, cloud setting change, deployment or merge accompanied
+the database prerequisite or this status documentation. Future work remains
+Research Viewer / Project Controls compatible without implementing those features.
+Preserve the concurrent mobile documentation branch and immutable Item 78C evidence.
+
+Continue from Issue #395 and draft PR #452. The next gate is protected Preview
+configuration and genuine customer document proof, not another synthetic-only
+pass or repeated database setup.
+
+---
+
+# Historical checkpoints (superseded status; retained evidence)
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in
