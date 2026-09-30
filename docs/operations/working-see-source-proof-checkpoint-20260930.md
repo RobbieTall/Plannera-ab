@@ -2,8 +2,8 @@
 
 ## Current decision
 
-**Commercial HOLD.** DCP source-proof persistence has completed on the two approved
-isolated Preview copies. The LEP version refresh, hosted customer Word/PDF journey
+**Commercial HOLD.** DCP source-proof persistence and the scoped LEP version refresh have completed on
+the two approved isolated Preview copies. The hosted customer Word/PDF journey
 and native output inspection are not complete. No Production changes or checkout
 activation occurred.
 
@@ -12,6 +12,16 @@ This execution checkpoint supersedes the preparation-only wording in
 [the runtime handover](working-see-preview-runtime-handoff-20260930.md).
 Read this checkpoint and the latest Issue #395 / draft PR #452 comments before
 repeating setup. Do not reinterpret older recorded failures as current blockers.
+
+## Latest checkpoint: scoped LEP refresh completed
+
+Read [the LEP execution runbook](working-see-lep-refresh-execution-20260930.md)
+for actual counts, manual-download provenance, excluded multi-letter/schedule
+coverage and immutable-history safeguards. All 14 workflows passed at
+9f1cca1a483a984209d9119237b53216fa46e6c6, including 299 tests and isolated
+compilation. Preview deployment and customer document acceptance remain pending.
+The preparation and validation sections below are retained as historical records;
+where they describe LEP work as pending, the linked execution runbook supersedes them.
 
 ## Completed and proven
 
@@ -46,7 +56,7 @@ Execution was also recorded on Issue #395 comment 5907754950 and PR #452 comment
 in the durable local source-evidence archive, outside GitHub and the temporary
 working directory. No credentials or private customer documents were published.
 
-## Validation status
+## Earlier DCP-only validation status (historical)
 
 - The new pure planner's **23 regression tests passed locally** with no credentials.
 - At exact commit 3b0d44e22f7447030293e7a419adeac80fee2481, all **14 GitHub
@@ -79,7 +89,7 @@ This establishes traceable text/source identity, not complete diagram/table
 extraction, correct applicability to a particular proposal, statutory currency
 certification or hosted private archival/reopening of original sources.
 
-## LEP preparation: no LEP writes yet
+## Earlier LEP preparation before execution (historical)
 
 Both manually downloaded original XMLs remain hash-verified and unchanged.
 Direct automated requests to the official Byron view/export endpoints still
@@ -122,7 +132,7 @@ format issues before running; an explicit CommonJS/async execution adapter
 completed the unchanged offline comparison. This was not an application change,
 and the scratch runner is retained outside the application validation workspace.
 
-## Next work, within existing approval
+## Earlier planned sequence (steps 1-2 now completed; 3-6 remain)
 
 1. Prepare explicit LEP source/version operations from the verified originals,
    including manual-acquisition provenance and original XML status markers.
