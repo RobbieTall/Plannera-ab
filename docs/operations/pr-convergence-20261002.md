@@ -134,3 +134,13 @@ No finding in this document authorises:
 - weakening evidence/security/planning gates.
 
 If a lane reaches one of those boundaries, record it and continue another safe lane.
+
+
+## PR #419 — CONCEPT RETAINED / FUTURE COMPLIANCE TRACK
+
+The council-employed-planner cohort is not a current launch feature and the historical docs branch should not be merged wholesale. Current NSW conduct rules and council-specific secondary-employment policies require a policy-driven eligibility/conflict model, and the state staff-code framework is under active reform in October 2026.
+
+Canonical future task:
+`docs/project-memory/task-future-council-employed-planner-cohort-20261002.md`.
+
+Independent consultant-network development can proceed separately. Council-employed participation remains disabled until the state framework, employing-council policy, approval evidence, insurance/professional requirements, privacy and per-job conflict process are reviewed and proven.

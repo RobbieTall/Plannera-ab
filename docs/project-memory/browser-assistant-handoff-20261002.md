@@ -112,3 +112,13 @@ Rebase/recreate retained code lanes from then-current main; do not batch-merge c
 ## Hard guardrails
 
 No merge to main, Production deployment/promotion, Production checkout activation, secret/environment changes, Production migration/data mutation, payments/refunds, protected workflow approvals or evidence-gate weakening without explicit authority.
+
+
+## Last stale PR — #419
+
+PR #419's consultant-network/council-employed-planner concept has been converted into:
+`docs/project-memory/task-future-council-employed-planner-cohort-20261002.md`.
+
+Do not merge the old branch. The future council-employed cohort stays off by default. Current OLG rules require outside-work/conflict controls and councils may impose stricter requirements; a proposed new staff/delegates Model Code is in consultation through 12 October 2026. Recheck the final NSW framework and the individual employing council policy before productising this cohort.
+
+Independent-consultant network work is not blocked by this future compliance track.

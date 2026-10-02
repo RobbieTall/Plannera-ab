@@ -27,3 +27,8 @@ Deferred foundation tasks are now also prepared:
 - roadmap/documentation: #448 → #451 → #449.
 
 Do not execute these tasks on the current #452 evidence branch while its protected commercial acceptance is still unresolved unless the branch strategy is explicitly changed.
+
+
+## Additional future compliance track
+
+- `task-future-council-employed-planner-cohort-20261002.md` — preserve the council-employed planner idea as an off-by-default, policy-driven future cohort. Recheck the post-12-October-2026 NSW staff-code reform and each employing council's stricter policy before any pilot.
