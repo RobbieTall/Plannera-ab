@@ -1,6 +1,10 @@
 # Plannera PR convergence checkpoint — 2 October 2026
 
-Status: **READ-ONLY CONVERGENCE REVIEW / NO MERGE OR DEPLOYMENT AUTHORISED**
+Status: **CONVERGENCE COMPLETE / HISTORICAL PRs CLOSED WITHOUT MERGE / NO MERGE OR DEPLOYMENT AUTHORISED**
+
+## Closeout status
+
+This document explains how the former parallel PR backlog was reconciled. Those stale PRs are now closed without merge and their valid intent is preserved as current task cards on PR #452. Use `docs/project-memory/autonomous-session-closeout-20261002.md` for current status and do not treat the classifications below as open merge candidates.
 
 This checkpoint reduces the open-PR backlog to a clear integration path. It is based on live GitHub state inspected on 2 October 2026. PR #452 remains the current commercial/document-delivery reference branch. Main remains at `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`; the open lanes are parallel branches from that base, not a sequential stack.
 

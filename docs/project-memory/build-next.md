@@ -12,7 +12,7 @@ Only PR #452 remains open. Main is unchanged. The tested application/safety head
 
 Canonical next-action record: [autonomous session closeout](autonomous-session-closeout-20261002.md).
 
-Immediate safe browser action: native-review the exact synthetic DOCX/PDF artifact from run `36994760847`. Human gates after that remain the explicitly approval-gated council `enddate` correction and normal Kempsey Preview sign-in.
+Synthetic native review is complete and passed at `ea9f333`. Immediate safe browser action is exact-head/state verification only; the remaining substantive gates are the explicitly approval-gated council `enddate` correction and normal Kempsey Preview sign-in.
 
 ---
 
@@ -33,7 +33,7 @@ Immediate sequence:
 
 Current human gates remain unchanged: the council-boundary end-date correction requires Robbie's explicit approval, and Kempsey requires normal customer sign-in. Completed DCP/LEP refreshes and cloud setup must not be repeated.
 
-The exact-head synthetic SEE visual review on 2 October found avoidable PDF/DOCX drift: the PDF can produce a near-empty standalone Document Status page. That presentation defect belongs on the current #452 lineage and is not a reason to merge #434.
+Historical pre-fix finding: the earlier synthetic PDF produced an avoidable sparse Document Status/front-matter page. The current renderer lineage through `ea9f333` corrected this and the exact synthetic PDF/DOCX visual review passed.
 
 ---
 

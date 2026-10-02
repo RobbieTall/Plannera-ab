@@ -62,17 +62,16 @@ The renderer must:
 8. preserve valid deterministic PDF structure/cross-references;
 9. keep working/final status visually unambiguous.
 
-## Current 2 October synthetic finding
+## Historical pre-fix synthetic finding
 
-Exact-head #452 synthetic QA found:
+Before the current fix, exact-head #452 synthetic QA found:
 - DOCX: 8 pages, coherent front matter and substantive flow;
 - PDF: 10 pages;
-- the PDF can create a near-empty standalone page containing only the **Document Status** callout between Document Control and Contents;
-- this is avoidable DOCX/PDF presentation drift and should be corrected on the current #452 lineage.
+- the PDF could create a near-empty standalone **Document Status** page between Document Control and Contents.
 
-This is a presentation defect, not evidence that the statutory/evidence compiler is wrong.
+That historical defect was corrected on the current lineage and synthetic visual acceptance subsequently passed at `ea9f333`.
 
-## Visual acceptance still required
+## Hosted customer visual acceptance still required
 
 No synthetic or string-level test closes presentation acceptance by itself.
 
