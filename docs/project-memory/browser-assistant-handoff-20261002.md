@@ -1,3 +1,9 @@
+# Latest canonical pointer — 2 October autonomous closeout
+
+Read `docs/project-memory/autonomous-session-closeout-20261002.md` first. It supersedes status/sequencing statements below while preserving historical evidence.
+
+---
+
 # Browser assistant handoff — 2 October 2026
 
 ## Start here

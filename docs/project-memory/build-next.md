@@ -1,3 +1,13 @@
+## 2 October 2026 — autonomous session closeout
+
+Only PR #452 remains open. Main is unchanged. The tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38` passed all 13 exact-head GitHub Actions.
+
+Canonical next-action record: [autonomous session closeout](autonomous-session-closeout-20261002.md).
+
+Immediate safe browser action: native-review the exact synthetic DOCX/PDF artifact from run `36994760847`. Human gates after that remain the explicitly approval-gated council `enddate` correction and normal Kempsey Preview sign-in.
+
+---
+
 ## 2 October 2026 — backlog convergence checkpoint
 
 PR #452 remains the current commercial/document-delivery reference branch. The open PR backlog has now been classified so parallel branches are not batch-merged simply because checks are green.
