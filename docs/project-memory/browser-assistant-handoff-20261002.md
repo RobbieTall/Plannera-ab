@@ -102,8 +102,8 @@ Recommended order:
 1. #429 regression expansion;
 2. #424 LGA preparation commercial truth if that paid surface remains active;
 3. #426 consultant credential disclosure if referral remains launch scope;
-4. #422 returned consultant-report foundation;
-5. #438 OCR lifecycle foundation when upload/plan evidence becomes active;
+4. #422 returned consultant-report foundation — task prepared at `docs/project-memory/task-replay-pr422-consultant-returned-reports-20261002.md`; integrate with progressive evidence, not the fixed four-document package;
+5. #438 OCR lifecycle — historical implementation path is superseded; use `docs/project-memory/task-redesign-pr438-private-ocr-20261002.md` and attach OCR only to protected private evidence, not generic WorkspaceUpload;
 6. post-gate roadmap docs: #448 Research Viewer → #451 practitioner/pilots → #449 Project Controls;
 7. retain #450 only as historical acceptance evidence.
 

@@ -72,16 +72,11 @@ Retain the consultant self-reported-credentials disclosure if the live referral 
 
 ### PR #422 — VALID FOUNDATION, DEFER UNTIL CORE DOCUMENT JOURNEY IS GREEN
 
-Returned consultant-report intake remains useful, but it deliberately lacks the public upload/private Blob/operator-review execution path. It also overlaps schema/history with #452. Rebase/recreate after the core paid document journey is accepted.
+Returned consultant-report intake remains useful. The current private evidence system is now more mature than the historical branch, and the progressive evidence graph already recognises `CONSULTANT_REPORT`. Recreate the exact referral/project/scope/digest/discipline/hash binding against that current pipeline after #452. Do **not** add consultant reports to the fixed four-role Item 74H package assembly. Prepared task: `docs/project-memory/task-replay-pr422-consultant-returned-reports-20261002.md`.
 
-### PR #438 — VALID OCR FOUNDATION, POST-GATE
+### PR #438 — OCR CONCEPT VALID; HISTORICAL IMPLEMENTATION PATH SUPERSEDED
 
-Keep the fail-closed OCR lifecycle design. Do not merge now:
-- no live OCR provider is connected;
-- it changes Prisma/workspace/upload surfaces that now overlap #452;
-- OCR output intentionally remains review-required and is not yet an accepted planning source.
-
-Rebase from the new post-#452 main when upload/plan evidence becomes the active lane.
+Retain the fail-closed OCR state-machine concepts, but **do not replay the old `WorkspaceUploadOcrAttempt -> WorkspaceUpload` implementation**. The current #452 handover explicitly separates private planning evidence from the legacy generic workspace uploader/public Blob path. OCR must be redesigned around the protected private-evidence identity (`evidenceRef + contentHash`), malware-clean boundary, visual review, applicability and progressive evidence graph. No live provider is yet approved. Prepared architecture task: `docs/project-memory/task-redesign-pr438-private-ocr-20261002.md`.
 
 ## Roadmap/documentation lanes
 

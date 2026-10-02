@@ -18,9 +18,9 @@ Execution order:
    - very small pre-launch disclosure slice;
    - applies only if direct consultant referral remains launch scope.
 
-Deferred until later:
-- #422 returned consultant-report foundation;
-- #438 OCR review lifecycle;
+Deferred foundation tasks are now also prepared:
+- `task-replay-pr422-consultant-returned-reports-20261002.md` — replay into the current private/progressive evidence graph, not the fixed four-document package;
+- `task-redesign-pr438-private-ocr-20261002.md` — retain the OCR lifecycle concepts but redesign away from the legacy generic WorkspaceUpload/public-Blob path;
 - roadmap/documentation: #448 → #451 → #449.
 
 Do not execute these tasks on the current #452 evidence branch while its protected commercial acceptance is still unresolved unless the branch strategy is explicitly changed.
