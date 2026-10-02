@@ -886,7 +886,7 @@ const layoutPdf = (
     const valueLayout = textLayout(row.value, { size: 9.5, width: valueWidth - 18 });
     const lineHeight = Math.max(labelLayout.lineHeight, valueLayout.lineHeight);
     const rowHeight =
-      Math.max(labelLayout.lines.length, valueLayout.lines.length) * lineHeight + 16;
+      Math.max(labelLayout.lines.length, valueLayout.lines.length) * lineHeight + 13;
     ensureSpace(rowHeight + 3);
     const top = y;
     const bottom = top - rowHeight;

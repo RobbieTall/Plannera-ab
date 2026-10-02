@@ -425,6 +425,8 @@ describe("reconciled SEE presentation", () => {
 
     expect(statusStreams).toHaveLength(1);
     expect(statusStreams[0]).toContain("(Proposal Summary)");
+    expect(statusStreams[0]).toContain("(Revision History)");
+    expect(statusStreams[0]).toContain("(DOCUMENT CONTROL)");
   });
 
   it("numbers PDF contents from the actual layout rather than fixed page estimates", () => {
