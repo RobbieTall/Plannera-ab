@@ -1,79 +1,98 @@
 # SEE presentation benchmark and renderer contract
 
-Status: **RETAINED ON PR #452 / VISUAL ACCEPTANCE STILL REQUIRED**
+Status: **MERGED CURRENT CONTRACT ON PR #452 / LIVE VISUAL ACCEPTANCE STILL REQUIRED**
 
-Updated: 2 October 2026 (Australia/Sydney). Original contract: Issue #431 / PR #435.
-
-This contract is carried forward because the #435 renderer code is now materially represented in PR #452, while the benchmark document itself was absent from that branch. The rules below remain presentation requirements for the current lineage. They do not authorise merging #435.
+Updated: 2 October 2026 (Australia/Sydney). Historical source: Issue #431 / PR #435, reconciled with the later professional-structure work in PRs #433/#434 and the current #452 renderer lineage.
 
 ## Benchmark basis
 
-The user-approved `SEE Various Examples.pdf` reference library was reviewed before this slice.
+The user-approved `SEE Various Examples.pdf` reference library is the visual benchmark.
 
-The implementation does not copy any consultant's branding or proprietary page design. It extracts recurring professional document conventions:
+The implementation must not copy any consultant's branding or proprietary page design. It should preserve the recurring professional conventions:
 
-- ELKN: dedicated cover/front matter, document details and a structured contents page before substantive assessment.
-- Ardill Payne & Partners: disciplined report hierarchy, explicit statutory framework, site/proposal separation and detailed planning-instrument/DCP structure.
-- Planners North: strong executive-summary presentation, clear project identity and professional report front matter.
-- Concise residential examples: proportionate length and structure rather than forcing every minor proposal into a long report.
+- **ELKN:** strong cover; document details/control immediately after the cover; structured contents before substantive assessment; clear attachments/evidence treatment.
+- **Ardill Payne & Partners:** disciplined report hierarchy; explicit statutory framework; clear site/proposal separation; detailed planning-instrument/DCP structure.
+- **Planners North:** strong project identity; professional compliance/front matter; executive-summary treatment; consistent page furniture.
+- **Concise residential examples:** proportionate length and structure rather than forcing every proposal into a long report.
 
-These presentation conventions sit underneath the already-approved Plannera SEE architecture:
-Executive Summary → Proposal → Site/Context → Statutory Assessment → Environmental Effects → section 4.15 → Conclusion, with optional relevant sections only.
+These conventions sit underneath the approved flexible Plannera SEE architecture:
+Executive Summary → Proposal → Site/Context → Existing Approvals/Referrals where relevant → Statutory Assessment → Environmental Effects → section 4.15 → Conclusion → relevant evidence/appendices only.
 
-## Repository gap found
+## Current merged front-matter contract
 
-Before Issue #431:
+The earlier #435 slice required Contents as PDF page 2 because Document Control had not yet been integrated into that branch. PRs #433/#434 subsequently introduced a professional Document Control layer. That later structure supersedes the rigid “Contents must be page 2” rule.
 
-- DOCX rendered a deterministic static list under `Contents`, but no actual Word TOC field existed.
-- The renderer runbook incorrectly described the DOCX TOC as updateable.
-- The first substantive DOCX section could continue directly after the contents list instead of starting cleanly on a new page.
-- PDF moved directly from cover to substantive content and contained no contents page.
+The current front-matter sequence is:
 
-These are presentation defects only. They do not change the planning/evidence acceptance model.
+1. Cover.
+2. Document Control / revision information / concise proposal and status treatment.
+3. Contents.
+4. Outstanding Evidence front matter only when required.
+5. Substantive SEE sections.
+6. Supporting Evidence Schedule / Source Register / Limitations where applicable.
 
-## Issue #431 contract
+The exact page number of Contents may vary with legitimate front-matter length, but the layout must not create orphan or near-empty pages simply because a status callout no longer fits.
 
-### DOCX
+## DOCX requirements
 
 The renderer must:
 
-1. preserve the dedicated cover/front matter;
-2. put `Contents` on its own front-matter page;
-3. include a real Word TOC field over Heading 1 entries;
-4. mark that field dirty and set Word `updateFields=true` so page numbers can refresh when opened;
-5. retain deterministic fallback contents entries inside the field result;
-6. start Executive Summary / the first substantive section on a new page;
-7. preserve source register, limitations and page-number footer.
+1. preserve a dedicated professional cover;
+2. keep Document Control/revision information together and readable;
+3. place Contents on its own front-matter page after Document Control;
+4. include a real Word TOC field over the intended report headings;
+5. mark the field dirty and set Word `updateFields=true` so page references can refresh when opened;
+6. retain deterministic fallback contents entries inside the field result;
+7. begin the first substantive section cleanly after front matter;
+8. preserve evidence/source/limitations sections when applicable;
+9. preserve consistent header/footer/page numbering;
+10. keep working-output warnings prominent without making the document look final.
 
-### PDF
+## PDF requirements
 
 The renderer must:
 
 1. preserve the cover as page 1;
-2. insert a deterministic Contents page as page 2;
-3. list working-status front matter where applicable;
-4. list every rendered section plus Source Register and Limitations where present;
-5. derive displayed page references from the actual layout pass rather than hard-coding them;
-6. begin the final/working substantive document after the contents page;
-7. preserve deterministic footer page numbering and cross-reference integrity.
+2. present Document Control efficiently before Contents;
+3. place Contents on a dedicated front-matter page;
+4. derive displayed Contents page references from the actual deterministic layout pass rather than hard-coding them;
+5. list every rendered substantive section plus applicable evidence/source/limitations sections;
+6. avoid orphan front-matter pages, especially a standalone status-only page;
+7. maintain readable spacing, hierarchy, tables/callouts and consistent footer page numbering;
+8. preserve valid deterministic PDF structure/cross-references;
+9. keep working/final status visually unambiguous.
 
-## What this does not prove
+## Current 2 October synthetic finding
 
-This slice does not complete the final visual acceptance required before launch.
+Exact-head #452 synthetic QA found:
+- DOCX: 8 pages, coherent front matter and substantive flow;
+- PDF: 10 pages;
+- the PDF can create a near-empty standalone page containing only the **Document Status** callout between Document Control and Contents;
+- this is avoidable DOCX/PDF presentation drift and should be corrected on the current #452 lineage.
 
-It does not yet prove:
+This is a presentation defect, not evidence that the statutory/evidence compiler is wrong.
 
-- real customer text has ideal page breaks;
-- consultant-report tables/maps/figures are professionally laid out;
-- Microsoft Word refreshes the TOC identically across all supported versions;
-- Adobe/Preview print output is visually accepted;
-- Plannera branding is final;
-- a real Byron/Kempsey customer SEE is lodgement-ready.
+## Visual acceptance still required
 
-Those require protected rendered-document generation and human visual inspection against the approved benchmark library.
+No synthetic or string-level test closes presentation acceptance by itself.
+
+Before launch, representative actual Byron and Kempsey customer documents must be generated through the protected Preview journey and inspected natively. Review:
+- cover hierarchy;
+- Document Control and status treatment;
+- Contents accuracy;
+- section hierarchy and page breaks;
+- tables/callouts;
+- supporting evidence/source register/limitations;
+- working/final warnings;
+- headers/footers/page numbers;
+- Word TOC refresh behaviour;
+- PDF print/preview appearance;
+- absence of clipping, overlaps, orphan headings or low-content accidental pages.
 
 ## Safety boundary
 
-No planning evidence, section acceptance, citations, commercial readiness, product price, checkout, database, environment or Production behavior changes.
-
-The presentation layer must never make an unready working SEE appear submission-ready.
+Presentation work must not:
+- invent or change planning conclusions;
+- weaken evidence/readiness gates;
+- make a working SEE appear submission-ready;
+- alter billing, checkout, Production configuration or statutory source truth merely to improve appearance.
