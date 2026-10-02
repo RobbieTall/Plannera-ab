@@ -1,6 +1,6 @@
 # SEE presentation benchmark and renderer contract
 
-Status: **MERGED CURRENT CONTRACT ON PR #452 / LIVE VISUAL ACCEPTANCE STILL REQUIRED**
+Status: **MERGED CURRENT CONTRACT ON PR #452 / SYNTHETIC VISUAL ACCEPTANCE PASSED / HOSTED CUSTOMER VISUAL ACCEPTANCE STILL REQUIRED**
 
 Updated: 2 October 2026 (Australia/Sydney). Historical source: Issue #431 / PR #435, reconciled with the later professional-structure work in PRs #433/#434 and the current #452 renderer lineage.
 
@@ -96,3 +96,20 @@ Presentation work must not:
 - weaken evidence/readiness gates;
 - make a working SEE appear submission-ready;
 - alter billing, checkout, Production configuration or statutory source truth merely to improve appearance.
+
+
+## Synthetic visual acceptance — 2 October 2026
+
+Exact tested head: `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`.
+
+Artifact: Submission SEE Synthetic Artefacts run `36994760847`, artifact `11221425681`.
+
+Visual QA result:
+- PDF reduced from 10 to 9 pages after front-matter correction;
+- page 2 contains Document Control, Revision History, Proposal Summary and Document Status together;
+- Contents begins on page 3 with correct rendered page references;
+- all 9 PDF pages inspected cleanly;
+- all 8 DOCX pages inspected cleanly;
+- no observed clipping, overlaps, broken glyphs/tables or orphan headings.
+
+This proves the representative synthetic presentation contract only. Real hosted Byron/Kempsey customer documents, real specialist-report layouts, maps/figures and native Word/PDF customer reopening remain part of the protected commercial acceptance.

@@ -6,6 +6,19 @@ Read `docs/project-memory/autonomous-session-closeout-20261002.md` first. It sup
 
 # Browser assistant handoff — 2 October 2026
 
+## Latest correction — synthetic presentation visual acceptance passed
+
+The exact `ea9f333` synthetic artifact from run `36994760847` has now been rendered and inspected page-by-page.
+
+- PDF: 9 clean pages; Document Control + Revision History + Proposal Summary + Document Status are together on page 2; sparse status page removed.
+- DOCX: 8 clean pages.
+- No observed clipping, overlap, broken tables/glyphs or orphan headings.
+- This is synthetic presentation acceptance only. Actual hosted Byron/Kempsey customer documents remain unproven.
+
+Read `docs/project-memory/autonomous-session-closeout-20261002.md` for the exact artifact and remaining gates.
+
+---
+
 ## Start here
 
 Current reference: draft PR #452, branch `feat/see-document-delivery-20260929`.

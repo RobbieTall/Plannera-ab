@@ -60,29 +60,31 @@ Relevant code lineage:
 
 The build-safety gate initially failed the unreviewed renderer change exactly as designed. The actual reviewed renderer SHA-256 was recorded and the clean head then passed all 13 checks.
 
-### Native visual sign-off still required
+### Synthetic native visual acceptance passed
 
-Green tests are not visual acceptance.
+Green tests were not treated as sufficient. The exact synthetic artifact was downloaded, rendered and inspected page-by-page using the repository's PDF/DOCX QA workflow.
 
-Current exact-head synthetic artefact:
+Exact artifact:
 - workflow: **Submission SEE Synthetic Artefacts**
 - run: `36994760847`
 - artifact ID: `11221425681`
 - artifact name: `item74e-submission-see-synthetic-8f6447d12c5821ad7019af637a1c73c30447980b`
 - artifact digest: `sha256:e3081ce1f03c892a6b4fe5b461ef187f3ec8a65bf417926ae8457b7b94df692c`
+- tested application/safety head: `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`
 
-The autonomous environment successfully downloaded/materialised the ZIP but its local unzip/render runtime failed. Therefore **do not claim native visual acceptance yet**.
+Observed result:
+- PDF renders cleanly at **9 pages** (previously 10);
+- DOCX renders cleanly at **8 pages**;
+- PDF page 2 now contains Document Control, Revision History, Proposal Summary and Document Status together;
+- the sparse standalone status/front-matter page is gone;
+- PDF Contents page references match the rendered layout;
+- all PDF pages were inspected with no observed clipping, overlap, broken glyphs or orphan headings;
+- all DOCX pages were rendered and inspected with no observed clipping, overlap, broken tables or footer/header defects;
+- evidence schedule, source register and limitations remain intentionally proportionate to the synthetic fixture.
 
-First safe browser task: download that exact artifact, open/render every DOCX/PDF page, and compare against `SEE Various Examples.pdf`, especially:
-- Document Control/front matter;
-- absence of a sparse status-only page;
-- Contents;
-- page references;
-- spacing/hierarchy;
-- evidence/source/limitations pages;
-- no clipping/overlap/orphan headings.
+This closes **synthetic presentation visual acceptance** for the representative fixture. It does **not** prove actual hosted customer Word/PDF quality, real consultant-report/map/figure layout, or lodgement readiness.
 
-Record the exact result on #452. If visually clean, presentation can move from code-verified to visually accepted for the synthetic case. Actual hosted customer Word/PDF review is still separately required.
+Actual Byron/Kempsey customer outputs still require protected generation, download, exact-version reopening and native inspection after the remaining provenance/sign-in gates.
 
 ## Protected rehearsal deployments
 
@@ -160,8 +162,8 @@ Do not request:
    - `docs/project-memory/see-document-delivery-handover.md`
    - `docs/operations/working-see-hosted-rehearsal-checkpoint-20260930.md`
 2. Reconfirm #452 exact current head/checks rather than relying on this timestamp.
-3. Perform the exact synthetic DOCX/PDF native visual review described above.
-4. Reconfirm no new commit/PR/cloud change appeared.
+3. Reconfirm no new commit/PR/cloud change appeared.
+4. Confirm synthetic visual acceptance remains tied to the exact `ea9f333` artifact above; do not repeat it unless renderer/output changes.
 5. Prepare the council-enddate Codex task from the stored task file, but stop before executing if Robbie has not approved.
 6. Prepare the Kempsey sign-in tab/handoff, but do not request duplicate authentication/setup.
 
@@ -238,7 +240,7 @@ The browser assistant should be able to answer, without reconstructing history:
 
 - what is active? **PR #452 only**
 - what is tested? exact current application head and all checks above
-- what is visually still unproven? exact synthetic native review + later hosted customer documents
+- what is visually still unproven? **only the later hosted customer documents**; synthetic visual acceptance passed at `ea9f333`
 - what needs Robbie? council-fix approval + Kempsey sign-in
-- what can continue safely first? exact-head visual review and state verification
+- what can continue safely first? exact-head state verification and preparation around the two human gates
 - what comes after launch gate? task files listed above

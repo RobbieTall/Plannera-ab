@@ -1,3 +1,11 @@
+## 2 October 2026 — synthetic SEE visual acceptance passed
+
+At tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`, all 13 GitHub Actions passed and the exact generated synthetic artifact was rendered and inspected page-by-page. PDF is 9 pages; DOCX is 8. The prior sparse PDF status/front-matter page is removed and page 2 now carries Document Control, Revision History, Proposal Summary and Document Status together.
+
+This closes synthetic presentation visual acceptance only. Actual hosted Byron/Kempsey customer generation/download/reopening/native review remains blocked by the approval-gated council current-record correction and Kempsey normal sign-in.
+
+---
+
 ## 2 October 2026 — autonomous session closeout
 
 Only PR #452 remains open. Main is unchanged. The tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38` passed all 13 exact-head GitHub Actions.
