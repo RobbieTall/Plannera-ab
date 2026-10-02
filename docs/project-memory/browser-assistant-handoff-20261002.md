@@ -24,10 +24,12 @@ Read `docs/project-memory/autonomous-session-closeout-20261002.md` for the exact
 Current reference: draft PR #452, branch `feat/see-document-delivery-20260929`.
 
 Read in this order:
-1. `docs/operations/pr-convergence-20261002.md`
-2. `docs/project-memory/see-document-delivery-handover.md`
-3. `docs/operations/working-see-hosted-rehearsal-checkpoint-20260930.md`
-4. PR #452 and Issue #395 latest comments.
+1. `docs/project-memory/autonomous-session-closeout-20261002.md`
+2. `docs/project-memory/browser-assistant-handoff-20261002.md`
+3. `docs/operations/pr-convergence-20261002.md`
+4. `docs/project-memory/see-document-delivery-handover.md`
+5. `docs/operations/working-see-hosted-rehearsal-checkpoint-20260930.md`
+6. PR #452 and Issue #395 latest comments.
 
 Do **not** restart from an older September handover.
 
@@ -47,11 +49,11 @@ Completed and not to be repeated:
 Static provenance-chain audit on 2 October found no second known code prerequisite behind the current council lookup failure. Hosted proof is still required after any approved fix.
 
 Current code/history:
-- #452 is the active commercial/document-delivery lane.
-- #433/#434/#435 are superseded independent presentation code lanes.
-- #435's benchmark contract is now carried into #452.
-- #450 is superseded current-status documentation, not an integration target.
-- current convergence commit lineage is documented in `pr-convergence-20261002.md`.
+- #452 is the **only open PR** and remains the active commercial/document-delivery lane.
+- Former parallel PRs #419, #422, #424, #426, #429, #433, #434, #435, #438, #448, #449, #450 and #451 are closed **without merge**.
+- Their still-valid intent is preserved as current task cards on #452; do not reopen or batch-merge them as a shortcut.
+- Synthetic SEE presentation convergence is complete and visually accepted for the representative fixture at tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`.
+- current convergence history is documented in `pr-convergence-20261002.md`.
 
 ## Two Robbie-dependent gates
 
@@ -95,17 +97,23 @@ Then for each council separately:
 
 Do not overwrite old artefacts or relabel old evidence.
 
-## Presentation finding to retain
+## Presentation convergence — complete for synthetic fixture
 
-2 October exact-head synthetic QA found a near-empty PDF **Document Status** page not mirrored in DOCX.
+The earlier near-empty PDF **Document Status** page was fixed on the #452 lineage.
+
+- PDF: 9 clean pages.
+- DOCX: 8 clean pages.
+- PDF page 2 contains Document Control, Revision History, Proposal Summary and Document Status together.
+- Exact synthetic artifact run `36994760847` was rendered and inspected page-by-page.
+- No observed clipping, overlap, broken tables/glyphs or orphan headings.
 
 Canonical presentation contract:
 `docs/operations/see-presentation-benchmark.md`.
 
-Prepared Codex task:
+Historical task record:
 `docs/project-memory/task-see-presentation-convergence-20261002.md`.
 
-Do not merge #434 to fix this. Apply any correction to the current #452 lineage after preserving the commercial evidence boundary.
+Do **not** repeat synthetic visual QA unless the renderer/output changes. Actual hosted Byron/Kempsey customer documents remain visually unproven.
 
 ## Backlog after #452
 

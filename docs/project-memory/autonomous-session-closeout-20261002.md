@@ -244,3 +244,13 @@ The browser assistant should be able to answer, without reconstructing history:
 - what needs Robbie? council-fix approval + Kempsey sign-in
 - what can continue safely first? exact-head state verification and preparation around the two human gates
 - what comes after launch gate? task files listed above
+
+
+## Drive companion records
+
+Current Drive-side companions are stored in **Plannera Technical Build Docs**:
+
+- [Plannera Current Build Handoff — 2 October 2026](https://docs.google.com/document/d/1hPbFpgqp53mFXv9GpJCsX4ufrY32SaiifBMokGc24Mw/edit?usp=drivesdk) — current build state, human gates and browser-assistant continuation.
+- [Plannera Post-Commercial Roadmap Consolidation — 2 October 2026](https://docs.google.com/document/d/1T4m5StZ7PLcA3SDInxUEspUPEFvdJzNZq9Mlsi1mI_k/edit?usp=drivesdk) — post-gate hardening, evidence foundations, Research Viewer/pilot/Project Controls sequence and privacy rules.
+
+Historical Drive roadmap/pilot documents remain reference material. These two companion Docs are the current Drive continuity records for this closeout.

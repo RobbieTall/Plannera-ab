@@ -7,7 +7,7 @@ The open PR backlog has now been reconciled around PR #452. Read [the 2 October 
 Key changes in understanding:
 - #452 remains the only active commercial/document-delivery lane.
 - #433/#434/#435 should not be merged independently; their substantive presentation code is already represented in #452. The #435 benchmark contract is retained separately on this branch.
-- exact-head synthetic visual QA found a PDF pagination defect: a near-empty standalone Document Status page creates DOCX/PDF drift. Fix it on the current lineage after preserving the commercial evidence boundary.
+- the earlier synthetic PDF pagination defect has been fixed on the current #452 lineage. Exact synthetic native visual acceptance passed at application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`: PDF 9 clean pages, DOCX 8 clean pages, with Document Control + Revision History + Proposal Summary + Document Status together on PDF page 2. Actual hosted customer document review remains open.
 - #429 is the next high-value regression expansion after #452; #424/#426 are launch-truth slices to reapply if their surfaces remain active.
 - #422/#438 remain useful foundations but are deferred until the core customer-document journey is green.
 - #448 → #451 → #449 are post-gate roadmap/documentation lanes.

@@ -1,3 +1,13 @@
+## 2 October 2026 — Drive continuity companions
+
+Current Drive-side continuity records in **Plannera Technical Build Docs**:
+- [Plannera Current Build Handoff — 2 October 2026](https://docs.google.com/document/d/1hPbFpgqp53mFXv9GpJCsX4ufrY32SaiifBMokGc24Mw/edit?usp=drivesdk)
+- [Plannera Post-Commercial Roadmap Consolidation — 2 October 2026](https://docs.google.com/document/d/1T4m5StZ7PLcA3SDInxUEspUPEFvdJzNZq9Mlsi1mI_k/edit?usp=drivesdk)
+
+These companion Docs mirror the current GitHub closeout and post-gate roadmap. Historical Drive roadmap/pilot files remain reference material.
+
+---
+
 ## 2 October 2026 — synthetic SEE visual acceptance passed
 
 At tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`, all 13 GitHub Actions passed and the exact generated synthetic artifact was rendered and inspected page-by-page. PDF is 9 pages; DOCX is 8. The prior sparse PDF status/front-matter page is removed and page 2 now carries Document Control, Revision History, Proposal Summary and Document Status together.

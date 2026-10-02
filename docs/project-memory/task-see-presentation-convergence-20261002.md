@@ -1,6 +1,24 @@
 # Codex task — reconcile #452 SEE front matter and PDF pagination
 
-Status: **PREPARED / DO NOT EXECUTE UNTIL THE CURRENT #452 COMMERCIAL EVIDENCE LINEAGE IS CONFIRMED FOR THE TASK**
+Status: **COMPLETED ON #452 / DO NOT RE-EXECUTE UNLESS THE RENDERER CHANGES**
+
+## Completion record
+
+The bounded presentation task was completed on the #452 lineage.
+
+- Renderer fix lineage: `625d01920a33ecbc5f42bfcce8d14d248707fb59` → `8d91ef553827ef7b6fcfff4946d114501b8fa20f` → reviewed safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`.
+- Build-safety fingerprint gate caught the unreviewed renderer change before the exact renderer hash was pinned.
+- All 13 exact-head GitHub Actions passed at `ea9f333`.
+- Exact synthetic artifact run `36994760847` / artifact `11221425681` was rendered and inspected page-by-page.
+- PDF: 9 clean pages; DOCX: 8 clean pages.
+- PDF page 2 keeps Document Control, Revision History, Proposal Summary and Document Status together.
+- No observed clipping, overlap, broken tables/glyphs or orphan headings.
+
+This closes synthetic presentation visual acceptance only. Actual hosted Byron/Kempsey customer output acceptance still belongs to the protected customer journey after the remaining council-provenance/sign-in gates.
+
+The task body below is retained as historical implementation evidence.
+
+---
 
 You are a senior full-stack engineer (Next.js 14, TypeScript, Prisma, PostgreSQL, Vercel).
 

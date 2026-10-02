@@ -26,8 +26,9 @@ Already complete:
 Still blocking commercial acceptance:
 1. the NSW LocalGovernmentArea lookup currently assumes `enddate IS NULL`; live Byron evidence can use a far-future end date instead. The correction is scoped in `docs/project-memory/task-council-boundary-current-record-20261002.md` but is **approval-gated** and must not be implemented until Robbie explicitly approves it;
 2. Kempsey still needs normal customer sign-in;
-3. both councils still need genuine hosted project-specific Word/PDF generation, protected download, original-version reopening, permission/version/warning proof and native file inspection;
-4. the exact-head synthetic PDF has a presentation regression: a near-empty standalone **Document Status** page creates unnecessary PDF/DOCX drift.
+3. both councils still need genuine hosted project-specific Word/PDF generation, protected download, original-version reopening, permission/version/warning proof and native file inspection.
+
+Synthetic presentation convergence is **complete** for the representative fixture: exact artifact visual QA passed at `ea9f333` with a 9-page PDF and 8-page DOCX.
 
 Do not repeat completed source refreshes, migrations, credentials or rehearsal setup.
 
@@ -46,7 +47,7 @@ Carry forward only:
 - any presentation improvement that survives a targeted #434-versus-#452 review;
 - the requirement to compare actual Word/PDF output against the approved benchmark.
 
-The 2 October synthetic review found the current #452 PDF status-only page regression. Fix it on the current lineage, not by merging #434.
+The earlier 2 October synthetic review found a PDF status-only page regression. It was fixed on the #452 lineage and exact synthetic visual acceptance subsequently passed. Do not reopen or merge #434.
 
 ### PR #435 — CODE SUPERSEDED; BENCHMARK CONTRACT RETAINED
 
@@ -108,11 +109,12 @@ Its Item 78C closeout is useful historical evidence, but #452 now contains the n
    - Complete Kempsey customer sign-in when Robbie is available.
    - Run separate Byron and Kempsey hosted document journeys.
    - Native-review actual Word/PDF outputs.
-2. **Presentation convergence on the #452 lineage.**
-   - Correct the known PDF pagination drift.
-   - Preserve the #435 benchmark contract.
-   - Re-run synthetic + actual rendered-document visual acceptance.
-   - Then #433/#434/#435 can be treated as superseded rather than merged.
+2. **Presentation convergence — synthetic fixture COMPLETE.**
+   - The PDF pagination drift is fixed on #452.
+   - The #435 benchmark contract is preserved.
+   - Exact synthetic DOCX/PDF visual acceptance passed.
+   - #433/#434/#435 remain closed without merge.
+   - Actual hosted customer document visual acceptance remains part of step 1, not a separate synthetic task.
 3. **Regression hardening:** rebase/recreate #429.
 4. **Launch-truth slices:** rebase/recreate #424, then #426 where their surfaces remain in launch scope.
 5. **Evidence foundations:** rebase/recreate #422, then #438 when consultant-return/upload OCR becomes active.
