@@ -60,15 +60,15 @@ These PRs remain conceptually valid but should be reapplied/rebased from the pos
 
 ### PR #429 — HIGH VALUE REGRESSION EXPANSION
 
-Tests/docs only. Retain the representative Byron R2 and Kempsey SP2 fail-closed journeys. Rebase/recreate after #452 and run the full current commercial gate. Prefer this before additional user-facing feature work because it expands truth/regression coverage without changing Production behaviour.
+Tests/docs only. Retain the representative Byron R2 and Kempsey SP2 fail-closed journeys. Rebase/recreate after #452 and run the full current commercial gate. Prefer this before additional user-facing feature work because it expands truth/regression coverage without changing Production behaviour. Prepared task: `docs/project-memory/task-replay-pr429-representative-golden-20261002.md`.
 
 ### PR #424 — PRE-LAUNCH COMMERCIAL TRUTH
 
-Retain the truthful LGA-preparation timing and failure/refund-resolution contract if paid Local Controls/LGA preparation remains exposed. Reapply the minimal runtime/UI/tests after #452; do not import stale continuity documents wholesale.
+Retain the truthful LGA-preparation timing and failure/refund-resolution contract if paid Local Controls/LGA preparation remains exposed. Reapply the minimal runtime/UI/tests after #452; do not import stale continuity documents wholesale. The replay must not blindly copy the old fixed-24-hour weekday arithmetic: resolve Australia/Sydney daylight-saving behaviour and do not claim NSW-public-holiday-aware business-day precision unless the implementation actually provides it. Prepared task: `docs/project-memory/task-replay-pr424-lga-service-truth-20261002.md`.
 
 ### PR #426 — PRE-LAUNCH DISCLOSURE
 
-Retain the consultant self-reported-credentials disclosure if the live referral form remains part of launch scope. It is a small, low-risk user-truth requirement. Reapply cleanly after #452 rather than merging its parallel documentation history.
+Retain the consultant self-reported-credentials disclosure if the live referral form remains part of launch scope. It is a small, low-risk user-truth requirement. Reapply cleanly after #452 rather than merging its parallel documentation history. Prepared task: `docs/project-memory/task-replay-pr426-consultant-disclosure-20261002.md`.
 
 ### PR #422 — VALID FOUNDATION, DEFER UNTIL CORE DOCUMENT JOURNEY IS GREEN
 

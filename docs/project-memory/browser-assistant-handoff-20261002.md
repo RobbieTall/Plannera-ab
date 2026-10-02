@@ -90,6 +90,14 @@ Do not merge #434 to fix this. Apply any correction to the current #452 lineage 
 
 ## Backlog after #452
 
+Prepared replay task index:
+`docs/project-memory/post-452-replay-task-index-20261002.md`.
+
+The first three exact task cards are already written:
+- `task-replay-pr429-representative-golden-20261002.md`;
+- `task-replay-pr424-lga-service-truth-20261002.md`;
+- `task-replay-pr426-consultant-disclosure-20261002.md`.
+
 Recommended order:
 1. #429 regression expansion;
 2. #424 LGA preparation commercial truth if that paid surface remains active;
