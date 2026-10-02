@@ -1,3 +1,24 @@
+## 2 October 2026 — backlog convergence checkpoint
+
+PR #452 remains the current commercial/document-delivery reference branch. The open PR backlog has now been classified so parallel branches are not batch-merged simply because checks are green.
+
+Canonical convergence plan: [PR convergence checkpoint](../operations/pr-convergence-20261002.md).
+
+Immediate sequence:
+1. finish #452 protected customer evidence;
+2. reconcile presentation on the #452 lineage (do not independently merge #433/#434/#435);
+3. rebase/recreate #429 regression coverage;
+4. reapply #424 and #426 only if their launch surfaces remain active;
+5. defer #422/#438 until the core document journey is green;
+6. after the commercial gate, reconcile roadmap docs #448 → #451 → #449;
+7. treat #450 as superseded status/history, not a current integration branch.
+
+Current human gates remain unchanged: the council-boundary end-date correction requires Robbie's explicit approval, and Kempsey requires normal customer sign-in. Completed DCP/LEP refreshes and cloud setup must not be repeated.
+
+The exact-head synthetic SEE visual review on 2 October found avoidable PDF/DOCX drift: the PDF can produce a near-empty standalone Document Status page. That presentation defect belongs on the current #452 lineage and is not a reason to merge #434.
+
+---
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in

@@ -1,3 +1,22 @@
+# 2 October 2026 autonomous continuation checkpoint
+
+**Commercial HOLD remains. No Production activation is authorised.**
+
+The open PR backlog has now been reconciled around PR #452. Read [the 2 October PR convergence checkpoint](../operations/pr-convergence-20261002.md) before acting on any older branch or handover.
+
+Key changes in understanding:
+- #452 remains the only active commercial/document-delivery lane.
+- #433/#434/#435 should not be merged independently; their substantive presentation code is already represented in #452. The #435 benchmark contract is retained separately on this branch.
+- exact-head synthetic visual QA found a PDF pagination defect: a near-empty standalone Document Status page creates DOCX/PDF drift. Fix it on the current lineage after preserving the commercial evidence boundary.
+- #429 is the next high-value regression expansion after #452; #424/#426 are launch-truth slices to reapply if their surfaces remain active.
+- #422/#438 remain useful foundations but are deferred until the core customer-document journey is green.
+- #448 → #451 → #449 are post-gate roadmap/documentation lanes.
+- #450 is superseded as current status; retain its historical acceptance evidence rather than merging the whole branch.
+
+Human-only gates are unchanged: the council-boundary `enddate` correction is scoped but requires Robbie's explicit approval, and Kempsey still requires normal customer sign-in. Do not repeat completed source refreshes or cloud setup.
+
+---
+
 # Current document-delivery handover - 30 September 2026
 
 **Commercial HOLD. Production activation is not authorised.** This section supersedes all status and next-step statements below; historical checkpoints are retained, not instructions to repeat setup.
