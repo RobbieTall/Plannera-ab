@@ -18,6 +18,9 @@ Execution order:
    - very small pre-launch disclosure slice;
    - applies only if direct consultant referral remains launch scope.
 
+Post-gate roadmap consolidation is also prepared:
+- `task-post-gate-roadmap-consolidation-20261002.md` — recreate #448 → #451 → #449 from current main, with authoritative per-layer Research Viewer sourcing and sanitised public pilot/case-study IDs.
+
 Deferred foundation tasks are now also prepared:
 - `task-replay-pr422-consultant-returned-reports-20261002.md` — replay into the current private/progressive evidence graph, not the fixed four-document package;
 - `task-redesign-pr438-private-ocr-20261002.md` — retain the OCR lifecycle concepts but redesign away from the legacy generic WorkspaceUpload/public-Blob path;

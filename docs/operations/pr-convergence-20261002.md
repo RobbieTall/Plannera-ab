@@ -82,15 +82,15 @@ Retain the fail-closed OCR state-machine concepts, but **do not replay the old `
 
 ### PR #448 — RETAIN, POST-COMMERCIAL-GATE
 
-Research Viewer remains the next important product direction after the commercial gates. Preserve the authoritative per-layer sourcing doctrine and Byron/Kempsey RV0/RV1 acceptance sequence. Rebase the documentation after #452 rather than merging stale shared indexes.
+Research Viewer remains the next important product direction after the commercial gates. Preserve the authoritative per-layer sourcing doctrine and Byron/Kempsey RV0/RV1 acceptance sequence. Recreate the documentation after #452 rather than merging stale shared indexes. This is Part A of the prepared sanitised roadmap task: `docs/project-memory/task-post-gate-roadmap-consolidation-20261002.md`.
 
-### PR #451 — RETAIN, AFTER #448
+### PR #451 — RETAIN CONCEPTS, SANITISE BEFORE PUBLIC INTEGRATION
 
-Practitioner workflow governance and the Byron/Kurrajong/Ballina pilots remain valid. It explicitly depends on the Research Viewer/JIT direction and must remain validation work, not statutory authority. Rebase after #448 so shared architecture/product indexes reconcile once.
+Practitioner workflow governance and the three pilot purposes remain valid. It depends on the Research Viewer/JIT direction and must remain validation work, not statutory authority. **Do not merge the branch as-is:** its public docs contain named real users, exact addresses, private filenames and project-derived observations. Recreate the pilots with neutral IDs and keep exact mappings/evidence private. This is Part B of `docs/project-memory/task-post-gate-roadmap-consolidation-20261002.md`.
 
-### PR #449 — RETAIN AS FUTURE ROADMAP
+### PR #449 — RETAIN AS FUTURE ROADMAP, SANITISE CASE STUDY
 
-Project Schedule / Project Controls remains future architecture, not current commercial scope. Rebase its documentation after the immediate commercial and Research Viewer/pilot documentation is settled.
+Project Schedule / Project Controls remains future architecture, not current commercial scope. Recreate its documentation after the immediate commercial and Research Viewer/pilot documentation is settled. Do not carry exact private development-site identifiers into the public architecture; use a neutral internal case-study ID and keep exact project evidence private. This is Part C of `docs/project-memory/task-post-gate-roadmap-consolidation-20261002.md`.
 
 ### PR #450 — SUPERSEDED STATUS BRANCH / DO NOT MERGE WHOLESALE
 

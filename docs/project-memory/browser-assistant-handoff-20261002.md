@@ -104,7 +104,7 @@ Recommended order:
 3. #426 consultant credential disclosure if referral remains launch scope;
 4. #422 returned consultant-report foundation — task prepared at `docs/project-memory/task-replay-pr422-consultant-returned-reports-20261002.md`; integrate with progressive evidence, not the fixed four-document package;
 5. #438 OCR lifecycle — historical implementation path is superseded; use `docs/project-memory/task-redesign-pr438-private-ocr-20261002.md` and attach OCR only to protected private evidence, not generic WorkspaceUpload;
-6. post-gate roadmap docs: #448 Research Viewer → #451 practitioner/pilots → #449 Project Controls;
+6. post-gate roadmap docs: #448 Research Viewer → #451 practitioner/pilots → #449 Project Controls. Use `docs/project-memory/task-post-gate-roadmap-consolidation-20261002.md`; do not merge #451/#449 as-is because their public branch docs contain identifiable real-project details;
 7. retain #450 only as historical acceptance evidence.
 
 Rebase/recreate retained code lanes from then-current main; do not batch-merge current parallel PRs.
