@@ -1058,6 +1058,32 @@ const layoutPdf = (
   addText("Revision History", { font: "bold", size: 14, before: 26 });
   addText("Only the current generated issue is shown. Prior versions are not inferred by the renderer.", { size: 8.5 });
   for (const row of model.revisionHistory) addKeyValueRow(row);
+  const proposalHeadingLayout = textLayout("Proposal Summary", { size: 14, after: 7 });
+  const proposalBodyLayout = textLayout(model.proposalSummary, { size: 10.2, after: 10 });
+  const statusTitleLayout = textLayout("Document Status", { size: 9, width: contentWidth - 30 });
+  const statusBodyLayout = textLayout(model.statusDetail, { size: 9.5, width: contentWidth - 30 });
+  const statusBoxHeight = statusTitleLayout.height + statusBodyLayout.height + 12;
+  const workingMetadataHeight = presentation.workingContext
+    ? textLayout(
+        `Source DPP: ${presentation.workingContext.sourceDetailedPlanningPackArtefactId}`,
+        { size: 8.5, after: 3 },
+      ).height +
+      (presentation.workingContext.predecessorDetailedPlanningPackArtefactId
+        ? textLayout(
+            `Earlier evidence reference: ${presentation.workingContext.predecessorDetailedPlanningPackArtefactId}`,
+            { size: 8.5, after: 3 },
+          ).height
+        : 0)
+    : 0;
+  ensureSpace(
+    24 +
+      proposalHeadingLayout.height +
+      proposalBodyLayout.height +
+      statusBoxHeight +
+      8 +
+      workingMetadataHeight +
+      6,
+  );
   y -= 24;
   addText("Proposal Summary", {
     font: "bold",
