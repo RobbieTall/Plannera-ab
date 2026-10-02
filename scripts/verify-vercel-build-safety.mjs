@@ -179,8 +179,9 @@ export function verifyBuildContract({ packageJson, sourceByPath }) {
   for (const file of actualClosure) {
     const source = sourceByPath[file];
     rejectForbiddenSource(file, source);
-    if (sha256(source) !== TRANSITIVE_BUILD_FILE_CONTRACTS[file]) {
-      throw new Error("reviewed transitive fingerprint changed: " + file);
+    const actualHash = sha256(source);
+    if (actualHash !== TRANSITIVE_BUILD_FILE_CONTRACTS[file]) {
+      throw new Error("reviewed transitive fingerprint changed: " + file + " (actual " + actualHash + ")");
     }
   }
 
