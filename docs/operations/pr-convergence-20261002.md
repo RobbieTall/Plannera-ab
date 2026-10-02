@@ -20,7 +20,7 @@ Already complete:
 - separate protected rehearsal targets configured and deployed previously without Production activation.
 
 Still blocking commercial acceptance:
-1. the NSW LocalGovernmentArea lookup currently assumes `enddate IS NULL`; live Byron evidence can use a far-future end date instead. The correction is scoped but **approval-gated** and must not be implemented until Robbie explicitly approves it;
+1. the NSW LocalGovernmentArea lookup currently assumes `enddate IS NULL`; live Byron evidence can use a far-future end date instead. The correction is scoped in `docs/project-memory/task-council-boundary-current-record-20261002.md` but is **approval-gated** and must not be implemented until Robbie explicitly approves it;
 2. Kempsey still needs normal customer sign-in;
 3. both councils still need genuine hosted project-specific Word/PDF generation, protected download, original-version reopening, permission/version/warning proof and native file inspection;
 4. the exact-head synthetic PDF has a presentation regression: a near-empty standalone **Document Status** page creates unnecessary PDF/DOCX drift.

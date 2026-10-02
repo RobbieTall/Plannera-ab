@@ -25,6 +25,8 @@ Completed and not to be repeated:
 - synthetic document-delivery test coverage;
 - PR backlog convergence review.
 
+Static provenance-chain audit on 2 October found no second known code prerequisite behind the current council lookup failure. Hosted proof is still required after any approved fix.
+
 Current code/history:
 - #452 is the active commercial/document-delivery lane.
 - #433/#434/#435 are superseded independent presentation code lanes.
@@ -36,10 +38,10 @@ Current code/history:
 
 ### 1. Council boundary end-date correction
 
-The correction is already fully scoped in the PR #452 comment titled:
-**Prepared task — council boundary current-record handling (AWAITING ROBBIE APPROVAL)**.
+The correction is durably scoped in:
+`docs/project-memory/task-council-boundary-current-record-20261002.md`.
 
-Do not implement until Robbie explicitly approves it.
+Do not implement until Robbie explicitly approves that task.
 
 When approved:
 - execute only that bounded correction on #452;
