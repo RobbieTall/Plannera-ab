@@ -1,9 +1,11 @@
+import { captureWorkingSeePackSources, workingSeeDcpCitationBinding, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
 import { z } from "zod";
 
 import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { dcpDocumentScopeIssue } from "@/lib/dcp/document-applicability";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
@@ -804,6 +806,7 @@ const mapDcpTopicEvidence = (
         ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
         title: clause.title ?? null,
         headingPath: clause.headingPath ?? [],
+        sourceBinding: workingSeeDcpCitationBinding(clause),
         excerpt: compactExcerpt(qualifyingRows.join(" ")),
         score: clause.score,
       }];
@@ -824,7 +827,7 @@ const mapDcpTopicEvidence = (
     topicId: topic.id,
     topicLabel: topic.label,
     status: "Cited",
-    reason: "Retrieved DCP evidence survived current zone/topic filtering and contains a substantive requirement in the clause body.",
+    reason: "Retrieved DCP evidence contains a substantive topic requirement; exact site and proposal applicability still require review.",
     citations,
   };
 };
@@ -884,11 +887,13 @@ export async function createDetailedPlanningPackArtefact({
   }
 
   const siteZone = quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null);
+  const capturedDcpClauses: ScoredDcpClause[] = [];
   const topicResults = await Promise.all(DETAILED_PLANNING_PACK_TOPICS.map(async (topic) => {
     const clauses = lgaCode
       ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone })
       : [];
     const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id);
+    capturedDcpClauses.push(...filtered);
     return mapDcpTopicEvidence(topic, filtered);
   }));
 
@@ -927,6 +932,7 @@ export async function createDetailedPlanningPackArtefact({
     unresolvedTopics,
     consultantReviewQuestions: [
       "Do the cited DCP controls apply to the exact proposed use, tenancy, works extent and site constraints?",
+      "Are there precinct-specific or use-specific controls requiring verified applicability? Unverified location-specific candidates are not proof of site coverage.",
       "Are any uncited or unavailable topics controlled by maps, schedules, policies, overlays or council practice not yet retrieved here?",
       "What design changes or consultant inputs are needed before SEE drafting or referral?",
     ],
@@ -935,6 +941,12 @@ export async function createDetailedPlanningPackArtefact({
       : "Treat this as an evidence gap pack: do not progress to commercially ready SEE/referral until DCP evidence is verified.",
     commercialReady: citedTopicCount === DETAILED_PLANNING_PACK_TOPICS.length && unresolvedTopics.length === 0,
   };
+
+  const workingSeeSourceCapture = await deps.captureWorkingSeeSources?.({
+    site: projectWithContext.siteContext, pack: content, quickSiteCheck,
+    dcpClauses: capturedDcpClauses,
+  });
+  const savedPayload = workingSeeSourceCapture ? { ...content, workingSeeSourceCapture } : content;
 
   const artefact = await deps.prisma.artefact.create({
     data: {
@@ -945,7 +957,7 @@ export async function createDetailedPlanningPackArtefact({
       source: content.site.address ?? content.site.zoneLabel ?? "Detailed Planning Pack",
       overlays: [],
       notes: `${citedTopicCount} cited DCP topic${citedTopicCount === 1 ? "" : "s"}; ${unresolvedTopics.length} unresolved topic${unresolvedTopics.length === 1 ? "" : "s"}`,
-      payload: content,
+      payload: savedPayload,
       capturedAt: new Date(content.generatedAt),
     },
   });
@@ -955,6 +967,10 @@ export async function createDetailedPlanningPackArtefact({
 
 
 const dppCitationSchema = z.object({
+  sourceBinding: z.object({
+    clauseId: z.string().min(1),
+    recordSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict().optional(),
   ref: z.string(),
   title: z.string().nullable().default(null),
   headingPath: z.array(z.string()).default([]),
@@ -1578,6 +1594,9 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
   // or hierarchy just because it incidentally mentions the current zone.
   const scope = lines.length >= 3 ? `${lines[1]} ${lines[2]}` : (lines[0] ?? params.text);
   const body = lines.length >= 4 ? lines.slice(3).join(" ") : params.text;
+  // Defence in depth for injected retrieval and previously saved memo checks.
+  // A same-zone mention does not establish precinct or proposal applicability.
+  if (dcpDocumentScopeIssue({ headingPath: [scope], siteZone: zoneCode })) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(scope) && !evidenceMentionsZone(scope, zoneCode)) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(body) && !evidenceMentionsZone(body, zoneCode)) return false;
   // Topic qualification explicitly excludes the source ref. Refs remain useful
@@ -1724,6 +1743,7 @@ const buildLepCitationRef = (instrumentName: string | null | undefined, clauseRe
 
 
 type PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources?: (input: WorkingSeePackCaptureInput) => Promise<WorkingSeePackCaptureResult | null>;
   prisma: ArtefactDependencies["prisma"];
   buildQuickSiteCheckReport: typeof buildQuickSiteCheckReport;
   getDCPContext: typeof getDCPContext;
@@ -1734,6 +1754,11 @@ type PreSeePlanningMemoDeps = {
 };
 
 const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources: async (input) => {
+    if (process.env.VERCEL_ENV !== "preview" ||
+      process.env.PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED !== "1") return null;
+    return captureWorkingSeePackSources(prisma, input);
+  },
   prisma,
   buildQuickSiteCheckReport,
   getDCPContext,

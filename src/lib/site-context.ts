@@ -1,3 +1,5 @@
+import { createResolvedSiteProvenanceStorage } from "./site-context-provenance-storage";
+import { resolveWorkingSeeCouncilForCandidate, type WorkingSeeCouncilIdentity } from "./see-document-council-identity";
 import type { SiteContext } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -39,6 +41,7 @@ type LepZoneSummary = Pick<LepZoneUses, "zoneCode" | "zoneName">;
 
 type SiteContextWithSpatialProvenance = SiteContext & {
   spatialProvenance?: SpatialProvenance;
+  councilIdentity?: WorkingSeeCouncilIdentity;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -187,7 +190,7 @@ const resolveLepForLga = (lgaName: string | null | undefined) => {
   };
 };
 
-export const persistSiteContextFromCandidate = async (params: {
+const persistSiteContextFromCandidateWithoutProvenanceRetention = async (params: {
   projectId: string;
   addressInput: string;
   candidate: SiteCandidate;
@@ -240,12 +243,17 @@ export const persistSiteContextFromCandidate = async (params: {
     zoning: resolvedZoning,
     location,
   });
+  const councilIdentity = await resolveWorkingSeeCouncilForCandidate({
+    candidate,
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    enabled: process.env.PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED === "1",
+  });
   const data = {
     projectId: project.id,
     addressInput: normalizedAddressInput,
     formattedAddress: candidate.formattedAddress,
-    lgaName: candidate.lgaName ?? null,
-    lgaCode: candidate.lgaCode ?? null,
+    lgaName: councilIdentity?.lgaName ?? candidate.lgaName ?? null,
+    lgaCode: councilIdentity?.council ?? candidate.lgaCode ?? null,
     parcelId: candidate.parcelId ?? null,
     lot: candidate.lot ?? null,
     planNumber: candidate.planNumber ?? null,
@@ -280,6 +288,7 @@ export const persistSiteContextFromCandidate = async (params: {
   return {
     ...persisted,
     spatialProvenance,
+    ...(councilIdentity ? { councilIdentity } : {}),
   };
 };
 
@@ -325,7 +334,7 @@ export const persistManualSiteContext = async (params: {
   return persisted;
 };
 
-export const getSiteContextForProject = async (projectId: string): Promise<SiteContext | null> => {
+const getSiteContextForProjectWithoutProvenanceReload = async (projectId: string): Promise<SiteContext | null> => {
   const project = await findProjectByExternalId(prisma, normalizeProjectId(projectId));
   if (!project) {
     return null;
@@ -415,3 +424,26 @@ export const resolveInstrumentsForSite = (site: { lgaName: string | null } | nul
     lgaCode: lepMatch?.lgaCode,
   };
 };
+
+function resolvedSiteProvenanceStorage() {
+  return createResolvedSiteProvenanceStorage({
+    prisma,
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    enabled: process.env.PLANNERA_WORKING_SEE_SITE_PROVENANCE_ENABLED === "1",
+  });
+}
+
+export async function persistSiteContextFromCandidate(
+  ...args: Parameters<typeof persistSiteContextFromCandidateWithoutProvenanceRetention>
+) {
+  const site = await persistSiteContextFromCandidateWithoutProvenanceRetention(...args);
+  await resolvedSiteProvenanceStorage().retain(site, site.spatialProvenance, site.councilIdentity);
+  return site;
+}
+
+export async function getSiteContextForProject(
+  ...args: Parameters<typeof getSiteContextForProjectWithoutProvenanceReload>
+) {
+  const site = await getSiteContextForProjectWithoutProvenanceReload(...args);
+  return resolvedSiteProvenanceStorage().reload(site);
+}

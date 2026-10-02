@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { captureDcpSource } from "./dcp-source-capture";
 
 import {
   LgaCoverageMaturity,
@@ -78,6 +79,7 @@ const fetchPdfBytes = async (part: KempseyDcpPart) => {
   try {
     const response = await fetch(part.url, {
       signal: controller.signal,
+      redirect: "error",
       headers: {
         accept: "application/pdf,*/*;q=0.8",
         "user-agent":
@@ -91,7 +93,8 @@ const fetchPdfBytes = async (part: KempseyDcpPart) => {
     if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
       throw new Error("Response is not a PDF");
     }
-    return buffer;
+    return { buffer, retrievedAt: new Date().toISOString(),
+      pdfSha256: createHash("sha256").update(buffer).digest("hex") };
   } finally {
     clearTimeout(timeout);
   }
@@ -170,7 +173,7 @@ const sectionTitleFor = (chunk: string, fallback: string) => {
 
 const parsePart = async (part: KempseyDcpPart) => {
   try {
-    const buffer = await fetchPdfBytes(part);
+    const { buffer, retrievedAt, pdfSha256 } = await fetchPdfBytes(part);
     const text = await extractPdfText(buffer);
     const chunks = splitTextIntoChunks(text);
 
@@ -178,7 +181,7 @@ const parsePart = async (part: KempseyDcpPart) => {
       throw new Error("No substantive text chunks were parsed");
     }
 
-    return { part, chapterRef: chapterRefFor(part), chunks };
+    return { part, chapterRef: chapterRefFor(part), chunks, retrievedAt, pdfSha256 };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown error";
     throw new Error(
@@ -196,13 +199,18 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
     throw new Error("All five Kempsey DCP 2026 parts are required");
   }
 
-  const clauses = parsedParts.flatMap(({ part, chapterRef, chunks }) =>
+  const clauses = parsedParts.flatMap(({ part, chapterRef, chunks, retrievedAt, pdfSha256 }) =>
     chunks.map((chunk, index) => ({
       part,
       chapterRef,
       ref: `${chapterRef}-${index + 1}`,
       title: sectionTitleFor(chunk, part.title),
       content: chunk,
+      sourceCapture: captureDcpSource({
+        council: LGA_CODE, sourceUrl: part.url, sourceVersion: SOURCE,
+        retrievedAt, pdfSha256,
+        bodyText: `Kempsey DCP 2026 ${chapterRef} ${sectionTitleFor(chunk, part.title)}\n\n${chunk}`.trim(),
+      }),
       index,
     })),
   );
@@ -268,6 +276,7 @@ export const ingestKempseyDcp = async (db: DbClient = defaultPrisma) => {
         topicTags: [],
         numericMeta: {
           sourceUrl: clause.part.url,
+          sourceCapture: clause.sourceCapture,
           sourcePageUrl: KEMPSEY_DCP_2026_PAGE_URL,
           source: SOURCE,
           edition: 2026,

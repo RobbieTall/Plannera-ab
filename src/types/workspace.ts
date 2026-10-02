@@ -177,7 +177,11 @@ export type DetailedPlanningPackContent = {
     topicLabel: string;
     status: DetailedPlanningPackTopicStatus;
     reason: string;
-    citations: Array<{ ref: string; title: string | null; headingPath: string[]; excerpt: string; score: number }>;
+    citations: Array<{
+      ref: string; title: string | null; headingPath: string[]; excerpt: string; score: number;
+      // Optional only for historical packs. New source capture requires a server-bound record.
+      sourceBinding?: { clauseId: string; recordSha256: string };
+    }>;
   }>;
   topicMatrix: Array<{ topicId: string; topicLabel: string; status: DetailedPlanningPackTopicStatus; summary: string; sourceRefs: string[] }>;
   unresolvedTopics: string[];
