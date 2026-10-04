@@ -221,10 +221,10 @@ test("a formatted label cannot replace the separate mirrored lookup code", async
   assert.equal(readSavedSiteProvenance({ ...f.row()!, zoneCode: labelledSite.zone }, labelledSite, clock), null);
 });
 
-async function councilProof(council = "Byron", capturedAt = clock) {
+async function councilProof(council = "Byron", capturedAt = clock, enddate: number | null = null) {
   const proof = await lookupWorkingSeeCouncilIdentity({ lat: site.latitude!, lng: site.longitude! }, {
     fetcher: async () => new Response(JSON.stringify({ features: [{ attributes: {
-      rid: 1, lganame: council, councilname: council + " Shire Council", abscode: 99999, enddate: null,
+      rid: 1, lganame: council, councilname: council + " Shire Council", abscode: 99999, enddate,
     } }] }), { headers: { "content-type": "application/json" } }),
     now: () => capturedAt,
   });
@@ -276,4 +276,54 @@ test("adding or substituting council evidence cannot reuse an old envelope hash"
   const forged = { ...row, payload: { ...payload, councilIdentity: await councilProof() } };
   assert.equal(readSavedCouncilIdentity(forged, site, clock), null);
   assert.equal(readSavedSiteProvenance(forged, site, clock), null);
+});
+
+test("future-dated council proof survives normal retention and reread for each council", async () => {
+  for (const council of ["Byron", "Kempsey"]) {
+    const f = fixture();
+    const currentSite = { ...site, lgaName: council, lgaCode: council.toUpperCase() };
+    f.setSite(currentSite);
+    const proof = await councilProof(council, clock, 32503680000000);
+    assert.equal(await f.storage.retain(currentSite, spatial, proof), true);
+    const originalRow = structuredClone(f.row());
+    assert.deepEqual(readSavedCouncilIdentity(f.row(), currentSite, clock), proof);
+    assert.deepEqual((await f.storage.reload(currentSite))?.spatialProvenance, spatial);
+    assert.equal(await f.storage.retain(currentSite, spatial, proof), true);
+    assert.deepEqual(f.row(), originalRow);
+  }
+});
+test("provider expiry invalidates retained council and zoning evidence before the 24-hour limit", async () => {
+  const f = fixture();
+  const enddate = clock.getTime() + 60_000;
+  const proof = await councilProof("Byron", clock, enddate);
+  assert.equal(await f.storage.retain(site, spatial, proof), true);
+  const originalRow = structuredClone(f.row());
+  assert.ok(f.row()!.staleAt!.getTime() > enddate);
+  assert.ok(readSavedCouncilIdentity(f.row(), site, new Date(enddate - 1)));
+  for (const time of [enddate, enddate + 1]) {
+    const now = new Date(time);
+    f.setNow(now);
+    assert.equal(readSavedCouncilIdentity(f.row(), site, now), null);
+    assert.equal(readSavedSiteProvenance(f.row(), site, now), null);
+    assert.equal((await f.storage.reload(site))?.spatialProvenance, undefined);
+  }
+  assert.deepEqual(f.row(), originalRow);
+});
+test("proof that expires between lookup and retention is rejected before database I/O", async () => {
+  const f = fixture();
+  const enddate = clock.getTime() + 1;
+  const proof = await councilProof("Byron", clock, enddate);
+  f.setNow(new Date(enddate));
+  assert.equal(await f.storage.retain(site, spatial, proof), false);
+  assert.equal(f.calls(), 0);
+});
+test("future provider dates cannot bypass saved-site revision, hash, council or age checks", async () => {
+  const f = fixture();
+  const proof = await councilProof("Byron", clock, 32503680000000);
+  assert.equal(await f.storage.retain(site, spatial, proof), true);
+  for (const changed of [{ ...site, lgaCode: "KEMPSEY" }, { ...site, updatedAt: new Date(clock.getTime() + 1) }]) {
+    assert.equal(readSavedCouncilIdentity(f.row(), changed, clock), null);
+  }
+  assert.equal(readSavedCouncilIdentity({ ...f.row()!, contentHash: "0".repeat(64) }, site, clock), null);
+  assert.equal(readSavedCouncilIdentity(f.row(), site, new Date(clock.getTime() + SAVED_SITE_PROVENANCE_MAX_AGE_MS)), null);
 });

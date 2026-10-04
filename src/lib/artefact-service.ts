@@ -5,6 +5,7 @@ import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { dcpDocumentScopeIssue } from "@/lib/dcp/document-applicability";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
@@ -826,7 +827,7 @@ const mapDcpTopicEvidence = (
     topicId: topic.id,
     topicLabel: topic.label,
     status: "Cited",
-    reason: "Retrieved DCP evidence survived current zone/topic filtering and contains a substantive requirement in the clause body.",
+    reason: "Retrieved DCP evidence contains a substantive topic requirement; exact site and proposal applicability still require review.",
     citations,
   };
 };
@@ -931,6 +932,7 @@ export async function createDetailedPlanningPackArtefact({
     unresolvedTopics,
     consultantReviewQuestions: [
       "Do the cited DCP controls apply to the exact proposed use, tenancy, works extent and site constraints?",
+      "Are there precinct-specific or use-specific controls requiring verified applicability? Unverified location-specific candidates are not proof of site coverage.",
       "Are any uncited or unavailable topics controlled by maps, schedules, policies, overlays or council practice not yet retrieved here?",
       "What design changes or consultant inputs are needed before SEE drafting or referral?",
     ],
@@ -1592,6 +1594,9 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
   // or hierarchy just because it incidentally mentions the current zone.
   const scope = lines.length >= 3 ? `${lines[1]} ${lines[2]}` : (lines[0] ?? params.text);
   const body = lines.length >= 4 ? lines.slice(3).join(" ") : params.text;
+  // Defence in depth for injected retrieval and previously saved memo checks.
+  // A same-zone mention does not establish precinct or proposal applicability.
+  if (dcpDocumentScopeIssue({ headingPath: [scope], siteZone: zoneCode })) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(scope) && !evidenceMentionsZone(scope, zoneCode)) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(body) && !evidenceMentionsZone(body, zoneCode)) return false;
   // Topic qualification explicitly excludes the source ref. Refs remain useful

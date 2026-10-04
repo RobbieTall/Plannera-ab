@@ -1,3 +1,28 @@
+# Current document-delivery handover - 30 September 2026
+
+**Commercial HOLD. Production activation is not authorised.** This section supersedes all status and next-step statements below; historical checkpoints are retained, not instructions to repeat setup.
+
+- Active work: draft PR #452, feature branch `feat/see-document-delivery-20260929`. The separate mobile documentation branch and immutable Item 78C acceptance remain untouched.
+- Application correction `cc906ae285968bdd69ea4ded18490efc1af102b4` passed **315 tests**, full TypeScript and separate credential-free compilation in [run 36699459863](https://github.com/RobbieTall/Plannera-ab/actions/runs/36699459863). Breakdown: 11 safety + 52 source planner + 178 Node + 68 Vitest + 6 offline. This is not hosted customer acceptance or a guarantee of dependency safety.
+- Two independent isolated Preview databases, the approved working_see enum addition, branch-scoped configuration, official DCP/scoped LEP refreshes and protected deployments are already complete. Do not repeat credentials, copies, migrations or source refresh merely because an old checkpoint says they are pending.
+- The deployed Byron and Kempsey application revisions predate the latest DCP scope correction. No new deployment followed that correction. See the exact refs, deployments and source-refresh limits in the [hosted checkpoint](../operations/working-see-hosted-rehearsal-checkpoint-20260930.md).
+- Normal Byron DPP/pre-SEE generation ran, but customer Word/PDF generation failed. Source capture and saved canonical council provenance remain incomplete. Current official Byron boundary data has a future end date; our null-only lookup excludes it. The targeted correction is diagnosed but not applied and its requested approval remains pending.
+- Kempsey's independent Preview needs normal customer sign-in. Do not request another Stripe connection or recreate saved secrets.
+- Remaining proof: correct official council-date handling with expired/conflicting/ambiguous rejection, refresh site through the normal flow, regenerate new bound DPP/memo versions, then prove both councils' actual project-specific Word/PDF generation, protected download, original-byte reopening, permissions and warnings. Native Word/PDF review is still required.
+- Production checkout has not been activated; Production data/schema and main are unchanged. Feature and rehearsal automatic-deployment safeguards remain in place. Re-establish target safety before any future push, merge or manual Preview deployment.
+
+Read [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5908899235), [PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452), and the hosted checkpoint first. Research Viewer, Project Controls and private user pilots remain deferred.
+
+## Read-only delivery contract review
+
+At the application correction above, the reviewed download/list paths require a real session and Preview, check project membership and exact paid SEE entitlement before private file reads, and repeat those checks on each request. Version-bound private keys and byte hashes prevent silently substituting a newer project document. The workspace passes its canonical project ID and remounts document controls when the project or source version changes.
+
+Existing synthetic regressions cover wrong scope, denied membership, revoked purchases, cross-council substitutions, malformed requests, corrupt bytes, private error responses and original-version reopening. This is a scoped code/test review, not an independent security audit or hosted permissions pass. Collaborator/ownership policy, real wrong-user denial, actual Blob access and customer file reopening still require the planned controlled Preview proof.
+
+---
+
+# Historical checkpoints below (superseded status, preserved evidence)
+
 # Working SEE operations: current status at 2026-09-30
 
 This section supersedes status claims in the historical checkpoints below. The
