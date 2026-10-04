@@ -2,6 +2,8 @@
 
 **Both isolated document Previews are now READY. Commercial HOLD remains; no merge or Production change.**
 
+**Latest local draft:** the approved working-memo UI fix has 405 passing tests but one agent-introduced test-only TypeScript error; correction approval is pending. No new application push or deployment. Resume from [the exact local-draft task card](../project-memory/task-working-see-memo-gate-20261004.md), then the runtime checkpoint. Kempsey normal sign-in remains pending.
+
 Read [the protected Preview checkpoint](./working-see-protected-preview-checkpoint-20261004.md) first. It supersedes the earlier same-day deployment-approval/not-deployed statements below, which are retained as historical code-task evidence.
 
 The verified correction is deployed at Byron `fdf8650cd64161759ce2a120c4c6bf8a08c219ed` and Kempsey `a0434baf318ba810fb43ce9e630ca5debc6d8a0d`. Byron's normal site save and pack regeneration completed, but the new pack has two cited / three unresolved topics and the customer UI disables SEE and Word/PDF generation. No actual DOCX/PDF acceptance is claimed. Investigate that bounded working-document gate without weakening submission-readiness or evidence controls. Kempsey normal customer sign-in is still needed; its unsigned-in empty browser list does not mean cloud projects were lost.
