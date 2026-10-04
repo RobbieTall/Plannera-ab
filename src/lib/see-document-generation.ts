@@ -2,6 +2,7 @@ import { createWorkingSeeSnapshot } from "./see-document-delivery";
 import { documentIdentifier, readSavedSeeVersion, type SavedSeeVersion } from "./see-document-version-summary";
 import { WorkingSeeSourceError } from "./see-document-generation-sources";
 import type { WorkingSeeGenerationScope } from "./see-document-generation-source-loader";
+import { workingSeeRequestRejection } from "./working-see-preview-policy";
 
 const headers = { "Content-Type": "application/json", "Cache-Control": "private, no-store",
   "Vary": "Cookie, Authorization", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow" };
@@ -18,10 +19,9 @@ export function createWorkingSeeGenerationHandler(deps: {
 }) {
   return async (request: Request, projectId: string) => {
     if (deps.deploymentEnvironment !== "preview" || !deps.enabled) return response(404, { error: "generation_disabled" });
-    if (request.method !== "POST" || !documentIdentifier(projectId) ||
-      request.headers.get("origin") !== new URL(request.url).origin ||
-      request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") {
-      return response(400, { error: "invalid_generation_request" });
+    const requestRejection = workingSeeRequestRejection(request, projectId);
+    if (requestRejection) {
+      return response(400, { error: "invalid_generation_request", reason: requestRejection });
     }
     try {
       // Fixed-size input: identifiers and explicit working-document acknowledgement only.

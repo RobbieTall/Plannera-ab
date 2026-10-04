@@ -328,3 +328,49 @@ test("ordinary packs require saved council evidence before reading control rows"
     assert.deepEqual(f.calls, ["purchase", "entitlement", "spatial"]);
   }
 });
+
+for (const council of ["BYRON", "KEMPSEY"] as const) {
+  test(`${council}: Preview evidence-gap memo retains warnings without inventing DCP citations`, async () => {
+    const f = await fixture(council);
+    const priorMemo = f.memo().payload as Record<string, unknown>;
+    const pack = f.dpp.payload as Record<string, unknown>;
+    pack.dcpEvidence = [];
+    pack.topicMatrix = [];
+    pack.commercialReady = false;
+    pack.unresolvedTopics = ["Setbacks", "Parking and access"];
+    const { createPreSeePlanningMemoArtefact } = await import("./artefact-service");
+    const invoke = () => createPreSeePlanningMemoArtefact({
+      body: { projectId: f.scope.projectId,
+        sourceDetailedPlanningPackArtefactId: f.dpp.id,
+        expectedProposalBrief: priorMemo.proposedWorksSummary },
+      userId: f.scope.actorId,
+      deps: {
+        prisma: f.db as never,
+        buildQuickSiteCheckReport: async () => { throw new Error("Unexpected Quick Site Check generation in saved-pack test"); },
+        getDCPContext: async () => { throw new Error("Unexpected DCP retrieval in saved-pack test"); },
+        getWorkspaceSourceContext: async () => { throw new Error("Unexpected external source retrieval in saved-pack test"); },
+      },
+    });
+    try {
+      vi.stubEnv("VERCEL_ENV", "production");
+      vi.stubEnv("PLANNERA_WORKING_SEE_GENERATION_ENABLED", "1");
+      await assert.rejects(invoke, /no applicable cited DCP evidence/);
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("PLANNERA_WORKING_SEE_GENERATION_ENABLED", "0");
+      await assert.rejects(invoke, /no applicable cited DCP evidence/);
+      vi.stubEnv("PLANNERA_WORKING_SEE_GENERATION_ENABLED", "1");
+      const result = await invoke();
+      assert.equal(result.content.documentReadiness.state, "WORKING_SEE");
+      assert.equal(result.content.documentReadiness.submissionReady, false);
+      assert.equal(result.content.documentReadiness.evidenceStatus, "MORE_EVIDENCE_REQUIRED");
+      assert.deepEqual(result.content.applicableControls.dcpClauses, []);
+      assert.deepEqual(result.content.applicableControls.sourceExcerpts, []);
+      assert.equal(result.content.outstandingEvidence.length, 2);
+      assert.match(result.content.limitations.join(" "), /not.*submission-ready/i);
+      assert.equal(result.content.sourceDetailedPlanningPack?.artefactId, f.dpp.id);
+      assert.equal(result.content.sourceDetailedPlanningPack?.commercialReady, false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+}
