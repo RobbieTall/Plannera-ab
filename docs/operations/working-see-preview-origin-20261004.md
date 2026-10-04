@@ -1,3 +1,7 @@
+> **Current hosted checkpoint (4 October 2026): HOLD.** The Preview origin correction is deployed and both councils now pass that guard. 106 local checks, type checking, a credential-free build and all 14 GitHub runs passed. Neither isolated fixture has a PAID `submission_see` purchase or ACTIVE SEE entitlement; existing paid Planning Controls Packs do not confer SEE access. The SEE credit persistence service has no production-source callers in the inspected application tree, and no customer SEE checkout route was found. Connect and test the legitimate SEE purchase/credit/webhook journey using existing approved terms, without fabricating entitlements or repeating planning-pack payments. Word/PDF generation, private download, reopening and visual acceptance remain unproven; current-source/applicability review also remains open. Production is unchanged and checkout must remain disabled. No merge or Production deployment.
+>
+> Authoritative hosted evidence: [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5977156678) and [PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452#issuecomment-5977157198). Earlier checkpoints below are historical and superseded.
+
 # Working SEE Preview origin correction - 4 October 2026
 
 ## Evidence and scope
