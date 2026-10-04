@@ -1,3 +1,7 @@
+> **Latest hosted checkpoint (4 October 2026): HOLD.** Both isolated Preview deployments of application patch `631790a0484bc01ef5862a279fbec4386a32fa73` are READY. Kempsey now generates its evidence-gap working assessment with explicit not-submission-ready warnings. Actual Word/PDF generation still fails on both councils; saved-file download, exact-version reopening and visual acceptance remain unproven. The request rejection reason has not yet been observed; an origin mismatch is a hypothesis only. Preserve the security checks. Byron D3 proposal applicability also remains unresolved. Production is unchanged; no merge or activation is authorised by this checkpoint.
+>
+> Runtime evidence and next action: [Issue #395 checkpoint](https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5976872222) and [PR #452 checkpoint](https://github.com/RobbieTall/Plannera-ab/pull/452#issuecomment-5976872665). These supersede earlier pending-deployment statements below; older entries are preserved as history. The 101 focused checks, type check, credential-free build and 14 passing GitHub runs are development evidence, not hosted document acceptance.
+
 ## Latest status: approved test corrections validated (4 October 2026)
 
 The requested two regression-test fixtures are corrected: assertions use the existing `documentReadiness` structure, and all three required external-service dependencies are stubbed to throw if unexpectedly called.
