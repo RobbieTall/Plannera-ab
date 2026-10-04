@@ -21,9 +21,10 @@ const responseSchema = z.object({
       lganame: z.string().trim().min(1).max(60),
       councilname: z.string().trim().min(1).max(80),
       abscode: z.number().int().positive(),
-      enddate: z.null(),
+      // ArcGIS dates are epoch milliseconds; reject coercion and invalid Date ranges.
+      enddate: z.number().finite().int().min(-8640000000000000).max(8640000000000000).nullable(),
     }),
-  })).length(1),
+  })).min(1).max(2),
 });
 export type CouncilCoordinates = z.infer<typeof coordinatesSchema>;
 export type WorkingSeeCouncilIdentity = {
@@ -45,12 +46,21 @@ const hash = (text: string) => createHash("sha256").update(text, "utf8").digest(
 
 function identityFromResponse(
   responseText: string, coordinates: CouncilCoordinates, retrievedAt: string,
+  evaluatedAt = Date.parse(retrievedAt),
 ): WorkingSeeCouncilIdentity | null {
   try {
     if (Buffer.byteLength(responseText, "utf8") > MAX_BYTES) return null;
     const parsed = responseSchema.safeParse(JSON.parse(responseText));
     if (!parsed.success || parsed.data.error != null || parsed.data.exceededTransferLimit) return null;
-    const attributes = parsed.data.features[0].attributes;
+    const fetchedAt = Date.parse(retrievedAt);
+    if (!Number.isFinite(fetchedAt) || !Number.isFinite(evaluatedAt) || evaluatedAt < fetchedAt) return null;
+    // Establish uniqueness at capture, not only after competing records expire.
+    // Keep the complete original response for its hash and later revalidation.
+    const current = parsed.data.features.filter(({ attributes }) =>
+      attributes.enddate === null || attributes.enddate > fetchedAt);
+    if (current.length !== 1) return null;
+    const attributes = current[0].attributes;
+    if (attributes.enddate !== null && attributes.enddate <= evaluatedAt) return null;
     const council = normalizeCouncilLgaCode(attributes.lganame);
     if (council !== "BYRON" && council !== "KEMPSEY") return null;
     return {
@@ -80,7 +90,7 @@ export async function lookupWorkingSeeCouncilIdentity(
   url.search = new URLSearchParams({
     f: "json", geometry: point.data.lng + "," + point.data.lat,
     geometryType: "esriGeometryPoint", inSR: "4326",
-    spatialRel: "esriSpatialRelIntersects", where: "enddate IS NULL",
+    spatialRel: "esriSpatialRelIntersects", where: "1=1",
     outFields: "rid,lganame,councilname,abscode,enddate",
     returnGeometry: "false", resultRecordCount: "2",
   }).toString();
@@ -124,7 +134,7 @@ export function readWorkingSeeCouncilIdentity(
     const fetched = Date.parse(row.retrievedAt);
     if (!Number.isFinite(fetched) || fetched > now.getTime() ||
       fetched + WORKING_SEE_COUNCIL_MAX_AGE_MS <= now.getTime()) return null;
-    const expected = identityFromResponse(row.responseText, point.data, row.retrievedAt);
+    const expected = identityFromResponse(row.responseText, point.data, row.retrievedAt, now.getTime());
     return expected && isDeepStrictEqual(value, expected) ? expected : null;
   } catch { return null; }
 }

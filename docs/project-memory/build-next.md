@@ -1,3 +1,52 @@
+## 2 October 2026 — Drive continuity companions
+
+Current Drive-side continuity records in **Plannera Technical Build Docs**:
+- [Plannera Current Build Handoff — 2 October 2026](https://docs.google.com/document/d/1hPbFpgqp53mFXv9GpJCsX4ufrY32SaiifBMokGc24Mw/edit?usp=drivesdk)
+- [Plannera Post-Commercial Roadmap Consolidation — 2 October 2026](https://docs.google.com/document/d/1T4m5StZ7PLcA3SDInxUEspUPEFvdJzNZq9Mlsi1mI_k/edit?usp=drivesdk)
+
+These companion Docs mirror the current GitHub closeout and post-gate roadmap. Historical Drive roadmap/pilot files remain reference material.
+
+---
+
+## 2 October 2026 — synthetic SEE visual acceptance passed
+
+At tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`, all 13 GitHub Actions passed and the exact generated synthetic artifact was rendered and inspected page-by-page. PDF is 9 pages; DOCX is 8. The prior sparse PDF status/front-matter page is removed and page 2 now carries Document Control, Revision History, Proposal Summary and Document Status together.
+
+This closes synthetic presentation visual acceptance only. Actual hosted Byron/Kempsey customer generation/download/reopening/native review remains blocked by the approval-gated council current-record correction and Kempsey normal sign-in.
+
+---
+
+## 2 October 2026 — autonomous session closeout
+
+Only PR #452 remains open. Main is unchanged. The tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38` passed all 13 exact-head GitHub Actions.
+
+Canonical next-action record: [autonomous session closeout](autonomous-session-closeout-20261002.md).
+
+Synthetic native review is complete and passed at `ea9f333`. Immediate safe browser action is exact-head/state verification only; the remaining substantive gates are the explicitly approval-gated council `enddate` correction and normal Kempsey Preview sign-in.
+
+---
+
+## 2 October 2026 — backlog convergence checkpoint
+
+PR #452 remains the current commercial/document-delivery reference branch. The open PR backlog has now been classified so parallel branches are not batch-merged simply because checks are green.
+
+Canonical convergence plan: [PR convergence checkpoint](../operations/pr-convergence-20261002.md).
+
+Immediate sequence:
+1. finish #452 protected customer evidence;
+2. reconcile presentation on the #452 lineage (do not independently merge #433/#434/#435);
+3. rebase/recreate #429 regression coverage;
+4. reapply #424 and #426 only if their launch surfaces remain active;
+5. defer #422/#438 until the core document journey is green;
+6. after the commercial gate, reconcile roadmap docs #448 → #451 → #449;
+7. treat #450 as superseded status/history, not a current integration branch.
+
+Current human gates remain unchanged: the council-boundary end-date correction requires Robbie's explicit approval, and Kempsey requires normal customer sign-in. Completed DCP/LEP refreshes and cloud setup must not be repeated.
+
+Historical pre-fix finding: the earlier synthetic PDF produced an avoidable sparse Document Status/front-matter page. The current renderer lineage through `ea9f333` corrected this and the exact synthetic PDF/DOCX visual review passed.
+
+---
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in

@@ -2,6 +2,10 @@
 
 ## Current decision
 
+Latest continuation: [hosted rehearsal checkpoint](working-see-hosted-rehearsal-checkpoint-20260930.md).
+Both document Previews are now Ready, but customer generation failed; that checkpoint
+records the exact source-applicability and council-provenance blockers.
+
 **Commercial HOLD.** DCP source-proof persistence and the scoped LEP version refresh have completed on
 the two approved isolated Preview copies. The hosted customer Word/PDF journey
 and native output inspection are not complete. No Production changes or checkout

@@ -1,3 +1,11 @@
+## 2 October 2026 — current integration map
+
+PR #452 is the active commercial/document-delivery reference branch. A live backlog review has classified the parallel PRs and set the integration order. See [PR convergence checkpoint](../operations/pr-convergence-20261002.md).
+
+Do not independently merge #433/#434/#435; presentation work is being reconciled on #452. Do not treat #450 as current status. Human gates remain the approved council end-date correction and Kempsey customer sign-in. Research Viewer/pilots/Project Controls remain post-commercial-gate documentation lanes.
+
+---
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in

@@ -1,3 +1,59 @@
+# Current continuation checkpoint: 4 October 2026
+
+**Council-boundary correction approved, implemented and verified in PR #452; not deployed. Commercial HOLD remains.**
+
+Read [the 4 October execution receipt](../operations/working-see-council-boundary-correction-20261004.md) first. It supersedes pending-approval and next-action statements in the 2 October closeout/handoffs below, without replacing historical evidence.
+
+Application `186be9afbcff3956d28ece4e267fac198c2565e0`: 331 synthetic regression tests, full TypeScript, build safety, missing-database guards and credential-free compilation passed; all 14 exact-commit GitHub workflow runs succeeded. The focused 51 tests are included in that total.
+
+Do not request approval for the completed correction again. **Next authority needed: separately bounded deployment to the existing protected Byron/Kempsey rehearsal targets.** No deployment or merge was authorised or performed in this correction task. Kempsey normal customer sign-in and actual two-council Word/PDF generation, private download, exact-version reopening, permission/warning/version checks and native output review still remain. Do not repeat completed source refreshes, schema preparation or key setup. Production checkout stays disabled; Production data/schema remains outside scope.
+
+---
+
+# 2 October 2026 autonomous continuation checkpoint
+
+**Commercial HOLD remains. No Production activation is authorised.**
+
+The open PR backlog has now been reconciled around PR #452. Read [the 2 October PR convergence checkpoint](../operations/pr-convergence-20261002.md) before acting on any older branch or handover.
+
+Key changes in understanding:
+- #452 remains the only active commercial/document-delivery lane.
+- #433/#434/#435 should not be merged independently; their substantive presentation code is already represented in #452. The #435 benchmark contract is retained separately on this branch.
+- the earlier synthetic PDF pagination defect has been fixed on the current #452 lineage. Exact synthetic native visual acceptance passed at application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`: PDF 9 clean pages, DOCX 8 clean pages, with Document Control + Revision History + Proposal Summary + Document Status together on PDF page 2. Actual hosted customer document review remains open.
+- #429 is the next high-value regression expansion after #452; #424/#426 are launch-truth slices to reapply if their surfaces remain active.
+- #422/#438 remain useful foundations but are deferred until the core customer-document journey is green.
+- #448 → #451 → #449 are post-gate roadmap/documentation lanes.
+- #450 is superseded as current status; retain its historical acceptance evidence rather than merging the whole branch.
+
+Human-only gates are unchanged: the council-boundary `enddate` correction is scoped but requires Robbie's explicit approval, and Kempsey still requires normal customer sign-in. Do not repeat completed source refreshes or cloud setup.
+
+---
+
+# Current document-delivery handover - 30 September 2026
+
+**Commercial HOLD. Production activation is not authorised.** This section supersedes all status and next-step statements below; historical checkpoints are retained, not instructions to repeat setup.
+
+- Active work: draft PR #452, feature branch `feat/see-document-delivery-20260929`. The separate mobile documentation branch and immutable Item 78C acceptance remain untouched.
+- Application correction `cc906ae285968bdd69ea4ded18490efc1af102b4` passed **315 tests**, full TypeScript and separate credential-free compilation in [run 36699459863](https://github.com/RobbieTall/Plannera-ab/actions/runs/36699459863). Breakdown: 11 safety + 52 source planner + 178 Node + 68 Vitest + 6 offline. This is not hosted customer acceptance or a guarantee of dependency safety.
+- Two independent isolated Preview databases, the approved working_see enum addition, branch-scoped configuration, official DCP/scoped LEP refreshes and protected deployments are already complete. Do not repeat credentials, copies, migrations or source refresh merely because an old checkpoint says they are pending.
+- The deployed Byron and Kempsey application revisions predate the latest DCP scope correction. No new deployment followed that correction. See the exact refs, deployments and source-refresh limits in the [hosted checkpoint](../operations/working-see-hosted-rehearsal-checkpoint-20260930.md).
+- Normal Byron DPP/pre-SEE generation ran, but customer Word/PDF generation failed. Source capture and saved canonical council provenance remain incomplete. Current official Byron boundary data has a future end date; our null-only lookup excludes it. The targeted correction is diagnosed but not applied and its requested approval remains pending.
+- Kempsey's independent Preview needs normal customer sign-in. Do not request another Stripe connection or recreate saved secrets.
+- Remaining proof: correct official council-date handling with expired/conflicting/ambiguous rejection, refresh site through the normal flow, regenerate new bound DPP/memo versions, then prove both councils' actual project-specific Word/PDF generation, protected download, original-byte reopening, permissions and warnings. Native Word/PDF review is still required.
+- Production checkout has not been activated; Production data/schema and main are unchanged. Feature and rehearsal automatic-deployment safeguards remain in place. Re-establish target safety before any future push, merge or manual Preview deployment.
+
+Read [Issue #395](https://github.com/RobbieTall/Plannera-ab/issues/395#issuecomment-5908899235), [PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452), and the hosted checkpoint first. Research Viewer, Project Controls and private user pilots remain deferred.
+
+## Read-only delivery contract review
+
+At the application correction above, the reviewed download/list paths require a real session and Preview, check project membership and exact paid SEE entitlement before private file reads, and repeat those checks on each request. Version-bound private keys and byte hashes prevent silently substituting a newer project document. The workspace passes its canonical project ID and remounts document controls when the project or source version changes.
+
+Existing synthetic regressions cover wrong scope, denied membership, revoked purchases, cross-council substitutions, malformed requests, corrupt bytes, private error responses and original-version reopening. This is a scoped code/test review, not an independent security audit or hosted permissions pass. Collaborator/ownership policy, real wrong-user denial, actual Blob access and customer file reopening still require the planned controlled Preview proof.
+
+---
+
+# Historical checkpoints below (superseded status, preserved evidence)
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in

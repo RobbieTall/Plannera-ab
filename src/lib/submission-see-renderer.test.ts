@@ -418,6 +418,17 @@ describe("reconciled SEE presentation", () => {
     expect(output.pdf.toString("latin1")).toContain("Section 4.15 Evaluation");
   });
 
+  it("keeps proposal summary and document status together in PDF front matter", () => {
+    const pdf = renderSubmissionSeeOutputs(makeCandidate()).pdf.toString("latin1");
+    const streams = [...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g)].map((match) => match[1]!);
+    const statusStreams = streams.filter((stream) => stream.includes("(Document Status)"));
+
+    expect(statusStreams).toHaveLength(1);
+    expect(statusStreams[0]).toContain("(Proposal Summary)");
+    expect(statusStreams[0]).toContain("(Revision History)");
+    expect(statusStreams[0]).toContain("(DOCUMENT CONTROL)");
+  });
+
   it("numbers PDF contents from the actual layout rather than fixed page estimates", () => {
     const candidate = makeCandidate();
     candidate.sections[0]!.narrative = "A longer cited planning assessment is retained without inventing evidence. ".repeat(85);
