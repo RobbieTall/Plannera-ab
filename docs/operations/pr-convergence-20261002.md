@@ -1,3 +1,40 @@
+## Current checkpoint: verified working-memo fix, 4 October 2026
+
+**Commercial HOLD. Application fix published and all code checks passed; new fix not deployed.**
+
+- PR #452 application: `51abcc79a00bdd12e56d6d079a7e586d7432379e`; tree `04d4f07818eb367fc5ef87cf343f70e814d6c696`.
+- The approved test-only TypeScript correction is complete. **405 disjoint tests pass** (74 focused, 69 safety/source/offline, 193 document Node, 69 document Vitest). Full TypeScript, build-safety verification and credential-free compilation pass.
+- All **14 exact-application GitHub workflow runs succeeded**, including isolated delivery [push 37174593644](https://github.com/RobbieTall/Plannera-ab/actions/runs/37174593644) and [PR 37174596644](https://github.com/RobbieTall/Plannera-ab/actions/runs/37174596644). Workflow success is code evidence, not proof that stateful customer acceptance ran.
+- Kempsey normal sign-in is complete. The existing council-specific cloud fixture was found and reused; no duplicate or secret re-entry is needed.
+- Same-site save completed in Kempsey. The Quick Site Check opened and Save as artefact was invoked, but the visible last-run label remained historical; a new check version/timestamp is **not independently proved**.
+- Kempsey Regenerate pack completed for the unchanged proposal: **0 cited / 5 unresolved topics**. Its regenerated pack summary no longer displayed the prior R1 prefix, while the workspace header retained R1; this display discrepancy is recorded, not silently repaired or interpreted as verified zoning.
+- Byron remains **2 cited / 3 unresolved topics**. Neither council has a newly accepted customer DOCX/PDF. Both hosted versions still disable SEE and working-document generation because the matching memo is unavailable.
+- No new deployment, merge, Production change, source refresh, schema mutation, credential change or payment action occurred in this checkpoint.
+
+### Exact next step
+
+Obtain bounded approval to roll application `51abcc79a00bdd12e56d6d079a7e586d7432379e` into the two existing protected isolated document Previews, preserving their deployment-disabled branch safeguards. Then prove normal customer memo/Word/PDF generation, private downloads, exact-version reopening, ownership-negative cases, warnings, versions and visual document review. Do not bypass disabled controls or reuse stale output.
+
+Current hosted snapshots remain Byron `fdf8650cd64161759ce2a120c4c6bf8a08c219ed` and Kempsey `a0434baf318ba810fb43ce9e630ca5debc6d8a0d`. No deployment of the new UI fix is claimed. No Production activation is authorised.
+
+This checkpoint supersedes older typing-approval, sign-in-pending and local-only statements below. Older receipts are retained as historical evidence.
+
+---
+
+# Latest protected Preview checkpoint: 4 October 2026
+
+**Both isolated document Previews are now READY. Commercial HOLD remains; no merge or Production change.**
+
+**Latest local draft:** the approved working-memo UI fix has 405 passing tests but one agent-introduced test-only TypeScript error; correction approval is pending. No new application push or deployment. Resume from [the exact local-draft task card](../project-memory/task-working-see-memo-gate-20261004.md), then the runtime checkpoint. Kempsey normal sign-in remains pending.
+
+Read [the protected Preview checkpoint](./working-see-protected-preview-checkpoint-20261004.md) first. It supersedes the earlier same-day deployment-approval/not-deployed statements below, which are retained as historical code-task evidence.
+
+The verified correction is deployed at Byron `fdf8650cd64161759ce2a120c4c6bf8a08c219ed` and Kempsey `a0434baf318ba810fb43ce9e630ca5debc6d8a0d`. Byron's normal site save and pack regeneration completed, but the new pack has two cited / three unresolved topics and the customer UI disables SEE and Word/PDF generation. No actual DOCX/PDF acceptance is claimed. Investigate that bounded working-document gate without weakening submission-readiness or evidence controls. Kempsey normal customer sign-in is still needed; its unsigned-in empty browser list does not mean cloud projects were lost.
+
+Do not repeat completed deployments, key setup, source refreshes or schema preparation. No #452 merge or Production activation is authorised. Continue from the detailed receipt, not older run instructions.
+
+---
+
 # Current continuation checkpoint: 4 October 2026
 
 **Council-boundary correction approved, implemented and verified in PR #452; not deployed. Commercial HOLD remains.**
