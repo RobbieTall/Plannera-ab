@@ -1,3 +1,4 @@
+import { canGenerateUncitedWorkingSee } from "./working-see-preview-policy";
 import { captureWorkingSeePackSources, workingSeeDcpCitationBinding, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
 import { z } from "zod";
 
@@ -1818,7 +1819,12 @@ export async function createPreSeePlanningMemoArtefact({
   const dppCitations = resolvedPack.pack.dcpEvidence.flatMap((topic) =>
     topic.citations.map((citation) => ({ topic, citation })),
   );
-  if (!dppCitations.length) {
+  if (!dppCitations.length && !canGenerateUncitedWorkingSee({
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    generationEnabled: process.env.PLANNERA_WORKING_SEE_GENERATION_ENABLED,
+    commercialReady: resolvedPack.pack.commercialReady,
+    unresolvedTopics: resolvedPack.pack.unresolvedTopics,
+  })) {
     throw new ArtefactValidationError("The current Detailed Planning Pack has no applicable cited DCP evidence for SEE generation");
   }
   const citationForControl = (control: QuickSiteCheckControl) => {

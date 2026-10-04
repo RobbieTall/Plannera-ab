@@ -1,3 +1,5 @@
+> **Current PR #452 status, 4 October 2026:** [Runtime blockers and validated repair checkpoint](docs/project-memory/working-see-runtime-blockers-20261004.md). **Commercial HOLD.** Both protected Previews are running the preceding update; the new working-draft policy and safe request diagnostics are not deployed. The repair has 101 passing local checks, a passing TypeScript check and a credential-free build. Actual customer DOCX/PDF acceptance and DCP applicability remain unproven. Production checkout stays disabled; no Production data/schema change is authorised. Earlier checkpoints below are retained as history and are superseded where inconsistent.
+
 ## Local prerequisite checkpoint: official council-point lookup
 
 A new read-only adapter is prepared LOCALLY ONLY in
