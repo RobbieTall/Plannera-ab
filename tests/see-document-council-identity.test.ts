@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   lookupWorkingSeeCouncilIdentity, readWorkingSeeCouncilIdentity, resolveWorkingSeeCouncilForCandidate,
@@ -43,6 +44,9 @@ test("query has a fixed official endpoint, explicit CRS, bounded matches and no 
     assert.equal(url.origin + url.pathname, WORKING_SEE_COUNCIL_LAYER + "/query");
     assert.equal(url.searchParams.get("geometry"), "153,-30");
     assert.equal(url.searchParams.get("inSR"), "4326");
+    assert.equal(url.searchParams.get("where"), "1=1");
+    assert.equal(url.searchParams.get("geometryType"), "esriGeometryPoint");
+    assert.equal(url.searchParams.get("spatialRel"), "esriSpatialRelIntersects");
     assert.equal(url.searchParams.get("resultRecordCount"), "2");
     assert.equal(url.searchParams.get("returnGeometry"), "false");
     assert.equal(url.searchParams.has("token"), false);
@@ -158,4 +162,123 @@ test("candidate labels without coordinates or a provider match are not evidence"
     deploymentEnvironment: "preview", enabled: true,
   }, { fetcher: f }), null);
   assert.equal(calls, 1);
+});
+
+function datedPayload(enddate: unknown, council = "Byron") {
+  return { features: [{ attributes: { ...payload(council).features[0].attributes, enddate } }] };
+}
+test("both councils accept a finite far-future provider date without rewriting response bytes", async () => {
+  for (const council of ["Byron", "Kempsey"]) {
+    const raw = JSON.stringify(datedPayload(32503680000000, council), null, 2) + "\n";
+    const proof = await lookupWorkingSeeCouncilIdentity(point, {
+      fetcher: async () => new Response(raw, { headers: { "content-type": "application/json; charset=utf-8" } }),
+      now: () => clock,
+    });
+    assert.ok(proof);
+    assert.equal(proof.council, council.toUpperCase());
+    assert.equal(proof.responseText, raw);
+    assert.equal(proof.responseSha256, createHash("sha256").update(raw).digest("hex"));
+    assert.equal(proof.retrievedAt, clock.toISOString());
+    assert.deepEqual(readWorkingSeeCouncilIdentity(proof, point, clock), proof);
+  }
+});
+test("provider end date must be strictly future, not expired or equal to the clock", async () => {
+  for (const enddate of [clock.getTime() - 1, clock.getTime()]) {
+    assert.equal(await lookupWorkingSeeCouncilIdentity(point, {
+      fetcher: fetcher(datedPayload(enddate)), now: () => clock,
+    }), null);
+  }
+  assert.ok(await lookupWorkingSeeCouncilIdentity(point, {
+    fetcher: fetcher(datedPayload(clock.getTime() + 1)), now: () => clock,
+  }));
+});
+test("malformed provider dates are not coerced into current records", async () => {
+  for (const enddate of [undefined, "32503680000000", true, false, {}, [], 1.5, 8640000000000001, -8640000000000001]) {
+    assert.equal(await lookupWorkingSeeCouncilIdentity(point, {
+      fetcher: fetcher(datedPayload(enddate)), now: () => clock,
+    }), null);
+  }
+  // JSON.stringify would turn Infinity into null; send the actual non-finite JSON number.
+  const raw = JSON.stringify(datedPayload(0)).replace('"enddate":0', '"enddate":1e400');
+  assert.equal(await lookupWorkingSeeCouncilIdentity(point, {
+    fetcher: async () => new Response(raw, { headers: { "content-type": "application/json" } }),
+    now: () => clock,
+  }), null);
+});
+test("one expired and one current intersecting row selects only the current row in either order", async () => {
+  const old = datedPayload(clock.getTime() - 1, "Kempsey").features[0];
+  for (const enddate of [null, 32503680000000]) {
+    const live = datedPayload(enddate).features[0];
+    for (const features of [[old, live], [live, old]]) {
+      const raw = JSON.stringify({ features });
+      const proof = await lookupWorkingSeeCouncilIdentity(point, {
+        fetcher: fetcher({ features }), now: () => clock,
+      });
+      assert.ok(proof);
+      assert.equal(proof.council, "BYRON");
+      assert.equal(proof.responseText, raw);
+      assert.deepEqual(readWorkingSeeCouncilIdentity(proof, point, clock), proof);
+    }
+  }
+});
+test("two current rows remain ambiguous for every null and future combination", async () => {
+  for (const dates of [[null, null], [null, 32503680000000], [32503680000000, 32503680000000]]) {
+    const features = dates.map((enddate, index) => ({
+      attributes: { ...datedPayload(enddate).features[0].attributes, rid: index + 1 },
+    }));
+    assert.equal(await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher({ features }), now: () => clock }), null);
+  }
+});
+test("invalid rows, truncated results and responses beyond the bound cannot be filtered into a match", async () => {
+  const live = datedPayload(32503680000000).features[0];
+  const old = datedPayload(clock.getTime() - 1).features[0];
+  for (const value of [
+    { features: [old, old] },
+    { features: [live, datedPayload("invalid").features[0]] },
+    { features: [old, live], exceededTransferLimit: true },
+    { features: [old, old, live] },
+    { features: [live], error: { code: 500 } },
+  ]) assert.equal(await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(value), now: () => clock }), null);
+});
+test("stored proof expires at the provider end date before its normal 24-hour expiry", async () => {
+  const enddate = clock.getTime() + 60_000;
+  const proof = await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(datedPayload(enddate)), now: () => clock });
+  assert.ok(proof);
+  assert.deepEqual(readWorkingSeeCouncilIdentity(proof, point, new Date(enddate - 1)), proof);
+  assert.equal(readWorkingSeeCouncilIdentity(proof, point, new Date(enddate)), null);
+  assert.equal(readWorkingSeeCouncilIdentity(proof, point, new Date(enddate + 1)), null);
+  assert.equal(proof.retrievedAt, clock.toISOString());
+});
+test("a future provider date does not extend the independent 24-hour evidence limit", async () => {
+  const proof = await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(datedPayload(32503680000000)), now: () => clock });
+  assert.ok(proof);
+  assert.ok(readWorkingSeeCouncilIdentity(proof, point, new Date(clock.getTime() + WORKING_SEE_COUNCIL_MAX_AGE_MS - 1)));
+  assert.equal(readWorkingSeeCouncilIdentity(proof, point, new Date(clock.getTime() + WORKING_SEE_COUNCIL_MAX_AGE_MS)), null);
+});
+test("reread cannot legitimise evidence that was ambiguous when originally captured", async () => {
+  const proof = await saved();
+  const raw = JSON.stringify({ features: [
+    ...payload().features, ...datedPayload(clock.getTime() + 1, "Kempsey").features,
+  ] });
+  const forged = { ...proof, responseText: raw, responseSha256: createHash("sha256").update(raw).digest("hex") };
+  assert.equal(readWorkingSeeCouncilIdentity(forged, point, new Date(clock.getTime() + 2)), null);
+});
+test("future-date proofs still reject candidate conflicts, response tampering and wrong points", async () => {
+  for (const labels of [{ lgaName: "Kempsey" }, { lgaCode: "KEMPSEY" }, { lgaCode: "12345" }]) {
+    assert.equal(await resolveWorkingSeeCouncilForCandidate({
+      candidate: { latitude: point.lat, longitude: point.lng, lgaName: null, ...labels },
+      deploymentEnvironment: "preview", enabled: true,
+    }, { fetcher: fetcher(datedPayload(32503680000000)), now: () => clock }), null);
+  }
+  const proof = await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(datedPayload(32503680000000)), now: () => clock });
+  assert.ok(proof);
+  assert.equal(readWorkingSeeCouncilIdentity({ ...proof, responseText: JSON.stringify(datedPayload(null)) }, point, clock), null);
+  assert.equal(readWorkingSeeCouncilIdentity(proof, { ...point, lng: 152 }, clock), null);
+  assert.equal(await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(datedPayload(32503680000000, "Ballina")), now: () => clock }), null);
+});
+test("redirected JSON responses remain rejected and invalid capture clocks do not produce proof", async () => {
+  const redirected = response(datedPayload(32503680000000));
+  Object.defineProperty(redirected, "redirected", { value: true });
+  assert.equal(await lookupWorkingSeeCouncilIdentity(point, { fetcher: async () => redirected, now: () => clock }), null);
+  assert.equal(await lookupWorkingSeeCouncilIdentity(point, { fetcher: fetcher(datedPayload(32503680000000)), now: () => new Date(NaN) }), null);
 });
