@@ -50,6 +50,7 @@ import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
 import { WorkingSeeDownloads } from "@/components/projects/working-see-downloads";
+import { getWorkingSeeMemoGate } from "@/lib/working-see-memo-gate";
 import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
 import { ConsultantReferralPanel } from "@/components/projects/consultant-referral-panel";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
@@ -3269,18 +3270,18 @@ export function ProjectWorkspace({
       return;
     }
 
-    if (!commercialPackGateRef.current.hasQualityDetailedPlanningPack) {
-      showToast(
-        commercialPackGateRef.current.hasProposalBriefMismatch
-          ? "Regenerate the Detailed Planning Pack for the current proposed-works brief before generating SEE"
-          : "Generate a commercial-ready Detailed Planning Pack before generating SEE",
-        "error",
-      );
+    const gate = getWorkingSeeMemoGate({
+      ...commercialPackGateRef.current,
+      hasConfirmedSite: Boolean(siteContext),
+      workingSeeGenerationEnabled,
+    });
+    if (!gate.allowed) {
+      showToast(gate.reason ?? "Working SEE generation is unavailable", "error");
       return;
     }
 
     void generatePreSeeMemo();
-  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast]);
+  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast, siteContext, workingSeeGenerationEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3486,6 +3487,11 @@ export function ProjectWorkspace({
     sourceDetailedPlanningPackArtefactId: latestDetailedPlanningPackArtefact?.id,
     expectedProposalBrief: latestDetailedPlanningPack?.proposalBrief,
   };
+  const workingSeeMemoGate = getWorkingSeeMemoGate({
+    ...commercialPackGateRef.current,
+    hasConfirmedSite: Boolean(siteContext),
+    workingSeeGenerationEnabled,
+  });
 
   const latestSeeArtefact = useMemo(
     () => selectExactSeeArtefactForDetailedPlanningPack(siteScopedArtefacts, latestDetailedPlanningPackArtefact),
@@ -4922,14 +4928,14 @@ export function ProjectWorkspace({
                       <button
                         type="button"
                         onClick={handleGeneratePreSeeMemo}
-                        disabled={isGeneratingSee || !hasQualityDetailedPlanningPack}
+                        disabled={isGeneratingSee || !workingSeeMemoGate.allowed}
                         className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                       >
                         {isGeneratingSee
                           ? "Generating…"
                           : latestSeeContent
                             ? "Regenerate"
-                            : "Generate SEE"}
+                            : "Generate working SEE"}
                       </button>
                     ) : null
                   }
@@ -4947,7 +4953,7 @@ export function ProjectWorkspace({
                     />
                   ) : (
                     <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Generate a structured SEE from the current commercial-ready Detailed Planning Pack.
+                      {workingSeeMemoGate.reason ?? "Start a working SEE from this saved planning pack. Missing evidence stays clearly marked; add plans, surveys or reports and regenerate as the project develops. This is not submission-ready."}
                     </p>
                   )}
                   {workingSeeDownloadsEnabled ? <WorkingSeeDownloads
