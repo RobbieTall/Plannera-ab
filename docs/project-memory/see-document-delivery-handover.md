@@ -1,3 +1,26 @@
+## Current checkpoint: verified working-memo fix, 4 October 2026
+
+**Commercial HOLD. Application fix published and all code checks passed; new fix not deployed.**
+
+- PR #452 application: `51abcc79a00bdd12e56d6d079a7e586d7432379e`; tree `04d4f07818eb367fc5ef87cf343f70e814d6c696`.
+- The approved test-only TypeScript correction is complete. **405 disjoint tests pass** (74 focused, 69 safety/source/offline, 193 document Node, 69 document Vitest). Full TypeScript, build-safety verification and credential-free compilation pass.
+- All **14 exact-application GitHub workflow runs succeeded**, including isolated delivery [push 37174593644](https://github.com/RobbieTall/Plannera-ab/actions/runs/37174593644) and [PR 37174596644](https://github.com/RobbieTall/Plannera-ab/actions/runs/37174596644). Workflow success is code evidence, not proof that stateful customer acceptance ran.
+- Kempsey normal sign-in is complete. The existing council-specific cloud fixture was found and reused; no duplicate or secret re-entry is needed.
+- Same-site save completed in Kempsey. The Quick Site Check opened and Save as artefact was invoked, but the visible last-run label remained historical; a new check version/timestamp is **not independently proved**.
+- Kempsey Regenerate pack completed for the unchanged proposal: **0 cited / 5 unresolved topics**. Its regenerated pack summary no longer displayed the prior R1 prefix, while the workspace header retained R1; this display discrepancy is recorded, not silently repaired or interpreted as verified zoning.
+- Byron remains **2 cited / 3 unresolved topics**. Neither council has a newly accepted customer DOCX/PDF. Both hosted versions still disable SEE and working-document generation because the matching memo is unavailable.
+- No new deployment, merge, Production change, source refresh, schema mutation, credential change or payment action occurred in this checkpoint.
+
+### Exact next step
+
+Obtain bounded approval to roll application `51abcc79a00bdd12e56d6d079a7e586d7432379e` into the two existing protected isolated document Previews, preserving their deployment-disabled branch safeguards. Then prove normal customer memo/Word/PDF generation, private downloads, exact-version reopening, ownership-negative cases, warnings, versions and visual document review. Do not bypass disabled controls or reuse stale output.
+
+Current hosted snapshots remain Byron `fdf8650cd64161759ce2a120c4c6bf8a08c219ed` and Kempsey `a0434baf318ba810fb43ce9e630ca5debc6d8a0d`. No deployment of the new UI fix is claimed. No Production activation is authorised.
+
+This checkpoint supersedes older typing-approval, sign-in-pending and local-only statements below. Older receipts are retained as historical evidence.
+
+---
+
 # Latest protected Preview checkpoint: 4 October 2026
 
 **Both isolated document Previews are now READY. Commercial HOLD remains; no merge or Production change.**
