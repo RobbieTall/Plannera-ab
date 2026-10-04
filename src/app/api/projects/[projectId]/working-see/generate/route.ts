@@ -9,6 +9,11 @@ export async function POST(request: Request, { params }: { params: { projectId: 
   const enabled = process.env.PLANNERA_WORKING_SEE_GENERATION_ENABLED === "1";
   return createWorkingSeeGenerationHandler({
     deploymentEnvironment, enabled,
+    previewOrigin: {
+      vercel: process.env.VERCEL,
+      deploymentUrl: process.env.VERCEL_URL,
+      branchUrl: process.env.VERCEL_BRANCH_URL,
+    },
     getActorId: async () => {
       const { getServerSession } = await import("next-auth");
       const { authOptions } = await import("@/lib/auth");
