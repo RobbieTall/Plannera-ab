@@ -1,3 +1,17 @@
+> **Latest SEE purchase-integration checkpoint (4 October 2026): HOLD.** The signed Preview/test payment policy and atomic persistence handler are now prepared with 66 passing focused tests, clean type checking, a passing build-safety contract and a successful credential-free build (37/37 pages). Payment, credit and entitlement changes share one serializable transaction; failure tests exercise rollback using a transactional test double, not a live database. The customer checkout/quote route, selected-document scope binding, provider dispatch and UI remain to be connected. These modules do not enable checkout and no new test payment or hosted document acceptance is claimed. Both isolated deployments remain on the prior origin-fix SHAs. Production is unchanged and must stay disabled; no deployment or merge. Earlier checkpoints below are historical.
+
+## Implementation checkpoint: atomic payment foundation
+
+New modules: `src/lib/submission-see-payment-policy.ts` and `src/lib/submission-see-payment-persistence.ts`, with dedicated tests. The synthetic document-delivery CI workflow now includes these tests and the existing SEE credit-persistence tests.
+
+`SubmissionSeePaymentPersistence.receive()` verifies the signature and explicit Preview/test gating before accessing the database. Within one serializable transaction it reloads the purchase, credit and source entitlement, applies exact scope/amount/reference policy, conditionally transitions the purchase and credit, and grants/revokes the exact entitlement. It retries only rolled-back Prisma P2034 contention, at most three attempts. Replayed payments cannot reactivate revoked or refunded access. Provider-confirmed refunds are only recorded; the code never calls a refund API. Refund-before-settlement requires reconciliation.
+
+Validation: 43 policy + 18 atomic-persistence + 5 existing credit tests = **66 passed**. Full type check passed. Build-safety contract passed. Credential-free Next build exited 0, 37/37 pages; existing browser-data age and dynamic DCP-route warnings remain. Fake-transaction rollback tests are development evidence only; real isolated-database behavior remains to be accepted.
+
+### Next implementation, before deployment/payment
+
+Connect a server-owned quote and Checkout preparation path to the exact selected planning pack/memo/site-check/proposal. Preserve approved A$749 full price and A$49 eligible planning-pack credit (A$700 payable where eligible), without silently repricing a pending session or repeating a pack purchase. Bind pending intent, credit reservation and stable provider idempotency. Dispatch signed webhooks by the stored product, retaining existing planning-pack handling; the new policy must not cause planning-pack events to be rejected as SEE. Add customer quote/checkout/status UI and route/transaction integration tests. Keep the new checkout path hard-disabled in Production. Confirm branch-only Stripe test configuration and exact independent isolated targets before any session or rollout. Source applicability/freshness remains a separate gate.
+
 # Working SEE purchase gap: current handover
 
 ## Origin repair deployed; next paid-product gap evidenced — 4 October 2026
