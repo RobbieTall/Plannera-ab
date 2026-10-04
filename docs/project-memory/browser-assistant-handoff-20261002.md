@@ -1,3 +1,15 @@
+# Current continuation checkpoint: 4 October 2026
+
+**Council-boundary correction approved, implemented and verified in PR #452; not deployed. Commercial HOLD remains.**
+
+Read [the 4 October execution receipt](../operations/working-see-council-boundary-correction-20261004.md) first. It supersedes pending-approval and next-action statements in the 2 October closeout/handoffs below, without replacing historical evidence.
+
+Application `186be9afbcff3956d28ece4e267fac198c2565e0`: 331 synthetic regression tests, full TypeScript, build safety, missing-database guards and credential-free compilation passed; all 14 exact-commit GitHub workflow runs succeeded. The focused 51 tests are included in that total.
+
+Do not request approval for the completed correction again. **Next authority needed: separately bounded deployment to the existing protected Byron/Kempsey rehearsal targets.** No deployment or merge was authorised or performed in this correction task. Kempsey normal customer sign-in and actual two-council Word/PDF generation, private download, exact-version reopening, permission/warning/version checks and native output review still remain. Do not repeat completed source refreshes, schema preparation or key setup. Production checkout stays disabled; Production data/schema remains outside scope.
+
+---
+
 # Latest canonical pointer — 2 October autonomous closeout
 
 Read `docs/project-memory/autonomous-session-closeout-20261002.md` first. It supersedes status/sequencing statements below while preserving historical evidence.

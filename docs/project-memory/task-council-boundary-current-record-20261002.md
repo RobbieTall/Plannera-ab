@@ -1,6 +1,8 @@
 # Codex task — fix current NSW council boundary record handling
 
-Status: **PREPARED / AWAITING ROBBIE'S EXPLICIT APPROVAL BEFORE EXECUTION**
+Status: **APPROVED 4 OCTOBER / IMPLEMENTED AND CODE-VERIFIED / NOT DEPLOYED**
+
+The bounded correction is complete at `186be9afbcff3956d28ece4e267fac198c2565e0`: 331 tests, full TypeScript, build safety, both offline missing-database guards, credential-free compilation and all 14 exact-commit GitHub workflows passed. See [the execution receipt](../operations/working-see-council-boundary-correction-20261004.md) for evidence and separately authorised Preview verification steps. The original task specification below is retained; its approval prerequisites are now satisfied for this correction only. No deployment, merge or database/customer-data operation occurred. Commercial HOLD remains.
 
 You are a senior full-stack engineer (Next.js 14, TypeScript, Prisma, PostgreSQL, Vercel).
 
