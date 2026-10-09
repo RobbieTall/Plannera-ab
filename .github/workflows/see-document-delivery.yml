@@ -11,10 +11,11 @@ on:
       - "tests/working-see-memo-gate.test.ts"
       - "tests/working-see-preview-policy.test.ts"
       - "src/lib/artefact-service.ts"
+      - "src/lib/artefact-service.test.ts"
       - "src/lib/quick-site-check.ts"
-      - "src/lib/quick-site-check.test.ts"
       - "src/lib/lep/quick-site-check.ts"
       - "src/lib/lep/quick-site-check.test.ts"
+      - "src/lib/quick-site-check.test.ts"
       - "src/lib/dcp/**"
       - "src/lib/legislation/live-preview-lep-source.ts"
       - "src/lib/legislation/parser.ts"
@@ -84,7 +85,7 @@ jobs:
           run_clean node node_modules/typescript/bin/tsc --noEmit --incremental false --pretty false
           run_clean ./node_modules/.bin/tsx --test tests/working-see-preview-policy.test.ts tests/working-see-memo-gate.test.ts tests/detailed-planning-pack-selector.test.ts tests/map-snapshot.test.ts tests/commercial-funnel-golden.test.ts
           run_clean ./node_modules/.bin/tsx --test tests/see-document-delivery.test.ts tests/see-document-storage-loader.test.ts tests/see-document-http.test.ts tests/see-document-persistence.test.ts tests/see-document-versions.test.ts tests/see-document-site-provenance.test.ts tests/see-document-generation-sources.test.ts tests/see-document-generation.test.ts tests/see-document-generation-loader.test.ts tests/see-document-dcp-source-capture.test.ts tests/see-document-council-identity.test.ts tests/see-document-live-lep-source.test.ts tests/see-document-lep-parser.test.ts tests/see-document-dcp-applicability.test.ts
-          run_clean ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/submission-see-checkout-client.test.ts src/lib/submission-see-webhook-http.test.ts src/lib/submission-see-stripe-checkout.test.ts src/lib/submission-see-checkout-http.test.ts src/lib/submission-see-preview-checkout-config.test.ts src/lib/submission-see-checkout-scope.test.ts src/lib/submission-see-checkout.test.ts src/lib/submission-see-payment-policy.test.ts src/lib/submission-see-payment-persistence.test.ts src/lib/submission-see-credit-persistence.test.ts src/lib/submission-see-renderer.test.ts src/lib/see-document-generation.integration.test.ts src/lib/dcp/dcp-source-capture.integration.test.ts src/lib/see-document-pack-source-capture.test.ts src/lib/dcp/document-applicability.integration.test.ts src/lib/quick-site-check.test.ts src/lib/lep/quick-site-check.test.ts
+          run_clean ./node_modules/.bin/vitest run --config vitest.config.ts src/lib/submission-see-checkout-client.test.ts src/lib/submission-see-webhook-http.test.ts src/lib/submission-see-stripe-checkout.test.ts src/lib/submission-see-checkout-http.test.ts src/lib/submission-see-preview-checkout-config.test.ts src/lib/submission-see-checkout-scope.test.ts src/lib/submission-see-checkout.test.ts src/lib/submission-see-payment-policy.test.ts src/lib/submission-see-payment-persistence.test.ts src/lib/submission-see-credit-persistence.test.ts src/lib/submission-see-renderer.test.ts src/lib/see-document-generation.integration.test.ts src/lib/dcp/dcp-source-capture.integration.test.ts src/lib/see-document-pack-source-capture.test.ts src/lib/dcp/document-applicability.integration.test.ts src/lib/artefact-service.test.ts src/lib/lep/quick-site-check.test.ts src/lib/quick-site-check.test.ts
           # Offline CI proves fail-closed behavior, not real database readiness.
           # The actual Vercel build retains both real readiness gates unchanged.
           run_clean node --test tests/see-document-offline-launch-gates.test.mjs

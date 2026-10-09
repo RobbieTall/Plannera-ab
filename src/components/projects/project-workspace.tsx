@@ -538,6 +538,7 @@ const normaliseDetailedPlanningPackContent = (
       zoneLabel: readNullableString(site.zoneLabel),
     },
     proposalBrief: readString(parsedValue.proposalBrief, "Proposed works brief was not saved with this pack."),
+    touristAccommodationProposed: parsedValue.touristAccommodationProposed === "yes" || parsedValue.touristAccommodationProposed === "no" ? parsedValue.touristAccommodationProposed : "unsure",
     sourceQuickSiteCheck: {
       artefactId: readString(sourceQuickSiteCheck.artefactId),
       title: readString(sourceQuickSiteCheck.title, "Saved Quick Site Check"),
@@ -1437,6 +1438,8 @@ export function ProjectWorkspace({
   const [, setIsGeneratingPreSeeMemo] = useState(false);
   const [isGeneratingSee, setIsGeneratingSee] = useState(false);
   const [proposalBrief, setProposalBrief] = useState("");
+  const [touristAccommodationProposed, setTouristAccommodationProposed] = useState<"yes" | "no" | "unsure">("unsure");
+  const hasUserEditedTouristChoiceRef = useRef(false);
   const hasUserEditedProposalBriefRef = useRef(false);
   const [isGeneratingDetailedPack, setIsGeneratingDetailedPack] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
@@ -3149,7 +3152,7 @@ export function ProjectWorkspace({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ projectId: projectKey, proposalBrief }),
+        body: JSON.stringify({ projectId: projectKey, proposalBrief, touristAccommodationProposed }),
       });
       const data = (await response.json().catch(() => ({}))) as { artefactId?: string; content?: DetailedPlanningPackContent; error?: string };
       if (!response.ok || !data.artefactId || !data.content) throw new Error(data.error ?? "Unable to generate Detailed Planning Pack");
@@ -3171,7 +3174,7 @@ export function ProjectWorkspace({
     } finally {
       setIsGeneratingDetailedPack(false);
     }
-  }, [addArtefact, projectKey, proposalBrief, showToast]);
+  }, [addArtefact, projectKey, proposalBrief, touristAccommodationProposed, showToast]);
 
   const generatePreSeeMemo = useCallback(async () => {
     if (!siteContext) {
@@ -3451,8 +3454,12 @@ export function ProjectWorkspace({
 
   const latestAnyProposalDetailedPlanningPackArtefact = useMemo(() => selectCurrentSiteDetailedPlanningPackArtefact(siteScopedArtefacts), [siteScopedArtefacts]);
   const latestDetailedPlanningPackArtefact = useMemo(
-    () => selectCurrentWorkspaceDetailedPlanningPackArtefact(siteScopedArtefacts, proposalBrief),
-    [proposalBrief, siteScopedArtefacts],
+    () => {
+      const candidate = selectCurrentWorkspaceDetailedPlanningPackArtefact(siteScopedArtefacts, proposalBrief);
+      const pack = normaliseDetailedPlanningPackContent(candidate?.detailedPlanningPack);
+      return pack?.touristAccommodationProposed === touristAccommodationProposed ? candidate : null;
+    },
+    [proposalBrief, siteScopedArtefacts, touristAccommodationProposed],
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
@@ -3476,6 +3483,11 @@ export function ProjectWorkspace({
     });
     if (hydrationBrief !== null) setProposalBrief(hydrationBrief);
   }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack?.proposalBrief, proposalBrief, savedQuickSiteCheckIntent]);
+  useEffect(() => {
+    if (!hasLoadedServerArtefacts || hasUserEditedTouristChoiceRef.current) return;
+    if (!latestAnyProposalDetailedPlanningPack || latestAnyProposalDetailedPlanningPack.proposalBrief.trim() !== proposalBrief.trim()) return;
+    setTouristAccommodationProposed(latestAnyProposalDetailedPlanningPack.touristAccommodationProposed ?? "unsure");
+  }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack, proposalBrief]);
   const hasProposalBriefMismatch = useMemo(
     () => hasCurrentSiteDetailedPlanningPackProposalMismatch(siteScopedArtefacts, proposalBrief),
     [proposalBrief, siteScopedArtefacts],
@@ -4850,11 +4862,19 @@ export function ProjectWorkspace({
                         onChange={(event) => {
                           hasUserEditedProposalBriefRef.current = true;
                           setProposalBrief(event.target.value);
+                          setTouristAccommodationProposed("unsure");
+                          hasUserEditedTouristChoiceRef.current = false;
                         }}
                         rows={3}
                         placeholder="e.g. Alterations to an existing commercial premises with shopfront updates and minor internal fitout."
                         className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       />
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300" htmlFor="tourist-accommodation-proposed">Does this proposal include tourist accommodation?</label>
+                      <select id="tourist-accommodation-proposed" value={touristAccommodationProposed} onChange={(event) => { hasUserEditedTouristChoiceRef.current = true; setTouristAccommodationProposed(event.target.value as "yes" | "no" | "unsure"); }} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                        <option value="unsure">Unsure - keep tourist-use controls unresolved</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes - include tourist-use controls for expert review</option>
+                      </select>
                       {planningPackPurchase.enabled ? (
                         <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
                           <p className="font-semibold text-slate-900 dark:text-white">Planning Controls Pack — A$49 incl. GST</p>
