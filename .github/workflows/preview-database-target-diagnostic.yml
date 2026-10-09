@@ -1,0 +1,43 @@
+name: Preview database target diagnostic (synthetic)
+
+on:
+  push:
+    branches:
+      - feat/see-document-delivery-20260929
+    paths:
+      - .github/workflows/preview-database-target-diagnostic.yml
+      - src/lib/preview-database-target.ts
+      - src/app/api/internal/preview-database-target/route.ts
+      - tests/preview-database-target.test.ts
+  pull_request:
+    paths:
+      - .github/workflows/preview-database-target-diagnostic.yml
+      - src/lib/preview-database-target.ts
+      - src/app/api/internal/preview-database-target/route.ts
+      - tests/preview-database-target.test.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-target-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ""
+      DATABASE_URL_UNPOOLED: ""
+    steps:
+      - name: Check out without retained credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run synthetic database-target regression tests
+        run: ./node_modules/.bin/tsx --test tests/preview-database-target.test.ts
