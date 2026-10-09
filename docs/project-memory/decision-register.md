@@ -1,5 +1,20 @@
 # Decision Register
 
+## 2026-10-09 — Canonical future-state platform and unified project Library
+
+**Status: ADOPTED DIRECTION / POST-COMMERCIAL IMPLEMENTATION QUEUED.** [#454](https://github.com/RobbieTall/Plannera-ab/issues/454); [canonical contract](../product/future-state-platform-design.md).
+
+Decision: address-first Home → scrolling Site Intelligence → separate Project Workspace, with one Project Library/Sources and Create area (Quick Site Check, risk, feasibility, SEE). Site Intelligence leads with What Matters and uses conclusion → explanation → evidence. Workspace contains conversation, brief, intelligence, actions, progress/timeline and creation. Completed generated outputs automatically link into reusable project Sources; dedicated internal generation/version/regeneration/export records remain valid. Derived output never becomes independent statutory authority.
+
+Use proposal-specific pathways, contextual consultant recommendations, explicit confidence/provenance/current-as-at and the clean spacious approved visual direction. Mapping is a Plannera presentation/interaction layer over official NSW/council GIS/services with Research Viewer/external fallback, not a custom GIS engine. This supersedes conflicting legacy future UX wording, not historical implementation evidence.
+
+Preserve Research Viewer → practitioner governance → Project Controls sequencing after commercial gates and prerequisite hardening. Do not revive historical parallel branches. PR #452, the current HOLD, checkout, pricing and Production remain unchanged.
+
+Preserve #453's indicative A$29 project-specific cited Local Controls Unlock, permanent project result and 12-month revalidation; reconcile explicitly against the approved A$49 Planning Controls Pack before implementation. No A$29 SEE credit or renewal price is approved. #423 retains its current A$49 service scope.
+
+Open decisions: precise navigation/mobile layouts and mock-up acceptance asset, first pathway types, source/version/regeneration UX, per-layer GIS suitability, and #453 commercial/revalidation details. The fundamental platform structure is settled.
+
+
 ### DR-013: Kempsey DCP ingestion uses DCP 2026 PDF parts B and D
 
 Kempsey DCP ingestion uses DCP 2026 PDF parts B and D (effective 1 July 2026); DCP 2013 is no longer in force for new DAs.

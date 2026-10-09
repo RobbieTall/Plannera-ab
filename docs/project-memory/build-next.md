@@ -1,5 +1,18 @@
 # Build Next (Execution Queue)
 
+## Future-state platform destination — POST-COMMERCIAL / QUEUED
+
+The [canonical design](../product/future-state-platform-design.md) and [#454](https://github.com/RobbieTall/Plannera-ab/issues/454) define where Plannera is aiming. Documentation is adopted; UX implementation and acceptance are not complete. PR #452/current commercial HOLD are untouched; no task here replaces the active commercial gate.
+
+After that gate and existing hardening prerequisites: specify screen/source contracts; retain Research Viewer as the first product implementation lane; deliver address-first Home, scrolling Site Intelligence, separate Workspace and unified Library/Create in bounded slices; then practitioner validation and evidence-backed Project Controls. Preserve private-evidence, OCR and returned-report dependencies. Recreate work from then-current main rather than merging historical parallel branches.
+
+Acceptance: same-project address-to-action continuity; conclusion → explanation → evidence; completed outputs automatically linked into one reusable Library; proposal-specific pathways; explicit confidence/provenance/current-as-at; official-service mapping with fallback; clean spacious mobile/desktop UX. No custom GIS engine, primary-navigation marketplace, competing Artefacts filing system or crude overall opportunity score.
+
+[#453](https://github.com/RobbieTall/Plannera-ab/issues/453) preserves the indicative A$29 project-specific Local Controls Unlock, permanent retained result and 12 months of revalidation. Reconcile against A$49 before implementation; #423 retains its current scope. Renewal price, product/credit/scope relationship and revalidation service details remain unresolved.
+
+The historical items below retain their original evidence/status; they are not claims that this future-state experience is delivered.
+
+
 This is the active sequence for what to build next so direction is never lost.
 
 ## Item A — SEE output quality — DONE ✅
