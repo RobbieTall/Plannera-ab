@@ -1,3 +1,23 @@
+> Current checkpoint, 10 October 2026. This section supersedes older status snapshots below; preserve them as history.
+>
+> **Commercial decision: HOLD.** PR #452 code checks pass at `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e`. The same tested tree deployed READY to the separate protected Byron and Kempsey document Previews at `717369a1874f91e3e4787a80b4f1ca19920d458b` and `b6f4ddaa03d02e583f90ec32f400e2395be983b8`. This is not customer document acceptance. No merge, Production checkout activation, or Production data/schema change occurred.
+>
+> The Byron dual-occupancy fixture's newly regenerated pack no longer cites Tourist Accommodation material while intent is left Unsure. It still incorrectly binds D1.2.11 Energy Efficiency to the Parking and access topic; the newly generated working SEE repeats that mismatch. Do not generate or approve customer Word/PDF from that evidence. Correct the topic-to-source binding with regression coverage, then regenerate and verify.
+>
+> The separate Kempsey Preview loads a Kempsey site, but the inspected project has no saved proposed-works brief, planning pack, working SEE or Word/PDF version. Do not substitute Byron fixture data. Establish the authentic Kempsey proposal and entitlement before generating its documents.
+>
+> Hosted acceptance still requires both councils' correct project-specific DOCX/PDF, download and original-version reopening, native visual inspection, evidence warnings, exact paid entitlement, and wrong-user/wrong-project denial. Static checks and READY deployments do not prove these outcomes. Production checkout must stay disabled.
+
+## 10 October 2026 - current commercial document gate
+
+**HOLD; draft PR #452, no Production change.** Exact feature commit `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e` passed all 14 GitHub workflows, including isolated SEE document tests, Byron/Kempsey golden funnel, build safety, type checking and credential-free compilation. [Run #38000891429](https://github.com/RobbieTall/Plannera-ab/actions/runs/38000891429) is synthetic evidence only. The protected Byron and Kempsey document Preview branches are READY but diverged from this feature commit; neither is a hosted proof of the repaired customer journey. Production still tracks `main` at `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`; checkout remains disabled.
+
+Next: review the divergent council-branch deltas without combining fixtures, confirm Preview-only deployment safety, replay the reviewed change into each protected Preview, and independently prove test payment/entitlement, project-specific DOCX/PDF generation, private download, exact-version reopening, permission denial, evidence warnings, source applicability and native visual output. Do not merge #452 or activate Production from synthetic checks. Preserve the closed-unmerged #433/#434/#435 presentation convergence and immutable Item 78C evidence. Research Viewer and Project Controls stay behind this gate.
+
+See [document-delivery handover](see-document-delivery-handover.md) and [draft PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452#issuecomment-6090578435).
+
+---
+
 ## 2 October 2026 — Drive continuity companions
 
 Current Drive-side continuity records in **Plannera Technical Build Docs**:

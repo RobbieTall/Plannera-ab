@@ -1,3 +1,27 @@
+> Current checkpoint, 10 October 2026. This section supersedes older status snapshots below; preserve them as history.
+>
+> **Commercial decision: HOLD.** PR #452 code checks pass at `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e`. The same tested tree deployed READY to the separate protected Byron and Kempsey document Previews at `717369a1874f91e3e4787a80b4f1ca19920d458b` and `b6f4ddaa03d02e583f90ec32f400e2395be983b8`. This is not customer document acceptance. No merge, Production checkout activation, or Production data/schema change occurred.
+>
+> The Byron dual-occupancy fixture's newly regenerated pack no longer cites Tourist Accommodation material while intent is left Unsure. It still incorrectly binds D1.2.11 Energy Efficiency to the Parking and access topic; the newly generated working SEE repeats that mismatch. Do not generate or approve customer Word/PDF from that evidence. Correct the topic-to-source binding with regression coverage, then regenerate and verify.
+>
+> The separate Kempsey Preview loads a Kempsey site, but the inspected project has no saved proposed-works brief, planning pack, working SEE or Word/PDF version. Do not substitute Byron fixture data. Establish the authentic Kempsey proposal and entitlement before generating its documents.
+>
+> Hosted acceptance still requires both councils' correct project-specific DOCX/PDF, download and original-version reopening, native visual inspection, evidence warnings, exact paid entitlement, and wrong-user/wrong-project denial. Static checks and READY deployments do not prove these outcomes. Production checkout must stay disabled.
+
+# Current document-delivery checkpoint - 10 October 2026 (supersedes older checkpoints below)
+
+**Commercial decision: HOLD.** Draft PR #452 is open at `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e`; it is not merged or deployed. All 14 exact-commit GitHub workflows passed, including [isolated document validation](https://github.com/RobbieTall/Plannera-ab/actions/runs/38000891429), the Byron/Kempsey golden funnel, build-safety verification, type checking and credential-free compilation. The isolated Vitest command ran 18 files and 289 tests. These are synthetic code checks, **not** proof of a paid customer Word/PDF journey.
+
+The Byron D3 safety change asks whether the actual proposal includes tourist accommodation. An unconfirmed answer withholds Chapter D3 as applicable document evidence; the synthetic Byron fixture explicitly involves existing tourist accommodation, while Kempsey's is a commercial fit-out. Exact source fingerprints for the two changed DCP files were reviewed and repinned without removing the build-safety guard. Current-source version and exact proposal applicability still require review. Do not interpret a matching zone as proof of D3 applicability.
+
+The separate protected document Preview branches are READY but **diverged** from PR #452: Byron `see-doc-byron-20260930` at `30b2160b1393444a29a2359a2dd8520299ab5aef` and Kempsey `see-doc-kempsey-20260930` at `535abb810e258cc316b060b152de8f25f60a2858`. Neither is running this new PR commit. Vercel lists zero deployments from the feature branch. Production remains on `main` at `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`; Production checkout stays disabled and Production data/schema remain unchanged.
+
+**Exact next work:** review the feature-to-council branch differences and preserve each isolated fixture/configuration; do not blindly merge divergent branches. Only after Preview-only deployment safety is established, replay the reviewed application change separately to Byron and Kempsey, then prove signed Sandbox payment/entitlement, owner-bound project-specific DOCX and PDF generation, private download, exact-version reopening, wrong-user/wrong-project denial, evidence warnings, and native visual output for each council. Keep immutable Item 78C acceptance evidence intact. A READY deployment or green CI alone is not commercial GO. Research Viewer and Project Controls remain deferred.
+
+Earlier checkpoints below are historical where superseded by this entry.
+
+---
+
 # Current document-delivery checkpoint - 10 October 2026
 
 **Commercial decision: HOLD.** Draft PR #452 is still on `feat/see-document-delivery-20260929`; it is not merged. At the prepublication head `6cd1406c19bb4b9de3a839e3e8d50724a75a5c33`, all 14 PR workflow runs completed successfully. These are synthetic/CI results, not protected customer Word/PDF acceptance.
