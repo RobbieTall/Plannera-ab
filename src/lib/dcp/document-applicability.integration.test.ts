@@ -21,6 +21,13 @@ describe("document retrieval scope guard", () => {
     findMany.mockResolvedValue([row("commercial","Chapter D4 Commercial and Retail Development"),row("general","Chapter D1 Residential Development")]);
     expect((await searchDcpClauses({query:"R2 building design commercial frontage",siteZone:"R2",lgaCode:"BYRON"})).map(x=>x.id)).toEqual(["general"]);
   });
+  it("withholds Byron D3 before ranking unless tourist use is explicitly proposed", async () => {
+    findMany.mockResolvedValue([row("tourist", "Chapter D3 Tourist Accommodation"), row("general", "Chapter D1 Residential Development")]);
+    for (const proposed of ["no", "unsure"] as const) {
+      expect((await searchDcpClauses({ query: "R2 setback parking", siteZone: "R2", lgaCode: "BYRON", touristAccommodationProposed: proposed, limit: 1 })).map(x => x.id)).toEqual(["general"]);
+    }
+    expect((await searchDcpClauses({ query: "R2 setback parking", siteZone: "R2", lgaCode: "BYRON", touristAccommodationProposed: "yes" })).map(x => x.id)).toContain("tourist");
+  });
   it("preserves exact row identity and metadata of retained candidates", async () => {
     const source=row("general","Chapter B3 General controls");
     findMany.mockResolvedValue([source]);

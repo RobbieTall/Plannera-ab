@@ -165,6 +165,7 @@ export type DetailedPlanningPackContent = {
     zoneLabel: string | null;
   };
   proposalBrief: string;
+  touristAccommodationProposed?: "yes" | "no" | "unsure";
   sourceQuickSiteCheck: {
     artefactId: string;
     title: string;
