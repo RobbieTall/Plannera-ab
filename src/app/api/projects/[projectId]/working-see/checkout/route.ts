@@ -26,3 +26,15 @@ export async function POST(request: Request, { params }: { params: { projectId: 
     },
   })(request, params.projectId);
 }
+
+
+export async function GET() {
+  const enabled = Boolean(getSeePreviewCheckoutConfig(process.env));
+  return new Response(JSON.stringify(enabled ? { enabled: true } : { error: "checkout_disabled" }), {
+    status: enabled ? 200 : 404,
+    headers: {
+      "Content-Type": "application/json", "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow",
+    },
+  });
+}

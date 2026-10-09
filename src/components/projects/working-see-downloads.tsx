@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fetchSavedSeeFile, fetchSavedSeeVersions, generateSavedWorkingSee } from "@/lib/see-document-download-client";
+import { createSeeTestCheckout, fetchSeeCheckoutAvailability, requestSeeCheckoutQuote, type SeeCheckoutQuote } from "@/lib/submission-see-checkout-client";
 import type { SavedSeeFormat, SavedSeeVersion } from "@/lib/see-document-version-summary";
+
+const money = (minor: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(minor / 100);
 
 const actionClass = "min-h-10 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:cursor-wait disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800";
 
@@ -17,7 +20,10 @@ export function WorkingSeeDownloads({
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [checkoutAvailable, setCheckoutAvailable] = useState(false);
+  const [quote, setQuote] = useState<SeeCheckoutQuote | null>(null);
   const requestRef = useRef<AbortController | null>(null);
+  const checkoutRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,6 +46,27 @@ export function WorkingSeeDownloads({
     return () => { controller.abort(); requestRef.current?.abort(); };
   }, [projectId, revision]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    checkoutRef.current?.abort();
+    checkoutRef.current = controller;
+    setCheckoutAvailable(false);
+    setQuote(null);
+    fetchSeeCheckoutAvailability(projectId, controller.signal)
+      .then((enabled) => { if (!controller.signal.aborted) setCheckoutAvailable(enabled); })
+      .catch(() => { if (!controller.signal.aborted) setCheckoutAvailable(false); });
+    return () => { controller.abort(); checkoutRef.current?.abort(); };
+  }, [projectId, sourceDetailedPlanningPackArtefactId, sourceMemoArtefactId]);
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get("seeCheckout");
+    if (status === "returned") {
+      setMessage("Returned from Stripe test checkout. Payment is not confirmed yet; use Check paid access before generating.");
+    } else if (status === "cancelled") {
+      setMessage("Test checkout was cancelled. No payment is confirmed.");
+    }
+  }, [projectId]);
+
   const loadMore = async () => {
     if (!cursor || busy) return;
     const controller = new AbortController();
@@ -60,6 +87,52 @@ export function WorkingSeeDownloads({
     }
   };
 
+
+  const checkPaidAccess = async () => {
+    if (busy || !acknowledged || !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId) return;
+    const controller = new AbortController();
+    checkoutRef.current?.abort();
+    checkoutRef.current = controller;
+    setBusy(true);
+    setQuote(null);
+    setMessage("Checking paid access for these saved planning sources...");
+    try {
+      const result = await requestSeeCheckoutQuote({
+        projectId, sourceDetailedPlanningPackArtefactId, sourceMemoArtefactId,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setQuote(result);
+      setMessage(result.state === "paid"
+        ? "Payment is confirmed for these sources. You can generate the working documents."
+        : "Review the test amount below before continuing.");
+    } catch (error) {
+      if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Paid access could not be checked.");
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  };
+
+  const startTestCheckout = async () => {
+    if (busy || !acknowledged || quote?.state !== "available" ||
+      !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId) return;
+    const controller = new AbortController();
+    checkoutRef.current?.abort();
+    checkoutRef.current = controller;
+    setBusy(true);
+    setMessage("Opening Stripe test checkout. This is not a live charge.");
+    try {
+      const url = await createSeeTestCheckout({
+        projectId, sourceDetailedPlanningPackArtefactId, sourceMemoArtefactId,
+        quoteId: quote.quoteId, signal: controller.signal,
+      });
+      if (!controller.signal.aborted) window.location.assign(url);
+    } catch (error) {
+      if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Test checkout could not be opened.");
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  };
 
   const generate = async () => {
     if (busy || !acknowledged || !generationEnabled ||
@@ -125,8 +198,24 @@ export function WorkingSeeDownloads({
               onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1" />
             I understand this is a working document, not ready for submission. Plans, surveys and reports may require further review.
           </label>
+          {checkoutAvailable && sourceDetailedPlanningPackArtefactId && sourceMemoArtefactId ? (
+            <div className="space-y-2 rounded-lg border border-amber-300 bg-white p-3 text-xs text-slate-700 dark:border-amber-700 dark:bg-slate-900 dark:text-slate-200">
+              <p className="font-semibold">Protected Preview test checkout</p>
+              <p>Check paid access for this exact project and saved assessment. Returning from Stripe is not proof of payment.</p>
+              <button type="button" className={actionClass} disabled={busy || !acknowledged}
+                onClick={() => void checkPaidAccess()}>Check paid access</button>
+              {quote?.state === "available" ? (
+                <div className="space-y-2">
+                  <p>Working SEE: {money(quote.listAmountMinor)}. Planning-pack credit: {money(quote.creditAmountMinor)}. Test amount: {money(quote.payableAmountMinor)}.</p>
+                  <button type="button" className={actionClass} disabled={busy || !acknowledged}
+                    onClick={() => void startTestCheckout()}>Continue to Stripe test checkout</button>
+                </div>
+              ) : null}
+              {quote?.state === "paid" ? <p className="font-semibold text-teal-800 dark:text-teal-200">Paid access confirmed for these sources.</p> : null}
+            </div>
+          ) : null}
           <button type="button" className={actionClass}
-            disabled={busy || !acknowledged || !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId}
+            disabled={busy || !acknowledged || !sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId || (checkoutAvailable && quote?.state !== "paid")}
             onClick={() => void generate()}>Generate working Word and PDF</button>
           {!sourceDetailedPlanningPackArtefactId || !sourceMemoArtefactId ? (
             <p className="text-xs text-amber-900 dark:text-amber-200">Select a saved planning pack and generate its matching assessment above first.</p>
