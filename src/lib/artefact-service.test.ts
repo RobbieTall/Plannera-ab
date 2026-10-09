@@ -329,6 +329,14 @@ describe("SEE DCP applicability and readiness evidence", () => {
     ).toBe(false);
   });
 
+  it("keeps Byron tourist chapter out of residential and uncertain document evidence", () => {
+    const d3 = makeClause({ ref: "D3.2", title: "Tourist accommodation", headingPath: ["Byron Shire Development Control Plan 2014", "Chapter D3 Tourist Accommodation"], bodyText: "R2 tourist accommodation parking and setbacks." });
+    const site = { zoneCode: "R2", zoneLabel: "R2 Low Density Residential", lgaCode: "BYRON" };
+    expect(filterSiteApplicableDcpClauses([d3], site, undefined, "no")).toEqual([]);
+    expect(filterSiteApplicableDcpClauses([d3], site, undefined, "unsure")).toEqual([]);
+    expect(filterSiteApplicableDcpClauses([d3], site, undefined, "yes")).toHaveLength(1);
+  });
+
   it("retains Kempsey E2 D4 evidence and genuinely general Part B support", () => {
     const clauses = [
       makeClause({ ref: "Part D-649", title: "D4 Business and Commercial Development", headingPath: ["Part D", "D4 Business and Commercial Development"], bodyText: "Zone E2 Commercial Centre built-form and active-frontage controls for business development." }),

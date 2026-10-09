@@ -110,7 +110,7 @@ describe("buildQuickSiteCheckLep", () => {
     });
   });
 
-  it("extracts cited Part 4 controls from ingested clause rows", async () => {
+  it("does not present Part 4 clause text as mapped site control values", async () => {
     mocks.prisma.clause.findMany.mockResolvedValue([
       clause("2.3", "Zone objectives and Land Use Table", "Zone R2 Low Density Residential\nObjectives of zone\nTo provide housing.\nPermitted without consent\nHome occupations\nPermitted with consent\nDwelling houses\nProhibited\nIndustries", ["Part 2"]),
       clause("4.1", "Minimum lot size", "Zone R2 500m²\nZone R3 300m²"),
@@ -122,9 +122,9 @@ describe("buildQuickSiteCheckLep", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.controls.heightOfBuilding).toEqual({ value: "8.5m", clauseRef: "4.3", confidence: "Cited" });
-    expect(result.controls.fsr).toEqual({ value: "0.5:1", clauseRef: "4.4", confidence: "Cited" });
-    expect(result.controls.minLotSize).toEqual({ value: "500m²", clauseRef: "4.1", confidence: "Cited" });
+    expect(result.controls.heightOfBuilding).toBeNull();
+    expect(result.controls.fsr).toBeNull();
+    expect(result.controls.minLotSize).toBeNull();
     expect(result.landUse.withConsent).toContain("Dwelling houses");
     expect(result.permissibility?.permittedWithConsent).toContain("Dwelling houses");
     expect(result.dataSource).toBe("db_clauses");
@@ -154,7 +154,7 @@ describe("buildQuickSiteCheckLep", () => {
     expect(result.objectives).toContain("To strengthen the role of Kempsey as a commercial centre.");
     expect(result.permissibility?.permittedWithConsent).toContain("Commercial premises");
     expect(result.permissibility?.prohibited).toContain("Heavy industrial storage establishment");
-    expect(result.controls.heightOfBuilding).toEqual({ value: "11m", clauseRef: "4.3", confidence: "Cited" });
+    expect(result.controls.heightOfBuilding).toBeNull();
     expect(result.debug?.zoneObjectiveSource).toBe("ingested");
     expect(result.debug?.landUseSource).toBe("ingested");
   });
@@ -219,8 +219,8 @@ describe("buildQuickSiteCheckLep", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.controls.heightOfBuilding).toEqual({ value: "11m", clauseRef: "4.3", confidence: "Cited" });
-    expect(result.controls.fsr).toEqual({ value: "2:1", clauseRef: "4.4", confidence: "Cited" });
+    expect(result.controls.heightOfBuilding).toBeNull();
+    expect(result.controls.fsr).toBeNull();
     expect(result.controls.setback).toMatchObject({ value: "0m", confidence: "Cited", sourceRef: "Kempsey DCP 2026 Part D > Commercial Centres > Setbacks" });
     expect(result.controls.activeFrontageBuiltForm).toMatchObject({ confidence: "Cited", sourceRef: "Kempsey DCP 2026 Part D > Commercial Centres > Active frontages" });
     expect(result.controls.parking).toEqual({ value: "", clauseRef: "", sourceRef: "Kempsey DCP 2026 parking controls", confidence: "Unavailable" });
@@ -241,6 +241,35 @@ describe("buildQuickSiteCheckLep", () => {
     if (!result.ok) return;
     expect(result.part4.map((item) => item.clauseNumber)).toContain("4.3-SP3");
     expect(result.part4.map((item) => item.clauseNumber)).not.toContain("4.2A");
+  });
+
+  it("does not promote legacy map labels to property values when mapping is unavailable", async () => {
+    mocks.findProjectByExternalId.mockResolvedValue({
+      id: "project-1",
+      lgaName: "Kempsey",
+      zoningCode: "R1",
+      lepData: {
+        controls: {
+          heightOfBuilding: "Height of Buildings Map",
+          floorSpaceRatio: "Floor Space Ratio Map",
+          minimumLotSize: "Lot Size Map",
+        },
+      },
+    });
+    mocks.prisma.instrument.findFirst.mockResolvedValue({
+      id: "instrument-1",
+      name: "Kempsey LEP 2013",
+      slug: "kempsey-lep-2013",
+    });
+    mocks.prisma.clause.findMany.mockResolvedValue([]);
+
+    const result = await buildQuickSiteCheckLep("project-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.controls.heightOfBuilding).toBeNull();
+    expect(result.controls.fsr).toBeNull();
+    expect(result.controls.minLotSize).toBeNull();
   });
 
   it("gracefully returns null controls when clauses are missing", async () => {

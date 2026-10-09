@@ -129,6 +129,7 @@ export const searchDcpClauses = async (params: {
   lgaCode?: string;
   limit?: number;
   siteZone?: string | null;
+  touristAccommodationProposed?: "yes" | "no" | "unsure";
 }): Promise<ScoredDcpClause[]> => {
   const queryText = params.query.trim();
   if (!queryText) return [];
@@ -148,7 +149,7 @@ export const searchDcpClauses = async (params: {
   return clauses
     // Exclude known unverified scope before ranking/limiting, so unsuitable
     // high-scoring area chapters cannot crowd out general source candidates.
-    .filter(clause => !dcpDocumentScopeIssue({ lgaCode, headingPath: clause.headingPath, siteZone: params.siteZone }))
+    .filter(clause => !dcpDocumentScopeIssue({ lgaCode, headingPath: clause.headingPath, siteZone: params.siteZone, touristAccommodationProposed: params.touristAccommodationProposed }))
     .map((clause) => {
       const headingText = clause.headingPath.join(" ");
       const baseKeyword =
