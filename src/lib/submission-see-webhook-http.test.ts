@@ -22,7 +22,7 @@ const request = (body = "synthetic", signature: string | null = "t=1,v1=syntheti
   });
 const setup = () => {
   const verifyWebhook = vi.fn(() => event(false));
-  const receive = vi.fn(async (_input: unknown) => ({ action: "settle" }));
+  const receive = vi.fn(async (input: unknown) => ({ action: "settle", input }));
   const getConfig = vi.fn<() => SeePreviewCheckoutConfig | null>(() => config);
   const getProvider = vi.fn(() => ({ verifyWebhook }));
   const getService = vi.fn(async () => ({ receive }));
