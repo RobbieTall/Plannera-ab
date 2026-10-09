@@ -1,3 +1,12 @@
+## GitHub validation update - 9 October 2026
+
+- Checkout recovery source and reconstructed suites were published in draft PR #452 at commit `112faa6956759210443b5d73f48aa2f8cd85eccf`.
+- All 14 associated GitHub workflow runs completed successfully. The isolated SEE document workflow passed on both push and PR events, including its synthetic configuration tests, TypeScript check and credential-free compilation. Do not reuse older local test totals as a fresh count for reconstructed suites.
+- Vercel listed zero deployments from the feature branch before and after publication; its exact-branch deployment disable remained in `vercel.json`.
+- No hosted checkout, paid SEE entitlement, real database test, customer Word/PDF acceptance, merge or Production change occurred. Commercial decision remains HOLD.
+
+The local macOS runner block documented below was not bypassed; Linux CI supplied the test and compilation evidence for the published commit. Any later code or documentation commit needs its own checks.
+
 # SEE checkout recovery validation - 2026-10-05
 
 Status: HOLD. Local recovery is prepared; not published, merged or deployed.

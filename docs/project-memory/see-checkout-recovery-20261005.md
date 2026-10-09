@@ -1,3 +1,7 @@
+## Published recovery checkpoint - 9 October 2026
+
+The recovered checkout source, five regression suites, recovery notes and isolated workflow update were published in draft PR #452 at `112faa6956759210443b5d73f48aa2f8cd85eccf`. All 14 GitHub runs for that commit passed. The localhost and synthetic CI checks do not prove customer payment or document delivery. The webhook dispatcher and customer UI remain unfinished; checkout stays disabled. See the companion validation receipt for the macOS runner limitation and Linux CI outcome. Commercial decision: HOLD.
+
 # SEE checkout recovery - 5 October 2026
 
 ## Scope and base
