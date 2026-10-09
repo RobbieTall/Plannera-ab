@@ -1,5 +1,11 @@
 # Plannera Product Philosophy
 
+## Canonical platform destination
+
+Plannera aims to take a user from an address, to understanding what is possible, to managing a project and producing reusable planning work. The [future-state platform design](product/future-state-platform-design.md) is the canonical UX contract: minimal address-first Home, scrolling Site Intelligence, separate Project Workspace, unified Library/Sources and Create. It adopts proposal-specific pathways, contextual consultant recommendations, explicit provenance/freshness and a Plannera presentation layer over authoritative GIS services, with no custom GIS engine.
+
+This is approved post-commercial direction, queued in #454. The commercial wedge below remains the current milestone, not the full platform. Completed generated outputs become linked reusable Sources in Library while internal artefact records preserve generation/version/export history. The indicative A$29 Local Controls Unlock and 12-month revalidation require #453 reconciliation with the existing A$49 pack; current pricing and checkout remain unchanged.
+
 Plannera exists because property development has become too hard to understand before someone is already financially, emotionally, or legally committed.
 
 The person standing at the beginning of a project is often forced to make major decisions with incomplete information. They might be looking at a block of land, a renovation, a secondary dwelling, a small subdivision, a dual occupancy, or a larger opportunity. Before they even know whether the idea is realistic, they are confronted by layers of planning instruments, DCP controls, SEPP pathways, overlays, council mapping systems, consultant opinions, project risk, hidden cost, and uncertain process.
@@ -101,9 +107,9 @@ Plannera should therefore be designed around this promise:
 
 # 3. Product Principles
 
-## Principle 1: Show the source before asking for trust
+## Principle 1: Make the evidence inspectable
 
-Every meaningful planning answer should reveal where it came from: LEP clause, DCP section, SEPP provision, spatial overlay, uploaded source, project note, or user-provided assumption.
+Every meaningful planning answer should reveal where it came from: LEP clause, DCP section, SEPP provision, spatial overlay, uploaded source, project note, or user-provided assumption. Present conclusion → explanation → evidence, with material uncertainty visible from the conclusion. This is progressive disclosure, not a source-first screen or a reason to conceal provenance.
 
 ## Principle 2: Separate confirmed, likely, and unknown
 

@@ -1,4 +1,11 @@
 Plannera — Commercialisation Layer Workflows
+
+## Future platform and queued Local Controls decision
+
+The [canonical future-state design](product/future-state-platform-design.md) defines the broader platform around the existing commercial funnel. Its implementation is queued in [#454](https://github.com/RobbieTall/Plannera-ab/issues/454), after the current gate; this documentation changes no current price, checkout, entitlement, credit or acceptance condition and leaves PR #452 untouched.
+
+[#453](https://github.com/RobbieTall/Plannera-ab/issues/453) preserves an indicative A$29 project-specific cited Local Controls Unlock with permanent retention in Library/Sources and 12 months of current-control revalidation. Customers buy application of local intelligence to their site/proposal, including when reusable JIT LGA preparation is needed. Explicitly decide its relationship to the approved A$49 Planning Controls Pack before implementation. Product differentiation/consolidation, scope-change rules, renewal pricing, credits and failure/refund treatment remain undecided; the current A$49 pack and A$749 SEE contract below remains in force. #423 retains its existing preparation/service-truth scope. Payment does not improve confidence or readiness.
+
 Status: Approved launch contract; implementation/activation states remain item-specific
 Scope: Free Quick Site Check + A$49 Planning Controls Pack + consultant-input loop + A$749 SEE before credits
 Last updated: September 2026

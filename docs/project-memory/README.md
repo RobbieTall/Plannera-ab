@@ -12,6 +12,10 @@ Its purpose is to keep strategic direction durable and discoverable so planning,
 - current focus and next actions
 - confidence and quality standards
 
+## Where we are aiming
+
+The [canonical future-state platform design](../product/future-state-platform-design.md) defines address-first Home → Site Intelligence → separate Project Workspace, with one Library/Sources and Create area. [#454](https://github.com/RobbieTall/Plannera-ab/issues/454) tracks post-commercial delivery; [#453](https://github.com/RobbieTall/Plannera-ab/issues/453) tracks A$29/A$49 reconciliation. These are future directions, not completed capabilities. The current commercial gate and PR #452 remain unchanged.
+
 ## Source-of-truth map
 
 1. Product philosophy: `docs/plannera-product-philosophy.md`

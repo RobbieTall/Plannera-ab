@@ -1,5 +1,11 @@
 # Plannera
 
+## Platform destination — approved future state, queued after the commercial gate
+
+[Future-state platform design](docs/product/future-state-platform-design.md) defines where Plannera is aiming: **address-first Home → scrolling Site Intelligence → separate Project Workspace**, with one **Project Library/Sources** and **Create** area. Conclusions lead to explanation and evidence; proposal-specific pathways, contextual consultants and authoritative-service mapping keep the experience useful and honest.
+
+This direction is queued in [#454](https://github.com/RobbieTall/Plannera-ab/issues/454), not implemented or commercially accepted by this documentation change. [PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452) remains the untouched active commercial lane and on HOLD. Older implementation descriptions below are not the future navigation/filing contract. The indicative A$29 Local Controls Unlock remains subject to [#453](https://github.com/RobbieTall/Plannera-ab/issues/453); current A$49/A$749 terms and checkout are unchanged.
+
 Plannera is an AI-powered NSW planning intelligence platform. It turns planning controls, site constraints, and statutory sources into clear, cited, project-specific intelligence for property owners, planners, consultants, and small developers.
 
 ## Features
