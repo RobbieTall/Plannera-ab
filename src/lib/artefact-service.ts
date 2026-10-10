@@ -1594,7 +1594,8 @@ const evidenceMentionsZone = (text: string, zoneCode: string | null) => Boolean(
 
 const DCP_TOPIC_MATCHERS: Record<string, RegExp> = {
   setbacks: /\b(setbacks?|building\s+lines?|(?:street|side|rear|front)\s+(?:boundar(?:y|ies)|alignment|setbacks?))\b/i,
-  parking_access: /\b(car\s+parking|parking|access|driveways?|loading|service\s+access|vehicle\s+access|vehicular\s+access|car\s+spaces?|cars|accessible\s+spaces?|resident\s+spaces?|visitor\s+spaces?|bicycle\s+parking|motorcycle\s+space)\b/i,
+  // Bare "access" can mean maintenance access, not parking or site access.
+  parking_access: /\b(car\s+parking|parking|(?:vehicle|vehicular|pedestrian|property|site|road|street|service)\s+access|access\s+(?:to\s+(?:the\s+)?(?:site|property|road|street|parking)|roads?|ways?|points?|driveways?)|driveways?|loading|car\s+spaces?|cars|accessible\s+spaces?|resident\s+spaces?|visitor\s+spaces?|bicycle\s+parking|motorcycle\s+space)\b/i,
   built_form_active_frontage: /\b(built\s+form|active\s+frontages?|street\s+frontages?|shopfronts?|building\s+design|commercial\s+frontages?)\b/i,
   landscaping_open_space: /\b(landscap(?:e|ing)|open\s+space|deep\s+soil|tree\s+planting|canopy\s+tree|planting)\b/i,
   local_controls: /\b(general\s+controls?|local\s+controls?|all[-\s]+development|design\s+controls?|site\s+controls?|development\s+controls?|proposal\s+design\s+requirements?|waste\s+storage|service\s+areas?|screen(?:ed|ing))\b/i,
