@@ -49,6 +49,8 @@ import { QuickSiteCheckModal, buildQuickSiteCheckArtefactTitle, buildQuickSiteCh
 import { ChatConfidenceBadge } from "@/components/projects/chat-confidence-badge";
 import { SetSiteInput } from "@/components/projects/set-site-input";
 import { SeeDocumentPanel } from "@/components/projects/see-document-panel";
+import { WorkingSeeDownloads } from "@/components/projects/working-see-downloads";
+import { getWorkingSeeMemoGate } from "@/lib/working-see-memo-gate";
 import { FeasibilityPanel } from "@/components/projects/feasibility-panel";
 import { ConsultantReferralPanel } from "@/components/projects/consultant-referral-panel";
 import { SourceConfidenceBadge } from "@/components/projects/source-confidence-badge";
@@ -128,6 +130,8 @@ interface ProjectWorkspaceProps {
   initialPrompt?: string | null;
   initialAddress?: string | null;
   focusedCheck?: boolean;
+  workingSeeDownloadsEnabled?: boolean;
+  workingSeeGenerationEnabled?: boolean;
 }
 
 type SiteSelectionState = {
@@ -534,6 +538,7 @@ const normaliseDetailedPlanningPackContent = (
       zoneLabel: readNullableString(site.zoneLabel),
     },
     proposalBrief: readString(parsedValue.proposalBrief, "Proposed works brief was not saved with this pack."),
+    touristAccommodationProposed: parsedValue.touristAccommodationProposed === "yes" || parsedValue.touristAccommodationProposed === "no" ? parsedValue.touristAccommodationProposed : "unsure",
     sourceQuickSiteCheck: {
       artefactId: readString(sourceQuickSiteCheck.artefactId),
       title: readString(sourceQuickSiteCheck.title, "Saved Quick Site Check"),
@@ -1355,6 +1360,8 @@ export function ProjectWorkspace({
   initialPrompt,
   initialAddress,
   focusedCheck = false,
+  workingSeeDownloadsEnabled = false,
+  workingSeeGenerationEnabled = false,
 }: ProjectWorkspaceProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -1431,6 +1438,8 @@ export function ProjectWorkspace({
   const [, setIsGeneratingPreSeeMemo] = useState(false);
   const [isGeneratingSee, setIsGeneratingSee] = useState(false);
   const [proposalBrief, setProposalBrief] = useState("");
+  const [touristAccommodationProposed, setTouristAccommodationProposed] = useState<"yes" | "no" | "unsure">("unsure");
+  const hasUserEditedTouristChoiceRef = useRef(false);
   const hasUserEditedProposalBriefRef = useRef(false);
   const [isGeneratingDetailedPack, setIsGeneratingDetailedPack] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
@@ -3143,7 +3152,7 @@ export function ProjectWorkspace({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ projectId: projectKey, proposalBrief }),
+        body: JSON.stringify({ projectId: projectKey, proposalBrief, touristAccommodationProposed }),
       });
       const data = (await response.json().catch(() => ({}))) as { artefactId?: string; content?: DetailedPlanningPackContent; error?: string };
       if (!response.ok || !data.artefactId || !data.content) throw new Error(data.error ?? "Unable to generate Detailed Planning Pack");
@@ -3165,7 +3174,7 @@ export function ProjectWorkspace({
     } finally {
       setIsGeneratingDetailedPack(false);
     }
-  }, [addArtefact, projectKey, proposalBrief, showToast]);
+  }, [addArtefact, projectKey, proposalBrief, touristAccommodationProposed, showToast]);
 
   const generatePreSeeMemo = useCallback(async () => {
     if (!siteContext) {
@@ -3264,18 +3273,18 @@ export function ProjectWorkspace({
       return;
     }
 
-    if (!commercialPackGateRef.current.hasQualityDetailedPlanningPack) {
-      showToast(
-        commercialPackGateRef.current.hasProposalBriefMismatch
-          ? "Regenerate the Detailed Planning Pack for the current proposed-works brief before generating SEE"
-          : "Generate a commercial-ready Detailed Planning Pack before generating SEE",
-        "error",
-      );
+    const gate = getWorkingSeeMemoGate({
+      ...commercialPackGateRef.current,
+      hasConfirmedSite: Boolean(siteContext),
+      workingSeeGenerationEnabled,
+    });
+    if (!gate.allowed) {
+      showToast(gate.reason ?? "Working SEE generation is unavailable", "error");
       return;
     }
 
     void generatePreSeeMemo();
-  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast]);
+  }, [generatePreSeeMemo, isAuthenticated, openAuthModal, showToast, siteContext, workingSeeGenerationEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3445,8 +3454,12 @@ export function ProjectWorkspace({
 
   const latestAnyProposalDetailedPlanningPackArtefact = useMemo(() => selectCurrentSiteDetailedPlanningPackArtefact(siteScopedArtefacts), [siteScopedArtefacts]);
   const latestDetailedPlanningPackArtefact = useMemo(
-    () => selectCurrentWorkspaceDetailedPlanningPackArtefact(siteScopedArtefacts, proposalBrief),
-    [proposalBrief, siteScopedArtefacts],
+    () => {
+      const candidate = selectCurrentWorkspaceDetailedPlanningPackArtefact(siteScopedArtefacts, proposalBrief);
+      const pack = normaliseDetailedPlanningPackContent(candidate?.detailedPlanningPack);
+      return pack?.touristAccommodationProposed === touristAccommodationProposed ? candidate : null;
+    },
+    [proposalBrief, siteScopedArtefacts, touristAccommodationProposed],
   );
   const latestDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestDetailedPlanningPackArtefact?.detailedPlanningPack), [latestDetailedPlanningPackArtefact]);
   const latestAnyProposalDetailedPlanningPack = useMemo(() => normaliseDetailedPlanningPackContent(latestAnyProposalDetailedPlanningPackArtefact?.detailedPlanningPack), [latestAnyProposalDetailedPlanningPackArtefact]);
@@ -3470,6 +3483,11 @@ export function ProjectWorkspace({
     });
     if (hydrationBrief !== null) setProposalBrief(hydrationBrief);
   }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack?.proposalBrief, proposalBrief, savedQuickSiteCheckIntent]);
+  useEffect(() => {
+    if (!hasLoadedServerArtefacts || hasUserEditedTouristChoiceRef.current) return;
+    if (!latestAnyProposalDetailedPlanningPack || latestAnyProposalDetailedPlanningPack.proposalBrief.trim() !== proposalBrief.trim()) return;
+    setTouristAccommodationProposed(latestAnyProposalDetailedPlanningPack.touristAccommodationProposed ?? "unsure");
+  }, [hasLoadedServerArtefacts, latestAnyProposalDetailedPlanningPack, proposalBrief]);
   const hasProposalBriefMismatch = useMemo(
     () => hasCurrentSiteDetailedPlanningPackProposalMismatch(siteScopedArtefacts, proposalBrief),
     [proposalBrief, siteScopedArtefacts],
@@ -3481,6 +3499,11 @@ export function ProjectWorkspace({
     sourceDetailedPlanningPackArtefactId: latestDetailedPlanningPackArtefact?.id,
     expectedProposalBrief: latestDetailedPlanningPack?.proposalBrief,
   };
+  const workingSeeMemoGate = getWorkingSeeMemoGate({
+    ...commercialPackGateRef.current,
+    hasConfirmedSite: Boolean(siteContext),
+    workingSeeGenerationEnabled,
+  });
 
   const latestSeeArtefact = useMemo(
     () => selectExactSeeArtefactForDetailedPlanningPack(siteScopedArtefacts, latestDetailedPlanningPackArtefact),
@@ -4839,11 +4862,19 @@ export function ProjectWorkspace({
                         onChange={(event) => {
                           hasUserEditedProposalBriefRef.current = true;
                           setProposalBrief(event.target.value);
+                          setTouristAccommodationProposed("unsure");
+                          hasUserEditedTouristChoiceRef.current = false;
                         }}
                         rows={3}
                         placeholder="e.g. Alterations to an existing commercial premises with shopfront updates and minor internal fitout."
                         className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       />
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300" htmlFor="tourist-accommodation-proposed">Does this proposal include tourist accommodation?</label>
+                      <select id="tourist-accommodation-proposed" value={touristAccommodationProposed} onChange={(event) => { hasUserEditedTouristChoiceRef.current = true; setTouristAccommodationProposed(event.target.value as "yes" | "no" | "unsure"); }} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                        <option value="unsure">Unsure - keep tourist-use controls unresolved</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes - include tourist-use controls for expert review</option>
+                      </select>
                       {planningPackPurchase.enabled ? (
                         <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
                           <p className="font-semibold text-slate-900 dark:text-white">Planning Controls Pack — A$49 incl. GST</p>
@@ -4917,14 +4948,14 @@ export function ProjectWorkspace({
                       <button
                         type="button"
                         onClick={handleGeneratePreSeeMemo}
-                        disabled={isGeneratingSee || !hasQualityDetailedPlanningPack}
+                        disabled={isGeneratingSee || !workingSeeMemoGate.allowed}
                         className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
                       >
                         {isGeneratingSee
                           ? "Generating…"
                           : latestSeeContent
                             ? "Regenerate"
-                            : "Generate SEE"}
+                            : "Generate working SEE"}
                       </button>
                     ) : null
                   }
@@ -4942,9 +4973,14 @@ export function ProjectWorkspace({
                     />
                   ) : (
                     <p className="text-sm italic text-slate-400 dark:text-slate-500">
-                      Generate a structured SEE from the current commercial-ready Detailed Planning Pack.
+                      {workingSeeMemoGate.reason ?? "Start a working SEE from this saved planning pack. Missing evidence stays clearly marked; add plans, surveys or reports and regenerate as the project develops. This is not submission-ready."}
                     </p>
                   )}
+                  {workingSeeDownloadsEnabled ? <WorkingSeeDownloads
+                    key={project.id + ":" + (latestDetailedPlanningPackArtefact?.id ?? "") + ":" + (latestSeeArtefact?.id ?? "")}
+                    projectId={project.id} generationEnabled={workingSeeGenerationEnabled}
+                    sourceDetailedPlanningPackArtefactId={latestDetailedPlanningPackArtefact?.id}
+                    sourceMemoArtefactId={latestSeeArtefact?.id} /> : null}
                 </OutputSection>
 
                 <OutputSection id="workspace-review-section" sectionRef={reviewSectionRef} title="Expert Review Request">

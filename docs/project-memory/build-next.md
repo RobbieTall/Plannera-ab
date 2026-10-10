@@ -1,4 +1,269 @@
+> Current checkpoint, 10 October 2026. This section supersedes older status snapshots below; preserve them as history.
+>
+> **Commercial decision: HOLD.** PR #452 code checks pass at `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e`. The same tested tree deployed READY to the separate protected Byron and Kempsey document Previews at `717369a1874f91e3e4787a80b4f1ca19920d458b` and `b6f4ddaa03d02e583f90ec32f400e2395be983b8`. This is not customer document acceptance. No merge, Production checkout activation, or Production data/schema change occurred.
+>
+> The Byron dual-occupancy fixture's newly regenerated pack no longer cites Tourist Accommodation material while intent is left Unsure. It still incorrectly binds D1.2.11 Energy Efficiency to the Parking and access topic; the newly generated working SEE repeats that mismatch. Do not generate or approve customer Word/PDF from that evidence. Correct the topic-to-source binding with regression coverage, then regenerate and verify.
+>
+> The separate Kempsey Preview loads a Kempsey site, but the inspected project has no saved proposed-works brief, planning pack, working SEE or Word/PDF version. Do not substitute Byron fixture data. Establish the authentic Kempsey proposal and entitlement before generating its documents.
+>
+> Hosted acceptance still requires both councils' correct project-specific DOCX/PDF, download and original-version reopening, native visual inspection, evidence warnings, exact paid entitlement, and wrong-user/wrong-project denial. Static checks and READY deployments do not prove these outcomes. Production checkout must stay disabled.
+
+## 10 October 2026 - current commercial document gate
+
+**HOLD; draft PR #452, no Production change.** Exact feature commit `9554759f0f2dd25ff1dc5f7e1e4152c81e29869e` passed all 14 GitHub workflows, including isolated SEE document tests, Byron/Kempsey golden funnel, build safety, type checking and credential-free compilation. [Run #38000891429](https://github.com/RobbieTall/Plannera-ab/actions/runs/38000891429) is synthetic evidence only. The protected Byron and Kempsey document Preview branches are READY but diverged from this feature commit; neither is a hosted proof of the repaired customer journey. Production still tracks `main` at `ff2179e06f68a8f265d7cc0b873cd28320a4da6b`; checkout remains disabled.
+
+Next: review the divergent council-branch deltas without combining fixtures, confirm Preview-only deployment safety, replay the reviewed change into each protected Preview, and independently prove test payment/entitlement, project-specific DOCX/PDF generation, private download, exact-version reopening, permission denial, evidence warnings, source applicability and native visual output. Do not merge #452 or activate Production from synthetic checks. Preserve the closed-unmerged #433/#434/#435 presentation convergence and immutable Item 78C evidence. Research Viewer and Project Controls stay behind this gate.
+
+See [document-delivery handover](see-document-delivery-handover.md) and [draft PR #452](https://github.com/RobbieTall/Plannera-ab/pull/452#issuecomment-6090578435).
+
+---
+
+## 2 October 2026 — Drive continuity companions
+
+Current Drive-side continuity records in **Plannera Technical Build Docs**:
+- [Plannera Current Build Handoff — 2 October 2026](https://docs.google.com/document/d/1hPbFpgqp53mFXv9GpJCsX4ufrY32SaiifBMokGc24Mw/edit?usp=drivesdk)
+- [Plannera Post-Commercial Roadmap Consolidation — 2 October 2026](https://docs.google.com/document/d/1T4m5StZ7PLcA3SDInxUEspUPEFvdJzNZq9Mlsi1mI_k/edit?usp=drivesdk)
+
+These companion Docs mirror the current GitHub closeout and post-gate roadmap. Historical Drive roadmap/pilot files remain reference material.
+
+---
+
+## 2 October 2026 — synthetic SEE visual acceptance passed
+
+At tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38`, all 13 GitHub Actions passed and the exact generated synthetic artifact was rendered and inspected page-by-page. PDF is 9 pages; DOCX is 8. The prior sparse PDF status/front-matter page is removed and page 2 now carries Document Control, Revision History, Proposal Summary and Document Status together.
+
+This closes synthetic presentation visual acceptance only. Actual hosted Byron/Kempsey customer generation/download/reopening/native review remains blocked by the approval-gated council current-record correction and Kempsey normal sign-in.
+
+---
+
+## 2 October 2026 — autonomous session closeout
+
+Only PR #452 remains open. Main is unchanged. The tested application/safety head `ea9f3339b4acdefcb35cf11ee41ddc0f9f7c5e38` passed all 13 exact-head GitHub Actions.
+
+Canonical next-action record: [autonomous session closeout](autonomous-session-closeout-20261002.md).
+
+Synthetic native review is complete and passed at `ea9f333`. Immediate safe browser action is exact-head/state verification only; the remaining substantive gates are the explicitly approval-gated council `enddate` correction and normal Kempsey Preview sign-in.
+
+---
+
+## 2 October 2026 — backlog convergence checkpoint
+
+PR #452 remains the current commercial/document-delivery reference branch. The open PR backlog has now been classified so parallel branches are not batch-merged simply because checks are green.
+
+Canonical convergence plan: [PR convergence checkpoint](../operations/pr-convergence-20261002.md).
+
+Immediate sequence:
+1. finish #452 protected customer evidence;
+2. reconcile presentation on the #452 lineage (do not independently merge #433/#434/#435);
+3. rebase/recreate #429 regression coverage;
+4. reapply #424 and #426 only if their launch surfaces remain active;
+5. defer #422/#438 until the core document journey is green;
+6. after the commercial gate, reconcile roadmap docs #448 → #451 → #449;
+7. treat #450 as superseded status/history, not a current integration branch.
+
+Current human gates remain unchanged: the council-boundary end-date correction requires Robbie's explicit approval, and Kempsey requires normal customer sign-in. Completed DCP/LEP refreshes and cloud setup must not be repeated.
+
+Historical pre-fix finding: the earlier synthetic PDF produced an avoidable sparse Document Status/front-matter page. The current renderer lineage through `ea9f333` corrected this and the exact synthetic PDF/DOCX visual review passed.
+
+---
+
+## Local prerequisite checkpoint: official council-point lookup
+
+A new read-only adapter is prepared LOCALLY ONLY in
+src/lib/see-document-council-identity.ts with
+tests/see-document-council-identity.test.ts. All 10 isolated tests, full TypeScript
+and focused lint PASS. It is not yet connected to normal site persistence or the
+generation loader and is not included in the published application/CI test count.
+
+The source is NSW Spatial Services' LocalGovernmentArea layer:
+https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Administrative_Boundaries_Theme/MapServer/8
+Official layer metadata was inspected on 2026-09-29. The adapter queries only a
+fixed HTTPS endpoint, an explicit WGS84 point, current rows, two-result limit and
+selected non-personal fields, with no credentials or redirects. It bounds response
+size/time, preserves the original JSON and SHA-256/retrieval time, rejects missing,
+multiple, truncated or malformed results, and limits canonical councils to Byron
+and Kempsey. Stored evidence is checked against the exact current point and expiry.
+It identifies a point's council, not full parcel extent, address accuracy,
+statutory planning controls or LGA coverage maturity.
+
+No new adapter call has fetched a real project location. Tests use in-memory
+responses only. No database write, canonical-code backfill, migration, deployment
+or Production change occurred. The actual normal site-saving integration and
+generation requirement remain to implement and test; do not call this gap closed.
+Resume from these two existing local files and the current draft branch.
+The published Linux/Preview-readiness checkpoint below remains authoritative.
+
+## Current checkpoint: Linux proof complete; protected Preview prerequisites absent
+
+Both approved test-only corrections are complete: the mock type assertion stays
+on its expression line, and the in-memory integration project supplies every
+required Project field with a checked type. No application validation or evidence
+requirement was weakened. This commit publishes the previously local source-capture
+and ordinary-pack generation work to DRAFT PR #452, not to main or a deployment.
+
+### Implemented
+
+- Byron and Kempsey importers retain actual source retrieval time, original PDF
+  SHA-256 and exact stored clause-text SHA-256. Original composite hashes are not
+  relabelled as clause-text fingerprints. Legacy rows are not backfilled.
+- Saved zoning retains the authoritative lookup code separately from its display
+  label and rejects conflicting labels.
+- Normal DPP creation has a default-off Preview-only source-capture hook:
+  PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED=1 AND VERCEL_ENV=preview.
+  Capture is stored in the SAME NEW pack payload; unavailable evidence is explicit
+  and does not prevent saving a qualified DPP.
+- After owner, exact paid entitlement, memo/QSC/pack and saved spatial checks,
+  generation consumes the ordinary pack's source envelope and rereads current
+  LEP/DCP records. No pretend PathwayAssessment is manufactured.
+- The genuine existing assessment path is retained for packs without an ordinary
+  capture. A present invalid capture cannot fall back to different evidence.
+- Shared checks enforce exact citations/excerpts, source identity, version,
+  freshness, body fingerprints and trust markers. Source retrieval timestamps are
+  never reset to document-generation time. Capture time bounds later row persistence.
+- Isolated CI includes the new capture/importer and ordinary-pack generation tests.
+
+### Validation evidence for this application revision
+
+Local synthetic, credential-free validation is complete:
+- FULL TypeScript PASS, without excluding either corrected test file.
+- Focused ESLint PASS across all fourteen changed application/test/workflow files'
+  TypeScript entries.
+- 121 core document/source/provenance Node tests PASS.
+- 4 importer integration + 13 generation integration + 11 pack capture tests PASS.
+  Total: 149 UNIQUE document-related tests. The overlapping combined 60-test run
+  also passed but is not added again to this total.
+- Build-safety contract PASS: 7 permitted commands, 6 entries, 14 transitive sources.
+  Its 11 regression tests PASS. Total local focused tests including safety: 160.
+
+The integration tests use in-memory databases and mocked HTTP/PDF import I/O,
+with real saved-record parsers, memo compiler, source rechecks and DOCX/PDF renderer.
+Both ordinary-capture council cases and the eight existing assessment-path cases
+pass. Both normal createDetailedPlanningPackArtefact capture cases pass.
+Network/global database use is forbidden by the local harness.
+
+These results do NOT establish authentic statutory evidence, cloud ingestion,
+protected Preview customer downloads, native Word/PDF reopening, or one complete
+normal DPP -> memo -> generation -> delivery run. No synthetic test records may
+be promoted as planning evidence. GitHub run 36558368296 now confirms FULL TypeScript and 175 focused Linux tests
+PASS: 121 core Node + 43 native Vitest (including 15 renderer) + 11 safety.
+Source commit 2721b7fce3d1ea13bba5b487d0fcbee5ee0a1c05 was tested through PR merge
+snapshot 2e4bddfaeebd52c5d1e057b3b2a7c431cc3a3142 against unchanged main.
+The separate credential-free Next compilation job 109372924835 PASSED, including
+37 static pages and optimization. This was compilation, NOT a Production deployment.
+
+The isolated-validation job 109372924997 still FAILED after all tests at full
+vercel-build's unchanged synthetic Prisma database smoke: an engine-free client
+requires prisma:// or prisma+postgres:// rather than the synthetic localhost
+Postgres URL. No live credential was substituted and no check was disabled.
+Twelve other applicable PR workflows passed their automatic non-stateful checks.
+The full build gate and commercial readiness remain NOT green.
+
+The earlier 142-test Linux/Next compilation result belongs only to source 3ef7a7d.
+Its complete vercel-build failed at the unchanged synthetic Prisma database smoke;
+that is still unresolved, not bypassed or presented as a full-build pass.
+Existing dependency advisories remain subject to release-risk assessment.
+
+### Current protected Preview evidence (read-only recheck)
+
+Both previously identified council targets are still distinct, non-default Neon
+branches with their expected independent endpoints. Production was not queried.
+Explicit READ ONLY transactions with an eight-second statement timeout returned
+aggregate counts only; no address, person, document body or credential was read.
+
+For BOTH targets:
+- working_see is still absent from the ArtefactType enum.
+- No SiteContext has a BYRON/KEMPSEY canonical council code.
+- No saved SiteSpatialProvenance record exists.
+- No relevant DCPClause row has the new sourceCapture envelope.
+- No current Byron/Kempsey LEP row has retrieval within the seven-day policy.
+
+Therefore a deployment alone cannot prove customer generation. Fresh source
+ingestion must preserve genuine retrieval/provenance, not relabel existing data.
+The normal site resolver's persistence currently uses candidate.lgaCode or null;
+canonical council identity needs an evidence-based normal-flow solution, not a
+manual code backfill or an assumed council from an address string. That application
+prerequisite must be completed/proven before calling a Preview rehearsal ready.
+
+Preserve the existing acceptance snapshots and source revisions. Prepare separate
+document-rehearsal targets where writes are needed, then obtain scoped approval
+for their additive schema step, source refresh and protected deployment. No such
+write, branch creation, migration, ingestion or deployment has occurred here.
+
+### Resume and remaining commercial gates
+
+The test-correction approval blocker is resolved. Continue from this draft PR,
+not a new branch or recreated cloud setup. The exact-commit Linux results are above. Next prepare the separately
+authorized isolated Preview prerequisites: canonical council identity from actual
+resolution, saved authoritative spatial evidence, current retained LEP/DCP source
+envelopes and the unapplied working_see enum migration. Do not guess council codes,
+bulk backfill evidence or run importers under this documentation update.
+
+Protected Preview must then prove BOTH councils' actual customer generation,
+private download, original-version reopening, wrong-user/wrong-project rejection,
+evidence warnings, document versions and native Word/PDF presentation. Uploaded
+plans/reports remain explicitly not independently incorporated by this path.
+Seven-day source freshness is an operational policy, not statutory currency proof.
+
+### Deployment safety and status
+
+Before this documentation-only update, draft application head
+2721b7fce3d1ea13bba5b487d0fcbee5ee0a1c05 and
+main ff2179e06f68a8f265d7cc0b873cd28320a4da6b were unchanged. The retained exact
+branch deployment-disable rule for feat/see-document-delivery-20260929 remains
+in vercel.json; the latest twenty-deployment inventory contains no deployment for
+this branch. Previously inspected automatic workflows remain unchanged except
+the isolated, credential-free test-list extension. Stateful workflows are not
+dispatched. Static checks do not guarantee arbitrary dependency behaviour.
+
+Publication is to the existing draft feature branch only, without force, merge,
+deployment command, schema/data mutation, real ingestion, cloud setting changes,
+payment action or private-document publication. Production checkout remains off.
+Other mobile documentation branches and immutable Item 78C evidence are untouched.
+Research Viewer, Project Controls, practitioner governance and live-user pilots
+remain compatible and deferred. Commercial decision remains HOLD pending the
+actual protected customer document journey. No Production activation is authorized.
+## Guarded document generation draft
+
+PR #452 now connects the Preview-only working Word/PDF generation action to saved
+source and paid-access checks. It remains default-off, unmerged and undeployed.
+Hosted customer proof is still missing; commercial HOLD. Read the current document
+delivery handover and Issue #395 for exact source-format limits and next approvals.
+Production checkout remains disabled by the operating constraint; no Production
+settings/data/schema were changed. Other documentation branches are untouched.
+
+## Current document-delivery prerequisite
+
+PR #452 now includes default-off, Preview-only retention of site lookup provenance.
+It is not deployed or evidence of a completed customer generation journey.
+Commercial HOLD; Production checkout remains disabled by the operating constraint.
+See [the current handover](see-document-delivery-handover.md)
+for exact limits, validation references and remaining work. Other documentation
+branches and immutable Item 78C evidence remain untouched.
+
+> Document-delivery draft update: PR #452 now includes Preview workspace saved-version/Word/PDF controls and a protected paginated metadata endpoint. Approved typing corrections complete: full TypeScript, lint, 59 document tests and 11 build-safety tests pass locally. Linux validation now passes 85 focused tests, full TypeScript and the complete credential-free Next build at code commit 210dfb2; the unchanged full-build database smoke and actual hosted journey remain unproven. Commercial HOLD. See the draft [delivery handover](see-document-delivery-handover.md). Mobile PR #451 and both deferred pilots are unchanged.
+
 # Build Next (Execution Queue)
+
+## Current delivery checkpoint - 29 September 2026
+
+**Commercial HOLD; Production activation is not authorised.** Item 78C's protected
+run [36426605240](https://github.com/RobbieTall/Plannera-ab/actions/runs/36426605240)
+passed with `READY_FOR_NON_PRODUCTION_ACCEPTANCE`. That synthetic gate does not
+prove customer Word/PDF delivery. The current task reconciles presentation PRs
+#433/#434/#435 and completes real protected Preview generation, downloads and
+reopening for independent Byron/Kempsey projects. Draft presentation, private
+persistence and download code now pass 69 focused Linux tests, TypeScript and
+the credential-free application build at `0a081d39fd026d2fd7608e8913cc6c666150509d`
+([run 36533924975](https://github.com/RobbieTall/Plannera-ab/actions/runs/36533924975)).
+Trusted generation, customer UI, an unapplied isolated Preview enum migration and
+real hosted delivery remain. The full release-build database smoke is not green.
+These changes are in draft PR #452, not merged main; no deployment has occurred.
+
+Read the [current delivery handover](see-document-delivery-handover.md) first. Preserve draft PR #450's
+acceptance closeout and immutable runner evidence. Older dated status entries
+below are historical, not instructions to recreate fixtures or rerun old pins.
+Research Viewer (#448) and Project Controls (#449) remain deferred. Keep
+Production checkout disabled and Production data/schema unchanged.
 
 This is the active sequence for what to build next so direction is never lost.
 

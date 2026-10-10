@@ -12,32 +12,6 @@ const truncate = (value: string | null | undefined, length = 220) => {
   return value.length > length ? `${value.slice(0, length)}…` : value;
 };
 
-const normaliseValue = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
-
-const extractMappedControls = (lepData: LepParseResult | null) => {
-  if (!lepData || typeof lepData !== "object") {
-    return {} as Record<string, string | null>;
-  }
-
-  const container = (lepData as { controls?: unknown }).controls;
-  const controls = container && typeof container === "object" ? (container as Record<string, unknown>) : null;
-
-  const pickValue = (keys: string[]) => {
-    if (!controls) return null;
-    for (const key of keys) {
-      const value = normaliseValue(controls[key]);
-      if (value) return value;
-    }
-    return null;
-  };
-
-  return {
-    heightOfBuilding: pickValue(["heightOfBuilding", "heightLimit", "hob", "buildingHeight"]),
-    floorSpaceRatio: pickValue(["floorSpaceRatio", "fsr", "floorSpace", "floorSpaceIndex"]),
-    minimumLotSize: pickValue(["minimumLotSize", "minLotSize", "lotSize", "mls"]),
-  };
-};
-
 const shortenList = (list: string[], limit = 6) => list.map((item) => item.trim()).filter(Boolean).slice(0, limit);
 
 const formatList = (list: string[]) => {
@@ -166,7 +140,6 @@ export const buildQuickSiteCheckReport = async (
         }
       : null;
 
-  const mappedControls = extractMappedControls(lepData);
   const findClause = (ref: string) =>
     lepInstrumentCandidate?.clauses?.find((clause) => clause.ref === ref || clause.ref.startsWith(`${ref}`));
 
@@ -175,7 +148,7 @@ export const buildQuickSiteCheckReport = async (
       controlFromLepResult("Height of building", lepResult?.controls.heightOfBuilding) ??
       buildControl(
         "Height of building",
-        mappedControls.heightOfBuilding ?? null,
+        null,
         findClause("4.3")?.ref ?? "4.3",
         findClause("4.3")?.text ?? null,
       ),
@@ -183,7 +156,7 @@ export const buildQuickSiteCheckReport = async (
       controlFromLepResult("Floor space ratio", lepResult?.controls.fsr) ??
       buildControl(
         "Floor space ratio",
-        mappedControls.floorSpaceRatio ?? null,
+        null,
         findClause("4.4")?.ref ?? "4.4",
         findClause("4.4")?.text ?? null,
       ),
@@ -191,7 +164,7 @@ export const buildQuickSiteCheckReport = async (
       controlFromLepResult("Minimum lot size", lepResult?.controls.minLotSize) ??
       buildControl(
         "Minimum lot size",
-        mappedControls.minimumLotSize ?? null,
+        null,
         findClause("4.1")?.ref ?? "4.1",
         findClause("4.1")?.text ?? null,
       ),

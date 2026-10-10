@@ -1,9 +1,12 @@
+import { canGenerateUncitedWorkingSee } from "./working-see-preview-policy";
+import { captureWorkingSeePackSources, workingSeeDcpCitationBinding, type WorkingSeePackCaptureInput, type WorkingSeePackCaptureResult } from "@/lib/see-document-pack-source-capture";
 import { z } from "zod";
 
 import { NEXT_AUTH_SESSION_COOKIE, authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDCPContext } from "@/lib/dcp/get-dcp-context";
+import { dcpDocumentScopeIssue } from "@/lib/dcp/document-applicability";
 import type { ScoredDcpClause } from "@/lib/dcp/search";
 import { normalizeCouncilLgaCode } from "@/lib/council/lga-normaliser";
 import { buildQuickSiteCheckReport } from "@/lib/quick-site-check";
@@ -703,6 +706,7 @@ const DETAILED_PLANNING_PACK_TOPICS = [
 const detailedPlanningPackSchema = z.object({
   projectId: z.string().trim().min(1, "projectId is required"),
   proposalBrief: z.string().trim().min(1, "A proposed-works brief is required").max(2000),
+  touristAccommodationProposed: z.enum(["yes", "no", "unsure"]).default("unsure"),
 });
 
 const isLaunchPackLga = (lgaCode?: string | null, lgaName?: string | null) => {
@@ -804,6 +808,7 @@ const mapDcpTopicEvidence = (
         ref: clause.ref || clause.title || clause.headingPath.join(" > ") || "DCP source",
         title: clause.title ?? null,
         headingPath: clause.headingPath ?? [],
+        sourceBinding: workingSeeDcpCitationBinding(clause),
         excerpt: compactExcerpt(qualifyingRows.join(" ")),
         score: clause.score,
       }];
@@ -824,7 +829,7 @@ const mapDcpTopicEvidence = (
     topicId: topic.id,
     topicLabel: topic.label,
     status: "Cited",
-    reason: "Retrieved DCP evidence survived current zone/topic filtering and contains a substantive requirement in the clause body.",
+    reason: "Retrieved DCP evidence contains a substantive topic requirement; exact site and proposal applicability still require review.",
     citations,
   };
 };
@@ -840,7 +845,7 @@ export async function createDetailedPlanningPackArtefact({
 }): Promise<{ artefact: Artefact; content: DetailedPlanningPackContent }> {
   const parsed = detailedPlanningPackSchema.safeParse(body);
   if (!parsed.success) throw new ArtefactValidationError(parsed.error.issues[0]?.message ?? "Invalid detailed planning pack payload");
-  const { projectId, proposalBrief } = parsed.data;
+  const { projectId, proposalBrief, touristAccommodationProposed } = parsed.data;
   const project = await assertProjectAccess(deps.prisma, projectId, userId);
   const projectWithContext = await deps.prisma.project.findUnique({ where: { id: project.id }, include: { siteContext: true } });
   if (!projectWithContext?.siteContext) throw new ArtefactValidationError("Set a confirmed site before generating a Detailed Planning Pack");
@@ -884,17 +889,22 @@ export async function createDetailedPlanningPackArtefact({
   }
 
   const siteZone = quickSiteCheck.site.zoneLabel ?? ([quickSiteCheck.site.zoneCode, quickSiteCheck.site.zoneName].filter(Boolean).join(" – ") || null);
+  const capturedDcpClauses: ScoredDcpClause[] = [];
   const topicResults = await Promise.all(DETAILED_PLANNING_PACK_TOPICS.map(async (topic) => {
     const clauses = lgaCode
-      ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone })
+      ? await deps.getDCPContext(lgaCode, [proposalBrief, siteZone, topic.query].filter(Boolean).join(" "), { siteZone, touristAccommodationProposed })
       : [];
-    const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode }, topic.id);
+    const filtered = filterSiteApplicableDcpClauses(clauses, { zoneLabel: quickSiteCheck.site.zoneLabel ?? quickSiteCheck.site.zoneName, zoneCode: quickSiteCheck.site.zoneCode, lgaCode }, topic.id, touristAccommodationProposed);
+    capturedDcpClauses.push(...filtered);
     return mapDcpTopicEvidence(topic, filtered);
   }));
 
   const unresolvedTopics = topicResults
     .filter((topic) => topic.status !== "Cited")
     .map((topic) => `${topic.topicLabel}: ${topic.reason}`);
+  if (lgaCode === "BYRON" && touristAccommodationProposed === "unsure") {
+    unresolvedTopics.push("Tourist accommodation use is unconfirmed; Byron Chapter D3 is withheld pending a proposal-use decision.");
+  }
   const citedTopicCount = topicResults.filter((topic) => topic.status === "Cited").length;
   const content: DetailedPlanningPackContent = {
     packType: "detailed_planning_pack",
@@ -909,6 +919,7 @@ export async function createDetailedPlanningPackArtefact({
       zoneLabel: quickSiteCheck.site.zoneLabel ?? null,
     },
     proposalBrief,
+    touristAccommodationProposed,
     sourceQuickSiteCheck: {
       artefactId: quickSiteArtefact.id,
       title: quickSiteArtefact.title,
@@ -927,6 +938,7 @@ export async function createDetailedPlanningPackArtefact({
     unresolvedTopics,
     consultantReviewQuestions: [
       "Do the cited DCP controls apply to the exact proposed use, tenancy, works extent and site constraints?",
+      "Are there precinct-specific or use-specific controls requiring verified applicability? Unverified location-specific candidates are not proof of site coverage.",
       "Are any uncited or unavailable topics controlled by maps, schedules, policies, overlays or council practice not yet retrieved here?",
       "What design changes or consultant inputs are needed before SEE drafting or referral?",
     ],
@@ -935,6 +947,12 @@ export async function createDetailedPlanningPackArtefact({
       : "Treat this as an evidence gap pack: do not progress to commercially ready SEE/referral until DCP evidence is verified.",
     commercialReady: citedTopicCount === DETAILED_PLANNING_PACK_TOPICS.length && unresolvedTopics.length === 0,
   };
+
+  const workingSeeSourceCapture = await deps.captureWorkingSeeSources?.({
+    site: projectWithContext.siteContext, pack: content, quickSiteCheck,
+    dcpClauses: capturedDcpClauses,
+  });
+  const savedPayload = workingSeeSourceCapture ? { ...content, workingSeeSourceCapture } : content;
 
   const artefact = await deps.prisma.artefact.create({
     data: {
@@ -945,7 +963,7 @@ export async function createDetailedPlanningPackArtefact({
       source: content.site.address ?? content.site.zoneLabel ?? "Detailed Planning Pack",
       overlays: [],
       notes: `${citedTopicCount} cited DCP topic${citedTopicCount === 1 ? "" : "s"}; ${unresolvedTopics.length} unresolved topic${unresolvedTopics.length === 1 ? "" : "s"}`,
-      payload: content,
+      payload: savedPayload,
       capturedAt: new Date(content.generatedAt),
     },
   });
@@ -955,6 +973,10 @@ export async function createDetailedPlanningPackArtefact({
 
 
 const dppCitationSchema = z.object({
+  sourceBinding: z.object({
+    clauseId: z.string().min(1),
+    recordSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict().optional(),
   ref: z.string(),
   title: z.string().nullable().default(null),
   headingPath: z.array(z.string()).default([]),
@@ -975,6 +997,7 @@ export const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackCo
     zoneLabel: z.string().nullable().default(null),
   }),
   proposalBrief: z.string().min(1),
+  touristAccommodationProposed: z.enum(["yes", "no", "unsure"]).default("unsure"),
   sourceQuickSiteCheck: z.object({
     artefactId: z.string(),
     title: z.string(),
@@ -1001,6 +1024,16 @@ export const detailedPlanningPackContentSchema: z.ZodType<DetailedPlanningPackCo
   nextAction: z.string(),
   commercialReady: z.boolean(),
 }).passthrough();
+
+const hasUnverifiedByronD3Evidence = (pack: DetailedPlanningPackContent) =>
+  pack.dcpEvidence.some((topic) => topic.citations.some((citation) =>
+    dcpDocumentScopeIssue({
+      lgaCode: pack.site.lgaCode,
+      headingPath: [...citation.headingPath, citation.title ?? ""],
+      siteZone: pack.site.zoneCode,
+      touristAccommodationProposed: pack.touristAccommodationProposed ?? "unsure",
+    }) === "tourist_proposal_scope_unverified",
+  ));
 
 export const currentScopeForProject = (project: ProjectWithOptionalSiteContext): CurrentSiteScope => ({
   address: project.siteContext?.formattedAddress ?? project.address ?? null,
@@ -1135,6 +1168,9 @@ async function resolveNewestCurrentDetailedPlanningPack({
     if (normalizeProposalBriefForBinding(candidate.pack.proposalBrief) !== normalizeProposalBriefForBinding(expectedProposalBrief)) {
       throw new ArtefactValidationError("The selected Detailed Planning Pack was generated for a different proposed-works brief. Regenerate the pack before continuing.");
     }
+    if (hasUnverifiedByronD3Evidence(candidate.pack)) {
+      throw new ArtefactValidationError("The selected Detailed Planning Pack has Byron Chapter D3 evidence without confirmed proposed tourist accommodation. Regenerate the pack before continuing.");
+    }
     if (requireCommercialReady && !candidate.pack.commercialReady) {
       throw new ArtefactValidationError("The selected Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
     }
@@ -1147,6 +1183,9 @@ async function resolveNewestCurrentDetailedPlanningPack({
   }
 
   if (resolution.active) {
+    if (hasUnverifiedByronD3Evidence(resolution.active.pack)) {
+      throw new ArtefactValidationError("The current Detailed Planning Pack has Byron Chapter D3 evidence without confirmed proposed tourist accommodation. Regenerate the pack before continuing.");
+    }
     if (!requireCommercialReady || resolution.active.pack.commercialReady) return resolution.active;
     throw new ArtefactValidationError("The current Detailed Planning Pack has unresolved topics and is not commercial-ready for SEE generation. Request expert review or resolve the pack first.");
   }
@@ -1555,7 +1594,8 @@ const evidenceMentionsZone = (text: string, zoneCode: string | null) => Boolean(
 
 const DCP_TOPIC_MATCHERS: Record<string, RegExp> = {
   setbacks: /\b(setbacks?|building\s+lines?|(?:street|side|rear|front)\s+(?:boundar(?:y|ies)|alignment|setbacks?))\b/i,
-  parking_access: /\b(car\s+parking|parking|access|driveways?|loading|service\s+access|vehicle\s+access|vehicular\s+access|car\s+spaces?|cars|accessible\s+spaces?|resident\s+spaces?|visitor\s+spaces?|bicycle\s+parking|motorcycle\s+space)\b/i,
+  // Bare "access" can mean maintenance access, not parking or site access.
+  parking_access: /\b(car\s+parking|parking|(?:vehicle|vehicular|pedestrian|property|site|road|street|service)\s+access|access\s+(?:to\s+(?:the\s+)?(?:site|property|road|street|parking)|roads?|ways?|points?|driveways?)|driveways?|loading|car\s+spaces?|cars|accessible\s+spaces?|resident\s+spaces?|visitor\s+spaces?|bicycle\s+parking|motorcycle\s+space)\b/i,
   built_form_active_frontage: /\b(built\s+form|active\s+frontages?|street\s+frontages?|shopfronts?|building\s+design|commercial\s+frontages?)\b/i,
   landscaping_open_space: /\b(landscap(?:e|ing)|open\s+space|deep\s+soil|tree\s+planting|canopy\s+tree|planting)\b/i,
   local_controls: /\b(general\s+controls?|local\s+controls?|all[-\s]+development|design\s+controls?|site\s+controls?|development\s+controls?|proposal\s+design\s+requirements?|waste\s+storage|service\s+areas?|screen(?:ed|ing))\b/i,
@@ -1569,7 +1609,7 @@ const dcpEvidenceMatchesTopic = (topicText: string, controlTopic?: string | null
   return matcher.test(topicText);
 };
 
-export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabel?: string | null; siteZoneCode?: string | null; controlTopic?: string | null; topicText?: string | null }) => {
+export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabel?: string | null; siteZoneCode?: string | null; lgaCode?: string | null; touristAccommodationProposed?: "yes" | "no" | "unsure"; controlTopic?: string | null; topicText?: string | null }) => {
   const zoneCode = zoneCodeFromSiteLabel(params.siteZoneLabel, params.siteZoneCode);
   const isCommercialOrTourist = zoneCode === "E2" || zoneCode === "SP3";
   const lines = params.text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -1578,6 +1618,9 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
   // or hierarchy just because it incidentally mentions the current zone.
   const scope = lines.length >= 3 ? `${lines[1]} ${lines[2]}` : (lines[0] ?? params.text);
   const body = lines.length >= 4 ? lines.slice(3).join(" ") : params.text;
+  // Defence in depth for injected retrieval and previously saved memo checks.
+  // A same-zone mention does not establish precinct or proposal applicability.
+  if (dcpDocumentScopeIssue({ lgaCode: params.lgaCode, headingPath: [scope], siteZone: zoneCode, touristAccommodationProposed: params.touristAccommodationProposed })) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(scope) && !evidenceMentionsZone(scope, zoneCode)) return false;
   if (isCommercialOrTourist && APPLICABILITY_CONFLICT_TERMS.test(body) && !evidenceMentionsZone(body, zoneCode)) return false;
   // Topic qualification explicitly excludes the source ref. Refs remain useful
@@ -1586,17 +1629,17 @@ export const isSiteApplicableDcpEvidence = (params: { text: string; siteZoneLabe
   return true;
 };
 
-export const filterSiteApplicableDcpClauses = <T extends Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">>(clauses: T[], site: { zoneLabel?: string | null; zoneCode?: string | null }, controlTopic?: string | null) =>
-  clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), topicText: dcpTopicQualificationText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, controlTopic }));
+export const filterSiteApplicableDcpClauses = <T extends Pick<ScoredDcpClause, "ref" | "title" | "headingPath" | "bodyText">>(clauses: T[], site: { zoneLabel?: string | null; zoneCode?: string | null; lgaCode?: string | null }, controlTopic?: string | null, touristAccommodationProposed?: "yes" | "no" | "unsure") =>
+  clauses.filter((clause) => isSiteApplicableDcpEvidence({ text: dcpEvidenceText(clause), topicText: dcpTopicQualificationText(clause), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, lgaCode: site.lgaCode, touristAccommodationProposed, controlTopic }));
 
-export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | Pick<WorkspacePreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null) => {
+export const hasApplicableSeeReadinessEvidence = (memo: Pick<PreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | Pick<WorkspacePreSeePlanningMemoContent, "siteDescription" | "applicableControls" | "consistencyAssessment"> | null, touristAccommodationProposed: "yes" | "no" | "unsure" = "unsure") => {
   if (!memo) return false;
   const hasSiteZone = Boolean(memo.siteDescription.zoneCode || memo.siteDescription.zoneName || memo.siteDescription.zoneLabel);
   if (!hasSiteZone) return false;
   const site = { zoneLabel: memo.siteDescription.zoneLabel ?? memo.siteDescription.zoneName, zoneCode: memo.siteDescription.zoneCode };
   const applicableDcpRefs = new Set(
     (memo.applicableControls.dcpClauses ?? [])
-      .filter((clause) => isSiteApplicableDcpEvidence({ text: [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n"), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode }))
+      .filter((clause) => isSiteApplicableDcpEvidence({ text: [clause.ref, clause.title, clause.headingPath?.join(" "), clause.bodyText].filter(Boolean).join("\n"), siteZoneLabel: site.zoneLabel, siteZoneCode: site.zoneCode, lgaCode: memo.siteDescription.lga?.toLowerCase().includes("byron") ? "BYRON" : null, touristAccommodationProposed }))
       .map((clause) => clause.title || clause.ref || clause.headingPath.join(" > "))
       .filter(Boolean),
   );
@@ -1624,7 +1667,7 @@ export const hasExactSeeEvidenceProvenance = (
   quickSiteCheck: QuickSiteCheckReport,
 ) => {
   if (
-    !hasApplicableSeeReadinessEvidence(memo) ||
+    !hasApplicableSeeReadinessEvidence(memo, pack.touristAccommodationProposed ?? "unsure") ||
     memo.projectId !== pack.projectId ||
     memo.proposedWorksSummary.trim() !== pack.proposalBrief.trim() ||
     memo.sourceDetailedPlanningPack?.commercialReady !== pack.commercialReady
@@ -1724,6 +1767,7 @@ const buildLepCitationRef = (instrumentName: string | null | undefined, clauseRe
 
 
 type PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources?: (input: WorkingSeePackCaptureInput) => Promise<WorkingSeePackCaptureResult | null>;
   prisma: ArtefactDependencies["prisma"];
   buildQuickSiteCheckReport: typeof buildQuickSiteCheckReport;
   getDCPContext: typeof getDCPContext;
@@ -1734,6 +1778,11 @@ type PreSeePlanningMemoDeps = {
 };
 
 const defaultPreSeePlanningMemoDeps: PreSeePlanningMemoDeps = {
+  captureWorkingSeeSources: async (input) => {
+    if (process.env.VERCEL_ENV !== "preview" ||
+      process.env.PLANNERA_WORKING_SEE_SOURCE_CAPTURE_ENABLED !== "1") return null;
+    return captureWorkingSeePackSources(prisma, input);
+  },
   prisma,
   buildQuickSiteCheckReport,
   getDCPContext,
@@ -1793,7 +1842,12 @@ export async function createPreSeePlanningMemoArtefact({
   const dppCitations = resolvedPack.pack.dcpEvidence.flatMap((topic) =>
     topic.citations.map((citation) => ({ topic, citation })),
   );
-  if (!dppCitations.length) {
+  if (!dppCitations.length && !canGenerateUncitedWorkingSee({
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    generationEnabled: process.env.PLANNERA_WORKING_SEE_GENERATION_ENABLED,
+    commercialReady: resolvedPack.pack.commercialReady,
+    unresolvedTopics: resolvedPack.pack.unresolvedTopics,
+  })) {
     throw new ArtefactValidationError("The current Detailed Planning Pack has no applicable cited DCP evidence for SEE generation");
   }
   const citationForControl = (control: QuickSiteCheckControl) => {

@@ -25,6 +25,7 @@ type GoldenFixture = {
   instrumentName: string;
   instrumentCode: string;
   proposalBrief: string;
+  touristAccommodationProposed: "yes" | "no";
   height: string;
   fsr: string | null;
 };
@@ -42,6 +43,7 @@ const BYRON: GoldenFixture = {
   instrumentCode: "byron-lep-2014",
   proposalBrief:
     "Internal refurbishment and minor alterations to existing tourist accommodation, with no change of use, additional floor area, guest rooms, parking, or access.",
+  touristAccommodationProposed: "yes",
   height: "9m",
   fsr: null,
 };
@@ -59,6 +61,7 @@ const KEMPSEY: GoldenFixture = {
   instrumentCode: "kempsey-lep-2013",
   proposalBrief:
     "Internal commercial fit-out and minor shopfront improvements, with no change of use, additional floor area, parking, access, or building envelope.",
+  touristAccommodationProposed: "no",
   height: "11m",
   fsr: "2:1",
 };
@@ -393,6 +396,7 @@ const runReadyJourney = async (fixture: GoldenFixture) => {
     body: {
       projectId: fixture.publicId,
       proposalBrief: fixture.proposalBrief,
+      touristAccommodationProposed: fixture.touristAccommodationProposed,
       site: { address: "forged client address" },
       commercialReady: true,
     },
@@ -549,6 +553,7 @@ test("Kempsey evidence gap creates a qualified working SEE and unresolved-pack r
     body: {
       projectId: KEMPSEY.publicId,
       proposalBrief: KEMPSEY.proposalBrief,
+      touristAccommodationProposed: KEMPSEY.touristAccommodationProposed,
     },
     userId: USER_ID,
     deps: deps as any,
@@ -645,6 +650,7 @@ test("generic current-zone Part B evidence cannot populate unrelated DPP topics"
     body: {
       projectId: KEMPSEY.publicId,
       proposalBrief: KEMPSEY.proposalBrief,
+      touristAccommodationProposed: KEMPSEY.touristAccommodationProposed,
     },
     userId: USER_ID,
     deps: deps as any,
@@ -690,6 +696,7 @@ test("Part B evidence qualifies only when its heading or body matches the reques
     body: {
       projectId: KEMPSEY.publicId,
       proposalBrief: KEMPSEY.proposalBrief,
+      touristAccommodationProposed: KEMPSEY.touristAccommodationProposed,
     },
     userId: USER_ID,
     deps: deps as any,

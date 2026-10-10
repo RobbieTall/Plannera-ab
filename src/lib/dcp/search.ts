@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { dcpDocumentScopeIssue } from "./document-applicability";
 import { extractQueryNumbers, type NumericMeta } from "./extract-numeric";
 import { detectTopicTags } from "./topic-tags";
 import type { DCPClause } from "@prisma/client";
@@ -128,6 +129,7 @@ export const searchDcpClauses = async (params: {
   lgaCode?: string;
   limit?: number;
   siteZone?: string | null;
+  touristAccommodationProposed?: "yes" | "no" | "unsure";
 }): Promise<ScoredDcpClause[]> => {
   const queryText = params.query.trim();
   if (!queryText) return [];
@@ -145,6 +147,9 @@ export const searchDcpClauses = async (params: {
   const queryNumeric = extractQueryNumbers(queryText);
 
   return clauses
+    // Exclude known unverified scope before ranking/limiting, so unsuitable
+    // high-scoring area chapters cannot crowd out general source candidates.
+    .filter(clause => !dcpDocumentScopeIssue({ lgaCode, headingPath: clause.headingPath, siteZone: params.siteZone, touristAccommodationProposed: params.touristAccommodationProposed }))
     .map((clause) => {
       const headingText = clause.headingPath.join(" ");
       const baseKeyword =

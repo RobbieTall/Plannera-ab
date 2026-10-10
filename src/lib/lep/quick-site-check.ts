@@ -28,7 +28,6 @@ import {
 
 type ClauseSummary = Pick<Clause, "clauseKey" | "title" | "bodyText" | "hierarchyPath">;
 
-const normaliseLepString = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 const parseProjectLepData = (value: unknown): LepParseResult | null => {
   if (!value) return null;
@@ -53,11 +52,6 @@ const hasFallbackObjectives = (objectives: string[], zoneCode: string | null) =>
     ? `No zone-specific objectives found for zone ${zoneCode}.`
     : "No zone-specific objectives found.";
   return !objectives.length || (objectives.length === 1 && objectives[0] === notFoundReason);
-};
-
-const buildLepDataControlValue = (value: string | null | undefined, clauseRef: string): LepControlValue | null => {
-  const normalised = normaliseLepString(value);
-  return normalised ? { value: normalised, clauseRef, confidence: "Cited" } : null;
 };
 
 const KEYWORDS: Record<"4" | "5" | "6", string[]> = {
@@ -144,52 +138,6 @@ const buildSnippet = (text: string | null | undefined) => {
     .join(" ");
   const snippet = sentences || normalized.slice(0, 250);
   return snippet.length > 260 ? `${snippet.slice(0, 260)}…` : snippet;
-};
-
-
-const findPart4ClauseByHeading = (clauses: ClauseSummary[], headingRegex: RegExp, fallbackClauseRef: string) => {
-  return (
-    clauses.find((clause) => headingRegex.test(clause.title ?? "")) ??
-    clauses.find((clause) => parseClauseNumber(clause).startsWith(fallbackClauseRef)) ??
-    clauses.find((clause) => headingRegex.test(`${clause.title ?? ""}\n${clause.bodyText ?? ""}`)) ??
-    null
-  );
-};
-
-const extractTextNearZone = (text: string, zoneCode: string | null) => {
-  const cleaned = cleanXmlLikeString(text).replace(/\r\n/g, "\n");
-  if (!zoneCode) return cleaned;
-  const zoneRegex = new RegExp(`\\b${zoneCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-  const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
-  const index = lines.findIndex((line) => zoneRegex.test(line));
-  if (index === -1) return cleaned;
-  return lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 4)).join("\n");
-};
-
-const buildControlValue = (
-  clauses: ClauseSummary[],
-  zoneCode: string | null,
-  headingRegex: RegExp,
-  valueRegex: RegExp,
-  fallbackClauseRef: string,
-): LepControlValue | null => {
-  try {
-    const clause = findPart4ClauseByHeading(clauses, headingRegex, fallbackClauseRef);
-    if (!clause) return null;
-    const zoneText = extractTextNearZone(clause.bodyText ?? "", zoneCode);
-    const zoneMatch = zoneText.match(valueRegex);
-    const fallbackMatch = cleanXmlLikeString(clause.bodyText).match(valueRegex);
-    const match = zoneMatch ?? fallbackMatch;
-    if (!match?.[1]) return null;
-    return {
-      value: match[1].replace(/\s+/g, "").replace(/m2\b/i, "m²"),
-      clauseRef: parseClauseNumber(clause) || fallbackClauseRef,
-      confidence: "Cited",
-    };
-  } catch (error) {
-    console.error("[quick-site-check-lep] Control extraction failed", { fallbackClauseRef, error });
-    return null;
-  }
 };
 
 
@@ -1541,31 +1489,6 @@ export const buildQuickSiteCheckLep = async (
       }
     }
 
-    const heightOfBuilding = buildControlValue(
-      partBuckets["4"],
-      zoneCode,
-      /height of buildings?|building height/i,
-      /(\d+(?:\.\d+)?\s*m)\b/i,
-      "4.3",
-    );
-    const fsr = buildControlValue(
-      partBuckets["4"],
-      zoneCode,
-      /floor space ratio|fsr/i,
-      /(\d+(?:\.\d+)?\s*:\s*1)/i,
-      "4.4",
-    );
-    const minLotSize = buildControlValue(
-      partBuckets["4"],
-      zoneCode,
-      /minimum lot size|lot size/i,
-      /(\d+(?:\.\d+)?\s*(?:m²|m2|sqm|square metres?|ha))/i,
-      "4.1",
-    );
-    const lepDataControls = projectLepData?.controls;
-    const heightOfBuildingFromLepData = buildLepDataControlValue(lepDataControls?.heightOfBuilding, "4.3");
-    const fsrFromLepData = buildLepDataControlValue(lepDataControls?.floorSpaceRatio, "4.4");
-    const minLotSizeFromLepData = buildLepDataControlValue(lepDataControls?.minimumLotSize, "4.1");
     const kempseyDcpControls = await extractKempseyDcpControls(lga, zoneCode);
     const realLandUseFound = hasRealLandUse(zoneSummary.landUse);
     const permissibility = realLandUseFound
@@ -1576,9 +1499,9 @@ export const buildQuickSiteCheckLep = async (
         }
       : null;
     const controls = {
-      heightOfBuilding: mappedPlanningControls.heightOfBuilding ?? heightOfBuilding ?? heightOfBuildingFromLepData,
-      fsr: mappedPlanningControls.fsr ?? fsr ?? fsrFromLepData,
-      minLotSize: mappedPlanningControls.minLotSize ?? minLotSize ?? minLotSizeFromLepData,
+      heightOfBuilding: mappedPlanningControls.heightOfBuilding,
+      fsr: mappedPlanningControls.fsr,
+      minLotSize: mappedPlanningControls.minLotSize,
       zoneObjectives: zoneSummary.objectives.length ? zoneSummary.objectives : null,
       setback: kempseyDcpControls.setback,
       parking: kempseyDcpControls.parking,

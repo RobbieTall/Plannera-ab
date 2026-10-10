@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { captureDcpSource } from "./dcp-source-capture";
 
 import {
   InstrumentType,
@@ -74,6 +75,7 @@ const SECTION_HEADING =
 type ParsedSource = ByronDcpSource & {
   byteLength: number;
   text: string;
+  retrieval?: { retrievedAt: string; pdfSha256: string };
 };
 
 type ByronClause = {
@@ -124,6 +126,7 @@ const fetchOfficialPdf = async (
       "User-Agent": "Plannera-Item74C-Preview-Acceptance/1.0",
     },
     cache: "no-store",
+    redirect: "error",
   });
   if (!response.ok) {
     throw new Error(
@@ -140,6 +143,8 @@ const fetchOfficialPdf = async (
     throw new Error("Byron DCP source " + source.key + " is not a valid PDF");
   }
 
+  const retrieval = { retrievedAt: new Date().toISOString(),
+    pdfSha256: createHash("sha256").update(buffer).digest("hex") };
   const parsed = await pdfParse(buffer);
   const text = parsed.text?.trim() ?? "";
   if (text.length < MIN_SOURCE_TEXT_CHARS) {
@@ -148,7 +153,7 @@ const fetchOfficialPdf = async (
     );
   }
 
-  return { ...source, byteLength: buffer.byteLength, text };
+  return { ...source, byteLength: buffer.byteLength, text, retrieval };
 };
 
 const loadOfficialSources = async (fetcher: typeof fetch) => {
@@ -276,7 +281,15 @@ export const ingestByronDcp = async (
   fetcher: typeof fetch = fetch,
 ) => {
   const sources = await loadOfficialSources(fetcher);
-  const clauses = buildClauses(sources);
+  const sourceByUrl = new Map(sources.map(source => [source.url, source]));
+  const clauses = buildClauses(sources).map(clause => {
+    const retrieval = sourceByUrl.get(clause.sourceUrl)?.retrieval;
+    if (!retrieval) throw new Error("dcp_source_capture_missing");
+    return { ...clause, sourceCapture: captureDcpSource({
+      council: DCP_LGA, sourceUrl: clause.sourceUrl, sourceVersion: DCP_SLUG,
+      ...retrieval, bodyText: clause.bodyText,
+    }) };
+  });
   const totalBytes = sources.reduce(
     (total, source) => total + source.byteLength,
     0,
@@ -374,6 +387,7 @@ export const ingestByronDcp = async (
           numericMeta: {
             sourceKey: clause.parentRef,
             sourceUrl: clause.sourceUrl,
+            sourceCapture: clause.sourceCapture,
           } as Prisma.InputJsonValue,
         })),
       });

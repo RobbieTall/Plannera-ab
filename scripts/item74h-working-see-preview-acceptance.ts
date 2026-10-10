@@ -262,10 +262,10 @@ const main = () => {
     "Evidence strengthening did not regenerate changed outputs.",
   );
   assert(
-    second.docx.toString("utf8").includes("Strengthens DPP: synthetic-dpp-v1") &&
+    second.docx.toString("utf8").includes("Earlier evidence reference: synthetic-dpp-v1") &&
       second.pdf
         .toString("latin1")
-        .includes("Strengthens DPP: synthetic-dpp-v1"),
+        .includes("Earlier evidence reference: synthetic-dpp-v1"),
     "Regenerated outputs do not expose DPP lineage.",
   );
 

@@ -28,9 +28,9 @@ const lepResult: QuickSiteCheckLepSuccess = {
   zone: "R2",
   objectives: ["To provide housing."],
   controls: {
-    heightOfBuilding: { value: "8.5m", clauseRef: "4.3", confidence: "Cited" },
-    fsr: { value: "0.5:1", clauseRef: "4.4", confidence: "Cited" },
-    minLotSize: { value: "500m²", clauseRef: "4.1", confidence: "Cited" },
+    heightOfBuilding: { value: "8.5m", clauseRef: "4.3", sourceRef: "Byron LEP 2014 Height of Buildings Map", confidence: "Cited" },
+    fsr: { value: "0.5:1", clauseRef: "4.4", sourceRef: "Byron LEP 2014 Floor Space Ratio Map", confidence: "Cited" },
+    minLotSize: { value: "500m²", clauseRef: "4.1", sourceRef: "Byron LEP 2014 Lot Size Map", confidence: "Cited" },
     zoneObjectives: ["To provide housing."],
   },
   permissibility: {
@@ -46,7 +46,7 @@ const lepResult: QuickSiteCheckLepSuccess = {
 };
 
 describe("buildQuickSiteCheckReport", () => {
-  it("prefers live LEP clause result over legacy lepData controls", async () => {
+  it("prefers official mapped LEP controls over legacy lepData controls", async () => {
     const report = await buildQuickSiteCheckReport(
       {
         id: "project-1",
@@ -65,5 +65,27 @@ describe("buildQuickSiteCheckReport", () => {
     expect(report.controls.minimumLotSize.value).toBe("500m²");
     expect(report.controls.heightOfBuilding.lepSource).toBe(true);
     expect(report.permissibility?.permittedWithConsent).toEqual(["Dwelling houses"]);
+  });
+
+  it("does not treat a legacy map title as a site-specific value", async () => {
+    const report = await buildQuickSiteCheckReport({
+      id: "project-1",
+      address: "1 Test Street",
+      zoningCode: "R2",
+      zoningName: "Low Density Residential",
+      zoningSource: "test",
+      lepData: {
+        controls: {
+          heightOfBuilding: "Height of Buildings Map",
+          floorSpaceRatio: "Floor Space Ratio Map",
+          minimumLotSize: "Lot Size Map",
+        },
+      },
+      siteContext: null,
+    } as never);
+
+    expect(report.controls.heightOfBuilding.value).toBeNull();
+    expect(report.controls.floorSpaceRatio.value).toBeNull();
+    expect(report.controls.minimumLotSize.value).toBeNull();
   });
 });

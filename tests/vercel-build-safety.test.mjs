@@ -70,7 +70,7 @@ function protectedEnv(commit = "a".repeat(40)) {
 test("repository build safety contract accepts the reviewed checkout and transitive closure", () => {
   const result = verifyRepositoryBuildContract();
   assert.equal(result.contractedEntries, 6);
-  assert.equal(result.transitiveSources, 13);
+  assert.equal(result.transitiveSources, 15);
 });
 
 test("build contract rejects an added command", () => {
